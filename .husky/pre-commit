@@ -1,0 +1,4 @@
+# oxfmt + oxlint on staged files, then a full typecheck (via build) + tests.
+yarn lint-staged
+yarn build
+yarn test

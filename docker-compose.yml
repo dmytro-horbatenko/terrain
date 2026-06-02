@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: terrain
+      POSTGRES_PASSWORD: terrain
+      POSTGRES_DB: terrain
+    ports:
+      # Bind to loopback only — without an explicit host IP, Docker publishes
+      # on 0.0.0.0 and exposes Postgres (default terrain/terrain creds) to
+      # anyone on the same network/LAN.
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - terrain_pg:/var/lib/postgresql/data
+volumes:
+  terrain_pg:

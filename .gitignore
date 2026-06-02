@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.production
+.env.*.local
+*.log
+.yarn/*
+!.yarn/releases
+coverage/
+
+# Claude Code — personal/session-local settings (the shared policy lives in
+# .claude/settings.json, which IS tracked)
+.claude/settings.local.json
+
+# Local Claude Code auth token (never commit)
+.devcontainer/claude-auth.env

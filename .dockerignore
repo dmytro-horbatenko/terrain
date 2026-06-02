@@ -1,0 +1,19 @@
+node_modules
+**/node_modules
+dist
+**/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
+.git
+.yarn/cache
+coverage
+*.log
+.vite
+
+# Never let real secrets into the build context / image layers — the prod
+# Dockerfiles pull DATABASE_URL/JWT_SECRET in at container runtime instead.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env*.example

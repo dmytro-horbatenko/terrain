@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react-hooks/exhaustive-deps": "off"
+  },
+  "env": {
+    "builtin": true,
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/*.tsbuildinfo",
+    "**/prisma/migrations/**",
+    "**/*.config.ts",
+    "**/*.config.js"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts", "**/*.test.ts", "**/*.e2e-spec.ts"],
+      "env": { "jest": true }
+    }
+  ]
+}

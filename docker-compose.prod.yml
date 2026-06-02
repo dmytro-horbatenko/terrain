@@ -1,0 +1,79 @@
+# Production stack for a single Linux server. Usage:
+#
+#   cp .env.production.example .env.production
+#   # fill in POSTGRES_PASSWORD, DOMAIN, etc.
+#   cp apps/api/.env.example apps/api/.env
+#   # fill in JWT_SECRET (openssl rand -base64 48), CORS_ORIGIN=https://$DOMAIN
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   docker compose -f docker-compose.prod.yml exec api \
+#     ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+#   (paths are relative to the container's WORKDIR, /workspace/apps/api —
+#   node_modules is hoisted to the repo root, not copied per-workspace)
+#
+# See docs/ops/deploy.md for the full runbook.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-terrain}
+    volumes:
+      - terrain_pg:/var/lib/postgresql/data
+    networks: [internal]
+    # Deliberately no `ports:` — reachable only from other containers on the
+    # `internal` network, never from the host or the internet.
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - apps/api/.env
+    environment:
+      # Overrides the DATABASE_URL from apps/api/.env with the in-network
+      # Postgres address (the .env file's value is for local, non-Docker dev).
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-terrain}?schema=public
+      NODE_ENV: production
+      # Caddy (the `web` service) is the only thing that can reach this
+      # container — see the missing `ports:` below — so it's safe to trust
+      # its X-Forwarded-* headers here. Opt-in on its own var (not derived
+      # from NODE_ENV) so this stays correct even if the image is ever run
+      # outside this exact topology.
+      TRUST_PROXY: '1'
+    depends_on: [db]
+    networks: [internal]
+    # No `ports:` — only the `web` (Caddy) container talks to this, over the
+    # internal network. Nothing binds the API directly to the host.
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on: [api]
+    networks: [internal]
+    # Caddy needs to bind :80/:443 (< 1024) but doesn't need anything else —
+    # drop every other Linux capability (OWASP Docker Security Cheat Sheet).
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+networks:
+  internal:
+
+volumes:
+  terrain_pg:
+  caddy_data:
+  caddy_config:
