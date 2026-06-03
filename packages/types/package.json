@@ -1,0 +1,17 @@
+{
+  "name": "@terrain/types",
+  "version": "0.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "VITE_CJS_IGNORE_WARNING=true vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^6",
+    "vitest": "^4"
+  }
+}
