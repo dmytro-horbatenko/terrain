@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TopicStatus {
+  planned
+  active
+  mastered
+  archived
+}
+
+enum ReviewMode {
+  telegram_quick
+  app_log
+  claude_session
+}
+
+enum AppEventKind {
+  project_usage
+  problem_solved
+  audit_exercise
+  real_debugging
+}
+
+enum DayType {
+  active
+  quiet
+  frozen
+  break
+}
+
+enum SessionQuality {
+  shallow
+  normal
+  deep
+}
+
+model User {
+  id             String             @id @default(uuid())
+  email          String             @unique
+  passwordHash   String
+  name           String
+  role           String?
+  learningStyle  String?
+  codeStyle      String?
+  noteSystem     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  topics         Topic[]
+  reviews        Review[]
+  appEvents      ApplicationEvent[]
+  sessionExports SessionExport[]
+  streakState    StreakState?
+  settings       Settings?
+  dailyLogs      DailyLog[]
+  topicTypes     TopicType[]
+}
+
+model Topic {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  title         String
+  domain        String
+  topicType     String
+  status        TopicStatus @default(planned)
+  description   String?
+  summary       String?
+  noteRef       String?
+  parentId      String?
+  parent        Topic?   @relation("SubTopics", fields: [parentId], references: [id])
+  children      Topic[]  @relation("SubTopics")
+  prerequisites Prerequisite[] @relation("Dependent")
+  dependents    Prerequisite[] @relation("Prereq")
+  easeFactor    Float    @default(2.5)
+  interval      Int      @default(0)
+  repetitions   Int      @default(0)
+  nextReviewAt  DateTime?
+  learnedAt     DateTime?
+  aiProposed    Boolean  @default(false)
+  aiContext     String?
+  reviews       Review[]
+  prompts       Prompt[]
+  appEvents     ApplicationEvent[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Prerequisite {
+  topicId        String
+  prerequisiteId String
+  topic          Topic @relation("Dependent", fields: [topicId], references: [id])
+  prerequisite   Topic @relation("Prereq",    fields: [prerequisiteId], references: [id])
+  @@id([topicId, prerequisiteId])
+}
+
+model Prompt {
+  id              String    @id @default(uuid())
+  topicId         String
+  topic           Topic     @relation(fields: [topicId], references: [id])
+  promptText      String
+  answerHint      String?
+  promptKind      String    @default("concept") // "concept" | "code"
+  graduated       Boolean   @default(false)
+  consecutiveGood Int       @default(0)
+  easeFactor      Float     @default(2.5)
+  interval        Int       @default(0)
+  repetitions     Int       @default(0)
+  nextReviewAt    DateTime?
+  reviews         Review[]
+  createdAt       DateTime  @default(now())
+
+  @@index([topicId])
+}
+
+model Review {
+  id             String     @id @default(uuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id])
+  topicId        String
+  topic          Topic      @relation(fields: [topicId], references: [id])
+  promptId       String?
+  prompt         Prompt?    @relation(fields: [promptId], references: [id])
+  quality        Int
+  mode           ReviewMode
+  durationMin    Int?
+  note           String?
+  intervalBefore Int
+  intervalAfter  Int
+  reviewedAt     DateTime   @default(now())
+
+  @@index([userId])
+}
+
+model ApplicationEvent {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  topicId     String
+  topic       Topic        @relation(fields: [topicId], references: [id])
+  kind        AppEventKind
+  description String
+  url         String?
+  appliedAt   DateTime     @default(now())
+
+  @@index([userId])
+}
+
+model SessionExport {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  generatedAt       DateTime @default(now())
+  mode              String
+  domains           String[]
+  focusTopicId      String?
+  exportMd          String
+  importedAt        DateTime?
+  importedOutputRaw String?
+  newTopicsCreated  String[]
+  nextFocusTitle    String?
+  nextColdChallenge String?
+
+  @@index([userId])
+}
+
+model DailyLog {
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  date           DateTime        @db.Date
+  dayType        DayType
+  eveningNote    String?
+  sessionQuality SessionQuality?
+
+  @@id([userId, date])
+}
+
+model StreakState {
+  userId            String    @id
+  user              User      @relation(fields: [userId], references: [id])
+  currentStreak     Int       @default(0)
+  longestStreak     Int       @default(0)
+  freezeBalance     Int       @default(0)
+  activeDayCounter  Int       @default(0)
+  lastEvaluatedDate DateTime? @db.Date
+}
+
+model TopicType {
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+  key    String
+  label  String
+  color  String?
+
+  @@id([userId, key])
+}
+
+model Settings {
+  userId         String  @id
+  user           User    @relation(fields: [userId], references: [id])
+  obsidianVault  String?
+  telegramChatId String?
+}
