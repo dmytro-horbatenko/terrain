@@ -1,0 +1,39 @@
+# Caddy serves the built SPA and reverse-proxies API calls. Caddy gets
+# automatic HTTPS (Let's Encrypt) for free whenever {$DOMAIN} is a real,
+# publicly-resolvable domain — set DOMAIN in the deploy .env. With the
+# `localhost` default, Caddy still enforces HTTPS (it issues a locally-signed
+# cert from its own internal CA and redirects :80 -> :443) — it does NOT fall
+# back to plain HTTP. For a local smoke test of these prod images, either add
+# `-k`/`--insecure` to curl or trust Caddy's internal root (it prints where
+# to find it in the `web` container's logs on first boot).
+{$DOMAIN:localhost} {
+	encode gzip
+
+	# `handle`/`handle_path` blocks run in the order written (unlike bare
+	# directives, which follow Caddy's fixed default order — try_files would
+	# otherwise rewrite /api/* to /index.html before reverse_proxy ever saw
+	# it, since try_files sorts before handle_path in that default order).
+	#
+	# apps/api has no global route prefix (routes are /auth/*, /topics/*, ...),
+	# so strip the leading /api before forwarding — mirrors the Vite dev-server
+	# proxy in apps/web/vite.config.ts.
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv/web
+		file_server
+		try_files {path} /index.html
+	}
+
+	# OWASP Secure Headers Cheat Sheet — belt-and-suspenders with the API's
+	# own `helmet()` headers, since these cover the static-asset responses too.
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}
