@@ -1,0 +1,356 @@
+/* ---------- app shell / layout ---------- */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100vh;
+}
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 4px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px 16px;
+  font-weight: 750;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.brand-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--primary), #7c6cf0);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 550;
+  cursor: pointer;
+}
+.nav-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-link.active {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+.nav-ico {
+  width: 18px;
+  text-align: center;
+  font-size: 15px;
+}
+.main {
+  overflow-y: auto;
+  height: 100vh;
+}
+.streak-chip {
+  margin-top: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface-2);
+}
+
+/* ---------- modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.38);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8vh 16px 16px;
+  z-index: 50;
+  backdrop-filter: blur(1.5px);
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  max-width: 94vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  animation: pop 0.13s ease;
+}
+@keyframes pop {
+  from {
+    transform: translateY(6px) scale(0.99);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.modal-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+/* ---------- side drawer (detail panel host) ---------- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.3);
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+}
+.drawer {
+  width: 480px;
+  max-width: 92vw;
+  height: 100%;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  padding: 22px;
+  animation: slidein 0.16s ease;
+}
+@keyframes slidein {
+  from {
+    transform: translateX(20px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- toast ---------- */
+.toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+}
+.toast {
+  background: #1b2733;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  animation: pop 0.13s ease;
+  max-width: 340px;
+}
+.toast-success {
+  background: #136a3a;
+}
+.toast-error {
+  background: #b42318;
+}
+
+/* ---------- feedback ---------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+}
+.empty-title {
+  font-weight: 600;
+  color: var(--text);
+}
+.errorbox {
+  background: var(--danger-weak);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, white);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-size: 13px;
+}
+
+/* ---------- quality picker ---------- */
+.quality-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 7px;
+}
+.quality-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+.quality-btn:hover {
+  border-color: var(--text-faint);
+}
+.quality-num {
+  font-size: 16px;
+  font-weight: 750;
+}
+.quality-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 550;
+}
+
+/* ---------- sr preview ---------- */
+.sr-preview {
+  background: var(--primary-weak);
+  color: #3730a3;
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-size: 12.5px;
+}
+
+/* ---------- gauge ---------- */
+.gauge-track {
+  position: relative;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.gauge-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--ok) 22%, white);
+}
+.gauge-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+/* ---------- detail panel ---------- */
+.detail-panel .stat-strip {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.detail-panel .stat-strip .col {
+  gap: 1px;
+}
+.history-row {
+  font-size: 12.5px;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+  gap: 8px;
+}
+.history-row:last-child {
+  border-bottom: 0;
+}
+
+/* ---------- table-ish list rows ---------- */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.list-row:last-child {
+  border-bottom: 0;
+}
+.list-row:hover {
+  background: var(--surface-2);
+}
+
+/* ---------- roadmap graph node ---------- */
+.rf-node {
+  border: 1.5px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 8px 11px;
+  min-width: 150px;
+  max-width: 210px;
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.rf-node .rf-title {
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rf-node .rf-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.rf-node.selected {
+  box-shadow: 0 0 0 3px var(--primary-weak);
+}
+
+/* ---------- segmented control / chips ---------- */
+.seg {
+  display: inline-flex;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.seg button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.kpi {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.kpi-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}

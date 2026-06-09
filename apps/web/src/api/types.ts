@@ -1,0 +1,281 @@
+// Mirrors of the NestJS API response shapes. Kept in sync by hand with
+// apps/api (see docs/superpowers/specs/2026-06-30-terrain-design.md §3, §6, §7).
+
+export type TopicStatus = 'planned' | 'active' | 'mastered' | 'archived';
+export type ReviewMode = 'telegram_quick' | 'app_log' | 'claude_session';
+export type AppEventKind = 'project_usage' | 'problem_solved' | 'audit_exercise' | 'real_debugging';
+
+export const TOPIC_STATUSES: TopicStatus[] = ['planned', 'active', 'mastered', 'archived'];
+
+export interface TopicLabels {
+  blocked: boolean;
+  reviewing: boolean;
+}
+
+/** Full Topic scalar row (every column). */
+export interface Topic {
+  id: string;
+  title: string;
+  domain: string;
+  topicType: string;
+  status: TopicStatus;
+  description: string | null;
+  summary: string | null;
+  noteRef: string | null;
+  parentId: string | null;
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  nextReviewAt: string | null;
+  learnedAt: string | null;
+  aiProposed: boolean;
+  aiContext: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** GET /topics — each topic augmented with edges + derived labels. */
+export interface TopicWithMeta extends Topic {
+  prerequisiteIds: string[];
+  labels: TopicLabels;
+}
+
+export interface TopicRef {
+  id: string;
+  title: string;
+  status: TopicStatus;
+}
+
+export interface Review {
+  id: string;
+  topicId: string;
+  quality: number;
+  mode: ReviewMode;
+  durationMin: number | null;
+  note: string | null;
+  intervalBefore: number;
+  intervalAfter: number;
+  reviewedAt: string;
+}
+
+export interface Mastery {
+  retention: boolean;
+  application: boolean;
+  teaching: boolean;
+  eligible: boolean;
+}
+
+export interface AppEvent {
+  id: string;
+  topicId: string;
+  kind: AppEventKind;
+  description: string;
+  url: string | null;
+  appliedAt: string;
+}
+
+/** GET /topics/:id — full detail with relations, history, derived state. */
+export interface TopicDetail extends TopicWithMeta {
+  prerequisites: TopicRef[];
+  dependents: TopicRef[];
+  parent: TopicRef | null;
+  children: TopicRef[];
+  reviews: Review[];
+  appEvents: AppEvent[];
+  appEventCount: number;
+  prompts: Prompt[];
+  mastery: Mastery;
+}
+
+export interface CreateAppEventInput {
+  kind: AppEventKind;
+  description: string;
+  url?: string;
+}
+
+export interface Settings {
+  id: number;
+  obsidianVault: string | null;
+  telegramChatId: string | null;
+}
+
+export interface HeatmapCell {
+  date: string;
+  count: number;
+}
+
+export interface CreateTopicInput {
+  title: string;
+  domain: string;
+  topicType: string;
+  status?: TopicStatus;
+  description?: string;
+  noteRef?: string;
+  parentId?: string;
+}
+
+export interface UpdateTopicInput {
+  title?: string;
+  domain?: string;
+  topicType?: string;
+  status?: TopicStatus;
+  description?: string;
+  noteRef?: string;
+  parentId?: string | null;
+  summary?: string;
+  interval?: number;
+  nextReviewAt?: string;
+  aiProposed?: boolean;
+}
+
+export interface Prompt {
+  id: string;
+  topicId: string;
+  promptText: string;
+  answerHint: string | null;
+  promptKind: string;
+  graduated: boolean;
+  consecutiveGood: number;
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  nextReviewAt: string | null;
+  createdAt: string;
+}
+
+export interface LogReviewInput {
+  topicId: string;
+  promptId?: string;
+  quality: number;
+  mode: ReviewMode;
+  durationMin?: number;
+  note?: string;
+}
+
+export interface StreakState {
+  id: number;
+  currentStreak: number;
+  longestStreak: number;
+  freezeBalance: number;
+  activeDayCounter: number;
+  lastEvaluatedDate: string | null;
+}
+
+export interface Dashboard {
+  generatedAt: string;
+  struggleRatio7d: number;
+  due: { overdue: Topic[]; dueToday: Topic[] };
+  counts: {
+    total: number;
+    planned: number;
+    active: number;
+    mastered: number;
+    archived: number;
+    dueToday: number;
+    overdue: number;
+  };
+}
+
+export interface TopicType {
+  key: string;
+  label: string;
+  color: string | null;
+}
+
+export interface ExportResult {
+  id: string;
+  exportMd: string;
+}
+
+// ---- Import flow (POST /sessions/import/preview and /sessions/import) ----
+
+export interface SrPreview {
+  intervalBefore: number;
+  intervalAfter: number;
+  nextReviewAt: string;
+}
+
+export interface ResolvedReview {
+  topicTitle: string;
+  topicId: string | null;
+  quality: number;
+  note?: string;
+  resolvedTopicId: string | null;
+  srPreview?: SrPreview;
+}
+
+export interface NewTopicPlan {
+  title: string;
+  topicType: string;
+  domain: string;
+  description?: string;
+  prerequisiteTitles: string[];
+  parentTitle: string | null;
+  aiContext?: string;
+  alreadyExists: boolean;
+}
+
+export interface NoteSummaryPlan {
+  topicTitle: string;
+  resolvedTopicId: string | null;
+  composedSummary: string;
+  suggestedNoteRef?: string;
+}
+
+export interface Unresolved {
+  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt';
+  title: string;
+  context: string;
+  reason: 'missing' | 'ambiguous' | 'self-reference';
+}
+
+export interface ImportPlan {
+  sessionExportId: string;
+  alreadyImported: boolean;
+  reviews: ResolvedReview[];
+  newTopics: NewTopicPlan[];
+  noteSummaries: NoteSummaryPlan[];
+  nextSession?: { focusTitle?: string; coldChallenge?: string };
+  unresolved: Unresolved[];
+  applicable: boolean;
+}
+
+export interface ImportResult {
+  sessionExportId: string;
+  reviewsApplied: number;
+  topicsCreated: string[];
+  noteSummariesApplied: number;
+  nextSessionStored: boolean;
+}
+
+// ---- Auth ----
+
+export interface AuthedUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string | null;
+  learningStyle: string | null;
+  codeStyle: string | null;
+  noteSystem: string | null;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface RegisterInput {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface UpdateProfileInput {
+  name?: string;
+  role?: string;
+  learningStyle?: string;
+  codeStyle?: string;
+  noteSystem?: string;
+  obsidianVault?: string;
+}
