@@ -1,0 +1,375 @@
+import { useEffect, useState } from 'react';
+import { useSettings, useTopic, useUpdateTopic } from '../api/hooks';
+import { useToast } from './Toast';
+import { StatusBadge } from './StatusBadge';
+import { LogReviewForm } from './LogReviewForm';
+import { ReviewGate } from './ReviewGate';
+import { IntervalGrowthChart } from './IntervalGrowthChart';
+import { AppEventsPanel } from './AppEventsPanel';
+import { PromptsPanel } from './PromptsPanel';
+import { TypeAutocomplete } from './TypeAutocomplete';
+import { Loading, ErrorBox } from './Feedback';
+import { TOPIC_STATUSES, type TopicRef, type TopicStatus } from '../api/types';
+import { STATUS_META, tint, topicColor } from './status';
+import { dueLabel, formatDate, noteRefHref } from '../lib/format';
+
+function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
+  return (
+    <div className="row gap-2" style={{ alignItems: 'flex-start' }}>
+      <span style={{ color: ok ? 'var(--ok)' : 'var(--text-faint)', fontWeight: 700 }}>
+        {ok ? '✓' : '○'}
+      </span>
+      <div className="col">
+        <span style={{ fontWeight: 550 }}>{label}</span>
+        <span className="faint" style={{ fontSize: 12 }}>
+          {detail}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RefChips({ refs, empty }: { refs: TopicRef[]; empty: string }) {
+  if (refs.length === 0) return <span className="faint">{empty}</span>;
+  return (
+    <div className="row wrap gap-2">
+      {refs.map((r) => {
+        const c = topicColor(r.status);
+        return (
+          <span
+            key={r.id}
+            className="pill"
+            style={{ background: tint(c), color: c }}
+            title={STATUS_META[r.status].label}
+          >
+            {r.title}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClose?: () => void }) {
+  const { data: t, isLoading, error } = useTopic(topicId);
+  const { data: settings } = useSettings();
+  const update = useUpdateTopic();
+  const { toast } = useToast();
+
+  const [noteRef, setNoteRef] = useState('');
+  const [summary, setSummary] = useState('');
+  const [title, setTitle] = useState('');
+  const [domain, setDomain] = useState('');
+  const [topicType, setTopicType] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (t) {
+      setNoteRef(t.noteRef ?? '');
+      setSummary(t.summary ?? '');
+      setTitle(t.title);
+      setDomain(t.domain);
+      setTopicType(t.topicType);
+      setDescription(t.description ?? '');
+    }
+  }, [t?.id]); // re-seed when a different topic loads
+
+  if (isLoading) return <Loading />;
+  if (error || !t) return <ErrorBox error={error ?? 'Topic not found'} />;
+
+  const setStatus = (status: TopicStatus) =>
+    update.mutate(
+      { id: t.id, input: { status } },
+      { onSuccess: () => toast('Status updated', 'success') },
+    );
+
+  const saveNotes = () =>
+    update.mutate(
+      { id: t.id, input: { noteRef: noteRef.trim(), summary: summary.trim() } },
+      { onSuccess: () => toast('Saved', 'success') },
+    );
+
+  const saveFields = () =>
+    update.mutate(
+      {
+        id: t.id,
+        input: {
+          title: title.trim(),
+          domain: domain.trim(),
+          topicType: topicType.trim(),
+          description: description.trim(),
+        },
+      },
+      {
+        onSuccess: () => toast('Topic updated', 'success'),
+        onError: (e) => toast(e instanceof Error ? e.message : 'Update failed', 'error'),
+      },
+    );
+
+  const due = dueLabel(t.nextReviewAt);
+  const noteHref = noteRefHref(t.noteRef, settings?.obsidianVault);
+
+  return (
+    <div className="col gap-4 detail-panel">
+      {/* header */}
+      <div className="col gap-2">
+        <div className="row gap-2" style={{ alignItems: 'flex-start' }}>
+          <h2 style={{ fontSize: 19, lineHeight: 1.25 }}>{t.title}</h2>
+          {onClose && (
+            <button className="btn btn-ghost btn-sm right" onClick={onClose} aria-label="Close">
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="row wrap gap-2">
+          <StatusBadge status={t.status} labels={t.labels} />
+          <span className="pill">{t.topicType}</span>
+          <span className="pill">{t.domain}</span>
+          {t.aiProposed && (
+            <span
+              className="pill"
+              style={{ background: tint('var(--primary)'), color: 'var(--primary)' }}
+            >
+              ✦ AI-proposed
+            </span>
+          )}
+        </div>
+        {t.description && (
+          <p className="muted" style={{ margin: 0 }}>
+            {t.description}
+          </p>
+        )}
+        {t.aiProposed && t.aiContext && (
+          <p className="faint" style={{ margin: 0, fontSize: 12 }}>
+            AI context: {t.aiContext}
+          </p>
+        )}
+      </div>
+
+      {/* editable fields */}
+      <div className="col gap-2">
+        <div className="card-title" style={{ margin: 0 }}>
+          Edit topic
+        </div>
+        <input
+          className="input"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <div className="row gap-3">
+          <input
+            className="input grow"
+            placeholder="Domain"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+          />
+          <div className="grow">
+            <TypeAutocomplete value={topicType} onChange={setTopicType} />
+          </div>
+        </div>
+        <textarea
+          className="textarea"
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <button
+          className="btn btn-sm"
+          style={{ alignSelf: 'flex-start' }}
+          disabled={update.isPending || !title.trim()}
+          onClick={saveFields}
+        >
+          Save changes
+        </button>
+      </div>
+
+      {/* SR state */}
+      <div className="row wrap gap-4 stat-strip">
+        <div className="col">
+          <span className="faint">Status</span>
+          <select
+            className="select"
+            style={{ width: 150, marginTop: 2 }}
+            value={t.status}
+            onChange={(e) => setStatus(e.target.value as TopicStatus)}
+          >
+            {TOPIC_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_META[s].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col">
+          <span className="faint">Interval</span>
+          <b>{t.interval}d</b>
+        </div>
+        <div className="col">
+          <span className="faint">Reps · EF</span>
+          <b>
+            {t.repetitions} · {t.easeFactor.toFixed(2)}
+          </b>
+        </div>
+        <div className="col">
+          <span className="faint">Next review</span>
+          <b style={{ color: due.overdue ? 'var(--danger)' : undefined }}>
+            {formatDate(t.nextReviewAt)} {due.text !== 'not scheduled' && `(${due.text})`}
+          </b>
+        </div>
+      </div>
+
+      {/* mastery */}
+      <div className="card card-pad col gap-3">
+        <div className="card-title" style={{ margin: 0 }}>
+          Mastery conditions{' '}
+          {t.mastery.eligible && <span style={{ color: 'var(--ok)' }}>· eligible ✓</span>}
+        </div>
+        <Check
+          ok={t.mastery.retention}
+          label="Retention"
+          detail={`interval ≥ 30d (now ${t.interval}d)`}
+        />
+        <Check
+          ok={t.mastery.application}
+          label="Application"
+          detail={`≥1 application event (have ${t.appEventCount})`}
+        />
+        <Check
+          ok={t.mastery.teaching}
+          label="Teaching"
+          detail="a written summary or note reference exists"
+        />
+        {t.mastery.eligible && t.status !== 'mastered' && (
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setStatus('mastered')}
+          >
+            Mark mastered
+          </button>
+        )}
+      </div>
+
+      {/* application events */}
+      <AppEventsPanel topicId={t.id} events={t.appEvents} />
+
+      {/* prompts */}
+      <PromptsPanel topicId={t.id} prompts={t.prompts} />
+
+      {/* relations */}
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="col gap-1">
+          <span className="card-title" style={{ margin: 0 }}>
+            Prerequisites
+          </span>
+          <RefChips refs={t.prerequisites} empty="none" />
+        </div>
+        <div className="col gap-1">
+          <span className="card-title" style={{ margin: 0 }}>
+            Unlocks
+          </span>
+          <RefChips refs={t.dependents} empty="none" />
+        </div>
+        <div className="col gap-1">
+          <span className="card-title" style={{ margin: 0 }}>
+            Parent
+          </span>
+          <RefChips refs={t.parent ? [t.parent] : []} empty="top-level" />
+        </div>
+        <div className="col gap-1">
+          <span className="card-title" style={{ margin: 0 }}>
+            Sub-topics
+          </span>
+          <RefChips refs={t.children} empty="none" />
+        </div>
+      </div>
+
+      {/* notes */}
+      <div className="col gap-2">
+        <div className="card-title" style={{ margin: 0 }}>
+          Notes & reference
+        </div>
+        <input
+          className="input"
+          placeholder="noteRef — Obsidian/OneNote path or URL"
+          value={noteRef}
+          onChange={(e) => setNoteRef(e.target.value)}
+        />
+        {noteHref && (
+          <a
+            className="faint"
+            style={{ fontSize: 12 }}
+            href={noteHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            ↗ {noteHref.startsWith('obsidian://') ? 'open in Obsidian' : 'open current reference'}
+          </a>
+        )}
+        <textarea
+          className="textarea"
+          placeholder="Written summary (teaching condition)"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+        />
+        <button
+          className="btn btn-sm"
+          style={{ alignSelf: 'flex-start' }}
+          disabled={update.isPending}
+          onClick={saveNotes}
+        >
+          Save notes
+        </button>
+      </div>
+
+      {/* review history */}
+      <div className="col gap-2">
+        <div className="card-title" style={{ margin: 0 }}>
+          Review history ({t.reviews.length})
+        </div>
+        {t.reviews.length > 1 && (
+          <div className="card card-pad">
+            <div className="faint" style={{ fontSize: 12, marginBottom: 4 }}>
+              Interval growth (SM-2)
+            </div>
+            <IntervalGrowthChart reviews={t.reviews} />
+          </div>
+        )}
+        {t.reviews.length === 0 ? (
+          <span className="faint">No reviews logged yet.</span>
+        ) : (
+          <div className="col gap-1 history-list scroll-y" style={{ maxHeight: 160 }}>
+            {t.reviews.map((r) => (
+              <div key={r.id} className="row history-row">
+                <span className="mono" style={{ width: 46 }}>
+                  q{r.quality}
+                </span>
+                <span className="faint" style={{ width: 150 }}>
+                  {r.intervalBefore}d → {r.intervalAfter}d
+                </span>
+                <span
+                  className="faint grow nowrap"
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {r.note ?? ''}
+                </span>
+                <span className="faint right">{formatDate(r.reviewedAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* log a review */}
+      <div className="card card-pad col gap-3">
+        <div className="card-title" style={{ margin: 0 }}>
+          Log a review
+        </div>
+        <ReviewGate topic={t}>
+          {(promptId) => <LogReviewForm topic={t} promptId={promptId} />}
+        </ReviewGate>
+      </div>
+    </div>
+  );
+}
