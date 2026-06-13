@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous-git.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git branch -D*)",
+      "Bash(git checkout .*)",
+      "Bash(git restore .*)",
+      "Bash(docker compose down -v*)",
+      "Bash(docker compose down --volumes*)",
+      "Bash(docker-compose down -v*)",
+      "Bash(*prisma migrate reset*)",
+      "Bash(*prisma db push*--force-reset*)",
+      "Bash(sudo rm*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf $HOME*)"
+    ],
+    "allow": [
+      "Bash(yarn*)",
+      "Bash(oxlint*)",
+      "Bash(oxfmt*)",
+      "Bash(jest*)",
+      "Bash(nest build*)",
+      "Bash(vite*)",
+      "Bash(tsc*)",
+      "Bash(vitest*)",
+      "Bash(node dist/*)",
+      "Bash(npm view*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(docker compose up*)",
+      "Bash(docker compose ps*)",
+      "Bash(docker ps*)",
+      "Bash(curl http://localhost:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(lsof*)",
+      "Bash(kill -9*)",
+      "WebSearch",
+      "WebFetch(domain:www.prisma.io)",
+      "WebFetch(domain:pris.ly)",
+      "WebFetch(domain:docs.nestjs.com)",
+      "WebFetch(domain:tanstack.com)",
+      "WebFetch(domain:vite.dev)",
+      "WebFetch(domain:vitejs.dev)",
+      "WebFetch(domain:react.dev)",
+      "WebFetch(domain:oxc.rs)",
+      "WebFetch(domain:developer.mozilla.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:code.claude.com)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:docs.anthropic.com)"
+    ]
+  }
+}
