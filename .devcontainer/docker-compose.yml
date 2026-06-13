@@ -1,0 +1,30 @@
+# Devcontainer overlay. Merged on top of the repo-root docker-compose.yml (which
+# defines the `db` Postgres service), so `app` and `db` share one Compose network
+# and `app` reaches Postgres at db:5432 (not the host's 5433).
+services:
+  app:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    # Required for the in-container egress firewall (iptables/ipset).
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      # Inside the container Postgres is the `db` service, not localhost:5433.
+      # The Prisma driver adapter reads this; dotenv does NOT override an env var
+      # that already exists, so this wins over apps/api/.env.
+      DATABASE_URL: postgresql://terrain:terrain@db:5432/terrain?schema=public
+    volumes:
+      - .:/workspace:cached
+      # Container-local node_modules (host's are darwin binaries; container is linux).
+      - terrain-node-modules:/workspace/node_modules
+      # Persist Claude Code auth/settings/history across rebuilds.
+      - claude-code-config:/home/node/.claude
+    command: sleep infinity
+    depends_on:
+      - db
+
+volumes:
+  terrain-node-modules:
+  claude-code-config:

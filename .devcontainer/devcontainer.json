@@ -1,0 +1,26 @@
+{
+  "name": "Terrain (hardened)",
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "node",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+  "forwardPorts": [3000, 5180],
+  "portsAttributes": {
+    "3000": { "label": "API" },
+    "5180": { "label": "Web" }
+  },
+  "containerEnv": {
+    "BRAVE_BIN": "/usr/bin/chromium",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+  "postCreateCommand": "sudo chown node:node /workspace/node_modules && yarn install && yarn workspace @terrain/api exec prisma generate && yarn build",
+  "postStartCommand": "sudo /usr/local/bin/terrain-firewall",
+  "customizations": {
+    "vscode": {
+      "extensions": ["oxc.oxc-vscode", "Prisma.prisma"]
+    }
+  }
+}
