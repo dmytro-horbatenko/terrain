@@ -2644,6 +2644,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@terrain/sr-engine@workspace:packages/sr-engine"
   dependencies:
+    ts-fsrs: "npm:5.4.1"
     typescript: "npm:^6"
     vitest: "npm:^4"
   languageName: unknown
@@ -9293,6 +9294,13 @@ __metadata:
     "@tokenizer/token": "npm:^0.3.0"
     ieee754: "npm:^1.2.1"
   checksum: 10c0/8786e28e3cb65b9e890bc3c38def98e6dfe4565538237f8c0e47dbe549ed8f5f00de8dc464717868308abb4729f1958f78f69e1c4c3deebbb685729113a6fee8
+  languageName: node
+  linkType: hard
+
+"ts-fsrs@npm:5.4.1":
+  version: 5.4.1
+  resolution: "ts-fsrs@npm:5.4.1"
+  checksum: 10c0/2473a907a35566dec28aa089fa30fb077bc677cbf7307406a5fff59ab7474996d008a1eba0f4c1b29b633e1e3ae136a342810f9211fd7b3aa1f9086d328adcce
   languageName: node
   linkType: hard
 
