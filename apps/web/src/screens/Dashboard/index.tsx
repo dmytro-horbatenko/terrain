@@ -93,6 +93,9 @@ export default function Dashboard() {
           <div className="kpi-label">
             due today
             {counts.overdue > 0 && <span className="faint"> · + {counts.overdue} overdue</span>}
+            <span className="pill" style={{ marginLeft: 6 }}>
+              New: {dash.newCards}
+            </span>
           </div>
         </Card>
 
@@ -168,12 +171,13 @@ export default function Dashboard() {
       <Modal open={!!logTopic} onClose={() => setLogTopic(null)} title={logTopic?.title}>
         {logTopic && (
           <ReviewGate topic={logTopic}>
-            {(promptId) => (
+            {(promptId, previewIntervals) => (
               <LogReviewForm
                 topic={logTopic}
                 onLogged={() => setLogTopic(null)}
                 autoFocusNote
                 promptId={promptId}
+                previewIntervals={previewIntervals}
               />
             )}
           </ReviewGate>
