@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch } from '@nestjs/common';
 import { PromptsService } from './prompts.service';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { SetGraduatedDto } from './dto';
+import { SetSuspendedDto } from './dto';
 
 @Controller('topics')
 export class PromptsController {
@@ -14,15 +14,20 @@ export class PromptsController {
 }
 
 @Controller('prompts')
-export class PromptGraduationController {
+export class PromptController {
   constructor(private service: PromptsService) {}
 
   @Patch(':id')
-  setGraduated(
+  setSuspended(
     @CurrentUser() userId: string,
     @Param('id') id: string,
-    @Body() dto: SetGraduatedDto,
+    @Body() dto: SetSuspendedDto,
   ) {
-    return this.service.setGraduated(userId, id, dto.graduated);
+    return this.service.setSuspended(userId, id, dto.suspended);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.service.remove(userId, id);
   }
 }

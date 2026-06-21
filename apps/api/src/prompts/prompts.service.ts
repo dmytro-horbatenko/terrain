@@ -1,25 +1,77 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prompt } from '@prisma/client';
+import { previewIntervals, type CardSrState, type Grade } from '@terrain/sr-engine';
 import { PrismaService } from '../prisma/prisma.service';
+import { recomputeTopicDue } from '../reviews/sr-apply';
+
+export interface NextPrompt {
+  prompt: Prompt;
+  previewIntervals: Record<Grade, number>;
+}
 
 @Injectable()
 export class PromptsService {
   constructor(private prisma: PrismaService) {}
 
-  async next(userId: string, topicId: string): Promise<Prompt | null> {
+  async next(userId: string, topicId: string): Promise<NextPrompt | null> {
     const topic = await this.prisma.topic.findFirst({ where: { id: topicId, userId } });
     if (!topic) throw new NotFoundException(`Topic ${topicId} not found`);
 
-    const prompts = await this.prisma.prompt.findMany({ where: { topicId, graduated: false } });
-    if (prompts.length === 0) return null;
+    const now = new Date();
+    const due = await this.prisma.prompt.findFirst({
+      where: { topicId, suspended: false, nextReviewAt: { lte: now } },
+      orderBy: { nextReviewAt: 'asc' },
+    });
+    const candidate =
+      due ??
+      (await this.prisma.prompt.findFirst({
+        where: { topicId, suspended: false, state: 'new' },
+        orderBy: { createdAt: 'asc' },
+      }));
+    if (!candidate) return null;
 
-    const dueTime = (p: Prompt) => (p.nextReviewAt ? p.nextReviewAt.getTime() : -Infinity);
-    return prompts.reduce((most, p) => (dueTime(p) < dueTime(most) ? p : most));
+    const state: CardSrState = {
+      stability: candidate.stability,
+      difficulty: candidate.difficulty,
+      reps: candidate.reps,
+      lapses: candidate.lapses,
+      state: candidate.state,
+      lastReviewedAt: candidate.lastReviewedAt,
+      nextReviewAt: candidate.nextReviewAt,
+    };
+
+    return { prompt: candidate, previewIntervals: previewIntervals(state, now) };
   }
 
-  async setGraduated(userId: string, id: string, graduated: boolean): Promise<Prompt> {
+  async setSuspended(userId: string, id: string, suspended: boolean): Promise<Prompt> {
     const prompt = await this.prisma.prompt.findFirst({ where: { id, topic: { userId } } });
     if (!prompt) throw new NotFoundException(`Prompt ${id} not found`);
-    return this.prisma.prompt.update({ where: { id }, data: { graduated, consecutiveGood: 0 } });
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.prompt.update({
+        where: { id },
+        data: { suspended, suspendedAt: suspended ? new Date() : null },
+      });
+      await recomputeTopicDue(tx, prompt.topicId);
+      return updated;
+    });
+  }
+
+  async remove(userId: string, id: string): Promise<void> {
+    const prompt = await this.prisma.prompt.findFirst({
+      where: { id, topic: { userId } },
+      include: { _count: { select: { reviews: true } } },
+    });
+    if (!prompt) throw new NotFoundException(`Prompt ${id} not found`);
+    if (prompt._count.reviews > 0) {
+      throw new ConflictException(
+        `Prompt ${id} has review history — suspend it instead of deleting.`,
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.prompt.delete({ where: { id } });
+      await recomputeTopicDue(tx, prompt.topicId);
+    });
   }
 }

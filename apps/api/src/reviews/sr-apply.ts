@@ -1,72 +1,101 @@
-import { sm2, type SRState } from '@terrain/sr-engine';
-import type { Prisma, Prompt, ReviewMode, Topic } from '@prisma/client';
+import { applyGrade, type CardSrState, type Grade } from '@terrain/sr-engine';
+import type { Prisma, ReviewMode } from '@prisma/client';
 
-const GOOD_QUALITY = 4;
-const GRADUATION_STREAK = 3;
+/** A DB row's FSRS fields — same shape as sr-engine's CardSrState. */
+export type CardSrStateRow = CardSrState;
 
-export function buildReviewWrites(
-  topic: Topic,
-  quality: number,
-  mode: ReviewMode,
-  note: string | undefined,
-  now: Date,
-  durationMin?: number,
-  prompt?: Prompt | null,
-): {
-  review: Prisma.ReviewUncheckedCreateInput;
-  topic: Prisma.TopicUpdateInput;
-  prompt?: Prisma.PromptUpdateInput;
+/** The FSRS fields written back onto a Prompt row after a review. */
+export type PromptSrData = CardSrState;
+
+export interface CardReviewInput {
+  userId: string;
+  topicId: string;
+  prompt: { id: string } & CardSrStateRow;
+  grade: Grade;
+  mode: ReviewMode;
+  durationMin?: number;
+  note?: string;
+  now: Date;
+}
+
+const DAY = 86_400_000;
+const daysBetween = (a: Date | null, b: Date | null) =>
+  a && b ? Math.max(0, Math.round((b.getTime() - a.getTime()) / DAY)) : 0;
+
+export function buildCardReviewWrites(input: CardReviewInput): {
+  promptUpdate: { where: { id: string }; data: PromptSrData };
+  reviewCreate: Prisma.ReviewUncheckedCreateInput;
 } {
-  const before: SRState = {
-    easeFactor: topic.easeFactor,
-    interval: topic.interval,
-    repetitions: topic.repetitions,
-    nextReviewAt: topic.nextReviewAt,
+  const before: CardSrState = {
+    stability: input.prompt.stability,
+    difficulty: input.prompt.difficulty,
+    reps: input.prompt.reps,
+    lapses: input.prompt.lapses,
+    state: input.prompt.state,
+    lastReviewedAt: input.prompt.lastReviewedAt,
+    nextReviewAt: input.prompt.nextReviewAt,
   };
-  const after = sm2(quality, before, now);
-
-  let promptWrite: Prisma.PromptUpdateInput | undefined;
-  if (prompt) {
-    const promptBefore: SRState = {
-      easeFactor: prompt.easeFactor,
-      interval: prompt.interval,
-      repetitions: prompt.repetitions,
-      nextReviewAt: prompt.nextReviewAt,
-    };
-    const promptAfter = sm2(quality, promptBefore, now);
-    const consecutiveGood = quality >= GOOD_QUALITY ? prompt.consecutiveGood + 1 : 0;
-    const graduated = prompt.graduated || consecutiveGood >= GRADUATION_STREAK;
-    promptWrite = {
-      easeFactor: promptAfter.easeFactor,
-      interval: promptAfter.interval,
-      repetitions: promptAfter.repetitions,
-      nextReviewAt: promptAfter.nextReviewAt,
-      consecutiveGood,
-      graduated,
-    };
-  }
+  const after = applyGrade(before, input.grade, input.now);
 
   return {
-    review: {
-      topicId: topic.id,
-      userId: topic.userId,
-      promptId: prompt?.id,
-      quality,
-      mode,
-      durationMin,
-      note,
-      intervalBefore: before.interval,
-      intervalAfter: after.interval,
-      reviewedAt: now,
+    promptUpdate: {
+      where: { id: input.prompt.id },
+      data: {
+        stability: after.stability,
+        difficulty: after.difficulty,
+        reps: after.reps,
+        lapses: after.lapses,
+        state: after.state,
+        lastReviewedAt: after.lastReviewedAt,
+        nextReviewAt: after.nextReviewAt,
+      },
     },
-    topic: {
-      easeFactor: after.easeFactor,
-      interval: after.interval,
-      repetitions: after.repetitions,
-      nextReviewAt: after.nextReviewAt,
-      learnedAt: topic.learnedAt ?? now,
-      status: topic.status === 'planned' ? 'active' : topic.status,
+    reviewCreate: {
+      userId: input.userId,
+      topicId: input.topicId,
+      promptId: input.prompt.id,
+      grade: input.grade,
+      mode: input.mode,
+      durationMin: input.durationMin ?? null,
+      note: input.note ?? null,
+      intervalBefore: daysBetween(before.lastReviewedAt, before.nextReviewAt),
+      intervalAfter: daysBetween(input.now, after.nextReviewAt),
+      reviewedAt: input.now,
     },
-    prompt: promptWrite,
   };
+}
+
+export function buildEvidenceReviewWrite(
+  input: Omit<CardReviewInput, 'prompt'>,
+): Prisma.ReviewUncheckedCreateInput {
+  return {
+    userId: input.userId,
+    topicId: input.topicId,
+    promptId: null,
+    grade: input.grade,
+    mode: input.mode,
+    durationMin: input.durationMin ?? null,
+    note: input.note ?? null,
+    intervalBefore: null,
+    intervalAfter: null,
+    reviewedAt: input.now,
+  };
+}
+
+/**
+ * Materializes Topic.nextReviewAt as the min nextReviewAt over its
+ * non-suspended cards (null if none remain due).
+ */
+export async function recomputeTopicDue(
+  tx: Prisma.TransactionClient,
+  topicId: string,
+): Promise<void> {
+  const min = await tx.prompt.aggregate({
+    where: { topicId, suspended: false, nextReviewAt: { not: null } },
+    _min: { nextReviewAt: true },
+  });
+  await tx.topic.update({
+    where: { id: topicId },
+    data: { nextReviewAt: min._min.nextReviewAt ?? null },
+  });
 }

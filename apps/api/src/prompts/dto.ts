@@ -1,5 +1,5 @@
 import { IsBoolean } from 'class-validator';
 
-export class SetGraduatedDto {
-  @IsBoolean() graduated!: boolean;
+export class SetSuspendedDto {
+  @IsBoolean() suspended!: boolean;
 }

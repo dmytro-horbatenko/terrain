@@ -4,8 +4,10 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { STARTER_CARD_DATA } from '../prompts/starter-card';
 import { CreateAppEventDto, CreateTopicDto, UpdateTopicDto } from './dto';
 
 @Injectable()
@@ -28,17 +30,34 @@ export class TopicsService {
   async create(userId: string, dto: CreateTopicDto) {
     if (dto.parentId) await this.findOne(userId, dto.parentId); // 404 if missing or not owned
     await this.registerType(userId, dto.topicType);
-    return this.prisma.topic.create({ data: { ...dto, userId } });
+    const title = dto.title.trim();
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const topic = await tx.topic.create({ data: { ...dto, title, userId } });
+        await tx.prompt.create({
+          data: { topicId: topic.id, ...STARTER_CARD_DATA(title) },
+        });
+        return topic;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('a topic with this title already exists');
+      }
+      throw error;
+    }
   }
 
   async findAll(userId: string) {
     const topics = await this.prisma.topic.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
-      include: { prerequisites: { select: { prerequisiteId: true } } },
+      include: {
+        prerequisites: { select: { prerequisiteId: true } },
+        prompts: { select: { reps: true } },
+      },
     });
     const statusById = new Map(topics.map((t) => [t.id, t.status]));
-    return topics.map(({ prerequisites, ...topic }) => {
+    return topics.map(({ prerequisites, prompts, ...topic }) => {
       const prerequisiteIds = prerequisites.map((p) => p.prerequisiteId);
       const prerequisiteStatuses = prerequisiteIds
         .map((pid) => statusById.get(pid))
@@ -48,7 +67,7 @@ export class TopicsService {
         prerequisiteIds,
         labels: this.metrics.topicLabels({
           status: topic.status,
-          repetitions: topic.repetitions,
+          cards: prompts.map((p) => ({ reps: p.reps })),
           prerequisiteStatuses,
         }),
       };
@@ -74,6 +93,11 @@ export class TopicsService {
     const { parent, children, prerequisites, dependents, reviews, appEvents, prompts, ...scalars } =
       topic;
     const prerequisiteTopics = prerequisites.map((p) => p.prerequisite);
+    const cards = prompts.map((p) => ({
+      stability: p.stability,
+      suspended: p.suspended,
+      reps: p.reps,
+    }));
     return {
       ...scalars,
       prerequisiteIds: prerequisiteTopics.map((p) => p.id),
@@ -87,11 +111,11 @@ export class TopicsService {
       prompts,
       labels: this.metrics.topicLabels({
         status: scalars.status,
-        repetitions: scalars.repetitions,
+        cards,
         prerequisiteStatuses: prerequisiteTopics.map((p) => p.status),
       }),
       mastery: this.metrics.masteryStatus({
-        interval: scalars.interval,
+        cards,
         appEventCount: appEvents.length,
         noteRef: scalars.noteRef,
         summary: scalars.summary,
@@ -154,11 +178,22 @@ export class TopicsService {
       await this.assertNoParentCycle(userId, id, dto.parentId);
     }
     if (dto.topicType) await this.registerType(userId, dto.topicType);
-    const { nextReviewAt, ...rest } = dto;
-    return this.prisma.topic.update({
-      where: { id },
-      data: { ...rest, ...(nextReviewAt ? { nextReviewAt: new Date(nextReviewAt) } : {}) },
-    });
+    const { nextReviewAt, title, ...rest } = dto;
+    try {
+      return await this.prisma.topic.update({
+        where: { id },
+        data: {
+          ...rest,
+          ...(title !== undefined ? { title: title.trim() } : {}),
+          ...(nextReviewAt ? { nextReviewAt: new Date(nextReviewAt) } : {}),
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('a topic with this title already exists');
+      }
+      throw error;
+    }
   }
 
   async addPrerequisite(userId: string, topicId: string, prerequisiteId: string) {
@@ -216,11 +251,7 @@ export class TopicsService {
       );
     }
     await this.prisma.$transaction([
-      this.prisma.prerequisite.deleteMany({
-        where: { OR: [{ topicId: id }, { prerequisiteId: id }] },
-      }),
       this.prisma.topic.updateMany({ where: { parentId: id, userId }, data: { parentId: null } }),
-      this.prisma.prompt.deleteMany({ where: { topicId: id } }),
       this.prisma.topic.delete({ where: { id } }),
     ]);
   }

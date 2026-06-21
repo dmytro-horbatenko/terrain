@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 import { AppEventKind, TopicStatus } from '@terrain/types';
 
 const TOPIC_STATUSES: TopicStatus[] = ['planned', 'active', 'mastered', 'archived'];
@@ -28,7 +28,6 @@ export class UpdateTopicDto {
   @IsOptional() @IsString() noteRef?: string;
   @IsOptional() @IsString() parentId?: string;
   @IsOptional() @IsString() summary?: string;
-  @IsOptional() @IsInt() interval?: number;
   @IsOptional() @IsString() nextReviewAt?: string;
   @IsOptional() @IsBoolean() aiProposed?: boolean;
 }

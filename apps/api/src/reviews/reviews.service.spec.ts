@@ -1,66 +1,121 @@
-import { Test } from '@nestjs/testing';
-import { PrismaService } from '../prisma/prisma.service';
 import { ReviewsService } from './reviews.service';
 
-describe('ReviewsService.logReview', () => {
-  let service: ReviewsService;
-  let topicUpdate: jest.Mock;
-  let reviewCreate: jest.Mock;
+function reviewedPrompt(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'p1',
+    topicId: 't1',
+    stability: 3.2,
+    difficulty: 5.1,
+    reps: 2,
+    lapses: 0,
+    state: 'review',
+    lastReviewedAt: new Date('2026-06-25T00:00:00Z'),
+    nextReviewAt: new Date('2026-07-02T00:00:00Z'),
+    ...overrides,
+  };
+}
 
-  beforeEach(async () => {
-    topicUpdate = jest.fn().mockResolvedValue({});
-    reviewCreate = jest
-      .fn()
-      .mockImplementation(({ data }) => Promise.resolve({ id: 'r1', ...data }));
-    const prisma = {
-      topic: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: 't1',
-          userId: 'userA',
-          interval: 6,
-          repetitions: 1,
-          easeFactor: 2.5,
-          learnedAt: null,
-          status: 'planned',
-        }),
-        update: topicUpdate,
-      },
-      review: { create: reviewCreate },
-      $transaction: (fns: any[]) => Promise.all(fns),
-    };
-    const mod = await Test.createTestingModule({
-      providers: [ReviewsService, { provide: PrismaService, useValue: prisma }],
-    }).compile();
-    service = mod.get(ReviewsService);
-  });
+function buildTx({
+  topic = { id: 't1', userId: 'userA' },
+  prompt = reviewedPrompt(),
+}: { topic?: any; prompt?: any } = {}) {
+  const topicFindFirst = jest.fn().mockResolvedValue(topic);
+  const topicUpdate = jest.fn().mockResolvedValue({});
+  const promptFindFirst = jest.fn().mockResolvedValue(prompt);
+  const promptUpdate = jest.fn().mockResolvedValue({});
+  const promptAggregate = jest.fn().mockResolvedValue({ _min: { nextReviewAt: null } });
+  const reviewCreate = jest
+    .fn()
+    .mockImplementation(({ data }) => Promise.resolve({ id: 'r1', ...data }));
 
-  it('runs SM-2 and persists before/after intervals', async () => {
-    await service.logReview('userA', { topicId: 't1', quality: 4, mode: 'app_log' });
+  const tx = {
+    topic: { findFirst: topicFindFirst, update: topicUpdate },
+    prompt: { findFirst: promptFindFirst, update: promptUpdate, aggregate: promptAggregate },
+    review: { create: reviewCreate },
+  };
+  return { tx, topicFindFirst, topicUpdate, promptFindFirst, promptUpdate, reviewCreate };
+}
+
+describe('ReviewsService.logReview (card review, via promptId)', () => {
+  it('runs FSRS and persists before/after intervals in days', async () => {
+    const { tx, promptUpdate, reviewCreate } = buildTx();
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
+    const service = new ReviewsService(prisma);
+
+    await service.logReview('userA', {
+      topicId: 't1',
+      promptId: 'p1',
+      grade: 'good',
+      mode: 'app_log',
+    });
+
     const created = reviewCreate.mock.calls[0][0].data;
-    expect(created.intervalBefore).toBe(6);
-    expect(created.intervalAfter).toBe(6); // rep was 1 → second success → interval 6
     expect(created.userId).toBe('userA');
-    const updated = topicUpdate.mock.calls[0][0].data;
-    expect(updated.repetitions).toBe(2);
-    expect(updated.status).toBe('active'); // planned → active on first review
-    expect(updated.learnedAt).toBeInstanceOf(Date); // set on first review
+    expect(created.grade).toBe('good');
+    expect(created.intervalBefore).toBe(7); // 2026-06-25 -> 2026-07-02
+    expect(typeof created.intervalAfter).toBe('number');
+    expect(promptUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'p1' } }));
+    expect(promptUpdate.mock.calls[0][0].data.reps).toBe(3);
   });
 
-  it('resets interval to 1 on a failed review (quality < 3)', async () => {
-    await service.logReview('userA', { topicId: 't1', quality: 1, mode: 'telegram_quick' });
+  it('recomputes topic.nextReviewAt after a card review', async () => {
+    const { tx, topicUpdate } = buildTx();
+    tx.prompt.aggregate = jest
+      .fn()
+      .mockResolvedValue({ _min: { nextReviewAt: new Date('2026-07-10T00:00:00Z') } });
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
+    const service = new ReviewsService(prisma);
+
+    await service.logReview('userA', {
+      topicId: 't1',
+      promptId: 'p1',
+      grade: 'good',
+      mode: 'app_log',
+    });
+
+    expect(topicUpdate).toHaveBeenCalledWith({
+      where: { id: 't1' },
+      data: { nextReviewAt: new Date('2026-07-10T00:00:00Z') },
+    });
+  });
+});
+
+describe('ReviewsService.logReview (evidence review, no promptId)', () => {
+  it('creates a review with promptId null and does not touch prompt/topic SR state', async () => {
+    const { tx, promptUpdate, topicUpdate, reviewCreate } = buildTx();
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
+    const service = new ReviewsService(prisma);
+
+    const result = await service.logReview('userA', {
+      topicId: 't1',
+      grade: 'good',
+      mode: 'claude_session',
+    });
+
     const created = reviewCreate.mock.calls[0][0].data;
-    expect(created.intervalAfter).toBe(1);
+    expect(created.promptId).toBeNull();
+    expect(created.intervalBefore).toBeNull();
+    expect(created.intervalAfter).toBeNull();
+    expect(promptUpdate).not.toHaveBeenCalled();
+    expect(topicUpdate).not.toHaveBeenCalled();
+    expect(result.previewNextReviewAt).toBeNull();
   });
 });
 
 describe('ReviewsService cross-user isolation', () => {
   it('logReview 404s when the topic belongs to another user', async () => {
-    const prisma: any = { topic: { findFirst: jest.fn().mockResolvedValue(null) } };
+    const { tx, topicFindFirst } = buildTx({ topic: null });
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
     const service = new ReviewsService(prisma);
+
     await expect(
-      service.logReview('userA', { topicId: 'topic-owned-by-B', quality: 4, mode: 'app_log' }),
+      service.logReview('userA', {
+        topicId: 'topic-owned-by-B',
+        grade: 'good',
+        mode: 'app_log',
+      }),
     ).rejects.toThrow(/not found/i);
-    expect(prisma.topic.findFirst).toHaveBeenCalledWith(
+    expect(topicFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: 'topic-owned-by-B', userId: 'userA' }),
       }),
@@ -78,75 +133,36 @@ describe('ReviewsService cross-user isolation', () => {
       }),
     );
   });
-});
 
-describe('ReviewsService.logReview with promptId', () => {
-  function build() {
-    const topicUpdate = jest.fn().mockResolvedValue({});
-    const promptUpdate = jest.fn().mockResolvedValue({});
-    const reviewCreate = jest
-      .fn()
-      .mockImplementation(({ data }) => Promise.resolve({ id: 'r1', ...data }));
-    const prisma: any = {
-      topic: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: 't1',
-          userId: 'userA',
-          interval: 6,
-          repetitions: 1,
-          easeFactor: 2.5,
-          nextReviewAt: null,
-          learnedAt: null,
-          status: 'planned',
-        }),
-        update: topicUpdate,
-      },
-      prompt: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: 'p1',
-          topicId: 't1',
-          easeFactor: 2.5,
-          interval: 0,
-          repetitions: 0,
-          nextReviewAt: null,
-        }),
-        update: promptUpdate,
-      },
-      review: { create: reviewCreate },
-      $transaction: (fns: any[]) => Promise.all(fns),
-    };
-    return { prisma, topicUpdate, promptUpdate, reviewCreate };
-  }
-
-  it('updates both the topic and the prompt SR state, and stamps review.promptId', async () => {
-    const { prisma, topicUpdate, promptUpdate, reviewCreate } = build();
+  it('resolves promptId scoped by topicId and the topic owner userId', async () => {
+    const { tx, promptFindFirst } = buildTx();
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
     const service = new ReviewsService(prisma);
+
     await service.logReview('userA', {
       topicId: 't1',
       promptId: 'p1',
-      quality: 5,
+      grade: 'good',
       mode: 'app_log',
     });
-    expect(prisma.prompt.findFirst).toHaveBeenCalledWith({
+
+    expect(promptFindFirst).toHaveBeenCalledWith({
       where: { id: 'p1', topicId: 't1', topic: { userId: 'userA' } },
     });
-    expect(promptUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'p1' },
-        data: expect.objectContaining({ repetitions: 1 }),
-      }),
-    );
-    const created = reviewCreate.mock.calls[0][0].data;
-    expect(created.promptId).toBe('p1');
-    expect(topicUpdate).toHaveBeenCalled();
   });
 
   it('404s when promptId does not belong to the given topic/user', async () => {
-    const { prisma } = build();
-    prisma.prompt.findFirst = jest.fn().mockResolvedValue(null);
+    const { tx } = buildTx({ prompt: null });
+    const prisma: any = { $transaction: (cb: any) => cb(tx) };
     const service = new ReviewsService(prisma);
+
     await expect(
-      service.logReview('userA', { topicId: 't1', promptId: 'ghost', quality: 5, mode: 'app_log' }),
+      service.logReview('userA', {
+        topicId: 't1',
+        promptId: 'ghost',
+        grade: 'good',
+        mode: 'app_log',
+      }),
     ).rejects.toThrow(/not found/i);
   });
 });

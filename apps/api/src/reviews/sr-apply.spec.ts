@@ -1,202 +1,141 @@
-import { buildReviewWrites } from './sr-apply';
+import { INITIAL_CARD_STATE, type CardSrState } from '@terrain/sr-engine';
+import {
+  buildCardReviewWrites,
+  buildEvidenceReviewWrite,
+  recomputeTopicDue,
+  type CardReviewInput,
+} from './sr-apply';
 
-const baseTopic: any = {
-  id: 't1',
-  title: 'T',
-  domain: 'DSA',
-  topicType: 'pattern',
-  status: 'planned',
-  description: null,
-  summary: null,
-  noteRef: null,
-  parentId: null,
-  easeFactor: 2.5,
-  interval: 0,
-  repetitions: 0,
-  nextReviewAt: null,
-  learnedAt: null,
-  aiProposed: false,
-  aiContext: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
+const now = new Date('2026-07-02T00:00:00Z');
 
-describe('buildReviewWrites', () => {
-  it('computes the SM-2 transition, flips planned -> active, sets learnedAt', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const { review, topic } = buildReviewWrites(baseTopic, 5, 'claude_session', 'n', now);
-    expect(review.topicId).toBe('t1');
-    expect(review.mode).toBe('claude_session');
-    expect(review.intervalBefore).toBe(0);
-    expect(review.intervalAfter).toBeGreaterThan(0);
-    expect(review.reviewedAt).toEqual(now);
-    expect(topic.status).toBe('active');
-    expect(topic.learnedAt).toEqual(now);
+function reviewedPrompt(overrides: Partial<CardSrState> = {}): { id: string } & CardSrState {
+  const lastReviewedAt = new Date('2026-06-25T00:00:00Z');
+  const nextReviewAt = new Date('2026-07-02T00:00:00Z');
+  return {
+    id: 'p1',
+    stability: 3.2,
+    difficulty: 5.1,
+    reps: 2,
+    lapses: 0,
+    state: 'review',
+    lastReviewedAt,
+    nextReviewAt,
+    ...overrides,
+  };
+}
+
+function baseInput(overrides: Partial<CardReviewInput> = {}): CardReviewInput {
+  return {
+    userId: 'u1',
+    topicId: 't1',
+    prompt: reviewedPrompt(),
+    grade: 'good',
+    mode: 'app_log',
+    now,
+    ...overrides,
+  };
+}
+
+describe('buildCardReviewWrites', () => {
+  it('promptUpdate carries applyGrade output mapped to DB fields', () => {
+    const input = baseInput();
+    const { promptUpdate } = buildCardReviewWrites(input);
+
+    expect(promptUpdate.where).toEqual({ id: 'p1' });
+    // applyGrade on a 'good' grade must move the card out of 'new' with
+    // real stability/difficulty numbers and a future due date — a
+    // non-tautological check that real FSRS math ran, not an echo.
+    expect(promptUpdate.data.reps).toBe(3);
+    expect(promptUpdate.data.state).not.toBe('new');
+    expect(typeof promptUpdate.data.stability).toBe('number');
+    expect(typeof promptUpdate.data.difficulty).toBe('number');
+    expect(promptUpdate.data.lastReviewedAt).toEqual(now);
+    expect(promptUpdate.data.nextReviewAt).toBeInstanceOf(Date);
+    expect(promptUpdate.data.nextReviewAt!.getTime()).toBeGreaterThan(now.getTime());
   });
 
-  it('preserves status and learnedAt when the topic is not planned', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const learned = new Date('2025-12-01T00:00:00Z');
-    const t = { ...baseTopic, status: 'active', learnedAt: learned };
-    const { topic } = buildReviewWrites(t, 4, 'app_log', undefined, now);
-    expect(topic.status).toBe('active');
-    expect(topic.learnedAt).toEqual(learned);
+  it('reviewCreate has grade, promptId, userId, topicId, intervalBefore/After in days', () => {
+    const input = baseInput({ grade: 'easy', durationMin: 4, note: 'n' });
+    const { reviewCreate } = buildCardReviewWrites(input);
+
+    expect(reviewCreate.userId).toBe('u1');
+    expect(reviewCreate.topicId).toBe('t1');
+    expect(reviewCreate.promptId).toBe('p1');
+    expect(reviewCreate.grade).toBe('easy');
+    expect(reviewCreate.mode).toBe('app_log');
+    expect(reviewCreate.durationMin).toBe(4);
+    expect(reviewCreate.note).toBe('n');
+    // lastReviewedAt 2026-06-25 -> nextReviewAt 2026-07-02 == 7 days
+    expect(reviewCreate.intervalBefore).toBe(7);
+    expect(typeof reviewCreate.intervalAfter).toBe('number');
+    expect(reviewCreate.intervalAfter as number).toBeGreaterThan(0);
+    expect(reviewCreate.reviewedAt).toEqual(now);
   });
 
-  it("stamps the review with the topic owner's userId", () => {
-    const topic: any = {
-      id: 't1',
-      userId: 'userA',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-    };
-    const { review } = buildReviewWrites(
-      topic,
-      5,
-      'app_log',
-      undefined,
-      new Date('2026-07-01T00:00:00Z'),
-    );
-    expect(review.userId).toBe('userA');
+  it('on a new card, intervalBefore is 0', () => {
+    const input = baseInput({
+      prompt: { id: 'p2', ...INITIAL_CARD_STATE },
+    });
+    const { reviewCreate } = buildCardReviewWrites(input);
+    expect(reviewCreate.intervalBefore).toBe(0);
   });
 
-  it('also computes an independent SM-2 transition for the prompt when one is passed, and stamps review.promptId', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const prompt: any = {
-      id: 'p1',
+  it('never writes graduation-related fields', () => {
+    const { promptUpdate } = buildCardReviewWrites(baseInput());
+    expect(promptUpdate.data).not.toHaveProperty('graduated');
+    expect(promptUpdate.data).not.toHaveProperty('consecutiveGood');
+  });
+});
+
+describe('buildEvidenceReviewWrite', () => {
+  it('creates a review with promptId null and null intervalBefore/After', () => {
+    const write = buildEvidenceReviewWrite({
+      userId: 'u1',
       topicId: 't1',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-    };
-    const { review, prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      5,
-      'app_log',
-      undefined,
+      grade: 'good',
+      mode: 'claude_session',
       now,
-      undefined,
-      prompt,
-    );
-    expect(review.promptId).toBe('p1');
-    expect(promptWrite).toBeDefined();
-    expect(promptWrite!.repetitions).toBe(1);
-    expect(promptWrite!.interval).toBe(1);
+    });
+    expect(write.userId).toBe('u1');
+    expect(write.topicId).toBe('t1');
+    expect(write.promptId).toBeNull();
+    expect(write.grade).toBe('good');
+    expect(write.mode).toBe('claude_session');
+    expect(write.intervalBefore).toBeNull();
+    expect(write.intervalAfter).toBeNull();
+    expect(write.reviewedAt).toEqual(now);
+  });
+});
+
+describe('recomputeTopicDue', () => {
+  it('sets topic.nextReviewAt to the min nextReviewAt over non-suspended cards', async () => {
+    const min = new Date('2026-07-10T00:00:00Z');
+    const aggregate = jest.fn().mockResolvedValue({ _min: { nextReviewAt: min } });
+    const update = jest.fn().mockResolvedValue({});
+    const tx: any = { prompt: { aggregate }, topic: { update } };
+
+    await recomputeTopicDue(tx, 't1');
+
+    expect(aggregate).toHaveBeenCalledWith({
+      where: { topicId: 't1', suspended: false, nextReviewAt: { not: null } },
+      _min: { nextReviewAt: true },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 't1' },
+      data: { nextReviewAt: min },
+    });
   });
 
-  it('omits prompt write and review.promptId when no prompt is passed', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const { review, prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      5,
-      'app_log',
-      undefined,
-      now,
-    );
-    expect(review.promptId).toBeUndefined();
-    expect(promptWrite).toBeUndefined();
-  });
+  it('sets null when no non-suspended reviewed cards remain', async () => {
+    const aggregate = jest.fn().mockResolvedValue({ _min: { nextReviewAt: null } });
+    const update = jest.fn().mockResolvedValue({});
+    const tx: any = { prompt: { aggregate }, topic: { update } };
 
-  it('increments consecutiveGood on a quality >= 4 prompt review', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const prompt: any = {
-      id: 'p1',
-      topicId: 't1',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-      graduated: false,
-      consecutiveGood: 1,
-    };
-    const { prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      4,
-      'app_log',
-      undefined,
-      now,
-      undefined,
-      prompt,
-    );
-    expect(promptWrite!.consecutiveGood).toBe(2);
-    expect(promptWrite!.graduated).toBe(false);
-  });
+    await recomputeTopicDue(tx, 't1');
 
-  it('resets consecutiveGood to 0 on a quality < 4 prompt review', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const prompt: any = {
-      id: 'p1',
-      topicId: 't1',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-      graduated: false,
-      consecutiveGood: 2,
-    };
-    const { prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      3,
-      'app_log',
-      undefined,
-      now,
-      undefined,
-      prompt,
-    );
-    expect(promptWrite!.consecutiveGood).toBe(0);
-    expect(promptWrite!.graduated).toBe(false);
-  });
-
-  it('graduates a prompt once consecutiveGood reaches 3', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const prompt: any = {
-      id: 'p1',
-      topicId: 't1',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-      graduated: false,
-      consecutiveGood: 2,
-    };
-    const { prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      5,
-      'app_log',
-      undefined,
-      now,
-      undefined,
-      prompt,
-    );
-    expect(promptWrite!.consecutiveGood).toBe(3);
-    expect(promptWrite!.graduated).toBe(true);
-  });
-
-  it('keeps an already-graduated prompt graduated even after a later low-quality review', () => {
-    const now = new Date('2026-01-08T00:00:00Z');
-    const prompt: any = {
-      id: 'p1',
-      topicId: 't1',
-      easeFactor: 2.5,
-      interval: 0,
-      repetitions: 0,
-      nextReviewAt: null,
-      graduated: true,
-      consecutiveGood: 3,
-    };
-    const { prompt: promptWrite } = buildReviewWrites(
-      baseTopic,
-      1,
-      'app_log',
-      undefined,
-      now,
-      undefined,
-      prompt,
-    );
-    expect(promptWrite!.consecutiveGood).toBe(0);
-    expect(promptWrite!.graduated).toBe(true);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 't1' },
+      data: { nextReviewAt: null },
+    });
   });
 });
