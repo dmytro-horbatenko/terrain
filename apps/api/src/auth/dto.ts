@@ -11,7 +11,7 @@ export class LoginDto {
 }
 export class UpdateProfileDto {
   @IsOptional() @IsString() name?: string;
-  @IsOptional() @IsString() role?: string;
+  @IsOptional() @IsString() headline?: string;
   @IsOptional() @IsString() learningStyle?: string;
   @IsOptional() @IsString() codeStyle?: string;
   @IsOptional() @IsString() noteSystem?: string;
