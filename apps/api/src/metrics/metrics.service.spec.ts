@@ -13,6 +13,10 @@ describe('MetricsService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         groupBy: jest.fn().mockResolvedValue([]),
       },
+      prompt: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
     };
     const mod = await Test.createTestingModule({
       providers: [MetricsService, { provide: PrismaService, useValue: prisma }],
@@ -22,7 +26,7 @@ describe('MetricsService', () => {
 
   it('computes mastery: all three conditions => eligible', () => {
     const s = service.masteryStatus({
-      interval: 30,
+      cards: [{ stability: 30, suspended: false }],
       appEventCount: 1,
       noteRef: 'x',
       summary: null,
@@ -32,7 +36,7 @@ describe('MetricsService', () => {
 
   it('mastery not eligible when one condition fails', () => {
     const s = service.masteryStatus({
-      interval: 29,
+      cards: [{ stability: 29, suspended: false }],
       appEventCount: 1,
       noteRef: 'x',
       summary: null,
@@ -43,7 +47,7 @@ describe('MetricsService', () => {
 
   it('teaching true via summary when noteRef is null', () => {
     const s = service.masteryStatus({
-      interval: 0,
+      cards: [],
       appEventCount: 0,
       noteRef: null,
       summary: 'my notes',
@@ -51,18 +55,89 @@ describe('MetricsService', () => {
     expect(s.teaching).toBe(true);
   });
 
+  it('mastery retention boundary: stability 29.9 is false, 30 is true', () => {
+    const below = service.masteryStatus({
+      cards: [{ stability: 29.9, suspended: false }],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(below.retention).toBe(false);
+
+    const at = service.masteryStatus({
+      cards: [{ stability: 30, suspended: false }],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(at.retention).toBe(true);
+  });
+
+  it('mastery retention is false when there are zero cards', () => {
+    const s = service.masteryStatus({
+      cards: [],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(s.retention).toBe(false);
+  });
+
+  it('mastery retention treats a null-stability card as failing, not crashing', () => {
+    const s = service.masteryStatus({
+      cards: [{ stability: null, suspended: false }],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(s.retention).toBe(false);
+  });
+
+  it('mastery retention excludes suspended cards from the min-stability computation', () => {
+    const s = service.masteryStatus({
+      cards: [
+        { stability: 5, suspended: true },
+        { stability: 40, suspended: false },
+      ],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(s.retention).toBe(true);
+  });
+
+  it('mastery retention is false when all cards are suspended', () => {
+    const s = service.masteryStatus({
+      cards: [{ stability: 100, suspended: true }],
+      appEventCount: 1,
+      noteRef: 'x',
+      summary: null,
+    });
+    expect(s.retention).toBe(false);
+  });
+
   it('struggleRatio7d returns 0 with no reviews', async () => {
     expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0);
   });
 
-  it('struggleRatio7d = poor/total over the window', async () => {
+  it('struggleRatio7d = poor/total over the window, counting only again', async () => {
     prisma.review.findMany.mockResolvedValue([
-      { quality: 1 },
-      { quality: 2 },
-      { quality: 4 },
-      { quality: 5 },
+      { grade: 'again' },
+      { grade: 'again' },
+      { grade: 'good' },
+      { grade: 'easy' },
     ]);
     expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0.5);
+  });
+
+  it('struggleRatio7d does not count hard as struggle', async () => {
+    prisma.review.findMany.mockResolvedValue([
+      { grade: 'again' },
+      { grade: 'hard' },
+      { grade: 'good' },
+      { grade: 'easy' },
+    ]);
+    expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0.25);
   });
 
   it('struggleRatio7d scopes reviews to the user', async () => {
@@ -112,25 +187,77 @@ describe('MetricsService', () => {
 
   it('topicLabels: blocked when planned with an unmastered prerequisite', () => {
     expect(
-      service.topicLabels({ status: 'planned', repetitions: 0, prerequisiteStatuses: ['active'] }),
+      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['active'] }),
     ).toEqual({ blocked: true, reviewing: false });
   });
   it('topicLabels: planned with all prereqs mastered is not blocked', () => {
     expect(
       service.topicLabels({
         status: 'planned',
-        repetitions: 0,
+        cards: [],
         prerequisiteStatuses: ['mastered', 'mastered'],
       }),
     ).toEqual({ blocked: false, reviewing: false });
   });
-  it('topicLabels: reviewing when active with repetitions > 0', () => {
+  it('topicLabels: reviewing when any card has reps > 0', () => {
     expect(
-      service.topicLabels({ status: 'active', repetitions: 3, prerequisiteStatuses: [] }),
+      service.topicLabels({
+        status: 'active',
+        cards: [{ reps: 0 }, { reps: 3 }],
+        prerequisiteStatuses: [],
+      }),
     ).toEqual({ blocked: false, reviewing: true });
   });
+  it('topicLabels: not reviewing when all cards have reps === 0', () => {
+    expect(
+      service.topicLabels({
+        status: 'active',
+        cards: [{ reps: 0 }, { reps: 0 }],
+        prerequisiteStatuses: [],
+      }),
+    ).toEqual({ blocked: false, reviewing: false });
+  });
+  it('topicLabels: not reviewing when cards array is empty', () => {
+    expect(service.topicLabels({ status: 'active', cards: [], prerequisiteStatuses: [] })).toEqual({
+      blocked: false,
+      reviewing: false,
+    });
+  });
 
-  it('dashboard composes counts from groupBy and due lengths', async () => {
+  it('dueCards scopes to non-suspended cards through non-archived topics (including mastered)', async () => {
+    const now = new Date('2026-01-08T12:00:00Z');
+    await service.dueCards('userA', now, 'DSA');
+    expect(prisma.prompt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          suspended: false,
+          topic: { userId: 'userA', status: { not: 'archived' }, domain: 'DSA' },
+        }),
+      }),
+    );
+  });
+
+  it('newCardsCount scopes to state new, non-suspended, through non-archived topics (including mastered)', async () => {
+    await service.newCardsCount('userA', 'DSA');
+    expect(prisma.prompt.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          suspended: false,
+          state: 'new',
+          topic: { userId: 'userA', status: { not: 'archived' }, domain: 'DSA' },
+        },
+      }),
+    );
+  });
+
+  it('newCardsCount returns a number via prisma.prompt.count, not findMany().length', async () => {
+    prisma.prompt.count.mockResolvedValue(4);
+    const result = await service.newCardsCount('userA');
+    expect(result).toBe(4);
+    expect(prisma.prompt.findMany).not.toHaveBeenCalled();
+  });
+
+  it('dashboard composes counts from groupBy and due lengths, and includes newCards', async () => {
     prisma.topic.groupBy.mockResolvedValue([
       { status: 'planned', _count: 2 },
       { status: 'active', _count: 3 },
@@ -141,12 +268,14 @@ describe('MetricsService', () => {
       { nextReviewAt: new Date('2026-01-05T00:00:00Z') }, // overdue in every timezone
       { nextReviewAt: now }, // >= startOfToday in every timezone => dueToday
     ]);
+    prisma.prompt.count.mockResolvedValue(7);
     const result = await service.dashboard('userA', now, 'DSA');
     expect(prisma.topic.groupBy).toHaveBeenCalledWith(
       expect.objectContaining({ by: ['status'], where: { userId: 'userA', domain: 'DSA' } }),
     );
     expect(result.generatedAt).toBe(now.toISOString());
     expect(result.struggleRatio7d).toBe(0);
+    expect(result.newCards).toBe(7);
     expect(result.counts).toEqual({
       total: 6,
       planned: 2,

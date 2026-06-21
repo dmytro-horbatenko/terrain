@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Topic } from '@prisma/client';
+import type { Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
@@ -16,23 +16,31 @@ function localDateKey(d: Date): string {
 export class MetricsService {
   constructor(private prisma: PrismaService) {}
 
-  topicLabels(input: { status: string; repetitions: number; prerequisiteStatuses: string[] }): {
+  topicLabels(input: {
+    status: string;
+    cards: { reps: number }[];
+    prerequisiteStatuses: string[];
+  }): {
     blocked: boolean;
     reviewing: boolean;
   } {
     const blocked =
       input.status === 'planned' && input.prerequisiteStatuses.some((s) => s !== 'mastered');
-    const reviewing = input.status === 'active' && input.repetitions > 0;
+    const reviewing = input.status === 'active' && input.cards.some((c) => c.reps > 0);
     return { blocked, reviewing };
   }
 
   masteryStatus(input: {
-    interval: number;
+    cards: { stability: number | null; suspended: boolean }[];
     appEventCount: number;
     noteRef: string | null;
     summary: string | null;
   }) {
-    const retention = input.interval >= 30;
+    const activeCards = input.cards.filter((c) => !c.suspended);
+    const retention =
+      input.cards.length > 0 &&
+      activeCards.length > 0 &&
+      Math.min(...activeCards.map((c) => c.stability ?? -Infinity)) >= 30;
     const application = input.appEventCount >= 1;
     const teaching = input.noteRef != null || input.summary != null;
     return { retention, application, teaching, eligible: retention && application && teaching };
@@ -42,10 +50,10 @@ export class MetricsService {
     const cutoff = new Date(now.getTime() - 7 * DAY_MS);
     const reviews = await this.prisma.review.findMany({
       where: { userId, reviewedAt: { gte: cutoff } },
-      select: { quality: true },
+      select: { grade: true },
     });
     if (reviews.length === 0) return 0;
-    const poor = reviews.filter((r) => r.quality <= 2).length;
+    const poor = reviews.filter((r) => r.grade === 'again').length;
     return poor / reviews.length;
   }
 
@@ -102,8 +110,38 @@ export class MetricsService {
     return { overdue, dueToday };
   }
 
+  /**
+   * Non-suspended cards due by end of today, scoped through their topic.
+   * Unlike `dueTopics`, mastered topics are included — only archived topics
+   * are excluded (mastered topics still keep reviewing under FSRS).
+   */
+  async dueCards(userId: string, now: Date, domain?: string): Promise<Prompt[]> {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
+    return this.prisma.prompt.findMany({
+      where: {
+        suspended: false,
+        nextReviewAt: { not: null, lt: endOfToday },
+        topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+      },
+      orderBy: { nextReviewAt: 'asc' },
+    });
+  }
+
+  /** Count of non-suspended cards still in the `new` state, same topic scoping as `dueCards`. */
+  async newCardsCount(userId: string, domain?: string): Promise<number> {
+    return this.prisma.prompt.count({
+      where: {
+        suspended: false,
+        state: 'new',
+        topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+      },
+    });
+  }
+
   async dashboard(userId: string, now: Date, domain?: string) {
-    const [struggleRatio7d, due, grouped] = await Promise.all([
+    const [struggleRatio7d, due, grouped, newCards] = await Promise.all([
       this.struggleRatio7d(userId, now),
       this.dueTopics(userId, now, domain),
       this.prisma.topic.groupBy({
@@ -111,12 +149,14 @@ export class MetricsService {
         _count: true,
         where: { userId, ...(domain ? { domain } : {}) },
       }),
+      this.newCardsCount(userId, domain),
     ]);
     const countOf = (status: string) => grouped.find((g) => g.status === status)?._count ?? 0;
     return {
       generatedAt: now.toISOString(),
       struggleRatio7d,
       due,
+      newCards,
       counts: {
         total: grouped.reduce((sum, g) => sum + g._count, 0),
         planned: countOf('planned'),
