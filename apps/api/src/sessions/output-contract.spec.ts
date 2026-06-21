@@ -9,4 +9,10 @@ describe('OUTPUT_CONTRACT', () => {
   it('documents promptKind', () => {
     expect(OUTPUT_CONTRACT).toContain('promptKind');
   });
+
+  it('is the v2 contract (version 2, grade, promptId reviews)', () => {
+    expect(OUTPUT_CONTRACT).toContain('"version": 2');
+    expect(OUTPUT_CONTRACT).toContain('grade');
+    expect(OUTPUT_CONTRACT).toContain('promptId');
+  });
 });

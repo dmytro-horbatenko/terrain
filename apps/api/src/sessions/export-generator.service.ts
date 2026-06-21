@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma, Topic } from '@prisma/client';
+import type { Prisma, Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { OUTPUT_CONTRACT } from './output-contract';
 
 type TopicWithPrereqs = Prisma.TopicGetPayload<{
-  include: { prerequisites: { include: { prerequisite: { select: { status: true } } } } };
+  include: {
+    prerequisites: { include: { prerequisite: { select: { status: true } } } };
+    prompts: { select: { reps: true; stability: true; suspended: true } };
+  };
 }>;
 
 @Injectable()
@@ -27,13 +30,16 @@ export class ExportGeneratorService {
     const topics = await this.prisma.topic.findMany({
       where: { userId: opts.userId, ...(domainFilter ? { domain: domainFilter } : {}) },
       orderBy: [{ domain: 'asc' }, { createdAt: 'asc' }],
-      include: { prerequisites: { include: { prerequisite: { select: { status: true } } } } },
+      include: {
+        prerequisites: { include: { prerequisite: { select: { status: true } } } },
+        prompts: { select: { reps: true, stability: true, suspended: true } },
+      },
     });
 
     const user = await this.prisma.user.findUnique({ where: { id: opts.userId } });
     const whoIAm = `## WHO I AM (stable)
 Name: ${user?.name ?? ''}
-Role: ${user?.role ?? ''}
+Role: ${user?.headline ?? ''}
 Learning style: ${user?.learningStyle ?? ''}
 Code style: ${user?.codeStyle ?? ''}
 Note system: ${user?.noteSystem ?? ''}`;
@@ -90,7 +96,7 @@ Note system: ${user?.noteSystem ?? ''}`;
     if (t.status === 'mastered') return '✓';
     const { blocked } = this.metrics.topicLabels({
       status: t.status,
-      repetitions: t.repetitions,
+      cards: t.prompts.map((p) => ({ reps: p.reps })),
       prerequisiteStatuses: this.prereqStatuses(t),
     });
     if (blocked) return '✗';
@@ -101,7 +107,7 @@ Note system: ${user?.noteSystem ?? ''}`;
   private reviewingTag(t: TopicWithPrereqs): string {
     const { reviewing } = this.metrics.topicLabels({
       status: t.status,
-      repetitions: t.repetitions,
+      cards: t.prompts.map((p) => ({ reps: p.reps })),
       prerequisiteStatuses: this.prereqStatuses(t),
     });
     return reviewing ? ' (reviewing)' : '';
@@ -173,22 +179,36 @@ Note system: ${user?.noteSystem ?? ''}`;
 
   private async due(userId: string, now: Date, domain: string | null): Promise<string> {
     const { overdue, dueToday } = await this.metrics.dueTopics(userId, now, domain ?? undefined);
-    const fmt = (t: Topic) => `- ${t.title} [${t.topicType}]`;
+    const cards = await this.metrics.dueCards(userId, now, domain ?? undefined);
+    const cardsByTopic = new Map<string, Prompt[]>();
+    for (const c of cards) {
+      const arr = cardsByTopic.get(c.topicId) ?? [];
+      arr.push(c);
+      cardsByTopic.set(c.topicId, arr);
+    }
+    const fmt = (t: Topic) => {
+      const head = `- ${t.title} [${t.topicType}]`;
+      const cardLines = (cardsByTopic.get(t.id) ?? []).map(
+        (c) => `  - card ${c.id} [${c.promptKind}] ${c.promptText}`,
+      );
+      return [head, ...cardLines].join('\n');
+    };
     const overdueBlock = overdue.length ? overdue.map(fmt).join('\n') : '- (none)';
     const todayBlock = dueToday.length ? dueToday.map(fmt).join('\n') : '- (none)';
     return `## DUE FOR REVIEW TODAY\nOVERDUE:\n${overdueBlock}\n\nDUE TODAY:\n${todayBlock}`;
   }
 
   private async mastery(topics: TopicWithPrereqs[], userId: string): Promise<string> {
+    const header = '## MASTERY CONDITIONS (retention = all active cards at stability ≥ 30d)';
     const active = topics.filter((t) => t.status === 'active');
-    if (active.length === 0) return `## MASTERY CONDITIONS\n- (no active topics)`;
+    if (active.length === 0) return `${header}\n- (no active topics)`;
     const lines: string[] = [];
     for (const t of active) {
       const appEventCount = await this.prisma.applicationEvent.count({
         where: { topicId: t.id, userId },
       });
       const s = this.metrics.masteryStatus({
-        interval: t.interval,
+        cards: t.prompts.map((p) => ({ stability: p.stability, suspended: p.suspended })),
         appEventCount,
         noteRef: t.noteRef,
         summary: t.summary,
@@ -198,6 +218,6 @@ Note system: ${user?.noteSystem ?? ''}`;
         `- ${t.title}: retention ${mark(s.retention)} application ${mark(s.application)} teaching ${mark(s.teaching)}`,
       );
     }
-    return `## MASTERY CONDITIONS\n${lines.join('\n')}`;
+    return `${header}\n${lines.join('\n')}`;
   }
 }

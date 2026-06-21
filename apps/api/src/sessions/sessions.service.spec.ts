@@ -38,4 +38,27 @@ describe('SessionsService.createExport', () => {
       data: { exportMd: expect.stringContaining('Session: sess-1') },
     });
   });
+
+  it("writes mode: 'full' and domain: null for a plain full export", async () => {
+    await service.createExport('userA', { mode: 'full' });
+    const data = create.mock.calls[0][0].data;
+    expect(data.mode).toBe('full');
+    expect(data.domain).toBeNull();
+    expect(data).not.toHaveProperty('domains');
+  });
+
+  it("writes mode: 'domain' and the parsed domain for a domain-scoped export", async () => {
+    await service.createExport('userA', { mode: 'domain:DSA' });
+    const data = create.mock.calls[0][0].data;
+    expect(data.mode).toBe('domain');
+    expect(data.domain).toBe('DSA');
+    expect(data).not.toHaveProperty('domains');
+  });
+
+  it("treats an unset mode as 'full' with a null domain", async () => {
+    await service.createExport('userA', {});
+    const data = create.mock.calls[0][0].data;
+    expect(data.mode).toBe('full');
+    expect(data.domain).toBeNull();
+  });
 });

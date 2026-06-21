@@ -2,13 +2,14 @@ import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { ExportGeneratorService } from './export-generator.service';
+import { OUTPUT_CONTRACT } from './output-contract';
 
 function makeUserMock() {
   return {
     findUnique: jest.fn().mockResolvedValue({
       id: 'userA',
       name: 'Dima',
-      role: 'Mid-senior full-stack dev, TypeScript + Solidity + DeFi',
+      headline: 'Mid-senior full-stack dev, TypeScript + Solidity + DeFi',
       learningStyle: 'Socratic, depth-first, tabulation over memoization',
       codeStyle: 'readable > optimized, TypeScript',
       noteSystem: 'OneNote (iPad drawings) + Obsidian (markdown)',
@@ -20,6 +21,7 @@ function makeMetrics(prisma: any) {
   const real = new MetricsService(prisma as any);
   return {
     dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
+    dueCards: jest.fn().mockResolvedValue([]),
     struggleRatio7d: jest.fn().mockResolvedValue(0.44),
     masteryStatus: real.masteryStatus.bind(real),
     topicLabels: real.topicLabels.bind(real),
@@ -38,13 +40,12 @@ describe('ExportGeneratorService', () => {
             title: 'Stacks & queues',
             domain: 'DSA',
             status: 'active',
-            interval: 1,
-            repetitions: 3,
             nextReviewAt: new Date('2026-01-01'),
             noteRef: null,
             summary: null,
             parentId: null,
             prerequisites: [],
+            prompts: [{ reps: 3, stability: null, suspended: false }],
           },
         ]),
       },
@@ -71,6 +72,16 @@ describe('ExportGeneratorService', () => {
     expect(md).toContain('## WHO I AM');
     expect(md).toContain('learning-os');
     expect(md).toContain('OUTPUT CONTRACT');
+  });
+
+  it('OUTPUT CONTRACT is always the last section emitted', async () => {
+    const md = await service.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
+    expect(md.endsWith(OUTPUT_CONTRACT)).toBe(true);
+  });
+
+  it('MASTERY CONDITIONS uses the new retention wording', async () => {
+    const md = await service.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
+    expect(md).toContain('all active cards at stability ≥ 30d');
   });
 
   it('includes a ROADMAP section with the seeded topic', async () => {
@@ -102,39 +113,36 @@ describe('ExportGeneratorService', () => {
             title: 'TopicA',
             domain: 'DSA',
             status: 'planned',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
             parentId: null,
             prerequisites: [],
+            prompts: [],
           },
           {
             id: 'B',
             title: 'TopicB',
             domain: 'DSA',
             status: 'planned',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
             parentId: 'A',
             prerequisites: [],
+            prompts: [],
           },
           {
             id: 'C',
             title: 'TopicC',
             domain: 'DSA',
             status: 'planned',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
             parentId: 'B',
             prerequisites: [],
+            prompts: [],
           },
         ]),
       },
@@ -169,13 +177,12 @@ describe('ExportGeneratorService', () => {
             title: 'BlockedTopic',
             domain: 'DSA',
             status: 'planned',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
             parentId: null,
             prerequisites: [{ prerequisite: { status: 'active' } }],
+            prompts: [],
           },
         ]),
       },
@@ -200,7 +207,7 @@ describe('ExportGeneratorService', () => {
     expect(md).toContain('BlockedTopic');
   });
 
-  it('reviewing tag: active topic with repetitions 3 renders (reviewing)', async () => {
+  it('reviewing tag: active topic with a reviewed card renders (reviewing)', async () => {
     const prisma4 = {
       topic: {
         findMany: jest.fn().mockResolvedValue([
@@ -209,13 +216,12 @@ describe('ExportGeneratorService', () => {
             title: 'ReviewingTopic',
             domain: 'DSA',
             status: 'active',
-            repetitions: 3,
-            interval: 1,
             nextReviewAt: new Date('2026-01-01'),
             noteRef: null,
             summary: null,
             parentId: null,
             prerequisites: [],
+            prompts: [{ reps: 3, stability: null, suspended: false }],
           },
         ]),
       },
@@ -254,6 +260,7 @@ describe('ExportGeneratorService', () => {
     };
     const metrics = {
       dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
+      dueCards: jest.fn().mockResolvedValue([]),
       struggleRatio7d: jest.fn().mockResolvedValue(0),
       masteryStatus: () => ({
         retention: false,
@@ -286,8 +293,6 @@ describe('ExportGeneratorService', () => {
             domain: 'DSA',
             topicType: 'concept',
             status: 'archived',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
@@ -295,6 +300,7 @@ describe('ExportGeneratorService', () => {
             aiProposed: true,
             aiContext: 'came up while discussing balanced trees',
             prerequisites: [],
+            prompts: [],
           },
         ]),
       },
@@ -330,8 +336,6 @@ describe('ExportGeneratorService', () => {
             domain: 'DSA',
             topicType: 'pattern',
             status: 'active',
-            repetitions: 2,
-            interval: 1,
             nextReviewAt: new Date('2026-01-01'),
             noteRef: null,
             summary: null,
@@ -339,6 +343,7 @@ describe('ExportGeneratorService', () => {
             aiProposed: false,
             aiContext: null,
             prerequisites: [],
+            prompts: [{ reps: 2, stability: null, suspended: false }],
           },
           {
             id: 'parked1',
@@ -346,8 +351,6 @@ describe('ExportGeneratorService', () => {
             domain: 'DSA',
             topicType: 'concept',
             status: 'archived',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
@@ -355,6 +358,7 @@ describe('ExportGeneratorService', () => {
             aiProposed: true,
             aiContext: 'came up while discussing hashing',
             prerequisites: [],
+            prompts: [],
           },
         ]),
       },
@@ -410,8 +414,6 @@ describe('ExportGeneratorService', () => {
             domain: 'DSA',
             topicType: 'pattern',
             status: 'planned',
-            repetitions: 0,
-            interval: 0,
             nextReviewAt: null,
             noteRef: null,
             summary: null,
@@ -419,6 +421,7 @@ describe('ExportGeneratorService', () => {
             aiProposed: true,
             aiContext: 'suggested for prefix-sum problems',
             prerequisites: [],
+            prompts: [],
           },
         ]),
       },
@@ -500,7 +503,7 @@ describe('ExportGeneratorService', () => {
         findUnique: jest.fn().mockResolvedValue({
           id: 'userA',
           name: 'Neo',
-          role: 'Hacker',
+          headline: 'Hacker',
           learningStyle: 'x',
           codeStyle: 'y',
           noteSystem: 'z',
@@ -510,6 +513,7 @@ describe('ExportGeneratorService', () => {
     const metrics: any = {
       struggleRatio7d: jest.fn().mockResolvedValue(0),
       dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
+      dueCards: jest.fn().mockResolvedValue([]),
     };
     const svc = new ExportGeneratorService(prisma, metrics);
     const md = await svc.generate({ now: new Date('2026-07-01T00:00:00Z'), userId: 'userA' });
@@ -518,5 +522,86 @@ describe('ExportGeneratorService', () => {
     );
     expect(md).toContain('Name: Neo');
     expect(md).not.toContain('Name: Dima');
+  });
+
+  it('due section lists due cards as sub-lines under their due topic', async () => {
+    const dueTopic: any = { id: 't1', title: 'Stacks & queues', topicType: 'concept' };
+    const prisma: any = {
+      topic: { findMany: jest.fn().mockResolvedValue([]) },
+      applicationEvent: { count: jest.fn().mockResolvedValue(0) },
+      sessionExport: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      user: makeUserMock(),
+    };
+    const metrics: any = {
+      dueTopics: jest.fn().mockResolvedValue({ overdue: [dueTopic], dueToday: [] }),
+      dueCards: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'card1', topicId: 't1', promptKind: 'concept', promptText: 'What is a stack?' },
+        ]),
+      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      masteryStatus: () => ({
+        retention: false,
+        application: false,
+        teaching: false,
+        eligible: false,
+      }),
+      topicLabels: () => ({ blocked: false, reviewing: false }),
+    };
+    const mod = await Test.createTestingModule({
+      providers: [
+        ExportGeneratorService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MetricsService, useValue: metrics },
+      ],
+    }).compile();
+    const svc = mod.get(ExportGeneratorService);
+    const md = await svc.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
+    expect(md).toContain('- Stacks & queues [concept]');
+    expect(md).toContain('  - card card1 [concept] What is a stack?');
+    expect(md.indexOf('- Stacks & queues [concept]')).toBeLessThan(
+      md.indexOf('  - card card1 [concept] What is a stack?'),
+    );
+  });
+
+  it('does not render due-card sub-lines for a card whose topic is not in the due topics list', async () => {
+    const prisma: any = {
+      topic: { findMany: jest.fn().mockResolvedValue([]) },
+      applicationEvent: { count: jest.fn().mockResolvedValue(0) },
+      sessionExport: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      user: makeUserMock(),
+    };
+    const metrics: any = {
+      dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
+      dueCards: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'card2', topicId: 'orphan', promptKind: 'concept', promptText: 'Orphan card' },
+        ]),
+      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      masteryStatus: () => ({
+        retention: false,
+        application: false,
+        teaching: false,
+        eligible: false,
+      }),
+      topicLabels: () => ({ blocked: false, reviewing: false }),
+    };
+    const mod = await Test.createTestingModule({
+      providers: [
+        ExportGeneratorService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MetricsService, useValue: metrics },
+      ],
+    }).compile();
+    const svc = mod.get(ExportGeneratorService);
+    const md = await svc.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
+    expect(md).not.toContain('Orphan card');
   });
 });
