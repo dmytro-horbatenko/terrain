@@ -156,11 +156,19 @@ export function useAddAppEvent(topicId: string) {
   });
 }
 
-export function usePromptGraduation(topicId: string) {
+export function useSetPromptSuspended(topicId: string) {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ id, graduated }: { id: string; graduated: boolean }) =>
-      api.setPromptGraduated(id, graduated),
+    mutationFn: ({ id, suspended }: { id: string; suspended: boolean }) =>
+      api.setPromptSuspended(id, suspended),
+    onSuccess: () => invalidate(topicId),
+  });
+}
+
+export function useDeletePrompt(topicId: string) {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (id: string) => api.deletePrompt(id),
     onSuccess: () => invalidate(topicId),
   });
 }

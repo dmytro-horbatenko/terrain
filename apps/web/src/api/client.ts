@@ -10,6 +10,7 @@ import type {
   CreateTopicInput,
   LoginInput,
   LogReviewInput,
+  NextPromptPayload,
   Prompt,
   RegisterInput,
   Review,
@@ -82,9 +83,11 @@ export const api = {
   // reviews
   logReview: (input: LogReviewInput) => req<Review>('/reviews', { method: 'POST', ...json(input) }),
   getReviews: (topicId: string) => req<Review[]>(`/reviews?topicId=${encodeURIComponent(topicId)}`),
-  getNextPrompt: (topicId: string) => req<Prompt | null>(`/topics/${topicId}/prompts/next`),
-  setPromptGraduated: (id: string, graduated: boolean) =>
-    req<Prompt>(`/prompts/${id}`, { method: 'PATCH', ...json({ graduated }) }),
+  getNextPrompt: (topicId: string) =>
+    req<NextPromptPayload | null>(`/topics/${topicId}/prompts/next`),
+  setPromptSuspended: (id: string, suspended: boolean) =>
+    req<Prompt>(`/prompts/${id}`, { method: 'PATCH', ...json({ suspended }) }),
+  deletePrompt: (id: string) => req<void>(`/prompts/${id}`, { method: 'DELETE' }),
 
   // metrics + streak
   getDashboard: (domain?: string) =>

@@ -191,13 +191,13 @@
   font-size: 13px;
 }
 
-/* ---------- quality picker ---------- */
-.quality-grid {
+/* ---------- grade picker ---------- */
+.grade-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 7px;
 }
-.quality-btn {
+.grade-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -211,14 +211,14 @@
     border-color 0.1s,
     background 0.1s;
 }
-.quality-btn:hover {
+.grade-btn:hover {
   border-color: var(--text-faint);
 }
-.quality-num {
-  font-size: 16px;
+.grade-label {
+  font-size: 13px;
   font-weight: 750;
 }
-.quality-label {
+.grade-sub {
   font-size: 10px;
   color: var(--text-muted);
   font-weight: 550;

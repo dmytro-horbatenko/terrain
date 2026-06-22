@@ -11,17 +11,20 @@ import type { Review } from '../api/types';
 import { formatDate } from '../lib/format';
 
 /**
- * SM-2 interval growth over a topic's review history — reads the historical
+ * FSRS interval growth over a topic's review history — reads the historical
  * `intervalAfter` facts (never recomputed) so the curve reflects what actually
- * happened. Chronological (oldest → newest). Renders nothing below 2 points.
+ * happened. Evidence reviews (no scheduling effect) have a null interval and
+ * are excluded. Chronological (oldest → newest). Renders nothing below 2 points.
  */
 export function IntervalGrowthChart({ reviews }: { reviews: Review[] }) {
-  const data = [...reviews].reverse().map((r, i) => ({
-    i,
-    interval: r.intervalAfter,
-    quality: r.quality,
-    date: formatDate(r.reviewedAt),
-  }));
+  const data = [...reviews]
+    .filter((r) => r.intervalAfter != null)
+    .reverse()
+    .map((r, i) => ({
+      i,
+      interval: r.intervalAfter,
+      date: formatDate(r.reviewedAt),
+    }));
 
   if (data.length < 2) return null;
 

@@ -1,49 +1,46 @@
 import { useState } from 'react';
 import { useLogReview } from '../api/hooks';
 import { useToast } from './Toast';
-import { QualityPicker } from './QualityPicker';
-import { previewReview } from '../lib/sr';
-import { formatDate } from '../lib/format';
-import type { SrBearing } from '../lib/sr';
+import { GradePicker } from './GradePicker';
+import type { Grade } from '../api/types';
 
-type SrTopic = SrBearing & { id: string; title: string };
-
-/** Reusable review logger with a live SM-2 projection. Used on Dashboard
- *  quick-log and inside the topic detail panel. */
+/** Reusable review logger. Used on Dashboard quick-log and inside the topic
+ *  detail panel. Interval previews (per-grade) are sourced from the backend
+ *  via `previewIntervals` and rendered inside `GradePicker`'s buttons. */
 export function LogReviewForm({
   topic,
   onLogged,
   autoFocusNote = false,
   promptId,
+  previewIntervals,
 }: {
-  topic: SrTopic;
+  topic: { id: string; title: string };
   onLogged?: () => void;
   autoFocusNote?: boolean;
   promptId?: string;
+  previewIntervals?: Record<Grade, number>;
 }) {
-  const [quality, setQuality] = useState<number | null>(null);
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [note, setNote] = useState('');
   const [duration, setDuration] = useState('');
   const log = useLogReview();
   const { toast } = useToast();
 
-  const preview = quality != null ? previewReview(topic, quality) : null;
-
   function submit() {
-    if (quality == null) return;
+    if (grade == null) return;
     log.mutate(
       {
         topicId: topic.id,
         promptId,
-        quality,
+        grade,
         mode: 'app_log',
         note: note.trim() || undefined,
         durationMin: duration ? Number(duration) : undefined,
       },
       {
         onSuccess: () => {
-          toast(`Logged "${topic.title}" · q${quality}`, 'success');
-          setQuality(null);
+          toast(`Logged "${topic.title}" · ${grade}`, 'success');
+          setGrade(null);
           setNote('');
           setDuration('');
           onLogged?.();
@@ -55,16 +52,7 @@ export function LogReviewForm({
 
   return (
     <div className="col gap-3">
-      <QualityPicker value={quality} onChange={setQuality} />
-      {preview && (
-        <div className="sr-preview">
-          interval{' '}
-          <b>
-            {topic.interval}d → {preview.interval}d
-          </b>{' '}
-          · next review <b>{formatDate(preview.nextReviewAt?.toISOString())}</b>
-        </div>
-      )}
+      <GradePicker value={grade} onSelect={setGrade} previews={previewIntervals} />
       <textarea
         className="textarea"
         style={{ minHeight: 56 }}
@@ -85,7 +73,7 @@ export function LogReviewForm({
         />
         <button
           className="btn btn-primary right"
-          disabled={quality == null || log.isPending}
+          disabled={grade == null || log.isPending}
           onClick={submit}
         >
           {log.isPending ? 'Logging…' : 'Log review'}

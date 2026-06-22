@@ -3,30 +3,34 @@ import CodeMirror from '@uiw/react-codemirror';
 import { keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { useNextPrompt } from '../api/hooks';
+import type { Grade } from '../api/types';
 
 const tabKeymap = keymap.of([indentWithTab]);
 
 /** Gates review submission behind a recall-then-reveal step when the topic
- *  has a due prompt. Falls back to rendering `children` immediately when
- *  the topic has none, so today's review flow is unaffected. */
+ *  has a due/new prompt. Falls back to rendering `children` immediately when
+ *  the topic has none (evidence-only review), so today's review flow is
+ *  unaffected. */
 export function ReviewGate({
   topic,
   children,
 }: {
   topic: { id: string };
-  children: (promptId?: string) => ReactNode;
+  children: (promptId?: string, previewIntervals?: Record<Grade, number>) => ReactNode;
 }) {
-  const { data: prompt, isLoading } = useNextPrompt(topic.id);
+  const { data, isLoading } = useNextPrompt(topic.id);
   const [revealed, setRevealed] = useState(false);
   const [scratch, setScratch] = useState('');
 
   useEffect(() => {
     setRevealed(false);
     setScratch('');
-  }, [prompt?.id]);
+  }, [data?.prompt.id]);
 
   if (isLoading) return null;
-  if (!prompt) return <>{children()}</>;
+  if (!data) return <>{children()}</>;
+
+  const { prompt, previewIntervals } = data;
 
   return (
     <div className="col gap-3">
@@ -61,7 +65,7 @@ export function ReviewGate({
         )}
         {revealed && prompt.answerHint && <div className="faint">{prompt.answerHint}</div>}
       </div>
-      {revealed && children(prompt.id)}
+      {revealed && children(prompt.id, previewIntervals)}
     </div>
   );
 }

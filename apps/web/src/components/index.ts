@@ -10,7 +10,7 @@ export * from './Heatmap';
 export * from './AppEventsPanel';
 export * from './PromptsPanel';
 export * from './Gauge';
-export * from './QualityPicker';
+export * from './GradePicker';
 export * from './TypeAutocomplete';
 export * from './LogReviewForm';
 export * from './ReviewGate';

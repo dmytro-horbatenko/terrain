@@ -109,6 +109,19 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
   const due = dueLabel(t.nextReviewAt);
   const noteHref = noteRefHref(t.noteRef, settings?.obsidianVault);
 
+  const cardsTotal = t.prompts.length;
+  const cardsNew = t.prompts.filter((p) => p.state === 'new' && !p.suspended).length;
+  const cardsDue = t.prompts.filter((p) => {
+    if (p.suspended) return false;
+    const d = dueLabel(p.nextReviewAt);
+    return d.days !== null && d.days <= 0;
+  }).length;
+  const activeStabilities = t.prompts
+    .filter((p) => !p.suspended && p.stability != null)
+    .map((p) => p.stability as number);
+  const minStability =
+    activeStabilities.length > 0 ? Math.round(Math.min(...activeStabilities)) : null;
+
   return (
     <div className="col gap-4 detail-panel">
       {/* header */}
@@ -202,19 +215,17 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
           </select>
         </div>
         <div className="col">
-          <span className="faint">Interval</span>
-          <b>{t.interval}d</b>
-        </div>
-        <div className="col">
-          <span className="faint">Reps · EF</span>
-          <b>
-            {t.repetitions} · {t.easeFactor.toFixed(2)}
+          <span className="faint">Next review</span>
+          <b style={{ color: due.overdue ? 'var(--danger)' : undefined }}>
+            {t.nextReviewAt
+              ? `${formatDate(t.nextReviewAt)}${due.text !== 'not scheduled' ? ` (${due.text})` : ''}`
+              : '—'}
           </b>
         </div>
         <div className="col">
-          <span className="faint">Next review</span>
-          <b style={{ color: due.overdue ? 'var(--danger)' : undefined }}>
-            {formatDate(t.nextReviewAt)} {due.text !== 'not scheduled' && `(${due.text})`}
+          <span className="faint">Cards</span>
+          <b>
+            cards: {cardsTotal} ({cardsDue} due, {cardsNew} new)
           </b>
         </div>
       </div>
@@ -228,7 +239,11 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         <Check
           ok={t.mastery.retention}
           label="Retention"
-          detail={`interval ≥ 30d (now ${t.interval}d)`}
+          detail={
+            minStability !== null
+              ? `all active cards at stability ≥ 30d (min now ${minStability}d)`
+              : 'all active cards at stability ≥ 30d'
+          }
         />
         <Check
           ok={t.mastery.application}
@@ -331,7 +346,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         {t.reviews.length > 1 && (
           <div className="card card-pad">
             <div className="faint" style={{ fontSize: 12, marginBottom: 4 }}>
-              Interval growth (SM-2)
+              Interval growth (FSRS)
             </div>
             <IntervalGrowthChart reviews={t.reviews} />
           </div>
@@ -343,10 +358,12 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
             {t.reviews.map((r) => (
               <div key={r.id} className="row history-row">
                 <span className="mono" style={{ width: 46 }}>
-                  q{r.quality}
+                  {r.grade}
                 </span>
                 <span className="faint" style={{ width: 150 }}>
-                  {r.intervalBefore}d → {r.intervalAfter}d
+                  {r.intervalBefore != null && r.intervalAfter != null
+                    ? `${r.intervalBefore}d → ${r.intervalAfter}d`
+                    : '—'}
                 </span>
                 <span
                   className="faint grow nowrap"
@@ -367,7 +384,9 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
           Log a review
         </div>
         <ReviewGate topic={t}>
-          {(promptId) => <LogReviewForm topic={t} promptId={promptId} />}
+          {(promptId, previewIntervals) => (
+            <LogReviewForm topic={t} promptId={promptId} previewIntervals={previewIntervals} />
+          )}
         </ReviewGate>
       </div>
     </div>
