@@ -244,9 +244,6 @@ function TopicRow({
         >
           {due.text}
         </span>
-        <span className="mono faint" style={{ fontSize: 12, minWidth: 34, textAlign: 'right' }}>
-          {topic.interval}d
-        </span>
         <button
           className="btn btn-ghost btn-sm"
           onClick={onDelete}
