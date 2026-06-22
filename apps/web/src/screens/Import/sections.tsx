@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Card, QUALITY, tint, useToast } from '../../components';
+import { Card, tint, useToast } from '../../components';
 import { formatDate } from '../../lib/format';
 import type {
   ImportPlan,
@@ -9,9 +9,20 @@ import type {
   Unresolved,
 } from '../../api/types';
 
-/** Colored quality glyph + number, matching the QualityPicker palette. */
+/** Legacy 0-5 import-quality scale (pasted session text, predates the
+ *  Grade-based review flow) — local to this screen, not shared. */
+const IMPORT_QUALITY: { q: number; label: string; color: string }[] = [
+  { q: 0, label: 'Blackout', color: '#dc2626' },
+  { q: 1, label: 'Wrong', color: '#ef4444' },
+  { q: 2, label: 'Almost', color: '#f59e0b' },
+  { q: 3, label: 'Effort', color: '#84cc16' },
+  { q: 4, label: 'Good', color: '#22c55e' },
+  { q: 5, label: 'Perfect', color: '#16a34a' },
+];
+
+/** Colored quality glyph + number, matching the legacy import-quality palette. */
 function QualityBadge({ quality }: { quality: number }) {
-  const meta = QUALITY.find((x) => x.q === quality);
+  const meta = IMPORT_QUALITY.find((x) => x.q === quality);
   const color = meta?.color ?? 'var(--text-muted)';
   return (
     <span

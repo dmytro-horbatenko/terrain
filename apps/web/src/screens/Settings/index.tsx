@@ -9,7 +9,7 @@ export default function Settings() {
   const { toast } = useToast();
   const [form, setForm] = useState({
     name: '',
-    role: '',
+    headline: '',
     learningStyle: '',
     codeStyle: '',
     noteSystem: '',
@@ -19,7 +19,7 @@ export default function Settings() {
     if (me.data)
       setForm({
         name: me.data.name ?? '',
-        role: me.data.role ?? '',
+        headline: me.data.headline ?? '',
         learningStyle: me.data.learningStyle ?? '',
         codeStyle: me.data.codeStyle ?? '',
         noteSystem: me.data.noteSystem ?? '',
@@ -44,7 +44,7 @@ export default function Settings() {
       <Card title="Profile — this drives your session export's WHO I AM block">
         <div className="col gap-3">
           {field('name', 'Name')}
-          {field('role', 'Role')}
+          {field('headline', 'Role')}
           {field('learningStyle', 'Learning style')}
           {field('codeStyle', 'Code style')}
           {field('noteSystem', 'Note system')}
