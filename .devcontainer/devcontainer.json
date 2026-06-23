@@ -16,7 +16,7 @@
     "BRAVE_BIN": "/usr/bin/chromium",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
-  "postCreateCommand": "sudo chown node:node /workspace/node_modules && yarn install && yarn workspace @terrain/api exec prisma generate && yarn build",
+  "postCreateCommand": "sudo chown node:node /workspace/node_modules && yarn install && yarn workspace @terrain/api exec prisma generate && yarn build && bash .devcontainer/install-claude-plugins.sh",
   "postStartCommand": "sudo /usr/local/bin/terrain-firewall",
   "customizations": {
     "vscode": {
