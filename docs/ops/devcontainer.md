@@ -19,6 +19,20 @@ an allowlist.
 | `docker-compose.yml` | Adds the `app` service next to the repo-root `db` (Postgres) service; sets `DATABASE_URL=…@db:5432` |
 | `Dockerfile` | `node:24` + Yarn 4 (Corepack) + Chromium (for the UI smoke) + firewall tooling; scoped `sudo` for `node` |
 | `init-firewall.sh` | Default-deny egress with an editable allowlist; allows the Compose subnet so the app reaches `db` |
+| `install-claude-plugins.sh` | Installs the superpowers/skill-creator/code-simplifier plugins into the container's `~/.claude` (see below) |
+
+### Claude Code plugins
+
+The `claude-code-config` volume (`~/.claude` inside the container) starts empty —
+it's deliberately decoupled from your host `~/.claude`, so none of your host
+plugins carry over automatically. `postCreateCommand` runs
+`install-claude-plugins.sh`, which adds the `claude-plugins-official` marketplace
+and installs/enables **superpowers** (brainstorming, subagent-driven-development,
+dispatching-parallel-agents, TDD, writing-plans, systematic-debugging, etc.),
+**skill-creator**, and **code-simplifier** at user scope. Every subcommand is
+idempotent, so it's safe on rebuilds. This does *not* carry over loose personal
+skills from your host's `~/.claude/skills/` (those aren't plugins) — only what's
+installable from the marketplace.
 
 ## What you need installed (one time)
 
