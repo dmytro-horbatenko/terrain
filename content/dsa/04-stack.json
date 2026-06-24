@@ -1,0 +1,179 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Stack",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "LIFO structure for matching, undo/backtrack-style state, and deferred-processing patterns. Independent axis from Two Pointers, also array-based.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Monotonic stack",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Keep the stack sorted (increasing or decreasing) by popping elements that violate the order before pushing; popped element's answer is resolved by the pusher. Recognize: \"next greater/smaller element\", \"days until warmer\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Stack"
+    },
+    {
+      "title": "Valid parentheses / matching pairs",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Push openers, pop-and-check on closers; stack empty at the end means fully matched. Recognize: nested bracket/tag validity, \"remove adjacent duplicates\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Stack"
+    },
+    {
+      "title": "Expression evaluation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Use a stack to hold operands/partial results while scanning an expression left to right, applying operator precedence explicitly. Recognize: calculator problems, Reverse Polish Notation.",
+      "prerequisiteTitles": ["Valid parentheses / matching pairs"],
+      "parentTitle": "Stack"
+    },
+    {
+      "title": "Min-stack design",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Track the running minimum alongside each push (auxiliary stack or encoded value) so getMin is O(1). Recognize: \"design a stack that also supports X in O(1)\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Stack"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Monotonic stack",
+      "promptText": "When do you reach for a monotonic stack? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"next/previous greater or smaller element\", \"days until a warmer day\", spans, or a histogram/skyline where each element's answer depends on the nearest bigger/smaller neighbor. Pitfall: choosing the wrong monotonic direction, or storing values when you need indices (distances/widths require indices) — and forgetting to drain the leftover stack at the end. Related: Online Stock Span is the same pop-while-smaller span count.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Monotonic stack",
+      "promptText": "Write the next-greater-element scan in your language of choice: for each array position, find the next element to its right that is strictly greater (or a sentinel if none).",
+      "answerHint": "Stack holds indices of positions still waiting for their answer. For each i, while the stack's top element is smaller than nums[i], pop it and record i (or nums[i]) as its next-greater. Then push i. Invariant: the stack's values stay decreasing top-to-bottom; anything left at the end has no greater element.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Monotonic stack",
+      "promptText": "Solve: Next Greater Element I (Easy) — for each value in nums1, find its next greater element in nums2 (elements of nums1 are a subset of nums2).",
+      "answerHint": "Monotonic stack over nums2 builds a value -> next-greater map in one pass; then look up each nums1 value.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/next-greater-element-i/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Monotonic stack",
+      "promptText": "Solve: Daily Temperatures (Medium) — for each day, how many days until a warmer temperature (0 if none).",
+      "answerHint": "Decreasing stack of indices; when today is warmer than the top, pop and the answer is i minus the popped index.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/daily-temperatures/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Monotonic stack",
+      "promptText": "Solve: Largest Rectangle in Histogram (Hard) — largest rectangle area fitting under a bar-height histogram.",
+      "answerHint": "Increasing stack of indices; when a shorter bar arrives, pop and compute area = popped height times the width between the new left boundary and i. Use a trailing zero-height sentinel to flush the stack.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/largest-rectangle-in-histogram/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Valid parentheses / matching pairs",
+      "promptText": "When do you reach for a push-openers / pop-on-closers stack? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: nested bracket/tag validity, balanced-symbol checks, \"remove adjacent duplicates\", or any structure where the most recently opened thing must close first (LIFO nesting). Pitfall: forgetting the two failure modes — a closer with an empty stack (or wrong opener on top) AND a non-empty stack at the end (unclosed openers). Related: Remove All Adjacent Duplicates In String pops when the top equals the incoming char.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Valid parentheses / matching pairs",
+      "promptText": "Write the bracket matcher in your language of choice: scan a string of brackets and decide whether every closer matches the most recent unmatched opener.",
+      "answerHint": "Push each opener; on a closer, fail if the stack is empty or its top isn't the matching opener, else pop. Map each closer to its opener. Invariant: the stack always holds the still-open brackets in nesting order; valid means it ends empty.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Valid parentheses / matching pairs",
+      "promptText": "Solve: Valid Parentheses (Easy) — return true if brackets '()[]{}' are correctly opened and closed in order.",
+      "answerHint": "Push openers, pop and match on closers; valid iff every close matches and the stack ends empty.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/valid-parentheses/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Valid parentheses / matching pairs",
+      "promptText": "Solve: Minimum Add to Make Parentheses Valid (Medium) — fewest parentheses to insert so the string becomes valid.",
+      "answerHint": "Track open count; a ')' with no open to cancel adds one required insertion. Answer is leftover opens plus those unmatched closers (no actual stack needed, just a counter).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/minimum-add-to-make-parentheses-valid/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Valid parentheses / matching pairs",
+      "promptText": "Solve: Decode String (Medium) — expand encoded strings like \"3[a2[c]]\" into \"accaccacc\".",
+      "answerHint": "Stack of partial results: on '[' push the current string and repeat count and reset; on ']' pop and repeat the built segment. The stack holds one frame per open bracket.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/decode-string/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Expression evaluation",
+      "promptText": "When do you reach for a stack to evaluate an expression? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: calculator problems, Reverse Polish / postfix notation, expressions with operator precedence, or parentheses that defer evaluation. Pitfall: mishandling operator precedence and associativity — evaluate '*' and '/' immediately but defer '+' and '-', and watch operand order for non-commutative '-' and '/' (a op b, not b op a). Related: Basic Calculator (Hard) adds parentheses handling on the same stack idea.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Expression evaluation",
+      "promptText": "Write the RPN evaluator in your language of choice: evaluate a postfix expression given as a list of number and operator tokens.",
+      "answerHint": "Scan tokens; push numbers, and on an operator pop the top two operands (the second-popped is the left operand), apply, push the result. Invariant: after processing a valid expression the stack holds exactly one value — the answer.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Expression evaluation",
+      "promptText": "Solve: Evaluate Reverse Polish Notation (Medium) — evaluate an arithmetic expression in postfix form.",
+      "answerHint": "Operand stack; pop two on each operator (mind order for '-' and '/'), push the result.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/evaluate-reverse-polish-notation/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Expression evaluation",
+      "promptText": "Solve: Basic Calculator II (Medium) — evaluate an infix string with + - * / and non-negative integers (no parentheses).",
+      "answerHint": "Keep a stack of pending additive terms; apply '*' and '/' immediately against the last pushed number, defer '+'/'-' by pushing (signed) values, then sum the stack.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/basic-calculator-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Min-stack design",
+      "promptText": "When do you reach for the min-stack (running-extremum-per-entry) design? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"design a stack that also returns the min/max in O(1)\", any LIFO structure needing an auxiliary aggregate that must survive pops. Pitfall: storing only a single global min — it can't be restored after the min is popped; pair each entry with the min-so-far (aux stack or encoded pair) so pops roll it back. Related: Max Stack generalizes this with lazy deletion for arbitrary removal.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Min-stack design",
+      "promptText": "Write a min-stack in your language of choice: push, pop, top, and getMin all in O(1).",
+      "answerHint": "Alongside the value stack keep a second stack whose top is always the current minimum: on push, push min(value, current-min); on pop, pop both. Invariant: the min-stack's top mirrors the minimum of exactly the elements currently present.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Min-stack design",
+      "promptText": "Solve: Min Stack (Medium) — design a stack supporting push, pop, top, and getMin in O(1).",
+      "answerHint": "Pair each pushed value with the min-so-far (aux stack or a tuple) so getMin reads the top and pops restore the previous min.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/min-stack/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

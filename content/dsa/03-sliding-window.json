@@ -1,0 +1,141 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Sliding Window",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "A contiguous window over a sequence, expanded/contracted to maintain an invariant. Directly generalizes two-pointer scanning to variable-length ranges.",
+      "prerequisiteTitles": ["Two Pointers"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Fixed-size window",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Window of constant width k slides one step at a time; maintain a running aggregate instead of recomputing. Recognize: \"subarray of size k\", \"average/max over every window of length k\".",
+      "prerequisiteTitles": ["Opposite-direction pointers"],
+      "parentTitle": "Sliding Window"
+    },
+    {
+      "title": "Variable-size window",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Expand right pointer to grow the window, shrink left pointer while an invariant is violated (or once satisfied, for min-length problems). Recognize: \"longest/shortest substring with property X\".",
+      "prerequisiteTitles": ["Fixed-size window"],
+      "parentTitle": "Sliding Window"
+    },
+    {
+      "title": "Monotonic-deque window",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A deque holding candidate indices in monotonic (increasing/decreasing) order gives O(1) amortized window max/min. Recognize: \"max/min of every window of size k\" needs better than O(n*k).",
+      "prerequisiteTitles": ["Fixed-size window"],
+      "parentTitle": "Sliding Window"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Fixed-size window",
+      "promptText": "When do you reach for a fixed-size sliding window? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"subarray/substring of size k\", \"average/max/sum over every window of length k\" — the width never changes, only the position. Pitfall: recomputing the aggregate over the whole window each step (O(n*k)) instead of adding the entering element and subtracting the one that leaves; watch the off-by-one on which index leaves (right-k). Related: the max-over-window variant can't be add/subtracted — see Sliding Window Maximum (monotonic deque).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fixed-size window",
+      "promptText": "Write the fixed-size window scan in your language of choice: given an array and width k, produce an aggregate (e.g. the sum) over every length-k window without recomputing from scratch.",
+      "answerHint": "Seed the running aggregate over the first k elements. Then for each new right index, add nums[right] and subtract nums[right-k], recording the result. Invariant: after processing index right, the running value equals the aggregate of the window [right-k+1 .. right].",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Fixed-size window",
+      "promptText": "Solve: Maximum Average Subarray I (Easy) — the maximum average value of any contiguous subarray of length k.",
+      "answerHint": "Keep a running window sum, slide one step by adding the new element and dropping the one that left, track the max sum; divide by k once at the end.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/maximum-average-subarray-i/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Fixed-size window",
+      "promptText": "Solve: Permutation in String (Medium) — does s2 contain a contiguous substring that is a permutation of s1?",
+      "answerHint": "Slide a window of width |s1| over s2 comparing character-count vectors; keep a running count of matched buckets so each slide is O(1) instead of re-comparing all 26.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/permutation-in-string/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "When do you reach for a variable-size sliding window? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"longest/shortest substring or subarray with property X\", where the property is monotone — extending the window can only break it, shrinking can only restore it. Pitfall: shrinking with an `if` instead of a `while` (one removal may not restore the invariant), or recording the answer at the wrong moment — for longest, update after the window is valid; for shortest, update while it is valid, then keep shrinking. Related: Shortest Subarray with Sum at Least K breaks the simple version (negative numbers) and needs a monotonic deque instead.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "Write the variable-size window loop in your language of choice: expand a right pointer across the sequence and shrink from the left whenever an invariant is violated, tracking the best window.",
+      "answerHint": "For each right, fold nums[right] into the window state; then while the invariant is violated, remove nums[left] and advance left. After the while-loop the window [left..right] is valid — update the answer here (e.g. max length right-left+1). Invariant: left is the smallest index that keeps [left..right] valid.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "Solve: Longest Substring Without Repeating Characters (Medium) — the length of the longest substring whose characters are all distinct.",
+      "answerHint": "Track each character's last-seen index (or a set); when a repeat enters, move left just past its previous occurrence rather than one step at a time, updating the max length each step.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "Solve: Longest Repeating Character Replacement (Medium) — the longest substring you can make uniform by replacing at most k characters.",
+      "answerHint": "The window is valid when (window length − count of its most-frequent character) ≤ k; shrink when that surplus exceeds k. Tracking only a running max-count that never decreases still gives the right answer, because the best length can only grow.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-repeating-character-replacement/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "Solve: Fruit Into Baskets (Medium) — the longest contiguous subarray containing at most two distinct values.",
+      "answerHint": "It is exactly \"longest window with ≤ 2 distinct keys\": keep a count map and shrink from the left while the map holds more than two keys, tracking the max length.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/fruit-into-baskets/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Variable-size window",
+      "promptText": "Solve: Minimum Window Substring (Hard) — the smallest substring of s that contains every character of t, counting multiplicity.",
+      "answerHint": "Expand right until the window covers all required counts (track a have/need satisfied counter), then shrink from the left while it stays covering, recording the smallest such window seen.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/minimum-window-substring/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Monotonic-deque window",
+      "promptText": "When do you reach for a monotonic-deque window? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"max/min of every window of size k\" where a plain fixed-window scan is O(n*k) and you need O(n) — the running extreme can't be add/subtracted because removing the current max leaves no cheap successor. Pitfall: storing values instead of indices (you can't tell when the front has slid out of the window), or forgetting to evict the front once its index falls below right-k+1. Related: Shortest Subarray with Sum at Least K applies the same monotonic deque to prefix sums.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Monotonic-deque window",
+      "promptText": "Write the monotonic-deque window in your language of choice: report the maximum of every length-k window in O(n), using a deque of candidate indices.",
+      "answerHint": "For each right: pop from the back while the back's value ≤ nums[right] (those can never be the max again), then push right; pop from the front if its index ≤ right-k (slid out of the window); once right ≥ k-1, the front index holds the current window's max. Invariant: deque indices increase left-to-right while their values strictly decrease.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Monotonic-deque window",
+      "promptText": "Solve: Sliding Window Maximum (Hard) — the maximum of each contiguous window of size k, in O(n).",
+      "answerHint": "Maintain a deque of indices with strictly decreasing values so the front is always the current max; evict indices that slid out of the window and any that a newer, larger value dominates.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/sliding-window-maximum/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    }
+  ],
+  "noteSummaries": []
+}
