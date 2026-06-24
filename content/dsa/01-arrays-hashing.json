@@ -1,0 +1,229 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Data Structures & Algorithms",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Root of the DSA learning path. Structure: NeetCode roadmap category order, each split into reviewable sub-patterns (the actual scheduling unit), each with curated problems from NeetCode 150 / Blind 75. Prereq edges follow real conceptual dependency, not just roadmap position. Study one sub-pattern at a time; drill into individual problems only when reviewing that sub-pattern.",
+      "prerequisiteTitles": [],
+      "parentTitle": null,
+      "aiContext": "path root, created 2026-07-01; cards authored 2026-07-02"
+    },
+    {
+      "title": "Arrays & Hashing",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Foundation category: hash-based lookup and array manipulation underlie most other patterns. No DSA prereqs — entry point.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Hashing fundamentals",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Use a hash set/map to turn an O(n) membership or lookup check into O(1). Recognize: \"have I seen this before\", \"does X exist\", frequency counts.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Arrays & Hashing"
+    },
+    {
+      "title": "Two Sum / complement lookup",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "For each element, check whether its complement (target - x) was already seen; store as you go instead of nested-looping. Recognize: \"pair that sums/multiplies to X\", single pass with a map.",
+      "prerequisiteTitles": ["Hashing fundamentals"],
+      "parentTitle": "Arrays & Hashing"
+    },
+    {
+      "title": "Grouping by key",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Bucket elements by a derived key (sorted string, character-count signature) into a hash map of lists. Recognize: \"group these into categories\", anagram/shape clustering.",
+      "prerequisiteTitles": ["Hashing fundamentals"],
+      "parentTitle": "Arrays & Hashing"
+    },
+    {
+      "title": "Prefix sums",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Precompute running sums so any range sum is O(1) via subtraction; combine with a hash map of seen prefix sums for subarray-sum problems. Recognize: repeated range-sum queries, \"subarray with sum equal to X\".",
+      "prerequisiteTitles": ["Hashing fundamentals"],
+      "parentTitle": "Arrays & Hashing"
+    },
+    {
+      "title": "Sorting-based array tricks",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sort first to unlock two-pointer scans, deduplication, or greedy choices that only work on ordered data. Recognize: problem becomes easy once sorted, needs original-vs-sorted comparison.",
+      "prerequisiteTitles": ["Hashing fundamentals"],
+      "parentTitle": "Arrays & Hashing"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Hashing fundamentals",
+      "promptText": "When do you reach for a hash set/map as the core of a solution? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"have I seen this before\", \"does X exist\", frequency counting, any O(n^2) membership scan you can make O(n). Pitfall: hashing mutable/unnormalized keys (forgetting to sort or canonicalize the thing you look up). Related: Top K Frequent Elements builds a frequency map first.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hashing fundamentals",
+      "promptText": "Write a frequency counter in your language of choice: given an array, build a map value -> count in one pass, then use it to find any value appearing exactly twice.",
+      "answerHint": "One loop, map.get(x) defaulting to 0 then +1; second loop (or the same one) checks counts. Invariant: after i iterations the map holds exact counts for the first i elements.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Hashing fundamentals",
+      "promptText": "Solve: Contains Duplicate (Easy) — return true if any value appears at least twice in the array.",
+      "answerHint": "Set of seen values; return true the moment insertion finds the value already present.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/contains-duplicate/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Hashing fundamentals",
+      "promptText": "Solve: Valid Anagram (Easy) — given two strings, return true if one is an anagram of the other.",
+      "answerHint": "Character-frequency map of s, decrement over t; all zeros means anagram (or compare two count maps).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/valid-anagram/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Hashing fundamentals",
+      "promptText": "Solve: Longest Consecutive Sequence (Medium) — length of the longest run of consecutive integers in an unsorted array, in O(n).",
+      "answerHint": "Hash-set all values; only start counting from numbers whose predecessor (x-1) is absent — each element is visited at most twice.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-consecutive-sequence/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Two Sum / complement lookup",
+      "promptText": "When do you reach for the complement-lookup pattern? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"pair summing/multiplying to X\", single unsorted pass where sorting would cost the indices. Pitfall: inserting the current element BEFORE checking its complement (breaks on target = 2x). Related: Two Sum II (sorted input) belongs to opposite-direction pointers; Subarray Sum Equals K is the same idea on prefix sums.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Two Sum / complement lookup",
+      "promptText": "Write the single-pass complement lookup in your language of choice: given an array and target, return the indices of a pair summing to target.",
+      "answerHint": "Map value -> index built as you scan; check map for (target - x) before inserting x. Invariant: map only ever holds elements strictly left of the cursor.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Two Sum / complement lookup",
+      "promptText": "Solve: Two Sum (Easy) — indices of the two numbers adding to target, one valid answer guaranteed.",
+      "answerHint": "Check seen-map for complement, then store current value -> index.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/two-sum/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Two Sum / complement lookup",
+      "promptText": "Solve: 4Sum II (Medium) — count tuples (i,j,k,l) across four arrays with A[i]+B[j]+C[k]+D[l] == 0.",
+      "answerHint": "Split into halves: map of all A+B sums with counts, then look up -(C+D) — complement lookup on pair-sums, O(n^2).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/4sum-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Grouping by key",
+      "promptText": "When do you reach for grouping-by-derived-key? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"group/cluster these\", items equivalent under a canonical form (sorted string, count signature, normalized shape). Pitfall: a non-canonical key (grouping anagrams by first letter) or an ambiguous string join (use a delimiter that can't appear in the data). Related: Group Shifted Strings uses a shift-invariant signature.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Grouping by key",
+      "promptText": "Write the bucket-by-key loop in your language of choice: given a list of strings, group them into lists of mutual anagrams.",
+      "answerHint": "key = sorted(word) (or 26-count signature stringified); map key -> list, push each word, return the map's values.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Grouping by key",
+      "promptText": "Solve: Group Anagrams (Medium) — group a list of strings into anagram clusters.",
+      "answerHint": "Sorted string (or char-count tuple) as the bucket key; one pass.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/group-anagrams/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Grouping by key",
+      "promptText": "Solve: Encode and Decode Strings (Medium) — design encode(list of strings) -> string and decode(string) -> list that round-trip any input.",
+      "answerHint": "Length-prefix each string (e.g. \"4#word\") — delimiters alone can't work because any character may appear in the data.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/string-encode-and-decode",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Prefix sums",
+      "promptText": "When do you reach for prefix sums? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: repeated range-sum queries, \"subarray with sum X\", running totals compared across positions. Pitfall: forgetting the empty prefix (seed the map with {0: 1}) — it's what lets a subarray starting at index 0 count.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Prefix sums",
+      "promptText": "Write the prefix-sum setup in your language of choice: build the prefix array for nums, then answer sum(i..j) queries in O(1).",
+      "answerHint": "prefix has length n+1 with prefix[0]=0, prefix[k]=prefix[k-1]+nums[k-1]; sum(i..j) = prefix[j+1]-prefix[i].",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Prefix sums",
+      "promptText": "Solve: Range Sum Query - Immutable (Easy) — preprocess an array to answer sumRange(i, j) calls in O(1).",
+      "answerHint": "Length n+1 prefix array; subtraction answers each query.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/range-sum-query-immutable/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Prefix sums",
+      "promptText": "Solve: Subarray Sum Equals K (Medium) — count subarrays summing to exactly k.",
+      "answerHint": "Running sum + map of seen prefix-sum counts; at each step add count of (running - k). Seed {0: 1}.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/subarray-sum-equals-k/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Prefix sums",
+      "promptText": "Solve: Product of Array Except Self (Medium) — output[i] = product of all elements except nums[i], no division, O(n).",
+      "answerHint": "Prefix products left-to-right, then a right-to-left running suffix product multiplied in — prefix idea with * instead of +.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/product-of-array-except-self/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Sorting-based array tricks",
+      "promptText": "When is \"sort it first\" the unlocking move? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: pairing/adjacency becomes meaningful once ordered, dedup, greedy picks by size/deadline, original-vs-sorted comparison. Pitfall: sorting away information you still need (original indices — copy or argsort first). Related: Sort Colors (three-way partitioning), Kth Largest (heap/quickselect), Meeting Rooms and Merge Intervals (intervals category).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sorting-based array tricks",
+      "promptText": "Solve: Merge Sorted Array (Easy) — merge nums2 into nums1 in place, where nums1 has trailing space for the result.",
+      "answerHint": "Fill from the BACK (largest first) with two read pointers — writing from the front overwrites unread values.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/merge-sorted-array/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Sorting-based array tricks",
+      "promptText": "Solve: Largest Number (Medium) — arrange non-negative integers to form the largest possible number (as a string).",
+      "answerHint": "Sort with the custom comparator: a before b iff concat(a,b) > concat(b,a). Watch the all-zeros case (\"00\" -> \"0\").",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/largest-number/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

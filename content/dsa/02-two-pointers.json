@@ -1,0 +1,141 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Two Pointers",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Two indices scanning data (often after sorting) to avoid nested loops. Builds directly on array/hash foundations.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Opposite-direction pointers",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "One pointer at each end of a sorted structure, moving inward based on a comparison. Recognize: sorted array, \"pair/triplet meeting a condition\", area/capacity maximization.",
+      "prerequisiteTitles": ["Sorting-based array tricks"],
+      "parentTitle": "Two Pointers"
+    },
+    {
+      "title": "Fast & slow pointers (array)",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A slow write-pointer trails a fast read-pointer to compact/filter an array in place. Recognize: \"remove duplicates in place\", \"move zeroes\", in-place filtering with O(1) space.",
+      "prerequisiteTitles": ["Opposite-direction pointers"],
+      "parentTitle": "Two Pointers"
+    },
+    {
+      "title": "Three-way partitioning",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Dutch national flag: low/mid/high pointers partition into three buckets in one pass. Recognize: \"sort with only 3 distinct values\", partition-around-pivot.",
+      "prerequisiteTitles": ["Opposite-direction pointers"],
+      "parentTitle": "Two Pointers"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "When do you reach for converging (opposite-direction) two pointers? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: sorted (or sortable) array, \"pair/triplet meeting a condition\", maximize area/capacity between two ends. Move the pointer that can only improve the objective. Pitfall: sorting when the problem wants original indices, or failing to skip duplicate values on the inner scan (double-counts triplets). Related: Valid Palindrome converges from both ends on characters.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "Write the converging two-pointer loop in your language of choice: given a sorted array and a target, return whether some pair sums to the target.",
+      "answerHint": "lo=0, hi=n-1; while lo<hi compare sum to target: too small -> lo++, too big -> hi--, equal -> found. Invariant: every pair with one index outside [lo,hi] has already been ruled out.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "Solve: Two Sum II - Input Array Is Sorted (Medium) — return the 1-based indices of the two numbers that add up to target.",
+      "answerHint": "Converge from both ends: move lo up when the sum is too small, hi down when too big — no hash map needed since it is sorted.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "Solve: Container With Most Water (Medium) — pick two lines forming the container that holds the most water.",
+      "answerHint": "Width shrinks as you move inward, so always advance the shorter wall — moving the taller one can never increase area.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/container-with-most-water/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "Solve: 3Sum (Medium) — return all unique triplets that sum to zero.",
+      "answerHint": "Sort, then for each i run a converging two-pointer scan on the rest; skip equal values at every level to avoid duplicate triplets.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/3sum/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Opposite-direction pointers",
+      "promptText": "Solve: Trapping Rain Water (Hard) — compute how much water is trapped between the bars after raining.",
+      "answerHint": "Two pointers tracking leftMax and rightMax; water above a bar is bounded by the smaller side, so advance from whichever side has the lower running max.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/trapping-rain-water/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Fast & slow pointers (array)",
+      "promptText": "When do you reach for the slow-write / fast-read two-pointer compaction? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"remove/filter in place\", \"move X to the end\", O(1) extra space over an array you may reorder. Slow marks the next write slot; fast scans. Pitfall: incrementing slow when you skip an element (only advance it after a write), or clobbering unread data. Related: Remove Element uses the same write-pointer idea.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fast & slow pointers (array)",
+      "promptText": "Write the in-place compaction loop in your language of choice: given an array and a keep-predicate, move all kept elements to the front and return the new length.",
+      "answerHint": "slow=0; for fast over the array, if keep(arr[fast]) then arr[slow]=arr[fast]; slow++. Invariant: arr[0..slow) is exactly the kept elements seen so far, in order.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Fast & slow pointers (array)",
+      "promptText": "Solve: Remove Duplicates from Sorted Array (Easy) — remove duplicates in place so each value appears once, return the new length.",
+      "answerHint": "Slow write-pointer; write arr[fast] only when it differs from the last kept value (arr[slow-1]).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Fast & slow pointers (array)",
+      "promptText": "Solve: Move Zeroes (Easy) — move all zeroes to the end in place while keeping the order of non-zero elements.",
+      "answerHint": "Write pointer collects non-zeros to the front; fill the remainder with zeroes (or swap as you go).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/move-zeroes/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Three-way partitioning",
+      "promptText": "When do you reach for Dutch-national-flag three-way partitioning? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"sort with only 3 distinct values/categories\", partition around a pivot into <, ==, > in one pass with O(1) space. Pitfall: advancing mid after swapping with high — the value pulled from high is unexamined, so re-check it before moving on. Related: Kth Largest Element in an Array uses the same partition step in quickselect (carded under Heap / Priority Queue).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Three-way partitioning",
+      "promptText": "Write the Dutch-national-flag partition in your language of choice: given an array of values 0/1/2, sort it in a single pass with O(1) extra space.",
+      "answerHint": "low, mid=0, high=n-1; while mid<=high: 0 -> swap(low,mid), low++, mid++; 1 -> mid++; 2 -> swap(mid,high), high-- (do NOT advance mid). Invariant: [0,low) are 0s, [low,mid) are 1s, (high,n) are 2s.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Three-way partitioning",
+      "promptText": "Solve: Sort Colors (Medium) — sort an array of 0s, 1s, and 2s in place in one pass.",
+      "answerHint": "Three pointers (low/mid/high): swap 0s to the front, 2s to the back, leave 1s in the middle; don't advance mid after a swap with high.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/sort-colors/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
