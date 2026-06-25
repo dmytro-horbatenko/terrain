@@ -1,0 +1,188 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Linked List",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Pointer-based sequential structure. Reuses the fast/slow pointer idea from Two Pointers in a context with no random access.",
+      "prerequisiteTitles": ["Two Pointers"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Reversal",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Walk the list rewiring each node's next pointer to the previous node, tracking prev/curr/next explicitly (or via recursion). Recognize: \"reverse the list\" or a sublist of it.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Linked List"
+    },
+    {
+      "title": "Fast & slow pointers (list)",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Two pointers advancing at different speeds through a list find cycles, midpoints, or the kth-from-end node without a second pass. Recognize: cycle detection, \"find the middle\", palindrome check without extra storage.",
+      "prerequisiteTitles": ["Reversal"],
+      "parentTitle": "Linked List"
+    },
+    {
+      "title": "Merge / merge-k-lists",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Repeatedly take the smaller head across lists (pairwise merge, or a heap for k lists) to build one sorted list. Recognize: \"merge sorted lists\", building block for merge sort on lists.",
+      "prerequisiteTitles": ["Reversal"],
+      "parentTitle": "Linked List"
+    },
+    {
+      "title": "Dummy-node manipulation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A dummy head node before the real head removes edge cases when the operation might affect the head itself. Recognize: \"remove/insert near the head\", list partitioning.",
+      "prerequisiteTitles": ["Fast & slow pointers (list)"],
+      "parentTitle": "Linked List"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Reversal",
+      "promptText": "When do you reach for in-place pointer reversal on a linked list? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"reverse the list\" (or a sublist / every k nodes), reordering that needs next-pointers flipped rather than values copied. Pitfall: overwriting curr.next before you've saved it — capture next = curr.next FIRST each iteration, or you lose the rest of the list. Related: Swap Nodes in Pairs is reversal with k=2; Reverse Nodes in k-Group tiles this per block.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Reversal",
+      "promptText": "Write the iterative list-reversal kernel in your language of choice: given a head, return the head of the reversed list using three pointers.",
+      "answerHint": "prev = null, curr = head; each step: next = curr.next; curr.next = prev; prev = curr; curr = next. Loop until curr is null; return prev. Invariant: everything from prev backward is already reversed, everything from curr forward is untouched.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Reversal",
+      "promptText": "Solve: Reverse Linked List (Easy) — reverse a singly linked list and return the new head.",
+      "answerHint": "Three-pointer prev/curr/next sweep, flipping each next pointer as you go; prev is the answer.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/reverse-linked-list/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Reversal",
+      "promptText": "Solve: Reverse Linked List II (Medium) — reverse the sublist from position left to right (1-indexed) in one pass.",
+      "answerHint": "Dummy head, walk to the node before left, then reverse exactly (right-left) links by repeatedly splicing the next node to the front of the reversed segment.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/reverse-linked-list-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Reversal",
+      "promptText": "Solve: Reverse Nodes in k-Group (Hard) — reverse the list in consecutive groups of k, leaving a trailing remainder of fewer than k nodes as-is.",
+      "answerHint": "First count/check that k nodes remain, reverse that block, then recurse (or iterate) linking the reversed block's tail to the next block's result.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/reverse-nodes-in-k-group/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Fast & slow pointers (list)",
+      "promptText": "When do you reach for fast & slow pointers on a linked list? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: detect a cycle, find the middle, find the kth-from-end, or check a palindrome without extra storage. Pitfall: dereferencing fast/fast.next without null-guarding both (odd vs even length) — the loop condition must be `fast && fast.next`. Related: Palindrome Linked List finds the midpoint then reverses the second half.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fast & slow pointers (list)",
+      "promptText": "Write Floyd's cycle-detection kernel in your language of choice: given a head, return whether the list has a cycle, and adapt it to also return the midpoint node.",
+      "answerHint": "slow = head, fast = head; each step slow moves 1, fast moves 2; if they meet there's a cycle. When fast reaches the end (no cycle), slow sits on the middle. Guard the loop with `fast && fast.next`.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Fast & slow pointers (list)",
+      "promptText": "Solve: Linked List Cycle (Easy) — return true if the linked list contains a cycle.",
+      "answerHint": "Advance slow by 1 and fast by 2; a cycle exists iff they ever point at the same node.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/linked-list-cycle/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Fast & slow pointers (list)",
+      "promptText": "Solve: Middle of the Linked List (Easy) — return the middle node (the second middle if the length is even).",
+      "answerHint": "When fast walks two steps per slow step, slow lands on the middle as fast falls off the end.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/middle-of-the-linked-list/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Fast & slow pointers (list)",
+      "promptText": "Solve: Linked List Cycle II (Medium) — return the node where the cycle begins, or null if there is none.",
+      "answerHint": "After slow and fast meet inside the cycle, reset one pointer to head and advance both by 1 — they meet at the cycle's entry (Floyd's second phase).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/linked-list-cycle-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Merge / merge-k-lists",
+      "promptText": "When do you reach for the pairwise sorted-merge pattern on lists? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"merge sorted lists\", or a divide-and-conquer that needs a merge step (merge sort on a list). Pitfall: forgetting to attach the non-empty remainder after one list runs out, or not using a dummy head so you fumble the first node. Related: Merge k Sorted Lists (carded under Heap / Priority Queue) generalizes this to k-way via a heap.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Merge / merge-k-lists",
+      "promptText": "Write the two-list sorted-merge kernel in your language of choice: given two sorted heads, splice them into one sorted list.",
+      "answerHint": "Dummy head, tail pointer; while both non-null append the smaller head and advance that list; finally attach whichever remainder is left. Invariant: everything from dummy to tail is sorted and already placed.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Merge / merge-k-lists",
+      "promptText": "Solve: Merge Two Sorted Lists (Easy) — splice two sorted lists into one sorted list.",
+      "answerHint": "Dummy head + tail; repeatedly link the smaller of the two current heads, then attach the leftover tail.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/merge-two-sorted-lists/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Merge / merge-k-lists",
+      "promptText": "Solve: Sort List (Medium) — sort a linked list in O(n log n) time and O(1) extra space.",
+      "answerHint": "Merge sort on the list: fast/slow to split at the midpoint, recurse on each half, then reuse the two-list merge to combine.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/sort-list/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Dummy-node manipulation",
+      "promptText": "When do you reach for a dummy head node? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: an insert/delete that might change the head itself, list partitioning, or building a new list from scratch. Pitfall: returning the original head instead of dummy.next (the real head may have been removed), or a two-pointer gap set to n instead of n+1 off-by-one. Related: Partition List builds two dummy-headed sublists; Remove Duplicates from Sorted List II deletes runs behind a dummy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Dummy-node manipulation",
+      "promptText": "Write the remove-nth-from-end kernel in your language of choice: given a head and n, delete the nth node from the end in one pass using a dummy head and a gap.",
+      "answerHint": "Dummy before head; advance a lead pointer n+1 steps, then move lead and a trail pointer together until lead is null — trail now sits just before the target, so set trail.next = trail.next.next. Return dummy.next.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Dummy-node manipulation",
+      "promptText": "Solve: Remove Nth Node From End of List (Medium) — remove the nth node from the end and return the head.",
+      "answerHint": "Two pointers with an n+1 gap behind a dummy head; when the lead falls off the end the trailing pointer is right before the node to unlink.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/remove-nth-node-from-end-of-list/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Dummy-node manipulation",
+      "promptText": "Solve: Add Two Numbers (Medium) — two numbers stored as digit lists in reverse order; return their sum as a list.",
+      "answerHint": "Walk both lists behind a dummy head, summing digit + carry each step; keep going while either list or the carry is non-zero.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/add-two-numbers/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

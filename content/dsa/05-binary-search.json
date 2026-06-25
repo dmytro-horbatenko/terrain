@@ -1,0 +1,179 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Binary Search",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Halving a search space by testing a monotonic predicate. Fundamentally an array-scanning technique, independent of stack/pointer categories.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Classic binary search",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Standard lo/hi/mid search on a sorted array for an exact target, careful with off-by-one bounds. Recognize: sorted array, direct value lookup.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Binary Search"
+    },
+    {
+      "title": "Binary search on answer",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Search over the space of possible answers (not the input array) using a monotonic feasibility predicate (\"can we do it with value X?\"). Recognize: \"minimize the maximum\", \"find the smallest X such that condition holds\".",
+      "prerequisiteTitles": ["Classic binary search"],
+      "parentTitle": "Binary Search"
+    },
+    {
+      "title": "Search in rotated arrays",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "At each step determine which half is properly sorted, then decide which half to keep based on where the target falls. Recognize: sorted array rotated at an unknown pivot.",
+      "prerequisiteTitles": ["Classic binary search"],
+      "parentTitle": "Binary Search"
+    },
+    {
+      "title": "Binary search on 2D matrix",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Treat a row/column-sorted matrix as a flattened sorted array (index math) or walk from a corner exploiting sortedness in two dimensions. Recognize: matrix where each row and/or column is sorted.",
+      "prerequisiteTitles": ["Classic binary search"],
+      "parentTitle": "Binary Search"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Classic binary search",
+      "promptText": "When do you reach for a classic binary search? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: a sorted (or monotonic) array, an exact-value lookup or first/last-position query, O(log n) expected. Pitfall: the off-by-one triad — pick one convention (inclusive [lo, hi] with while lo <= hi, or half-open [lo, hi) with while lo < hi) and keep mid update and shrink step consistent, or you loop forever / skip the answer. Compute mid as lo + (hi - lo) / 2 to avoid overflow. Related: Search Insert Position is the lower-bound variant (return lo when not found).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Classic binary search",
+      "promptText": "Write the classic lo/hi/mid exact-target search in your language of choice: given a sorted array and a target, return its index or -1.",
+      "answerHint": "lo = 0, hi = n - 1; while lo <= hi: mid = lo + (hi - lo) / 2; if a[mid] == target return mid; if a[mid] < target lo = mid + 1 else hi = mid - 1. Invariant: the target, if present, always lies within [lo, hi]; each step strictly shrinks that window so termination is guaranteed.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Classic binary search",
+      "promptText": "Solve: Binary Search (Easy) — return the index of target in a sorted array, or -1 if absent, in O(log n).",
+      "answerHint": "Textbook lo/hi/mid loop; the only trap is inconsistent bounds and mid rounding.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/binary-search/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Classic binary search",
+      "promptText": "Solve: Find First and Last Position of Element in Sorted Array (Medium) — return the start and end indices of target in a sorted array with duplicates, or [-1, -1].",
+      "answerHint": "Run two biased binary searches: one that keeps going left on a match to find the first index, one that keeps going right for the last.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Binary search on answer",
+      "promptText": "When do you reach for binary-search-on-the-answer? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"minimize the maximum\" / \"maximize the minimum\", \"smallest X such that a condition holds\", an answer range you can bound even though the input isn't sorted, and a feasible(X) check that's monotonic (once true, true for all larger/smaller X). Pitfall: wrong search bounds (lo/hi must span from a trivially-feasible to a trivially-infeasible value) or a non-monotonic predicate — verify feasibility only flips once before trusting the halving.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Binary search on answer",
+      "promptText": "Write the binary-search-on-answer skeleton in your language of choice: given an answer range [lo, hi] and a monotonic feasible(x) predicate, return the smallest x that is feasible.",
+      "answerHint": "while lo < hi: mid = lo + (hi - lo) / 2; if feasible(mid) hi = mid else lo = mid + 1; return lo. Invariant: feasible(hi) stays true and feasible(lo - 1) stays false, so the loop converges on the boundary. feasible() is problem-specific (e.g. simulate the process at candidate value mid and check it fits the constraint).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Binary search on answer",
+      "promptText": "Solve: Koko Eating Bananas (Medium) — find the smallest eating speed k so all piles are finished within h hours.",
+      "answerHint": "Binary-search k over [1, max pile]; feasible(k) = sum of ceil(pile / k) <= h, which is monotonic in k.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/koko-eating-bananas/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Binary search on answer",
+      "promptText": "Solve: Capacity To Ship Packages Within D Days (Medium) — find the least ship capacity that ships all packages (in order) within D days.",
+      "answerHint": "Search capacity over [max weight, sum of weights]; feasible(cap) = greedily packing days-in-order needs <= D days.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/capacity-to-ship-packages-within-d-days/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Binary search on answer",
+      "promptText": "Solve: Split Array Largest Sum (Hard) — split the array into k contiguous subarrays minimizing the largest subarray sum.",
+      "answerHint": "Binary-search the answer (largest sum) over [max element, total sum]; feasible(limit) = greedy left-to-right split needs <= k parts.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/split-array-largest-sum/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Search in rotated arrays",
+      "promptText": "When do you reach for the rotated-array binary search? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: an originally-sorted array rotated at an unknown pivot, still needing O(log n) lookup or the minimum/pivot. Pitfall: at each mid, exactly one half [lo..mid] or [mid..hi] is properly sorted — identify it by comparing a[mid] to an endpoint, then only recurse into the half that could contain the target. Related: Search in Rotated Sorted Array II (with duplicates) breaks the clean a[lo] < a[mid] test and degrades to O(n) in the worst case.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Search in rotated arrays",
+      "promptText": "Write the decide-which-half-is-sorted step in your language of choice: given a rotated sorted array and a target, return its index or -1.",
+      "answerHint": "Standard lo/hi loop; at mid, if a[lo] <= a[mid] the left half is sorted — if target is in [a[lo], a[mid]) go left else go right; otherwise the right half is sorted — mirror the check. Invariant: at least one side is always sorted, and you keep the side whose sorted range brackets the target.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Search in rotated arrays",
+      "promptText": "Solve: Search in Rotated Sorted Array (Medium) — find target's index in a rotated sorted array of distinct values, or -1, in O(log n).",
+      "answerHint": "Each step, figure out which half is sorted and whether target lies inside its range; discard the other half.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/search-in-rotated-sorted-array/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Search in rotated arrays",
+      "promptText": "Solve: Find Minimum in Rotated Sorted Array (Medium) — find the minimum element of a rotated sorted array of distinct values in O(log n).",
+      "answerHint": "Compare a[mid] to a[hi]: if a[mid] > a[hi] the pivot is to the right (lo = mid + 1), else it's at or left of mid (hi = mid).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Binary search on 2D matrix",
+      "promptText": "When do you reach for binary search on a 2D matrix? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: a matrix that is fully sorted (each row sorted and each row's first > previous row's last) — flatten to one sorted array; or a matrix sorted per-row and per-column independently — use the staircase walk from a corner. Pitfall: converting a 1D index to (row, col) with the wrong divisor/modulus — use row = idx / numCols, col = idx % numCols — or applying the flatten trick when rows aren't globally ordered (then it's the staircase, not binary search).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Binary search on 2D matrix",
+      "promptText": "Write the flattened-matrix binary search in your language of choice: given a fully sorted m×n matrix and a target, return whether it exists, treating the matrix as one sorted array of length m*n.",
+      "answerHint": "lo = 0, hi = m*n - 1; mid maps to matrix[mid / n][mid % n]; compare and shrink [lo, hi] as in the 1D search. Invariant: the flattened view is globally sorted, so the same monotonic reasoning holds; the only new part is the index-to-(row, col) math.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Binary search on 2D matrix",
+      "promptText": "Solve: Search a 2D Matrix (Medium) — the matrix is row-sorted and each row starts after the previous ends; return whether target is present in O(log(m*n)).",
+      "answerHint": "Binary search over 0..m*n-1, decoding mid to matrix[mid / n][mid % n].",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/search-a-2d-matrix/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Binary search on 2D matrix",
+      "promptText": "Solve: Search a 2D Matrix II (Medium) — the matrix is sorted per-row and per-column (but not globally); return whether target is present.",
+      "answerHint": "Staircase walk from the top-right corner: too big move left, too small move down — each step eliminates a full row or column, O(m + n).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/search-a-2d-matrix-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
