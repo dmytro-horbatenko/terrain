@@ -1,0 +1,102 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Tries",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "A tree specialized for prefix operations on strings; every trie problem is really a Trees:DFS traversal over children keyed by character.",
+      "prerequisiteTitles": ["Trees"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Trie construction & search",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Each node holds a map/array of child edges keyed by character plus an end-of-word flag; insert/search walk one character at a time. Recognize: repeated prefix queries, dictionary-style lookup.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Tries"
+    },
+    {
+      "title": "Word Search II / prefix matching",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Build a trie of the target words, then DFS the grid while walking the trie in lockstep, pruning branches with no matching prefix. Recognize: \"find all words from a dictionary in a grid\".",
+      "prerequisiteTitles": ["Trie construction & search"],
+      "parentTitle": "Tries"
+    },
+    {
+      "title": "Autocomplete applications",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Traverse to a prefix's node, then DFS the subtree to collect all completions (often ranked/limited). Recognize: \"suggest completions for a prefix\".",
+      "prerequisiteTitles": ["Trie construction & search"],
+      "parentTitle": "Tries"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Trie construction & search",
+      "promptText": "When do you reach for a trie instead of a hash set of words? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: repeated prefix queries (\"does any word start with...\"), dictionary-style lookup, autocomplete, shared-prefix storage where a hash set would rescan whole words. Pitfall: forgetting the end-of-word flag — without it \"app\" looks present just because \"apple\" was inserted, and prefix-search gets confused with full-word search.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Trie construction & search",
+      "promptText": "Write the trie node plus insert and search in your language of choice: a node with a character-keyed children map and an end-of-word flag, insert walking/creating one node per character, search walking to confirm a full word.",
+      "answerHint": "Node = { children: char -> Node, isEnd: bool }. Insert: start at root, for each char descend into children[char], creating the child if absent; mark isEnd on the final node. Search: descend char by char, return false the moment a child is missing, else return the final node's isEnd. startsWith is the same walk without the isEnd check. Invariant: the path from root to any node spells exactly the prefix that node represents.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Trie construction & search",
+      "promptText": "Solve: Implement Trie (Prefix Tree) (Medium) — support insert(word), search(word), and startsWith(prefix).",
+      "answerHint": "One node type with a children map and a boolean end flag; search and startsWith share the descend loop and differ only in whether the end flag must be true.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/implement-trie-prefix-tree/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Trie construction & search",
+      "promptText": "Solve: Design Add and Search Words Data Structure (Medium) — addWord and a search where '.' matches any single character.",
+      "answerHint": "Store words in a trie; on '.' branch into a DFS/recursion that tries every child, otherwise follow the one matching child — the wildcard turns the linear walk into a small backtracking search.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/design-add-and-search-words-data-structure/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Word Search II / prefix matching",
+      "promptText": "When do you combine a trie with grid DFS instead of running a search per word? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"find all words from a dictionary in a grid/text\", many target words sharing prefixes, where per-word search would rescan the board once per word. Pitfall: not pruning dead branches — walk the trie in lockstep with the DFS so a cell path with no matching trie child is abandoned immediately, and de-duplicate found words (or prune matched nodes) so the same word isn't reported twice. Related: Word Break II is the trie-accelerated segmentation variant (skipped here).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Word Search II / prefix matching",
+      "promptText": "Solve: Word Search II (Hard) — given a grid of letters and a word list, return every word that can be traced through adjacent cells.",
+      "answerHint": "Build a trie of the word list, then DFS each cell walking the trie in lockstep — the trie prunes every path whose prefix no target word shares, collapsing many per-word scans into one board traversal.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/word-search-ii/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Autocomplete applications",
+      "promptText": "When do you reach for a trie's prefix node as the anchor for completions or shortest-prefix lookup? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"suggest completions for a prefix\", \"replace a word by its shortest matching root/prefix\", ranked/limited suggestions off a shared dictionary. Pitfall: re-walking from the root for every query instead of caching the prefix node, and (for shortest-prefix) not stopping at the FIRST end-of-word node on the descent. Related: Design Search Autocomplete System (premium, skipped here) adds ranking by historical frequency.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Autocomplete applications",
+      "promptText": "Solve: Replace Words (Medium) — given a dictionary of roots, replace each word in a sentence with the shortest root that is a prefix of it.",
+      "answerHint": "Insert all roots into a trie, then for each word descend character by character and stop at the first node flagged end-of-word — that shortest matching prefix is the replacement.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/replace-words/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

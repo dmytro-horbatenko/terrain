@@ -1,0 +1,284 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Trees",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Recursive/hierarchical structure. Iterative traversal reuses Stack; construction/pointer rewiring reuses Linked List concepts.",
+      "prerequisiteTitles": ["Stack", "Linked List"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "DFS traversals",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Recurse (or use an explicit stack) into children before returning, in pre/in/post order. This is the base traversal every other tree pattern builds on. Recognize: \"visit every node\", ordered output of a BST via inorder.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "BFS / level-order traversal",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A queue processes nodes level by level, tracking level boundaries by queue-size snapshots. Recognize: \"per-level\" output, shortest path in an unweighted tree/grid-as-tree.",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "BST validation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Carry a valid (low, high) range down the recursion, tightening it at each step, instead of only comparing to immediate children. Recognize: \"is this a valid BST\", BST-specific search/insert/delete.",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "Lowest common ancestor",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Recurse into both subtrees; a node is the LCA when the target lives in different subtrees (or is the node itself). BST version uses value comparisons instead of full search. Recognize: \"lowest common ancestor of two nodes\".",
+      "prerequisiteTitles": ["BST validation"],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "Tree construction from traversals",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Use one traversal to find the root/split point and another to recurse into left/right subtrees, typically with a hash map for O(1) index lookup. Recognize: \"build tree from preorder+inorder\", \"build from sorted array\".",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "Path-sum patterns",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Carry a running value (sum, max, or path list) down the recursion and combine child results on the way back up. Recognize: root-to-leaf accumulation, \"diameter/longest path\", \"max path sum through any node\".",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Trees"
+    },
+    {
+      "title": "Serialization/deserialization",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Encode a tree to a string via a traversal that marks null children explicitly, then rebuild by consuming that string in the same traversal order. Recognize: \"design serialize/deserialize\", tree-to-string round-trip.",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Trees"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "DFS traversals",
+      "promptText": "When do you reach for a DFS tree traversal, and how do preorder, inorder, and postorder differ? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"visit every node\", and the position of the node-visit relative to its children fixes the order — preorder (node before children) copies/serializes top-down, inorder (left, node, right) emits a BST in sorted order, postorder (children before node) frees/aggregates bottom-up; pitfall: forgetting the null-child base case and dereferencing a leaf's missing child. Related: Binary Tree Preorder/Postorder Traversal.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "DFS traversals",
+      "promptText": "Write an iterative inorder traversal with an explicit stack in your language of choice: given a binary tree root, return its node values in inorder.",
+      "answerHint": "Loop with a current pointer and a stack: while current is non-null push it and go left; otherwise pop, emit that node's value, and set current to its right child. Invariant: the stack holds exactly the unvisited ancestors whose right subtrees are still pending.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "DFS traversals",
+      "promptText": "Solve: Binary Tree Inorder Traversal (Easy) — return the inorder sequence of a binary tree's node values.",
+      "answerHint": "Recurse left, emit the node, recurse right — or run the explicit-stack loop to avoid recursion.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/binary-tree-inorder-traversal/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "DFS traversals",
+      "promptText": "Solve: Maximum Depth of Binary Tree (Easy) — return the number of nodes on the longest root-to-leaf path.",
+      "answerHint": "A node's depth is 1 plus the larger of its two subtree depths, with a null child contributing 0.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/maximum-depth-of-binary-tree/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "BFS / level-order traversal",
+      "promptText": "When do you reach for BFS / level-order traversal? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"per-level\" grouping, shortest hop-count in an unweighted tree or grid; pitfall: reading the queue length inside the level loop after you have already enqueued children — snapshot the level size once before draining it. Related: Average of Levels in Binary Tree.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "BFS / level-order traversal",
+      "promptText": "Write a level-order BFS with per-level grouping in your language of choice: given a binary tree root, return a list of levels, each a list of values.",
+      "answerHint": "Seed a queue with the root, then repeat: snapshot the current queue size as this level's width, dequeue exactly that many nodes emitting their values and enqueuing their non-null children. Invariant: at the top of each iteration the queue holds exactly one full level.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "BFS / level-order traversal",
+      "promptText": "Solve: Binary Tree Level Order Traversal (Medium) — return node values grouped level by level, top to bottom.",
+      "answerHint": "BFS with a size snapshot per level so each inner loop drains exactly one level into its own list.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/binary-tree-level-order-traversal/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BFS / level-order traversal",
+      "promptText": "Solve: Binary Tree Right Side View (Medium) — return the values visible from the right, top to bottom.",
+      "answerHint": "Run level-order BFS and keep the last node of each level (the rightmost).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/binary-tree-right-side-view/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BST validation",
+      "promptText": "When do you reach for range-carrying BST validation? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"is this a valid BST\", or any BST search/insert/delete that leans on the ordering invariant; pitfall: comparing only against a node's immediate parent instead of carrying a tightening (low, high) bound — a deep node can satisfy its parent yet violate a distant ancestor. Related: Insert into a BST, Delete Node in a BST.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "BST validation",
+      "promptText": "Write range-carrying BST validation in your language of choice: return whether a binary tree satisfies the BST ordering.",
+      "answerHint": "Recurse with an open interval (low, high) starting at (-inf, +inf): each node must lie strictly inside, then recurse left with high tightened to the node's value and right with low tightened to it. Invariant: every node is checked against the full ancestor-derived bound, not just its parent.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "BST validation",
+      "promptText": "Solve: Validate Binary Search Tree (Medium) — return whether the tree is a valid BST.",
+      "answerHint": "Carry a (low, high) bound down the recursion, tightening one side at each step.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/validate-binary-search-tree/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BST validation",
+      "promptText": "Solve: Kth Smallest Element in a BST (Medium) — return the k-th smallest value in the tree.",
+      "answerHint": "Inorder traversal yields values in sorted order, so stop at the k-th emitted node.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/kth-smallest-element-in-a-bst/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Lowest common ancestor",
+      "promptText": "When do you reach for the lowest-common-ancestor recursion? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"lowest common ancestor of two nodes\", the split-point where two root-to-node paths diverge; pitfall: on a plain binary tree, returning eagerly on the first target found instead of letting both subtree searches report back — the LCA is the node where the two targets surface in different subtrees. Related: the BST variant just walks down comparing values.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Lowest common ancestor",
+      "promptText": "Write the lowest-common-ancestor recursion for a binary tree in your language of choice: given the root and two target nodes, return their LCA.",
+      "answerHint": "Return the node itself if it is null or equals either target, otherwise recurse both sides; if both sides come back non-null the current node is the LCA, else bubble up whichever side was non-null. Invariant: a call returns a target it saw, or the LCA once both targets have been seen below it.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Lowest common ancestor",
+      "promptText": "Solve: Lowest Common Ancestor of a Binary Search Tree (Medium) — return the LCA of two nodes in a BST.",
+      "answerHint": "Walk down from the root; the first node whose value sits between (or equals) the two targets is the LCA.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Lowest common ancestor",
+      "promptText": "Solve: Lowest Common Ancestor of a Binary Tree (Medium) — return the LCA of two nodes in a general binary tree.",
+      "answerHint": "Recurse both subtrees; the node whose left and right searches each surface one target is the LCA.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Tree construction from traversals",
+      "promptText": "When do you reach for splitting traversals to reconstruct a tree? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"build the tree from preorder+inorder\" (or postorder+inorder, or a sorted array); pitfall: rescanning inorder for the root each recursion (O(n^2)) instead of pre-hashing value->index, plus off-by-one slicing of the left/right subarrays. Related: Convert Sorted Array to BST picks the middle element as the root.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Tree construction from traversals",
+      "promptText": "Write preorder+inorder tree construction in your language of choice: given both traversals, rebuild the binary tree.",
+      "answerHint": "Consume preorder left-to-right as the stream of roots; for each root find its index in inorder via a prehashed value->index map to size the left and right subtrees, and recurse left before right so the preorder cursor advances correctly. Invariant: the preorder pointer always sits on the next subtree's root.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Tree construction from traversals",
+      "promptText": "Solve: Construct Binary Tree from Preorder and Inorder Traversal (Medium) — rebuild the tree from its two traversals.",
+      "answerHint": "Preorder gives the root order; each root's position in inorder splits the remaining nodes into its left and right subtrees.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Tree construction from traversals",
+      "promptText": "Solve: Convert Sorted Array to Binary Search Tree (Easy) — build a height-balanced BST from a sorted array.",
+      "answerHint": "Pick the middle element as the root and recurse on the two halves so the tree stays balanced.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/convert-sorted-array-to-binary-search-tree/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Path-sum patterns",
+      "promptText": "When do you reach for the down-carry-plus-combine-on-return path-sum recursion? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: root-to-leaf accumulation, \"diameter/longest path\", \"max path sum through any node\"; pitfall: conflating the value you carry DOWN (a running prefix) with the value you return UP (the best completed path), and, for through-node problems, forgetting to clamp negative child contributions to zero. Related: Path Sum II collects the actual root-to-leaf paths.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Path-sum patterns",
+      "promptText": "Write the combine-on-return path recursion in your language of choice: return the diameter (longest edge count between any two nodes) of a binary tree.",
+      "answerHint": "A helper returns each node's height (edges down to its deepest leaf); at every node update a global best with leftHeight + rightHeight (the path bending through this node), then return 1 + max(left, right). Invariant: the returned value is a downward height while the answer tracks the best two-sided join seen.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Path-sum patterns",
+      "promptText": "Solve: Path Sum (Easy) — return whether some root-to-leaf path sums to a target value.",
+      "answerHint": "Carry the remaining target down the recursion; at a leaf check whether its value finishes the sum exactly.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/path-sum/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Path-sum patterns",
+      "promptText": "Solve: Diameter of Binary Tree (Easy) — return the length of the longest path between any two nodes.",
+      "answerHint": "At each node the candidate diameter is left height + right height; track the max while the recursion returns heights.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/diameter-of-binary-tree/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Path-sum patterns",
+      "promptText": "Solve: Binary Tree Maximum Path Sum (Hard) — return the maximum sum of any node-to-node path.",
+      "answerHint": "Each node returns its best single downward branch with negatives clamped to zero, while a global max records the best left + node + right join.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/binary-tree-maximum-path-sum/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Serialization/deserialization",
+      "promptText": "When do you reach for null-marked traversal serialization? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"design serialize/deserialize\", any tree-to-string round-trip; pitfall: omitting explicit null markers (the string can then no longer distinguish different tree shapes) or dropping the delimiter when values are multi-digit or negative. Related: Serialize and Deserialize N-ary Tree, which needs a child-count marker (premium-skip).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Serialization/deserialization",
+      "promptText": "Write preorder serialize/deserialize with explicit null markers in your language of choice: encode a binary tree to a string and rebuild it.",
+      "answerHint": "Serialize by preorder-emitting each value (or a sentinel like '#' for null) into a delimited string; deserialize by consuming that stream left-to-right, building a node from the next token and recursing to fill its left then right child. Invariant: encode and decode walk the nodes in identical order so the cursor never desyncs.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Serialization/deserialization",
+      "promptText": "Solve: Serialize and Deserialize Binary Tree (Hard) — design methods to encode a tree to a string and decode it back.",
+      "answerHint": "Preorder with an explicit null marker for each missing child makes the string unambiguous and lets decode rebuild by consuming tokens in the same order.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/serialize-and-deserialize-binary-tree/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    }
+  ],
+  "noteSummaries": []
+}
