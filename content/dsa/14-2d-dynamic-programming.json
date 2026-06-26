@@ -1,0 +1,231 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "2-D Dynamic Programming",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "DP over two interacting index axes (two strings, or a grid). Direct extension of 1-D DP's tabulation to a 2-D table.",
+      "prerequisiteTitles": ["1-D Dynamic Programming"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Grid path counting",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[r][c] built from dp[r-1][c] and dp[r][c-1] (or their min/sum), tabulated row by row. Recognize: \"number of paths / min-cost path through a grid, moving only right/down\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "2-D Dynamic Programming"
+    },
+    {
+      "title": "Longest common subsequence",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i][j] = dp[i-1][j-1]+1 if chars match, else max(dp[i-1][j], dp[i][j-1]); tabulate both strings' prefixes together — the 2-D generalization of Longest Increasing Subsequence's single-sequence recurrence. Recognize: comparing two sequences for shared structure.",
+      "prerequisiteTitles": ["Grid path counting", "Longest increasing subsequence"],
+      "parentTitle": "2-D Dynamic Programming"
+    },
+    {
+      "title": "Edit distance",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i][j] = min cost to convert prefix i of one string to prefix j of the other, taking the best of insert/delete/replace at each step. Recognize: \"minimum operations to transform string A into string B\".",
+      "prerequisiteTitles": ["Longest common subsequence"],
+      "parentTitle": "2-D Dynamic Programming"
+    },
+    {
+      "title": "0/1 knapsack",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i][w] = best value using the first i items within capacity w, deciding include-or-exclude item i (each item usable once, contrast with unbounded coin change). Recognize: fixed set of items each usable at most once, capacity constraint.",
+      "prerequisiteTitles": ["Grid path counting"],
+      "parentTitle": "2-D Dynamic Programming"
+    },
+    {
+      "title": "Interval DP",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i][j] over a subarray/substring range [i,j], built from smaller sub-intervals by trying every split/last-operation point k inside the range. Tabulate by increasing interval length. Recognize: \"best way to combine/remove a contiguous range\", matrix-chain-style problems.",
+      "prerequisiteTitles": ["Grid path counting"],
+      "parentTitle": "2-D Dynamic Programming"
+    },
+    {
+      "title": "Palindromic subsequence DP",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i][j] = longest palindromic subsequence/substring within s[i..j], expanding inward from single characters and pairs. Recognize: palindrome-related length/count questions over substrings.",
+      "prerequisiteTitles": ["Interval DP"],
+      "parentTitle": "2-D Dynamic Programming"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Grid path counting",
+      "promptText": "When do you reach for grid-path DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: count-the-ways or min/max-cost of walking a 2-D grid with restricted moves (usually only right/down), each cell's answer depending on the cells above and to the left. Pitfall: mishandling the first row/column — with only-right/down moves there is exactly ONE way into any border cell, so seed them explicitly (or with a padding row/col of the identity value) before the general recurrence, or you undercount.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Grid path counting",
+      "promptText": "Write the row-by-row grid-path tabulation in your language of choice: count distinct right/down paths from the top-left to the bottom-right of an m x n grid, using a single rolling row.",
+      "answerHint": "Keep one array of length n for the current row, initialized to all 1s (the top row: one way to each cell). For each subsequent row, walk left to right doing row[c] += row[c-1] — the untouched row[c] is the value from the row above, row[c-1] is the freshly-updated value from the left. Invariant: after processing row r, row[c] holds the path count to cell (r, c). Answer is row[n-1].",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Grid path counting",
+      "promptText": "Solve: Unique Paths (Medium) — count distinct paths a robot can take from the top-left to the bottom-right of an m x n grid, moving only right or down.",
+      "answerHint": "Every cell's count is the sum of the cell above and the cell to the left; border cells are all 1. (Closed form: it's a single binomial coefficient, but the DP generalizes.)",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/unique-paths/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Grid path counting",
+      "promptText": "Solve: Unique Paths II (Medium) — same grid path count, but some cells contain obstacles that cannot be entered.",
+      "answerHint": "Same above-plus-left recurrence, but force dp = 0 at any obstacle cell (and stop propagating a blocked start/border), so paths through it are never counted.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/unique-paths-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Grid path counting",
+      "promptText": "Solve: Minimum Path Sum (Medium) — find the minimum sum of numbers along a path from the top-left to the bottom-right of a grid, moving only right or down.",
+      "answerHint": "dp[r][c] = grid[r][c] + min(dp above, dp left); the first row/column can only accumulate from one direction.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/minimum-path-sum/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Longest common subsequence",
+      "promptText": "When do you reach for LCS-style two-string DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: two sequences compared for shared structure — longest common run (not necessarily contiguous), min deletions/insertions to align them, similarity scoring. It is the 2-D gateway pattern. Pitfall: confusing subsequence (order preserved, gaps allowed → this DP) with substring (contiguous → different recurrence), and off-by-one indexing between the length-(m+1)x(n+1) table and the 0-based strings. Related: Shortest Common Supersequence reconstructs from the same table.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Longest common subsequence",
+      "promptText": "Write the LCS table fill in your language of choice: given two strings, compute the length of their longest common subsequence.",
+      "answerHint": "Table of (m+1) x (n+1) with a zero row and zero column. For i, j from 1: if a[i-1] == b[j-1] then dp[i][j] = dp[i-1][j-1] + 1, else dp[i][j] = max(dp[i-1][j], dp[i][j-1]). Invariant: dp[i][j] is the LCS length of the first i chars of a and first j chars of b; answer is dp[m][n].",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Longest common subsequence",
+      "promptText": "Solve: Longest Common Subsequence (Medium) — length of the longest subsequence present in both of two given strings.",
+      "answerHint": "Match extends the diagonal by 1; a mismatch takes the better of dropping one character from either string.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-common-subsequence/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Longest common subsequence",
+      "promptText": "Solve: Delete Operation for Two Strings (Medium) — minimum number of single-character deletions to make two strings equal.",
+      "answerHint": "The kept characters form the LCS; answer is (len(a) - LCS) + (len(b) - LCS) — everything not in the common subsequence must be deleted from one side or the other.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/delete-operation-for-two-strings/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Edit distance",
+      "promptText": "When do you reach for edit-distance DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: minimum operations to transform one string into another where the allowed moves are insert, delete, and replace one character (Levenshtein). Pitfall: wrong base row/column — converting a length-i prefix to the empty string costs exactly i (i deletions), so dp[i][0] = i and dp[0][j] = j must be seeded, not left at 0. Related: One Edit Distance is the k=1 boundary case (premium; skipped here).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Edit distance",
+      "promptText": "Write the edit-distance table fill in your language of choice: given two strings, compute the minimum insert/delete/replace operations to convert one into the other.",
+      "answerHint": "Table (m+1) x (n+1) with dp[i][0] = i and dp[0][j] = j. For i, j from 1: if a[i-1] == b[j-1] then dp[i][j] = dp[i-1][j-1] (free match), else dp[i][j] = 1 + min(dp[i-1][j] delete, dp[i][j-1] insert, dp[i-1][j-1] replace). Answer is dp[m][n].",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Edit distance",
+      "promptText": "Solve: Edit Distance (Medium) — minimum number of insert, delete, or replace operations to convert word1 into word2.",
+      "answerHint": "On a character match, carry the diagonal for free; otherwise it's 1 + the cheapest of the three neighboring subproblems (delete, insert, replace).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/edit-distance/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "0/1 knapsack",
+      "promptText": "When do you reach for 0/1 knapsack DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: a fixed set of items each usable at most once, a capacity/target budget, and a best-value or feasibility question (\"can a subset hit exactly this sum\"). Contrast with unbounded coin change (items reusable). Pitfall: when compressing to a 1-D capacity array you MUST iterate capacity in REVERSE per item — a forward loop reuses the same item within one pass, silently turning it into the unbounded version. Related: Last Stone Weight II is knapsack on half the total sum.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "0/1 knapsack",
+      "promptText": "Write the 1-D 0/1 knapsack update in your language of choice: given item weights and values and a capacity, compute the max value with each item used at most once.",
+      "answerHint": "One array dp of length capacity+1, dp[0] = 0. For each item, loop w from capacity DOWN to the item's weight: dp[w] = max(dp[w], dp[w - weight] + value). The reverse loop guarantees dp[w - weight] still refers to a state WITHOUT the current item. Invariant: after processing k items, dp[w] is the best value achievable within capacity w using only those k items.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "0/1 knapsack",
+      "promptText": "Solve: Partition Equal Subset Sum (Medium) — decide whether an array can be split into two subsets with equal sums.",
+      "answerHint": "If the total is odd it's impossible; otherwise it's a subset-sum (boolean 0/1 knapsack) asking whether some subset reaches total/2.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/partition-equal-subset-sum/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "0/1 knapsack",
+      "promptText": "Solve: Target Sum (Medium) — count the ways to assign + or - to each number so the signed sum equals a target.",
+      "answerHint": "The positive-sign subset must sum to (total + target) / 2 (reject if that's non-integer or out of range); then it's counting subsets that hit that sum — a knapsack over counts.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/target-sum/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Interval DP",
+      "promptText": "When do you reach for interval DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: the optimum over a contiguous range [i, j] is defined by choosing a split point or a LAST operation k inside the range, with sub-ranges solved independently — combining/removing/merging a contiguous sequence. The recurrence is dp[i][j] = best over k in (i, j) of dp[i][k] + dp[k][j] + cost(i, k, j), and you must fill by INCREASING interval length (all shorter ranges before the ranges that depend on them). Pitfall: iterating i and j in plain order instead of by length, so dp reads sub-intervals that aren't computed yet; also forgetting to pad with sentinel boundaries. Related: Matrix Chain Multiplication (the classic reference, not on LeetCode) and Minimum Cost to Merge Stones.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Interval DP",
+      "promptText": "Solve: Burst Balloons (Hard) — maximize coins from bursting all balloons, where bursting i earns nums[left]*nums[i]*nums[right] with left/right being its current neighbors.",
+      "answerHint": "Think of k as the LAST balloon burst in an interval, so its neighbors are the fixed boundaries — dp[i][j] = max over k of dp[i][k] + nums[i]*nums[k]*nums[j] + dp[k][j] on padded (value-1) boundaries, filled by increasing length.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/burst-balloons/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Palindromic subsequence DP",
+      "promptText": "When do you reach for palindromic-substring DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: length or count questions about palindromic substrings/subsequences of a single string, where the answer for a range depends on its inner range plus its two endpoints. Pitfall: with the expand-around-center technique, forgetting the EVEN-length centers — you must expand from both single characters (odd centers) and every adjacent pair (even centers), or you miss half the palindromes. Related: Longest Palindromic Subsequence is the same table run as LCS of s with its own reverse.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Palindromic subsequence DP",
+      "promptText": "Write the expand-around-center scan in your language of choice: given a string, find (or count) its palindromic substrings by growing outward from each center.",
+      "answerHint": "For each index, run an expand helper that takes left and right pointers and, while left >= 0 and right < n and s[left] == s[right], steps both outward. Call it twice per index: once with (i, i) for odd-length centers and once with (i, i+1) for even-length centers. Each successful expansion is one palindrome (track its length/bounds, or increment a counter). 2n-1 centers, O(n^2) total.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Palindromic subsequence DP",
+      "promptText": "Solve: Longest Palindromic Substring (Medium) — return the longest contiguous substring of s that is a palindrome.",
+      "answerHint": "Expand around all 2n-1 centers (each character and each gap between characters), tracking the widest palindrome's bounds.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-palindromic-substring/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Palindromic subsequence DP",
+      "promptText": "Solve: Palindromic Substrings (Medium) — count how many contiguous substrings of s are palindromes.",
+      "answerHint": "Same expand-around-center scan, but add 1 to the count for every successful outward step (each expansion is one distinct palindromic substring).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/palindromic-substrings/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

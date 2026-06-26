@@ -1,0 +1,240 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "1-D Dynamic Programming",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Optimal-substructure problems reducible to a single index/state axis. Builds on Backtracking's recursive decision-tree thinking, but tabulated bottom-up instead of explored top-down.",
+      "prerequisiteTitles": ["Backtracking", "Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Climbing stairs / Fibonacci recurrence",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i] depends on a small fixed window of previous states (dp[i-1], dp[i-2], ...); tabulate bottom-up with O(1) rolling variables instead of a full array. Recognize: \"number of ways to reach step i\", simple linear recurrence.",
+      "prerequisiteTitles": [],
+      "parentTitle": "1-D Dynamic Programming"
+    },
+    {
+      "title": "House robber (include/exclude)",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "At each index, dp[i] = max(skip this item: dp[i-1], take it: value[i] + dp[i-2]). Tabulate the two running values forward. Recognize: \"can't pick adjacent elements\", binary include/exclude decision per index.",
+      "prerequisiteTitles": ["Climbing stairs / Fibonacci recurrence"],
+      "parentTitle": "1-D Dynamic Programming"
+    },
+    {
+      "title": "Longest increasing subsequence",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i] = 1 + max(dp[j]) over all j<i with nums[j] < nums[i] (O(n^2) tabulation), or maintain a patience-sorting tails array for O(n log n). Recognize: \"longest subsequence satisfying an ordering condition\".",
+      "prerequisiteTitles": ["House robber (include/exclude)"],
+      "parentTitle": "1-D Dynamic Programming"
+    },
+    {
+      "title": "Coin change / unbounded knapsack",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[amount] built up from smaller amounts, iterating each coin as reusable (unbounded) rather than one-shot. Tabulate amounts 0..target forward. Recognize: unlimited supply of each item, \"fewest/most ways to make amount X\".",
+      "prerequisiteTitles": ["Climbing stairs / Fibonacci recurrence"],
+      "parentTitle": "1-D Dynamic Programming"
+    },
+    {
+      "title": "Decode ways / string DP",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i] = ways to decode/process the prefix of length i, combining dp[i-1] (single-char step) and dp[i-2] (two-char step) under validity checks. Tabulate left to right over the string. Recognize: \"number of ways to parse/decode a string\".",
+      "prerequisiteTitles": ["Climbing stairs / Fibonacci recurrence"],
+      "parentTitle": "1-D Dynamic Programming"
+    },
+    {
+      "title": "Word break",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i] = true if some j<i has dp[j] true and s[j:i] is a dictionary word; tabulate forward over string prefixes. Recognize: \"can this string be segmented using dictionary words\".",
+      "prerequisiteTitles": ["Coin change / unbounded knapsack"],
+      "parentTitle": "1-D Dynamic Programming"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Climbing stairs / Fibonacci recurrence",
+      "promptText": "When do you reach for a fixed-window linear-recurrence tabulation (rolling variables)? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"number of ways to reach step/position i\", each state built from a small fixed set of earlier states (dp[i-1], dp[i-2]), no branching over subsets. Pitfall: wrong base cases — seed dp[0] and dp[1] explicitly before the loop, or the first real step is computed from garbage. Related: Fibonacci Number is the bare recurrence.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Climbing stairs / Fibonacci recurrence",
+      "promptText": "Write the rolling-two-variables bottom-up tabulation in your language of choice: count the distinct ways to climb n stairs taking 1 or 2 steps at a time.",
+      "answerHint": "Keep two variables prev2 and prev1 (ways to reach the two lower steps); each iteration cur = prev1 + prev2, then shift them forward. Invariant: after step i, prev1 holds ways(i). Handle n=0/1 before looping.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Climbing stairs / Fibonacci recurrence",
+      "promptText": "Solve: Climbing Stairs (Easy) — count distinct ways to reach the top taking 1 or 2 steps per move.",
+      "answerHint": "ways(i) = ways(i-1) + ways(i-2) — it's Fibonacci; carry two rolling variables.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/climbing-stairs/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Climbing stairs / Fibonacci recurrence",
+      "promptText": "Solve: Min Cost Climbing Stairs (Easy) — reach the top paying cost[i] to step off stair i, starting from index 0 or 1.",
+      "answerHint": "dp[i] = cost[i] + min(dp[i-1], dp[i-2]); the answer is min of the final two, since you may step off either of the last two stairs.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/min-cost-climbing-stairs/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "House robber (include/exclude)",
+      "promptText": "When do you reach for the include/exclude (take-or-skip) tabulation? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: a linear sequence where choosing an element forbids its neighbor(s), maximize/minimize a total under a \"no two adjacent\" constraint. Pitfall: on a circular array you can't take both ends — run the linear DP twice (exclude first, exclude last) and take the max. Related: Delete and Earn reduces to this after bucketing by value.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "House robber (include/exclude)",
+      "promptText": "Write the include/exclude forward loop in your language of choice: given values, return the max total with no two chosen indices adjacent.",
+      "answerHint": "Two rolling values: take (best including current) and skip (best excluding current). Each step: newTake = skip + value[i]; newSkip = max(take, skip). Answer is max(take, skip). Invariant: they hold the best totals for the prefix ending at i with/without picking i.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "House robber (include/exclude)",
+      "promptText": "Solve: House Robber (Medium) — max sum of non-adjacent houses along a street.",
+      "answerHint": "dp[i] = max(dp[i-1], nums[i] + dp[i-2]); collapse to two rolling variables.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/house-robber/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "House robber (include/exclude)",
+      "promptText": "Solve: House Robber II (Medium) — same as House Robber but the houses are arranged in a circle.",
+      "answerHint": "First and last are now adjacent, so run the linear robber twice — once on [0..n-2], once on [1..n-1] — and return the larger (handle a single house separately).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/house-robber-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Longest increasing subsequence",
+      "promptText": "When do you reach for an LIS-style dp[i] = best over earlier compatible j? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"longest subsequence obeying an ordering/chaining condition\" (increasing, divisible, nesting), non-contiguous picks allowed. Pitfall: it's a subsequence, not a substring — don't require adjacency; also decide strictly vs non-strictly increasing (ties). Related: Number of LIS also tracks counts per length; a patience-sorting tails array gives O(n log n).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Longest increasing subsequence",
+      "promptText": "Write the O(n^2) LIS tabulation in your language of choice: length of the longest strictly increasing subsequence of an array (note the O(n log n) tails alternative).",
+      "answerHint": "dp[i] starts at 1; for each i scan all j<i and if nums[j] < nums[i] set dp[i] = max(dp[i], dp[j]+1); answer is the max over dp. Invariant: dp[i] is the longest increasing subsequence ending exactly at i. Faster variant: keep a sorted tails array, binary-searching each value into it (its length is the LIS).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Longest increasing subsequence",
+      "promptText": "Solve: Longest Increasing Subsequence (Medium) — length of the longest strictly increasing subsequence.",
+      "answerHint": "O(n^2) dp ending at each index, or the patience-tails array with binary search for O(n log n).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/longest-increasing-subsequence/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Longest increasing subsequence",
+      "promptText": "Solve: Russian Doll Envelopes (Hard) — max number of envelopes you can nest, each strictly larger in both width and height.",
+      "answerHint": "Sort by width ascending and height descending on width ties (so equal widths can't chain), then run LIS on the heights.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/russian-doll-envelopes/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Coin change / unbounded knapsack",
+      "promptText": "When do you reach for the unbounded-knapsack (reusable-item) tabulation? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: unlimited supply of each item, \"fewest coins / how many ways to make amount X\", build target from smaller subtargets. Pitfall: for counting ways, loop coins on the OUTSIDE and amounts inside — the opposite order counts ordered permutations, not combinations; and seed dp[0] (one way / zero coins) with unreachable amounts as infinity.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Coin change / unbounded knapsack",
+      "promptText": "Write the unbounded-knapsack tabulation in your language of choice: fewest coins (each usable any number of times) that sum to a target amount, or report impossible.",
+      "answerHint": "dp array over amounts 0..target, dp[0]=0 and the rest infinity; for each amount a and each coin c<=a set dp[a] = min(dp[a], dp[a-c]+1). Reusability comes from reading dp[a-c] at the same (already-updated) item pass. Answer is dp[target] or -1 if still infinity.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Coin change / unbounded knapsack",
+      "promptText": "Solve: Coin Change (Medium) — fewest coins summing to amount, coins reusable, -1 if impossible.",
+      "answerHint": "dp[a] = min over coins of dp[a-coin]+1; base dp[0]=0, unreachable stays infinity.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/coin-change/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Coin change / unbounded knapsack",
+      "promptText": "Solve: Coin Change II (Medium) — count the number of distinct combinations of reusable coins summing to amount.",
+      "answerHint": "dp[a] += dp[a-coin] with coins in the OUTER loop — that ordering counts each combination once instead of permutations; seed dp[0]=1.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/coin-change-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Coin change / unbounded knapsack",
+      "promptText": "Solve: Perfect Squares (Medium) — fewest perfect-square numbers that sum to n.",
+      "answerHint": "Unbounded knapsack where the reusable \"coins\" are the perfect squares 1,4,9,...; dp[n] = min over squares of dp[n-sq]+1.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/perfect-squares/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Decode ways / string DP",
+      "promptText": "When do you reach for a string DP that combines a single-char step (dp[i-1]) and a two-char step (dp[i-2])? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"number of ways to parse/decode/segment a string\" where each position can consume one or two characters subject to validity. Pitfall: the validity checks — a leading '0' makes a single-char step invalid, and a two-char step only counts when the pair falls in the legal range (e.g. 10..26 for decode). Related: Unique Paths is the same recurrence collapsed to a rolling 1-D row.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Decode ways / string DP",
+      "promptText": "Write the single/two-char string DP in your language of choice: count decodings of a digit string where 1..26 map to A..Z.",
+      "answerHint": "dp[i] = ways to decode the length-i prefix; dp[0]=1. Add dp[i-1] if the last single digit is valid (not '0'); add dp[i-2] if the last two digits form 10..26. Roll with two variables. Invariant: dp[i] counts every valid decoding of the first i characters.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Decode ways / string DP",
+      "promptText": "Solve: Decode Ways (Medium) — number of ways to decode a digit string under the 1..26 → A..Z mapping.",
+      "answerHint": "dp[i] = (valid single last digit ? dp[i-1] : 0) + (valid two-digit 10..26 ? dp[i-2] : 0); watch zeros.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/decode-ways/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Decode ways / string DP",
+      "promptText": "Solve: Integer Break (Medium) — split n into at least two positive integers maximizing their product.",
+      "answerHint": "dp[i] = max over j<i of max(j, dp[j]) * (i-j) — each prefix value either stays whole or is itself broken further.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/integer-break/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Word break",
+      "promptText": "When do you reach for the word-break prefix DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"can this string be segmented into dictionary words\", any reachability-over-prefixes question where a valid split point unlocks the rest. Pitfall: plain recursion re-explores the same suffixes and blows up exponentially — memoize on start index (or tabulate). Same forward-tabulation shape as coin change. Related: Word Break II reconstructs every segmentation (skipped here).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Word break",
+      "promptText": "Solve: Word Break (Medium) — can s be segmented into a space-separated sequence of dictionary words?",
+      "answerHint": "dp[i] = true if some j<i has dp[j] true and the substring s[j:i] is in the dictionary set; dp[0]=true, answer dp[n].",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/word-break/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
