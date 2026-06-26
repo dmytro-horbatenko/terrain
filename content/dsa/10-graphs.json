@@ -1,0 +1,282 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Graphs",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "General node/edge structures beyond trees (cycles, multiple parents allowed). DFS/BFS generalize Trees' traversals; Stack underlies iterative DFS.",
+      "prerequisiteTitles": ["Trees", "Stack"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Graph representation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Build an adjacency list (hash map of node -> neighbors) or matrix from edge-list/grid input before running any traversal. Recognize: the setup step every graph problem starts with.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Graphs"
+    },
+    {
+      "title": "DFS (connected components)",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Recurse into unvisited neighbors, marking visited as you go, to enumerate everything reachable from a start node. Recognize: \"count islands/regions\", \"is X reachable from Y\".",
+      "prerequisiteTitles": ["Graph representation"],
+      "parentTitle": "Graphs"
+    },
+    {
+      "title": "BFS (shortest path unweighted)",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A queue expands the frontier one edge-hop at a time, guaranteeing the first time a node is reached is via a shortest path (unweighted). Multi-source BFS seeds the queue with several starts at once. Recognize: \"minimum steps/hops\", \"nearest X from any of these sources\".",
+      "prerequisiteTitles": ["DFS (connected components)"],
+      "parentTitle": "Graphs"
+    },
+    {
+      "title": "Union-Find",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Disjoint-set structure with path compression and union-by-rank tracks which nodes are already connected in near-O(1) amortized time, without a full traversal per query. Recognize: \"are these connected\", incremental edge-by-edge connectivity, cycle detection in undirected graphs.",
+      "prerequisiteTitles": ["Graph representation"],
+      "parentTitle": "Graphs"
+    },
+    {
+      "title": "Topological sort",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Order nodes so every edge points forward: Kahn's algorithm (BFS on in-degree-zero nodes) or DFS with a post-order stack. Recognize: \"valid ordering given dependencies\", scheduling with prerequisites.",
+      "prerequisiteTitles": ["DFS traversals"],
+      "parentTitle": "Graphs"
+    },
+    {
+      "title": "Cycle detection",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Directed graphs: track a recursion-stack/coloring during DFS (white/gray/black) since a back-edge to a gray node is a cycle. Undirected graphs: Union-Find or DFS with parent-tracking (an edge to a visited non-parent node is a cycle). Recognize: \"detect if a cycle exists\", validating a DAG.",
+      "prerequisiteTitles": ["Union-Find", "Topological sort"],
+      "parentTitle": "Graphs"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Graph representation",
+      "promptText": "When do you first convert the input into an adjacency structure, and which form (list vs matrix)? Name the signals, and the classic pitfall.",
+      "answerHint": "Signals: input arrives as an edge list, a grid, or pairs, and you're about to traverse — build the map before touching the algorithm. Adjacency list for sparse graphs; matrix only when you need O(1) edge lookups or the graph is dense. Pitfall: forgetting to add BOTH directions for an undirected edge (u->v and v->u), so half your neighbors vanish. Related: Reconstruct Itinerary (adjacency + sorted traversal).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Graph representation",
+      "promptText": "Write the edge-list -> adjacency-map builder in your language of choice: given n nodes and a list of edges, produce a map node -> list of neighbors.",
+      "answerHint": "Init a map with an empty list for every node (so isolated nodes exist as keys). One loop over edges: append v to adj[u]; for undirected, also append u to adj[v]. Invariant: after processing k edges the map reflects exactly those k edges' endpoints.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Graph representation",
+      "promptText": "Solve: Find the Town Judge (Easy) — everyone trusts the judge, the judge trusts no one; return the judge's label or -1.",
+      "answerHint": "No traversal needed: track in-degree minus out-degree per person; the judge has score n-1.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-the-town-judge/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Graph representation",
+      "promptText": "Solve: Clone Graph (Medium) — return a deep copy of a connected undirected graph given a node reference.",
+      "answerHint": "DFS/BFS while keeping a map original-node -> clone; create the clone on first visit so cycles reuse it instead of looping forever.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/clone-graph/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "DFS (connected components)",
+      "promptText": "When do you reach for a mark-visited DFS to enumerate a component? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"count islands/regions/groups\", \"size of the blob containing X\", \"is X reachable from Y\" on an implicit grid or adjacency graph. Pitfall: marking visited only AFTER recursing (or on dequeue) instead of on first sighting — the same cell gets pushed by multiple neighbors and you revisit or stack-overflow. Related: Number of Provinces (same component count on an adjacency matrix).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "DFS (connected components)",
+      "promptText": "Write the mark-visited DFS in your language of choice: given a grid, flood one component starting at a cell and return its size, never leaving the component.",
+      "answerHint": "Guard first: if out of bounds or cell isn't part of the component or already visited, return 0. Mark visited immediately, then return 1 + sum of DFS on the four neighbors. Invariant: a cell is marked before any neighbor recursion, so each cell contributes exactly once.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "DFS (connected components)",
+      "promptText": "Solve: Number of Islands (Medium) — count connected groups of '1' cells (4-directionally) in a grid.",
+      "answerHint": "Scan every cell; on an unvisited '1', increment the count and DFS/BFS to sink the whole island (mark all its cells).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/number-of-islands/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "DFS (connected components)",
+      "promptText": "Solve: Max Area of Island (Medium) — return the largest island's area (count of connected '1' cells).",
+      "answerHint": "Same flood-fill as counting islands, but each DFS returns its cell count; keep the running max.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/max-area-of-island/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "DFS (connected components)",
+      "promptText": "Solve: Surrounded Regions (Medium) — flip every 'O' region not connected to a border into 'X'.",
+      "answerHint": "Invert the problem: DFS from border 'O's to mark the ones that survive; every unmarked 'O' left is enclosed and gets flipped.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/surrounded-regions/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BFS (shortest path unweighted)",
+      "promptText": "When do you reach for BFS (including multi-source) over DFS? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"minimum steps/hops/moves\", \"shortest path\" on an unweighted graph, \"nearest X from any of these sources\" (seed all sources at level 0). Pitfall: marking a node visited on DEQUEUE instead of on ENQUEUE — it gets added by several neighbors, inflating the queue and sometimes counting a longer path first. Related: Shortest Path in Binary Matrix (8-directional single-source BFS).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "BFS (shortest path unweighted)",
+      "promptText": "Write the multi-source BFS in your language of choice: given a grid with several source cells, compute each cell's hop-distance to the nearest source.",
+      "answerHint": "Enqueue ALL sources at distance 0 and mark them visited up front. Process level by level (or store distance with each node): pop a cell, for each unvisited neighbor set its distance to current+1, mark it, enqueue. Invariant: nodes leave the queue in non-decreasing distance order, so the first distance assigned to a cell is its minimum.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "BFS (shortest path unweighted)",
+      "promptText": "Solve: Rotting Oranges (Medium) — minutes until no fresh orange remains, rot spreading to 4-neighbors each minute; -1 if impossible.",
+      "answerHint": "Multi-source BFS from all rotten oranges at once; the answer is the last level reached, then check no fresh orange survived.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/rotting-oranges/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BFS (shortest path unweighted)",
+      "promptText": "Solve: 01 Matrix (Medium) — for each cell, the distance to the nearest 0.",
+      "answerHint": "Multi-source BFS seeded with every 0-cell at distance 0; expand outward filling 1-cells — far cheaper than a BFS per 1.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/01-matrix/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "BFS (shortest path unweighted)",
+      "promptText": "Solve: Word Ladder (Hard) — shortest transformation length from beginWord to endWord, changing one letter at a time through the word list.",
+      "answerHint": "BFS over words as nodes; generate neighbors by trying every single-letter change (use wildcard patterns like h*t to find them fast) against the word set.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/word-ladder/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Union-Find",
+      "promptText": "When do you reach for Union-Find over a traversal? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"are these two connected\", edges arriving incrementally with connectivity queries between them, counting components as you merge, or spotting the edge that closes a cycle in an undirected graph. Pitfall: unioning roots without path compression AND union-by-rank/size — skip both and find() degrades to O(n), or you attach a root to a child and lose the near-constant amortized bound. Related: Kruskal's MST (Advanced Graphs) is Union-Find over sorted edges.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Union-Find",
+      "promptText": "Write the disjoint-set structure in your language of choice: find(x) with path compression and union(a, b) by rank, over n elements.",
+      "answerHint": "parent[i]=i and rank[i]=0 initially. find follows parents to the root, repointing each node to the root on the way back (compression). union finds both roots; if equal, do nothing; else attach the smaller-rank root under the larger, bumping rank on a tie. Invariant: each set has exactly one root (a node whose parent is itself).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Union-Find",
+      "promptText": "Solve: Number of Connected Components in an Undirected Graph (Medium) — count components given n nodes and an edge list.",
+      "answerHint": "Start count at n; each union that joins two previously-separate roots decrements it by one.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/count-connected-components",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Union-Find",
+      "promptText": "Solve: Redundant Connection (Medium) — in a graph that is a tree plus one extra edge, return the edge that creates the cycle.",
+      "answerHint": "Union edges in order; the first edge whose two endpoints already share a root is the redundant one.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/redundant-connection/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Union-Find",
+      "promptText": "Solve: Accounts Merge (Medium) — merge accounts that share any email, grouped under the same owner name.",
+      "answerHint": "Union accounts (or emails) that share an email; then collect each set's emails, sort, and prepend the owner name.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/accounts-merge/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Topological sort",
+      "promptText": "When do you reach for a topological sort? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"valid ordering given dependencies\", prerequisite/scheduling chains, build/compile order, \"can you finish all tasks\". Pitfall (Kahn's): if fewer than n nodes ever get dequeued, the graph has a cycle and NO valid order exists — forgetting that check reports a bogus partial ordering. Related: Course Schedule (the feasibility form) is carded here on this leaf's family.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Topological sort",
+      "promptText": "Write Kahn's algorithm in your language of choice: given a DAG as an adjacency list, produce a topological ordering (or detect a cycle).",
+      "answerHint": "Compute in-degree of every node; queue all in-degree-0 nodes. Repeatedly pop one, append to the order, and decrement each neighbor's in-degree, enqueuing any that hit 0. Invariant: a node is enqueued only once all its prerequisites are placed. If the order's length < n, a cycle exists.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Topological sort",
+      "promptText": "Solve: Course Schedule (Medium) — given prerequisite pairs, return whether all courses can be finished.",
+      "answerHint": "It's cycle detection on a directed graph: run Kahn's and check that all n nodes get processed (a cycle blocks completion).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/course-schedule/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Topological sort",
+      "promptText": "Solve: Course Schedule II (Medium) — return a valid order to finish all courses, or an empty list if impossible.",
+      "answerHint": "Same Kahn's run, but record the dequeue order; return it only if it contains all n courses, else empty.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/course-schedule-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Topological sort",
+      "promptText": "Solve: Alien Dictionary (Hard) — infer a valid letter order from a list of words sorted in that alien order.",
+      "answerHint": "Build edges from the first differing character between each adjacent word pair, then topologically sort; a prefix-longer-word-first case (e.g. \"abc\" before \"ab\") is invalid.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/foreign-dictionary",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Cycle detection",
+      "promptText": "When do you reach for cycle detection, and which variant (directed three-color vs undirected)? Name the signals, and the classic pitfall.",
+      "answerHint": "Signals: \"does a cycle exist\", validating a DAG, checking a graph is a tree. Directed: DFS coloring white/gray/black — a back-edge to a GRAY (on-stack) node is a cycle. Undirected: Union-Find, or DFS ignoring the immediate parent. Pitfall: in the undirected DFS, treating the edge back to your parent as a cycle — you must skip the parent, not all visited nodes. Related: Detect Cycle in a Directed Graph, Course Schedule (feasibility on the Topological sort leaf).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Cycle detection",
+      "promptText": "Write the three-color directed-cycle DFS in your language of choice: return whether a directed graph (adjacency list) contains a cycle.",
+      "answerHint": "Color every node white (unvisited). DFS a node: mark it gray (on the current path), recurse into neighbors — a gray neighbor means a cycle; after all neighbors, mark it black (fully done). Invariant: gray = ancestor on the active recursion stack, black = safe and never re-explored.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Cycle detection",
+      "promptText": "Solve: Graph Valid Tree (Medium) — given n nodes and an edge list, decide whether they form a valid tree.",
+      "answerHint": "A tree needs exactly n-1 edges AND full connectivity (equivalently: no cycle) — Union-Find where any edge joining an already-connected pair fails it.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/valid-tree",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Cycle detection",
+      "promptText": "Solve: Find Eventual Safe States (Medium) — return all nodes from which every path leads to a terminal node (no cycle reachable).",
+      "answerHint": "A node is safe iff no path from it reaches a cycle; three-color DFS marking nodes safe only when all neighbors are safe (gray-revisit means unsafe), or reverse-graph topological sort from terminals.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-eventual-safe-states/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

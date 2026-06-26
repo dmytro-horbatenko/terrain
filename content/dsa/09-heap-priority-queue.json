@@ -1,0 +1,187 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Heap / Priority Queue",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "A binary tree kept partially ordered for O(log n) insert/extract-min-or-max. Depends on Trees for the underlying structure and Arrays & Hashing for the array-backed implementation.",
+      "prerequisiteTitles": ["Trees", "Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Kth largest/smallest",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Maintain a heap of size k (min-heap for kth-largest, max-heap for kth-smallest) so the root is always the answer, or use quickselect for O(n) average. Recognize: \"kth largest/smallest\", \"top k\" without needing full sort.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Heap / Priority Queue"
+    },
+    {
+      "title": "Top-K frequent elements",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Count frequencies with a hash map, then use a size-k heap (or bucket sort by frequency) to pull out the k most/least common. Recognize: \"k most frequent\", frequency-ranked output.",
+      "prerequisiteTitles": ["Kth largest/smallest"],
+      "parentTitle": "Heap / Priority Queue"
+    },
+    {
+      "title": "Merge-k via heap",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Push the current head of each of k sorted sources into a heap; repeatedly pop the min and push its successor. Recognize: \"merge k sorted X\", generalizes Linked List's pairwise merge to k-way.",
+      "prerequisiteTitles": ["Kth largest/smallest"],
+      "parentTitle": "Heap / Priority Queue"
+    },
+    {
+      "title": "Two-heap median-finding",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A max-heap of the smaller half and a min-heap of the larger half, kept balanced in size, expose the median as the top of one/both heaps. Recognize: \"running median\", streaming order-statistics.",
+      "prerequisiteTitles": ["Kth largest/smallest"],
+      "parentTitle": "Heap / Priority Queue"
+    },
+    {
+      "title": "Task scheduling with heap",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A max-heap of remaining counts (plus a cooldown queue) greedily always schedules the currently-most-needed task next. Recognize: \"schedule tasks with a cooldown/gap constraint\".",
+      "prerequisiteTitles": ["Kth largest/smallest"],
+      "parentTitle": "Heap / Priority Queue"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Kth largest/smallest",
+      "promptText": "When do you reach for a size-k heap (or quickselect) for kth-largest/smallest? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"kth largest/smallest\", \"top k\" where a full sort is overkill, or a streaming source where new values keep arriving. Use a min-heap of size k so its root is the kth largest (max-heap of size k for kth smallest). Pitfall: picking the wrong heap polarity — for the kth LARGEST you keep a MIN-heap and evict the smallest, so the k survivors are the k largest and the root is the answer. Related: quickselect gives O(n) average when you have the whole array up front (no streaming).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Kth largest/smallest",
+      "promptText": "Write the size-k-heap kth-largest kernel in your language of choice: given a stream of numbers and k, keep the kth largest seen so far available at all times.",
+      "answerHint": "Maintain a min-heap; push each incoming value, then while the heap holds more than k elements pop the smallest. Invariant: after processing each value the heap contains exactly the k largest values seen, so its root is the kth largest. Each push/pop is O(log k).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Kth largest/smallest",
+      "promptText": "Solve: Kth Largest Element in a Stream (Easy) — a class that returns the kth largest element after each add.",
+      "answerHint": "Hold a min-heap capped at size k across calls; add pushes then trims to k, and the root is the running answer.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/kth-largest-element-in-a-stream/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Kth largest/smallest",
+      "promptText": "Solve: Kth Largest Element in an Array (Medium) — find the kth largest element in an unsorted array.",
+      "answerHint": "Size-k min-heap gives O(n log k); quickselect (partition around a pivot, recurse only into the side holding index n-k) gives O(n) average.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/kth-largest-element-in-an-array/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Kth largest/smallest",
+      "promptText": "Solve: K Closest Points to Origin (Medium) — return the k points nearest the origin.",
+      "answerHint": "Max-heap of size k keyed by squared distance (no sqrt needed); evict the farthest so the k survivors are the closest.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/k-closest-points-to-origin/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Top-K frequent elements",
+      "promptText": "When do you reach for the frequency-map-plus-heap (or bucket-sort) pattern? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"k most/least frequent\", output ranked by how often something occurs. Count with a hash map first, then a size-k heap over (count, value) pairs pulls the top k in O(n log k) — or bucket-sort by frequency for O(n) since counts are bounded by n. Pitfall: heaping over the raw elements instead of the (count, value) pairs, or sizing the heap to the number of distinct values instead of k.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Top-K frequent elements",
+      "promptText": "Solve: Top K Frequent Elements (Medium) — return the k most frequent elements of an array.",
+      "answerHint": "Hash map of counts, then a size-k min-heap over the counts (or bucket-sort by frequency, index = count, and read buckets from the top down).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/top-k-frequent-elements/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Top-K frequent elements",
+      "promptText": "Solve: Sort Characters By Frequency (Medium) — rearrange a string so characters appear in decreasing order of frequency.",
+      "answerHint": "Count characters, then emit each character repeated count times in descending-frequency order (heap or bucket by count).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/sort-characters-by-frequency/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Merge-k via heap",
+      "promptText": "When do you reach for a k-way merge with a heap? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"merge k sorted lists/arrays/streams\", combining many already-sorted sources into one sorted output. Keep a min-heap of the current front element from each source; pop the smallest, append it, then push that source's successor. Pitfall: pushing a source's next element without carrying enough context to find its successor (store the source id / node, not just the value) — and remember to skip exhausted sources. Related: Smallest Range Covering Elements from K Lists rides the same heap-of-heads sweep.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Merge-k via heap",
+      "promptText": "Write the k-way merge kernel in your language of choice: given k sorted sequences, produce one merged sorted sequence.",
+      "answerHint": "Seed a min-heap with the head of each non-empty source (store value plus which source it came from). Repeatedly pop the minimum, append it to the output, and push the next element from that same source if one exists. Invariant: the heap always holds at most one live element per source — the smallest unconsumed one — so the popped minimum is globally next. O(N log k).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Merge-k via heap",
+      "promptText": "Solve: Merge k Sorted Lists (Hard) — merge k sorted linked lists into one sorted list.",
+      "answerHint": "Min-heap of the k current head nodes (compare by value); pop the smallest, link it into the result, push its .next. (Pairwise divide-and-conquer merging is the O(N log k) alternative.)",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/merge-k-sorted-lists/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Two-heap median-finding",
+      "promptText": "When do you reach for the two-heap (max-heap + min-heap) technique? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"running/streaming median\", order statistics maintained as values arrive one at a time. Keep a max-heap of the lower half and a min-heap of the upper half, sizes differing by at most one; the median is the top of the larger heap (or the average of both tops when balanced). Pitfall: rebalancing without first routing the new value through the correct heap — push, then move one element across to restore the size invariant, or the two halves overlap. Related: Sliding Window Median adds lazy deletion of the element leaving the window.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Two-heap median-finding",
+      "promptText": "Write the two-heap running-median kernel in your language of choice: support add(value) and getMedian() over a stream.",
+      "answerHint": "Keep a max-heap `low` and a min-heap `high`. On add: push to `low`, then move `low`'s top into `high` (so ordering across the halves holds); if `high` grew larger than `low`, move `high`'s top back. Invariant: every element in `low` <= every element in `high`, and sizes differ by <=1. Median = `low`'s top when sizes differ, else the average of the two tops.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Two-heap median-finding",
+      "promptText": "Solve: Find Median from Data Stream (Hard) — support addNum and findMedian as numbers stream in.",
+      "answerHint": "Balanced max-heap (lower half) + min-heap (upper half); the median is one heap's top or the average of both tops.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-median-from-data-stream/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    },
+    {
+      "topicTitle": "Task scheduling with heap",
+      "promptText": "When do you reach for a max-heap-plus-cooldown greedy schedule? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"schedule tasks with a cooldown/gap between identical items\", arrange items so equal ones stay a fixed distance apart. Each step pop the currently-most-frequent available item, place it, and park it in a cooldown queue until enough time passes to reheap it. Pitfall: reheaping an item before its cooldown expires, or forgetting that idle slots still advance time — decrement the count when you place it, not when you re-add it. Related: Reorganize String is the same greedy on characters with a gap of one.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Task scheduling with heap",
+      "promptText": "Solve: Task Scheduler (Medium) — least total time to run all tasks given a cooldown n between two runs of the same task.",
+      "answerHint": "Greedy: repeatedly run the most-frequent available task, cooling down others; or compute directly from the max frequency and how many tasks share it (idle slots the busiest task forces).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/task-scheduler/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Task scheduling with heap",
+      "promptText": "Solve: Reorganize String (Medium) — rearrange a string so no two adjacent characters are equal, or report it's impossible.",
+      "answerHint": "Always place the currently-most-frequent character, holding the just-used one aside for one step; impossible exactly when some character's count exceeds (len+1)/2.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/reorganize-string/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
