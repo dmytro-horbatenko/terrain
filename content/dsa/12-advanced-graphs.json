@@ -1,0 +1,143 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Advanced Graphs",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Weighted-graph algorithms built on top of core Graphs traversals and Union-Find.",
+      "prerequisiteTitles": ["Graphs"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Dijkstra's shortest path",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "A min-heap keyed by current best distance greedily expands the closest unvisited node next, relaxing its neighbors' distances. Recognize: \"shortest path with non-negative weights\".",
+      "prerequisiteTitles": ["Kth largest/smallest"],
+      "parentTitle": "Advanced Graphs"
+    },
+    {
+      "title": "Bellman-Ford",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Relax every edge V-1 times; if a relaxation still succeeds on pass V, a negative-weight cycle exists. Recognize: shortest path where edge weights can be negative.",
+      "prerequisiteTitles": ["Dijkstra's shortest path"],
+      "parentTitle": "Advanced Graphs"
+    },
+    {
+      "title": "Floyd-Warshall",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Dynamic programming over an intermediate-node index k: try routing every pair (i,j) through k and keep the shorter path. Recognize: need all-pairs shortest paths, small dense graph.",
+      "prerequisiteTitles": ["Dijkstra's shortest path"],
+      "parentTitle": "Advanced Graphs"
+    },
+    {
+      "title": "Minimum spanning tree",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Kruskal's: sort edges by weight, add each if it doesn't create a cycle (Union-Find check). Prim's: grow one tree, always adding the cheapest edge leaving it (min-heap). Recognize: \"connect all nodes with minimum total edge weight\".",
+      "prerequisiteTitles": ["Union-Find"],
+      "parentTitle": "Advanced Graphs"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Dijkstra's shortest path",
+      "promptText": "When do you reach for Dijkstra's algorithm? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: single-source shortest path (or min cost / max reliability) on a weighted graph with NON-negative edge weights, \"minimum time/distance for X to reach all nodes\". Pitfall: not skipping a node when you pop a stale, longer entry — you must guard with a visited set or a `dist[u] < popped` check, otherwise you re-expand and blow up. Also: Dijkstra is wrong the moment any edge can be negative — that's Bellman-Ford's job.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Dijkstra's shortest path",
+      "promptText": "Write the min-heap relaxation loop in your language of choice: given a weighted adjacency list and a source, compute the shortest distance to every node.",
+      "answerHint": "Keep a dist map (source = 0, everything else infinity) and a min-heap seeded with (0, source). Pop the smallest (d, u); if u is already finalized/visited, skip it. Otherwise mark u done and for each edge u->v with weight w, if d + w < dist[v], update dist[v] and push (d + w, v). Invariant: the first time a node is popped, its distance is final. Terminate when the heap empties.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Dijkstra's shortest path",
+      "promptText": "Solve: Network Delay Time (Medium) — given travel times on directed edges, return the time for a signal from node k to reach all n nodes, or -1 if some node is unreachable.",
+      "answerHint": "Run Dijkstra from k; the answer is the maximum finalized distance (return -1 if any node stays at infinity).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/network-delay-time/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Dijkstra's shortest path",
+      "promptText": "Solve: Path with Maximum Probability (Medium) — find the path from start to end that maximizes the product of edge success probabilities.",
+      "answerHint": "Dijkstra with a MAX-heap on probability: relax by multiplication (keep the larger product) instead of adding distances — products of values in [0,1] are monotonically non-increasing, so the greedy pop still finalizes correctly.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/path-with-maximum-probability/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Bellman-Ford",
+      "promptText": "When do you reach for Bellman-Ford instead of Dijkstra? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: shortest path where edge weights CAN be negative, or you must bound the number of edges/hops used (relaxation count = hop budget). Pitfall: relaxing off a distance array you are mutating within the same pass — for a hop-bounded version you must relax off a snapshot of the previous pass, or a cheaper multi-hop path leaks in early and violates the hop limit. Run V-1 passes for correctness; a V-th pass that still improves anything proves a negative cycle.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bellman-Ford",
+      "promptText": "Write the V-1 edge-relaxation passes in your language of choice: given an edge list and a source, compute shortest distances and detect a negative-weight cycle.",
+      "answerHint": "dist[source] = 0, all others infinity. Repeat V-1 times: for every edge (u, v, w), if dist[u] + w < dist[v] then dist[v] = dist[u] + w (guard against dist[u] being infinity). Invariant: after pass i, every shortest path using at most i edges is correct. Then do one more pass: if any edge still relaxes, a negative-weight cycle is reachable.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Bellman-Ford",
+      "promptText": "Solve: Cheapest Flights Within K Stops (Medium) — cheapest price from src to dst using at most k intermediate stops.",
+      "answerHint": "Bellman-Ford bounded to k+1 relaxation passes; relax each pass off a COPY of the previous distances so one pass can't chain multiple hops and exceed the stop budget.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/cheapest-flights-within-k-stops/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Floyd-Warshall",
+      "promptText": "When do you reach for Floyd-Warshall? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: need ALL-pairs shortest paths, small dense graph (n up to a few hundred, so O(n^3) is fine), \"distance between every pair\" or reachability closure. Pitfall: the loop order — the intermediate node k MUST be the outermost loop; putting i or j outside k gives wrong distances because you'd use paths through k before k's own shortest paths are settled.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Floyd-Warshall",
+      "promptText": "Write the triple loop in your language of choice: given a dense weighted graph as a distance matrix, compute shortest distances between every pair of nodes.",
+      "answerHint": "Init dist[i][j] from edges (0 on the diagonal, infinity for absent pairs). Three nested loops with k outermost, then i, then j: dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j]). Invariant: after the k-th outer iteration, dist[i][j] is the shortest path using only nodes 0..k as intermediates. Guard the sum against infinity to avoid overflow.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Floyd-Warshall",
+      "promptText": "Solve: Find the City With the Smallest Number of Neighbors at a Threshold Distance (Medium) — return the city whose count of cities reachable within distanceThreshold is smallest (ties: largest index).",
+      "answerHint": "Floyd-Warshall for all-pairs distances, then for each city count how many others are within the threshold; pick the smallest count, breaking ties toward the higher index.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Minimum spanning tree",
+      "promptText": "When do you reach for a minimum spanning tree (Kruskal/Prim)? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"connect ALL nodes with minimum total edge weight/cost\", wire/pipe/road every point together cheaply, undirected weighted graph. Pitfall (Kruskal): adding an edge without the Union-Find cycle check — you must union the two endpoints' sets and skip any edge whose endpoints already share a root, or you form a cycle and overspend. Prim's is the alternative: grow one tree via a min-heap of edges leaving it. Related: Optimize Water Distribution in a Village (model each well as an edge from a virtual node — premium, skipped here).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Minimum spanning tree",
+      "promptText": "Write Kruskal's algorithm in your language of choice: given a weighted edge list, compute the total weight of the minimum spanning tree.",
+      "answerHint": "Sort all edges ascending by weight. Init Union-Find over the nodes. Walk edges cheapest-first: for (u, v, w), if find(u) != find(v) then union them and add w to the total (and count the edge). Invariant: the accepted edges are always a forest; stop once you've added n-1 edges. Requires a Union-Find with find + union (path compression / union by rank keeps it near-linear).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Minimum spanning tree",
+      "promptText": "Solve: Min Cost to Connect All Points (Medium) — minimum total cost to connect all points, where the cost between two points is their Manhattan distance.",
+      "answerHint": "Build the complete graph of pairwise Manhattan distances and run an MST (Kruskal with Union-Find, or Prim with a min-heap); the MST weight is the answer.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/min-cost-to-connect-all-points/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

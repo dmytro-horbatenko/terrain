@@ -1,0 +1,196 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Backtracking",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Systematic recursive exploration with undo, i.e. DFS over an implicit decision tree. Depends on Trees (recursion shape) and Arrays & Hashing (state tracking).",
+      "prerequisiteTitles": ["Trees", "Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Subsets / combinations generation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "At each recursion level, decide include-or-skip (subsets) or iterate a start index forward (combinations), pushing/popping the current choice. Recognize: \"all subsets/combinations of size k\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Backtracking"
+    },
+    {
+      "title": "Permutations generation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Track which elements are already used (a boolean array or by swapping in place) and recurse until the current permutation is full length. Recognize: \"all orderings/arrangements\".",
+      "prerequisiteTitles": ["Subsets / combinations generation"],
+      "parentTitle": "Backtracking"
+    },
+    {
+      "title": "Constraint satisfaction",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Place one piece/value at a time, check constraints incrementally (row/col/diagonal or Sudoku box), backtrack immediately on violation rather than validating a full board. Recognize: N-Queens-style placement puzzles.",
+      "prerequisiteTitles": ["Permutations generation"],
+      "parentTitle": "Backtracking"
+    },
+    {
+      "title": "Grid backtracking",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "DFS through grid neighbors, marking visited cells before recursing and unmarking on backtrack, matching a target string/path along the way. Reuses Graphs' grid-DFS shape with the extra step of undoing visited marks.",
+      "prerequisiteTitles": ["Subsets / combinations generation", "DFS (connected components)"],
+      "parentTitle": "Backtracking"
+    },
+    {
+      "title": "Palindrome partitioning",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "At each start index, try every palindromic prefix as one partition and recurse on the remainder; optionally memoize is-palindrome checks. Recognize: \"partition string so every piece satisfies property X\".",
+      "prerequisiteTitles": ["Subsets / combinations generation"],
+      "parentTitle": "Backtracking"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Subsets / combinations generation",
+      "promptText": "When do you reach for include-or-skip / start-index backtracking? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"generate all subsets\", \"all combinations of size k\", \"all ways to choose\" — an exponential enumeration where order within a pick doesn't matter. Pitfall: to avoid re-picking earlier elements you must pass a forward start index, not iterate from 0 each level (that produces permutations and duplicates); with duplicate inputs, sort first and skip equal siblings at the same depth. Related: Combinations is the pure size-k case.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Subsets / combinations generation",
+      "promptText": "Write the subsets/combinations backtracker in your language of choice: given an array, emit every subset using include-or-skip recursion with push/pop undo.",
+      "answerHint": "Recurse with a current path and a start index; record a copy of path at entry (subsets) or when its length hits k (combinations), then for each index from start onward push the element, recurse with index+1, and pop. Invariant: path holds exactly the choices on the current root-to-node route, and start guarantees you never reconsider earlier elements.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Subsets / combinations generation",
+      "promptText": "Solve: Subsets (Medium) — return all possible subsets of a distinct-integer array (the power set).",
+      "answerHint": "Backtrack with a start index, recording the path at every node (not just leaves) since every prefix is itself a valid subset.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/subsets/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Subsets / combinations generation",
+      "promptText": "Solve: Subsets II (Medium) — return all unique subsets of an array that may contain duplicates.",
+      "answerHint": "Sort first, then at each depth skip an element equal to its immediate predecessor when that predecessor was the sibling you just declined — collapses duplicate branches.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/subsets-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Subsets / combinations generation",
+      "promptText": "Solve: Combination Sum (Medium) — all unique combinations of candidates (reusable) summing to target.",
+      "answerHint": "Backtrack with a start index but recurse on the SAME index (not index+1) to allow reuse; prune the branch once the running sum exceeds target.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/combination-sum/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Permutations generation",
+      "promptText": "When do you reach for used-set / swap-based permutation backtracking? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"all orderings/arrangements\", every element used exactly once, position matters. Pitfall: unlike combinations there is no start index — you scan all indices each level, so you MUST guard against reusing an element (a used[] flag or swap), and with duplicates sort then skip an unused value equal to its predecessor. Related: Letter Case Permutation branches on transform-or-not instead of pick-order.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Permutations generation",
+      "promptText": "Write the permutations backtracker in your language of choice: given a distinct-integer array, emit every ordering to full length using a used-marker and undo.",
+      "answerHint": "Recurse with a path and a used[] boolean array; when path length equals n record a copy, else for every index i with used[i] false mark it, push nums[i], recurse, then pop and unmark. Invariant: used[] flags exactly the elements currently in path, so each level only offers still-available elements.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Permutations generation",
+      "promptText": "Solve: Permutations (Medium) — return all permutations of a distinct-integer array.",
+      "answerHint": "Backtrack over all indices each level, guarding with a used[] flag; record path when it reaches length n.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/permutations/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Permutations generation",
+      "promptText": "Solve: Permutations II (Medium) — return all unique permutations of an array that may contain duplicates.",
+      "answerHint": "Sort, then at each level skip nums[i] when it equals nums[i-1] and nums[i-1] is still unused — that predecessor branch already covered this value.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/permutations-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Constraint satisfaction",
+      "promptText": "When do you reach for incremental constraint-checking backtracking? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: place values/pieces one at a time under rules (row/col/diagonal, Sudoku box), \"find any/all valid full assignments\". Pitfall: validating an entire board after each placement instead of checking only the new piece against committed ones — track occupied columns and both diagonals in sets so each placement test is O(1), and remember to release those marks on backtrack. Related: N-Queens II (count only), Sudoku Solver (same prune-on-violation shape).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Constraint satisfaction",
+      "promptText": "Solve: N-Queens (Hard) — place n queens on an n×n board so none attack each other; return all distinct board configurations.",
+      "answerHint": "Recurse row by row; track occupied columns and the two diagonal keys (row+col, row-col) in sets so each placement is validated in O(1), adding and removing marks around the recursive call.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/n-queens/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 60
+    },
+    {
+      "topicTitle": "Grid backtracking",
+      "promptText": "When do you reach for grid backtracking (as opposed to plain connected-components DFS)? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: find a path/word through grid neighbors where a cell may be reused across DIFFERENT paths, \"does this route exist\", maximize a collected value along one walk. Pitfall: forgetting to UNMARK the cell after recursing — connected-components DFS marks permanently, but here the same cell must be free for other branches, so mark before recursing and restore on backtrack. Related: reuses Graphs' grid-DFS shape.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Grid backtracking",
+      "promptText": "Write the grid backtracker in your language of choice: DFS from a cell into its 4 neighbors, marking a cell visited before recursing and unmarking on the way out.",
+      "answerHint": "At (r,c) check bounds and the match condition, temporarily overwrite the cell (or set a visited flag), recurse into the four neighbors combining their results, then restore the cell before returning. Invariant: only cells on the current path are marked, so any success/failure at this node leaves the grid exactly as it found it.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Grid backtracking",
+      "promptText": "Solve: Word Search (Medium) — does the board contain the given word along a path of adjacent, non-reused cells?",
+      "answerHint": "DFS from each cell matching word[0]; mark the cell (e.g. blank it) before recursing on neighbors for word[i+1], and restore it on backtrack so other start paths can reuse it.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/word-search/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Grid backtracking",
+      "promptText": "Solve: Path with Maximum Gold (Medium) — collect the most gold on a walk through non-zero cells, never revisiting a cell.",
+      "answerHint": "Try starting DFS from every gold cell; add the current cell's gold, temporarily zero it, take the max over the four neighbor recursions, then restore the value on backtrack.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/path-with-maximum-gold/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Palindrome partitioning",
+      "promptText": "When do you reach for partition-and-recurse backtracking? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"split the string so every piece satisfies property X\" (each part a palindrome, a valid IP octet), enumerate all such partitions. Pitfall: at each start index you try every prefix as the next cut and recurse on the remainder — forgetting to validate a prefix before recursing (or to memoize the is-palindrome / is-valid check) explodes the work; record a partition only when the cursor reaches the string's end.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Palindrome partitioning",
+      "promptText": "Solve: Palindrome Partitioning (Medium) — return all ways to split s so every substring is a palindrome.",
+      "answerHint": "Backtrack from a start index, extending the cut to each end position; only recurse when s[start..end] is a palindrome, and record the path when start reaches the string's length.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/palindrome-partitioning/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Palindrome partitioning",
+      "promptText": "Solve: Restore IP Addresses (Medium) — return all valid IP addresses formable by inserting dots into a digit string.",
+      "answerHint": "Same partition-and-recurse shape: cut off 1-3 digits per segment, prune segments over 255 or with a leading zero, and accept only when exactly 4 segments consume the whole string.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/restore-ip-addresses/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
