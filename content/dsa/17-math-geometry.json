@@ -1,0 +1,152 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Math & Geometry",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Numeric/geometric problems that lean on arithmetic properties rather than a traversal or DP structure.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Modular arithmetic & number theory",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Apply modulo reduction to avoid overflow, and number-theoretic identities (mod distributes over +,-,* but not /) to combine large-number results correctly. Recognize: \"answer modulo 1e9+7\", divisibility reasoning.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Math & Geometry"
+    },
+    {
+      "title": "Matrix rotation",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Rotate in place via transpose + reverse-rows (90 deg), or walk concentric layers swapping four cells at a time. Recognize: \"rotate the matrix in place\", spiral traversal.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Math & Geometry"
+    },
+    {
+      "title": "Prime sieve / GCD-LCM",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sieve of Eratosthenes precomputes all primes up to N in O(N log log N); GCD via Euclid's algorithm underlies LCM and fraction-reduction problems. Recognize: repeated primality checks, reducing fractions/ratios.",
+      "prerequisiteTitles": ["Modular arithmetic & number theory"],
+      "parentTitle": "Math & Geometry"
+    },
+    {
+      "title": "Geometry basics",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Cross-product sign tells turn direction/orientation of three points; use it for collinearity, convex hull steps, and line-segment relationships instead of trigonometry. Recognize: points/lines/polygons in the problem statement.",
+      "prerequisiteTitles": ["Matrix rotation"],
+      "parentTitle": "Math & Geometry"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Modular arithmetic & number theory",
+      "promptText": "When do you reach for modular arithmetic / number-theoretic identities? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"answer modulo 1e9+7\", huge results that overflow, divisibility/parity reasoning, exponent that's astronomically large. Pitfall: trying to divide under a modulus directly — mod distributes over +,-,* but NOT / (you need a modular inverse), and take the mod at every step, not just at the end. Related: Divide Two Integers (no built-in division), Euclid's GCD.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Modular arithmetic & number theory",
+      "promptText": "Write fast exponentiation by squaring in your language of choice: compute base^exp in O(log exp) multiplications.",
+      "answerHint": "Loop while exp > 0: if exp is odd, fold base into the result; then square base and halve exp (integer division). Invariant: result * base^exp is constant across iterations. Handle negative exponents by inverting the base and negating exp.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Modular arithmetic & number theory",
+      "promptText": "Solve: Pow(x, n) (Medium) — compute x raised to the integer power n (n may be negative).",
+      "answerHint": "Exponentiation by squaring; for n < 0 use 1/x with -n, and be careful that -n can overflow a signed int (widen n first).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/powx-n/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Matrix rotation",
+      "promptText": "When do you reach for the transpose-and-reverse (or layer-swap) matrix technique? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"rotate the matrix in place\", spiral/layer traversal, coordinate remapping (row,col) -> (col, n-1-row). Pitfall: doing a naive copy when \"in place\" / O(1) extra space is required, or double-swapping cells (loop the transpose over j > i only, not the whole grid). Related: Spiral Matrix walks the same concentric layers.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Matrix rotation",
+      "promptText": "Write the in-place 90° clockwise rotation in your language of choice: rotate an n×n matrix using transpose + reverse-each-row.",
+      "answerHint": "First transpose: for i in 0..n, for j in i+1..n, swap m[i][j] with m[j][i]. Then reverse each row in place. Invariant: transpose reflects across the main diagonal, and the row reversal completes the clockwise turn; iterate j only above the diagonal so each pair swaps once.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Matrix rotation",
+      "promptText": "Solve: Rotate Image (Medium) — rotate an n×n matrix 90° clockwise in place.",
+      "answerHint": "Transpose across the main diagonal, then reverse each row (or swap four cells per layer).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/rotate-image/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Matrix rotation",
+      "promptText": "Solve: Spiral Matrix (Medium) — return all elements of an m×n matrix in spiral order.",
+      "answerHint": "Track four shrinking bounds (top, bottom, left, right); walk right-down-left-up, contracting a bound after each side and stopping when the bounds cross.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/spiral-matrix/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Matrix rotation",
+      "promptText": "Solve: Set Matrix Zeroes (Medium) — if a cell is 0, set its entire row and column to 0, in place with O(1) extra space.",
+      "answerHint": "Use the first row and first column as markers for which rows/cols to zero; handle the two overlap flags (does row 0 / col 0 itself need zeroing) separately, and write them last.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/set-matrix-zeroes/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Prime sieve / GCD-LCM",
+      "promptText": "When do you reach for a prime sieve or Euclid's GCD? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: repeated primality checks up to some N, counting/listing primes, reducing fractions or ratios, LCM/GCD of several numbers. Pitfall: starting the sieve's inner marking at 2*p instead of p*p, or forgetting 0 and 1 are not prime. Related: Nth Digit (number-theory adjacent counting), LCM(a,b) = a/GCD(a,b)*b.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Prime sieve / GCD-LCM",
+      "promptText": "Write the Sieve of Eratosthenes in your language of choice: mark all primes up to N in a boolean array.",
+      "answerHint": "Start with all entries true, mark 0 and 1 false; for p from 2 while p*p <= N, if p is still prime, mark every multiple starting at p*p up to N false. Invariant: when you reach p, all composites with a smaller factor are already crossed out, so an unmarked p is prime.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Prime sieve / GCD-LCM",
+      "promptText": "Solve: Count Primes (Medium) — count the number of primes strictly less than n.",
+      "answerHint": "Sieve up to n and count the still-true entries; inner loop starts at p*p and steps by p.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/count-primes/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Geometry basics",
+      "promptText": "When do you reach for the cross-product orientation test? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: points/lines/polygons in the statement, collinearity, turn direction (clockwise vs counter-clockwise), convex-hull or segment-intersection steps. Pitfall: reaching for floating-point slopes (division by zero on vertical lines, precision loss) — use the integer cross product (b-a)×(c-a) and test its sign instead. Related: Max Points on a Line counts collinear triples via this test.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Geometry basics",
+      "promptText": "Write the orientation test for three points in your language of choice: given a, b, c, return whether the turn a→b→c is clockwise, counter-clockwise, or collinear.",
+      "answerHint": "Compute the cross product (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x); positive means counter-clockwise, negative clockwise, zero collinear. Stay in integers to avoid slope division and precision issues.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Geometry basics",
+      "promptText": "Solve: Valid Square (Medium) — given four points, decide whether they form a square.",
+      "answerHint": "Compute all six pairwise squared distances; a valid square has exactly two distinct values (four equal sides, two equal diagonals) with the larger being twice the smaller, and no zero-length side.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/valid-square/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

@@ -1,0 +1,167 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Bit Manipulation",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Operate directly on binary representations for O(1)-per-op tricks; conceptually standalone from array/graph/DP structures.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Basic bit ops",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "AND to check/clear a bit, OR to set a bit, XOR to toggle, shifts to multiply/divide by powers of two. Recognize: any problem phrased directly in terms of binary representation.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Bit Manipulation"
+    },
+    {
+      "title": "Counting bits",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "dp[i] = dp[i >> 1] + (i & 1) reuses the previously-computed bit count for i/2, avoiding recomputation per number (a 1-D-DP-flavored bit trick). Recognize: \"number of set bits for every number up to N\".",
+      "prerequisiteTitles": ["Basic bit ops"],
+      "parentTitle": "Bit Manipulation"
+    },
+    {
+      "title": "XOR tricks",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "XOR cancels identical values to zero and is order-independent, so XOR-ing an entire array isolates whatever appears an odd number of times. Recognize: \"find the single/missing number\", pairing-cancellation problems.",
+      "prerequisiteTitles": ["Basic bit ops"],
+      "parentTitle": "Bit Manipulation"
+    },
+    {
+      "title": "Bitmask DP",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Represent a subset of up to ~20 items as an integer bitmask, so dp[mask] tabulates over all 2^n subsets — a bit-encoded generalization of Backtracking's subset enumeration into a memoizable state. Recognize: small n (<=20), state naturally described as \"which items have been used/visited\".",
+      "prerequisiteTitles": ["Counting bits"],
+      "parentTitle": "Bit Manipulation"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Basic bit ops",
+      "promptText": "When do you reach for direct bit operations (AND/OR/XOR/shift)? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: the problem is phrased in terms of the binary representation itself — set/clear/toggle/test a specific bit, multiply or divide by a power of two, pack flags into one integer. Recall the four moves: n & (1<<k) tests bit k, n | (1<<k) sets it, n & ~(1<<k) clears it, n ^ (1<<k) toggles it. Pitfall: signed-integer surprises — arithmetic right shift on a negative number sign-extends (fills 1s), and in fixed-width languages 1<<31 overflows; mask to unsigned or use a wider type.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Basic bit ops",
+      "promptText": "Write the four single-bit operations in your language of choice: given an integer n and a bit index k, check, set, clear, and toggle bit k; also show multiply/divide by a power of two via shifting.",
+      "answerHint": "Build a mask m = 1 << k. Check: (n & m) != 0. Set: n | m. Clear: n & ~m. Toggle: n ^ m. Multiply by 2^p: n << p; divide (non-negative) by 2^p: n >> p. Invariant: bit k is the k-th least-significant bit, counting from 0.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Basic bit ops",
+      "promptText": "Solve: Number of 1 Bits (Easy) — count the set bits (Hamming weight) of an unsigned integer.",
+      "answerHint": "Repeatedly clear the lowest set bit with n &= n - 1 and count iterations — it loops exactly once per set bit.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/number-of-1-bits/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Basic bit ops",
+      "promptText": "Solve: Reverse Bits (Easy) — reverse the bits of a 32-bit unsigned integer.",
+      "answerHint": "Pop the low bit of the input and push it into the result, shifting result left each of the 32 steps so the first bit read lands in the highest position.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/reverse-bits/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Basic bit ops",
+      "promptText": "Solve: Sum of Two Integers (Medium) — add two integers without using + or -.",
+      "answerHint": "XOR is add-without-carry; (a & b) << 1 is the carry — loop, feeding the carry back in, until it becomes zero.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/sum-of-two-integers/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Counting bits",
+      "promptText": "When do you reach for the dp[i] = dp[i>>1] + (i&1) bit-count recurrence? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: you need the popcount of every number in a range 0..N, not just one — recomputing each independently is O(N log N), but reusing the already-known count of i/2 makes it O(N). The recurrence: i's bits are i/2's bits plus i's own lowest bit, so dp[i] = dp[i >> 1] + (i & 1). Pitfall: dp[0] must be seeded to 0 before the loop, and the loop must run i upward so dp[i>>1] is already filled. Related: Hamming Distance (popcount of a XOR b).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Counting bits",
+      "promptText": "Solve: Counting Bits (Easy) — for every i in 0..n, return the number of set bits in i, in O(n).",
+      "answerHint": "Fill dp left to right with dp[i] = dp[i >> 1] + (i & 1), reusing the already-computed count of i/2.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/counting-bits/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "XOR tricks",
+      "promptText": "When do you reach for XOR-cancellation? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: everything pairs up except the answer — \"every element appears twice except one\", a missing number in a full range, toggling a value back and forth. XOR is commutative, associative, x^x=0, and x^0=x, so folding XOR over the whole collection leaves only what appeared an odd number of times. Pitfall: it only isolates a SINGLE odd-one-out; when two values are unique (Single Number III) you must first XOR everything, then split the two by a bit where they differ (the lowest set bit of the total XOR) and XOR each group separately.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "XOR tricks",
+      "promptText": "Solve: Single Number (Easy) — every element appears twice except one; find it in O(n) time and O(1) space.",
+      "answerHint": "XOR all elements together; the pairs cancel to zero and the lone value survives.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/single-number/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "XOR tricks",
+      "promptText": "Solve: Missing Number (Easy) — one number in 0..n is missing from the array; find it.",
+      "answerHint": "XOR together all indices 0..n and all array values; the present numbers cancel in pairs, leaving the missing one.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/missing-number/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "XOR tricks",
+      "promptText": "Solve: Single Number III (Medium) — exactly two elements appear once and all others twice; return both.",
+      "answerHint": "XOR everything to get a^b, isolate its lowest set bit (a bit where a and b differ), then partition the array by that bit and XOR each half separately.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/single-number-iii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Bitmask DP",
+      "promptText": "When do you reach for bitmask DP? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: small n (roughly <=20), and the state is naturally \"which items are used/visited/assigned\" — a subset — that you'd otherwise enumerate by backtracking but with overlapping subproblems worth memoizing. Encode the subset as an integer mask and let dp[mask] (often with an extra dimension like current node) tabulate over all 2^n masks. Pitfall: iterating masks in the wrong order — for subset-growing transitions process masks in increasing numeric order so every sub-mask is finalized before the masks that extend it, and remember 2^n * (transition cost) must actually fit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bitmask DP",
+      "promptText": "Write the bitmask-DP skeleton in your language of choice: iterate dp over all 2^n subset masks, and for each mask enumerate its members (or its submasks) to make transitions.",
+      "answerHint": "Loop mask from 0 to (1<<n)-1 in increasing order. To visit each set bit i: test mask & (1<<i). To add item i to a mask when absent: mask | (1<<i). To enumerate every submask s of mask: start s = mask, then repeatedly s = (s - 1) & mask until s wraps to below zero (stop after processing 0). Invariant: because masks ascend, every mask with fewer bits is already final before you extend it.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Bitmask DP",
+      "promptText": "Solve: Partition to K Equal Sum Subsets (Medium) — can the array be split into k subsets each summing to total/k?",
+      "answerHint": "dp[mask] = whether the chosen elements can be packed into full buckets; extend a reachable mask by adding one unused element while the running remainder stays within one bucket's target, resetting when a bucket fills.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/partition-to-k-equal-sum-subsets/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Bitmask DP",
+      "promptText": "Solve: Shortest Path Visiting All Nodes (Hard) — shortest walk that visits every node of a graph, revisits allowed.",
+      "answerHint": "BFS over states (current node, bitmask of visited nodes); the answer is the first time any state whose mask is all-ones is dequeued.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/shortest-path-visiting-all-nodes/",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 45
+    }
+  ],
+  "noteSummaries": []
+}
