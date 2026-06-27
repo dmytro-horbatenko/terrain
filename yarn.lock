@@ -2684,6 +2684,7 @@ __metadata:
     recharts: "npm:^3.9"
     typescript: "npm:^6.0"
     vite: "npm:^8.1"
+    vitest: "npm:^4"
   languageName: unknown
   linkType: soft
 
