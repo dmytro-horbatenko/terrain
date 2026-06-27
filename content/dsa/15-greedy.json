@@ -1,0 +1,140 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Greedy",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Make the locally-optimal choice at each step and prove (or trust) it leads to a globally optimal result. Independent axis from DP — no overlapping-subproblem memoization needed.",
+      "prerequisiteTitles": ["Arrays & Hashing"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Interval scheduling",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sort by end time, greedily keep an interval if it starts after the last kept interval ends. Recognize: \"maximum number of non-overlapping intervals you can select\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Greedy"
+    },
+    {
+      "title": "Jump game",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Track the farthest index reachable so far while scanning left to right; feasibility/min-jumps falls out of comparing current index to that frontier. Recognize: \"can you reach the end\", \"minimum jumps to reach the end\".",
+      "prerequisiteTitles": ["Interval scheduling"],
+      "parentTitle": "Greedy"
+    },
+    {
+      "title": "Gas station",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "If total gas >= total cost a solution exists; the starting point is right after the point where cumulative tank first goes negative. One greedy pass, no brute force needed. Recognize: circular-array feasibility with a running-total tell.",
+      "prerequisiteTitles": ["Interval scheduling"],
+      "parentTitle": "Greedy"
+    },
+    {
+      "title": "Greedy + sorting",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sort by the attribute that makes the greedy choice obvious (deadline, ratio, size), then make one linear pass assigning/selecting. Recognize: matching/assignment problems solvable by sorting one or two lists.",
+      "prerequisiteTitles": ["Interval scheduling"],
+      "parentTitle": "Greedy"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Interval scheduling",
+      "promptText": "When do you reach for the sort-by-end-time interval scheduling greedy? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"maximum number of non-overlapping intervals\", or the dual \"fewest removals to make them non-overlapping\". Sort by END, keep an interval iff it starts at-or-after the last kept end. Pitfall: sorting by start time instead — a long early-starting interval then blocks several short ones; and getting the touch case wrong (decide whether shared endpoints count as overlap). Related: Maximum Number of Events That Can Be Attended is the same greedy with a per-day twist.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Interval scheduling",
+      "promptText": "Write the interval-scheduling scan in your language of choice: given intervals, count the maximum number you can keep with no overlaps.",
+      "answerHint": "Sort intervals by end value. Track lastEnd = -infinity and a counter; for each interval, if its start >= lastEnd, take it (counter++, lastEnd = its end), else skip. Invariant: lastEnd is always the earliest possible end among all valid selections of the intervals seen so far, which leaves the most room for future picks.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Interval scheduling",
+      "promptText": "Solve: Non-overlapping Intervals (Medium) — return the minimum number of intervals to remove so the rest are non-overlapping.",
+      "answerHint": "Maximize kept intervals with the sort-by-end greedy, then removals = total - kept (overlap means start < lastEnd).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/non-overlapping-intervals/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Jump game",
+      "promptText": "When do you reach for the farthest-reachable-frontier greedy? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: array of jump lengths, \"can you reach the end\" or \"minimum jumps to reach the end\" — a reachability question over indices. Maintain the farthest index reachable while scanning left to right. Pitfall: continuing to scan past an index the frontier can't reach (if i > farthest, you're stranded — return false); for min-jumps, incrementing the jump count per element instead of once per frontier boundary.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Jump game",
+      "promptText": "Write the reachability scan in your language of choice: given an array of max jump lengths, decide whether the last index is reachable from index 0.",
+      "answerHint": "farthest = 0; scan i from 0: if i > farthest return false (stranded), else farthest = max(farthest, i + nums[i]); return true (or farthest >= last). Invariant: farthest is the maximum index reachable using only positions 0..i, so once i exceeds it no later position is reachable.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Jump game",
+      "promptText": "Solve: Jump Game (Medium) — given max jump lengths, return whether you can reach the last index.",
+      "answerHint": "Track the farthest reachable index in one pass; you fail the instant the current index passes it.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/jump-game/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Jump game",
+      "promptText": "Solve: Jump Game II (Medium) — return the minimum number of jumps to reach the last index (reachability guaranteed).",
+      "answerHint": "BFS-by-levels on indices: bump the jump count only when the scan reaches the end of the current jump's range, resetting that boundary to the farthest seen.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/jump-game-ii/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Gas station",
+      "promptText": "When do you reach for the running-total \"start after the deficit\" greedy? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: a circular array where you accumulate a resource and must find a feasible start index (gas minus cost per station). Feasibility test: total gas >= total cost. The answer is the index right after the point where the running tank first drops below zero. Pitfall: forgetting the total-sum feasibility check (returning a candidate start when no start works at all), or not resetting the tank to 0 when moving the candidate start. Related: Candy is a two-pass greedy variant on this leaf's spirit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Gas station",
+      "promptText": "Solve: Gas Station (Medium) — find the starting station index from which you can complete the circular route once, or -1.",
+      "answerHint": "If total(gas) < total(cost) return -1; otherwise a single valid start exists — it's one past wherever the running tank goes negative (reset the tank there).",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/gas-station/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Greedy + sorting",
+      "promptText": "When do you reach for \"sort, then one greedy pass\"? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: matching/assignment problems where sorting one or both lists by the deciding attribute (size, deadline, ratio) makes the local choice obvious — pair the smallest that fits, or the extremes together. Pitfall: sorting by the wrong key, or an incorrect two-pointer advance (advancing the wrong pointer when no match is possible leaves a greedy that isn't optimal). Related: Task Scheduler is a greedy-framing problem carded under Heap / Priority Queue.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Greedy + sorting",
+      "promptText": "Solve: Assign Cookies (Easy) — maximize the number of children satisfied, giving each child at most one cookie of size >= that child's greed factor.",
+      "answerHint": "Sort both greed factors and cookie sizes; two pointers assign the smallest adequate cookie to the least-greedy unsatisfied child.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/assign-cookies/",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Greedy + sorting",
+      "promptText": "Solve: Boats to Save People (Medium) — fewest boats to carry everyone, each boat holding at most two people within a weight limit.",
+      "answerHint": "Sort weights; opposite-direction pointers pair the heaviest with the lightest when they fit together, otherwise send the heaviest alone.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/boats-to-save-people/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}

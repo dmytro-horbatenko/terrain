@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Intervals",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Range-overlap problems; mostly solved by the Greedy category's sort-then-scan approach.",
+      "prerequisiteTitles": ["Greedy"],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Merge intervals",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sort by start time, then scan and merge the current interval into the previous one whenever they overlap. Recognize: \"merge all overlapping intervals\".",
+      "prerequisiteTitles": [],
+      "parentTitle": "Intervals"
+    },
+    {
+      "title": "Insert interval",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Walk the already-sorted, already-merged list in three phases: copy intervals fully before the new one, merge all overlapping ones into it, copy the rest. Recognize: inserting into a pre-merged interval list.",
+      "prerequisiteTitles": ["Merge intervals"],
+      "parentTitle": "Intervals"
+    },
+    {
+      "title": "Non-overlapping intervals",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Sort by end time, greedily keep the earliest-ending non-conflicting interval and count/remove the rest — the same recurrence as Greedy's interval scheduling, phrased as a removal-count problem.",
+      "prerequisiteTitles": ["Merge intervals"],
+      "parentTitle": "Intervals"
+    },
+    {
+      "title": "Meeting rooms",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Split into separate sorted start-time and end-time arrays (or a min-heap of end times) and sweep to count how many intervals are simultaneously open. Recognize: \"minimum rooms/resources needed to cover all intervals\".",
+      "prerequisiteTitles": ["Merge intervals"],
+      "parentTitle": "Intervals"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Merge intervals",
+      "promptText": "When do you reach for the merge-intervals pattern? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"merge all overlapping intervals\", coalescing/collapsing a set of [start,end] ranges into a minimal cover. Sort by start, then a single scan folds each interval into the previous whenever current.start <= prev.end. Pitfall: using strict < for the overlap test (drops touching intervals like [1,4],[4,5]) and widening prev.end to max(prev.end, cur.end) rather than just cur.end (a fully-contained interval must not shrink the block). Related: Employee Free Time (skipped, premium) inverts this to report the gaps between merged intervals.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Merge intervals",
+      "promptText": "Write the sort-by-start merge in your language of choice: given a list of [start,end] intervals, return the list with every overlapping pair merged.",
+      "answerHint": "Sort by start. Seed the result with the first interval. For each next interval: if its start <= the last result interval's end, extend that end to max(current end, next.end) in place; otherwise append it as a fresh block. Invariant: the result stays sorted and internally non-overlapping, and only its last element can still absorb more.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Merge intervals",
+      "promptText": "Solve: Merge Intervals (Medium) — given an array of intervals, merge all that overlap and return the non-overlapping result.",
+      "answerHint": "Sort by start, then fold each interval into the previous one whenever it starts at or before the previous end.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/merge-intervals/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Insert interval",
+      "promptText": "When do you reach for the insert-interval three-phase walk instead of a full re-sort-and-merge? Name the signals, the three phases, and the classic pitfall.",
+      "answerHint": "Signal: inserting one new interval into an already-sorted, already-merged list and returning it still merged, in O(n) with no re-sort. Three phases: (1) copy every interval that ends before the new one starts, (2) while the current interval overlaps the new one, absorb it by widening the new interval to min of starts / max of ends, then push it once, (3) copy the remaining tail. Pitfall: pushing the merged new interval at the wrong moment — it belongs exactly once, right after phase 2 stops absorbing and before the tail copy, not inside the loop.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Insert interval",
+      "promptText": "Solve: Insert Interval (Medium) — insert a new interval into a sorted, non-overlapping list and return the list still merged.",
+      "answerHint": "Three phases on the sorted list: copy intervals ending before the new one, absorb every overlapper into the new interval, then copy the rest — no re-sort needed.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/insert-interval/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Non-overlapping intervals",
+      "promptText": "When do you reach for the greedy \"keep the earliest-ending interval\" scan? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"minimum removals to make intervals non-overlapping\", \"maximum non-overlapping intervals you can keep\", \"fewest arrows/points to pierce every interval\" — all the same recurrence as Greedy's interval scheduling, just re-phrased. Sort by END time; keep an interval only if its start is >= the last kept end, otherwise count it as a conflict. Pitfall: sorting by start instead of end (the greedy choice breaks), plus the touching-endpoint convention — for burst-balloons a shared point like [1,2],[2,3] counts as overlap (one arrow hits both), whereas Non-overlapping Intervals treats [1,2],[2,3] as non-conflicting. Related: Non-overlapping Intervals itself is carded under Greedy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Non-overlapping intervals",
+      "promptText": "Solve: Minimum Number of Arrows to Burst Balloons (Medium) — given balloons as [start,end] intervals, find the fewest vertical arrows that burst them all.",
+      "answerHint": "Sort by end, shoot at the first balloon's end, and spend a new arrow only when a balloon starts strictly after the last arrow's position — greedy interval scheduling counting kept ends; a shared endpoint still counts as hit.",
+      "promptKind": "problem",
+      "url": "https://leetcode.com/problems/minimum-number-of-arrows-to-burst-balloons/",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    },
+    {
+      "topicTitle": "Meeting rooms",
+      "promptText": "When do you reach for the min-heap-of-end-times / start-end sweep? Name the problem-statement signals, and the classic pitfall.",
+      "answerHint": "Signals: \"minimum rooms/resources to hold all meetings\", the maximum number of intervals open at one instant, or a simple \"can one person attend all\" overlap check. Two equivalent forms: a min-heap of end times (pop rooms freed before the next start, heap size = rooms in use) or two separately-sorted arrays of starts and ends swept together counting simultaneous opens. Pitfall: at equal timestamps process an END before a START — a meeting ending exactly when another begins reuses the room, so they must not count as two. Related: Employee Free Time (skipped, premium).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Meeting rooms",
+      "promptText": "Write the meeting-rooms counter in your language of choice: given meeting intervals, return the minimum number of rooms so no two overlapping meetings share a room.",
+      "answerHint": "Sort meetings by start. Keep a min-heap of end times of currently-busy rooms. For each meeting: if the heap's smallest end <= this start, pop it (that room freed up); then push this meeting's end. Answer is the largest heap size ever reached. Invariant: the heap holds exactly the rooms busy at the current start. Equivalent sweep: sort starts and ends separately, walk both, +1 on a start, -1 when the next end is <= the current start, track the running max.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Meeting rooms",
+      "promptText": "Solve: Meeting Rooms (Easy) — given meeting time intervals, determine whether a person could attend all of them (no two overlap).",
+      "answerHint": "Sort by start; return false the moment any meeting starts before the previous one ends.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/meeting-schedule",
+      "problemDifficulty": "easy",
+      "estimatedMinutes": 15
+    },
+    {
+      "topicTitle": "Meeting rooms",
+      "promptText": "Solve: Meeting Rooms II (Medium) — given meeting intervals, return the minimum number of conference rooms required.",
+      "answerHint": "Min-heap of end times (or a start/end sweep): the peak count of simultaneously-open meetings is the room count; free a room the instant its end is at or before the next start.",
+      "promptKind": "problem",
+      "url": "https://neetcode.io/problems/meeting-schedule-ii",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 30
+    }
+  ],
+  "noteSummaries": []
+}
