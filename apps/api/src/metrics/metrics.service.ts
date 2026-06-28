@@ -4,6 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
 
+export interface NextUp {
+  topic: Topic;
+  chapterTitle: string | null;
+  chapterProgress: { started: number; total: number } | null;
+}
+
 /** Local-time YYYY-MM-DD key (matches the streak engine's local day bounds). */
 function localDateKey(d: Date): string {
   const y = d.getFullYear();
@@ -25,7 +31,8 @@ export class MetricsService {
     reviewing: boolean;
   } {
     const blocked =
-      input.status === 'planned' && input.prerequisiteStatuses.some((s) => s !== 'mastered');
+      input.status === 'planned' &&
+      input.prerequisiteStatuses.some((s) => s !== 'mastered' && s !== 'active');
     const reviewing = input.status === 'active' && input.cards.some((c) => c.reps > 0);
     return { blocked, reviewing };
   }
@@ -129,19 +136,76 @@ export class MetricsService {
     });
   }
 
-  /** Count of non-suspended cards still in the `new` state, same topic scoping as `dueCards`. */
+  /**
+   * IDs of planned topics whose direct prerequisites are all started
+   * (active or mastered) — the startable frontier, in creation order.
+   */
+  private async startablePlannedIds(userId: string, domain?: string): Promise<string[]> {
+    const planned = await this.prisma.topic.findMany({
+      where: { userId, status: 'planned', ...(domain ? { domain } : {}) },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        prerequisites: { select: { prerequisite: { select: { status: true } } } },
+      },
+    });
+    return planned
+      .filter((t) =>
+        t.prerequisites.every(
+          (p) => p.prerequisite.status === 'active' || p.prerequisite.status === 'mastered',
+        ),
+      )
+      .map((t) => t.id);
+  }
+
+  /**
+   * Non-suspended `new`-state cards whose topic is studyable today: active or
+   * mastered, or a startable planned topic. Blocked planned topics' starter
+   * cards are excluded — they'd inflate "New: N" with cards you can't reach.
+   */
   async newCardsCount(userId: string, domain?: string): Promise<number> {
+    const startableIds = await this.startablePlannedIds(userId, domain);
     return this.prisma.prompt.count({
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+        topic: { userId, ...(domain ? { domain } : {}) },
+        OR: [
+          { topic: { status: { in: ['active', 'mastered'] } } },
+          { topicId: { in: startableIds } },
+        ],
       },
     });
   }
 
+  /**
+   * The single guided suggestion: first startable planned topic in creation
+   * order (preserves authored curriculum order). Tentative (aiProposed)
+   * topics are candidates — starting one commits it (web-side).
+   */
+  async nextUp(userId: string, domain?: string): Promise<NextUp | null> {
+    const [firstId] = await this.startablePlannedIds(userId, domain);
+    if (!firstId) return null;
+    const topic = await this.prisma.topic.findFirst({ where: { id: firstId, userId } });
+    if (!topic) return null;
+    if (!topic.parentId) return { topic, chapterTitle: null, chapterProgress: null };
+    const parent = await this.prisma.topic.findFirst({
+      where: { id: topic.parentId, userId },
+      select: { title: true, children: { select: { status: true } } },
+    });
+    if (!parent) return { topic, chapterTitle: null, chapterProgress: null };
+    const started = parent.children.filter(
+      (c) => c.status === 'active' || c.status === 'mastered',
+    ).length;
+    return {
+      topic,
+      chapterTitle: parent.title,
+      chapterProgress: { started, total: parent.children.length },
+    };
+  }
+
   async dashboard(userId: string, now: Date, domain?: string) {
-    const [struggleRatio7d, due, grouped, newCards] = await Promise.all([
+    const [struggleRatio7d, due, grouped, newCards, nextUp] = await Promise.all([
       this.struggleRatio7d(userId, now),
       this.dueTopics(userId, now, domain),
       this.prisma.topic.groupBy({
@@ -150,6 +214,7 @@ export class MetricsService {
         where: { userId, ...(domain ? { domain } : {}) },
       }),
       this.newCardsCount(userId, domain),
+      this.nextUp(userId, domain),
     ]);
     const countOf = (status: string) => grouped.find((g) => g.status === status)?._count ?? 0;
     return {
@@ -157,6 +222,7 @@ export class MetricsService {
       struggleRatio7d,
       due,
       newCards,
+      nextUp,
       counts: {
         total: grouped.reduce((sum, g) => sum + g._count, 0),
         planned: countOf('planned'),

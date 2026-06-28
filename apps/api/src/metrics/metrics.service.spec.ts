@@ -11,6 +11,7 @@ describe('MetricsService', () => {
       review: { findMany: jest.fn().mockResolvedValue([]) },
       topic: {
         findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn(),
         groupBy: jest.fn().mockResolvedValue([]),
       },
       prompt: {
@@ -185,10 +186,34 @@ describe('MetricsService', () => {
     );
   });
 
-  it('topicLabels: blocked when planned with an unmastered prerequisite', () => {
+  it('topicLabels: planned with an active prerequisite is NOT blocked (started gate)', () => {
     expect(
       service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['active'] }),
+    ).toEqual({ blocked: false, reviewing: false });
+  });
+  it('topicLabels: planned with a planned prerequisite is blocked', () => {
+    expect(
+      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['planned'] }),
     ).toEqual({ blocked: true, reviewing: false });
+  });
+  it('topicLabels: planned with an archived prerequisite is blocked', () => {
+    expect(
+      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['archived'] }),
+    ).toEqual({ blocked: true, reviewing: false });
+  });
+  it('topicLabels: one unstarted prerequisite among started ones still blocks', () => {
+    expect(
+      service.topicLabels({
+        status: 'planned',
+        cards: [],
+        prerequisiteStatuses: ['mastered', 'active', 'planned'],
+      }),
+    ).toEqual({ blocked: true, reviewing: false });
+  });
+  it('topicLabels: a non-planned topic is never blocked', () => {
+    expect(
+      service.topicLabels({ status: 'active', cards: [], prerequisiteStatuses: ['planned'] }),
+    ).toEqual({ blocked: false, reviewing: false });
   });
   it('topicLabels: planned with all prereqs mastered is not blocked', () => {
     expect(
@@ -237,15 +262,39 @@ describe('MetricsService', () => {
     );
   });
 
-  it('newCardsCount scopes to state new, non-suspended, through non-archived topics (including mastered)', async () => {
-    await service.newCardsCount('userA', 'DSA');
-    expect(prisma.prompt.count).toHaveBeenCalledWith(
+  it('newCardsCount includes startable planned topics and excludes blocked ones', async () => {
+    prisma.topic.findMany.mockImplementation(({ where }: any) =>
+      Promise.resolve(
+        where?.status === 'planned'
+          ? [
+              { id: 'startable', prerequisites: [{ prerequisite: { status: 'active' } }] },
+              { id: 'zero-prereq', prerequisites: [] },
+              { id: 'blocked', prerequisites: [{ prerequisite: { status: 'planned' } }] },
+            ]
+          : [],
+      ),
+    );
+    prisma.prompt.count.mockResolvedValue(3);
+    const result = await service.newCardsCount('userA', 'DSA');
+    expect(result).toBe(3);
+    expect(prisma.prompt.count).toHaveBeenCalledWith({
+      where: {
+        suspended: false,
+        state: 'new',
+        topic: { userId: 'userA', domain: 'DSA' },
+        OR: [
+          { topic: { status: { in: ['active', 'mastered'] } } },
+          { topicId: { in: ['startable', 'zero-prereq'] } },
+        ],
+      },
+    });
+  });
+  it('newCardsCount queries planned topics in creation order scoped to the user', async () => {
+    await service.newCardsCount('userA');
+    expect(prisma.topic.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          suspended: false,
-          state: 'new',
-          topic: { userId: 'userA', status: { not: 'archived' }, domain: 'DSA' },
-        },
+        where: { userId: 'userA', status: 'planned' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       }),
     );
   });
@@ -264,10 +313,16 @@ describe('MetricsService', () => {
       { status: 'mastered', _count: 1 },
     ]);
     const now = new Date('2026-01-08T12:00:00Z');
-    prisma.topic.findMany.mockResolvedValue([
-      { nextReviewAt: new Date('2026-01-05T00:00:00Z') }, // overdue in every timezone
-      { nextReviewAt: now }, // >= startOfToday in every timezone => dueToday
-    ]);
+    prisma.topic.findMany.mockImplementation(({ where }: any) =>
+      Promise.resolve(
+        where?.status === 'planned'
+          ? []
+          : [
+              { nextReviewAt: new Date('2026-01-05T00:00:00Z') }, // overdue in every timezone
+              { nextReviewAt: now }, // >= startOfToday in every timezone => dueToday
+            ],
+      ),
+    );
     prisma.prompt.count.mockResolvedValue(7);
     const result = await service.dashboard('userA', now, 'DSA');
     expect(prisma.topic.groupBy).toHaveBeenCalledWith(
@@ -285,5 +340,86 @@ describe('MetricsService', () => {
       dueToday: 1,
       overdue: 1,
     });
+  });
+
+  describe('nextUp', () => {
+    it('returns the first startable planned topic in creation order, skipping blocked ones', async () => {
+      prisma.topic.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.status === 'planned'
+            ? [
+                { id: 't-blocked', prerequisites: [{ prerequisite: { status: 'planned' } }] },
+                { id: 't-startable', prerequisites: [{ prerequisite: { status: 'active' } }] },
+              ]
+            : [],
+        ),
+      );
+      prisma.topic.findFirst.mockResolvedValue({
+        id: 't-startable',
+        title: 'Stack',
+        parentId: null,
+      });
+      const result = await service.nextUp('userA');
+      expect(result).toEqual({
+        topic: { id: 't-startable', title: 'Stack', parentId: null },
+        chapterTitle: null,
+        chapterProgress: null,
+      });
+      // ordering is delegated to SQL — assert it, and that aiProposed is NOT filtered
+      expect(prisma.topic.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'userA', status: 'planned' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        }),
+      );
+    });
+
+    it('attaches chapter title and started/total progress when the topic has a parent', async () => {
+      prisma.topic.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(where?.status === 'planned' ? [{ id: 't1', prerequisites: [] }] : []),
+      );
+      prisma.topic.findFirst
+        .mockResolvedValueOnce({ id: 't1', title: 'Two Sum', parentId: 'chapter-1' })
+        .mockResolvedValueOnce({
+          title: 'Arrays & Hashing',
+          children: [{ status: 'active' }, { status: 'mastered' }, { status: 'planned' }],
+        });
+      const result = await service.nextUp('userA');
+      expect(result?.chapterTitle).toBe('Arrays & Hashing');
+      expect(result?.chapterProgress).toEqual({ started: 2, total: 3 });
+    });
+
+    it('returns null when every planned topic is blocked', async () => {
+      prisma.topic.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.status === 'planned'
+            ? [{ id: 't1', prerequisites: [{ prerequisite: { status: 'planned' } }] }]
+            : [],
+        ),
+      );
+      expect(await service.nextUp('userA')).toBeNull();
+      expect(prisma.topic.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('returns null when no planned topics exist', async () => {
+      prisma.topic.findMany.mockResolvedValue([]);
+      expect(await service.nextUp('userA')).toBeNull();
+    });
+
+    it('scopes the candidate query by domain', async () => {
+      prisma.topic.findMany.mockResolvedValue([]);
+      await service.nextUp('userA', 'DSA');
+      expect(prisma.topic.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'userA', status: 'planned', domain: 'DSA' } }),
+      );
+    });
+  });
+
+  it('dashboard includes nextUp (null when nothing is startable)', async () => {
+    prisma.topic.findMany.mockImplementation(({ where }: any) =>
+      Promise.resolve(where?.status === 'planned' ? [] : []),
+    );
+    const result = await service.dashboard('userA', new Date('2026-01-08T12:00:00Z'));
+    expect(result.nextUp).toBeNull();
   });
 });
