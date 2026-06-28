@@ -1,6 +1,13 @@
 import { useState } from 'react';
-import { useDashboard, useHeatmap, useSkipStreak, useStreak } from '../../api/hooks';
+import {
+  useDashboard,
+  useHeatmap,
+  useSkipStreak,
+  useStreak,
+  useUpdateTopic,
+} from '../../api/hooks';
 import type { Topic, TopicStatus } from '../../api/types';
+import NextUpCard from './NextUpCard';
 import {
   Card,
   EmptyState,
@@ -28,6 +35,7 @@ export default function Dashboard() {
   const skip = useSkipStreak();
   const { toast } = useToast();
   const [logTopic, setLogTopic] = useState<Topic | null>(null);
+  const { mutate: updateTopic, isPending: starting } = useUpdateTopic();
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -50,6 +58,16 @@ export default function Dashboard() {
       onSuccess: () => toast('Freeze used', 'success'),
       onError: (e) => toast(e instanceof Error ? e.message : 'Could not skip today', 'error'),
     });
+  }
+
+  function startTopic(topic: Topic) {
+    updateTopic(
+      { id: topic.id, input: { status: 'active', aiProposed: false } },
+      {
+        onSuccess: () => setLogTopic({ ...topic, status: 'active' }),
+        onError: (e) => toast(e instanceof Error ? e.message : 'Could not start topic', 'error'),
+      },
+    );
   }
 
   const dueCount = due.overdue.length + due.dueToday.length;
@@ -104,6 +122,14 @@ export default function Dashboard() {
           <div className="kpi-label">of {counts.total} topics mastered</div>
         </Card>
       </div>
+
+      {/* ---- next up ---- */}
+      <NextUpCard
+        nextUp={dash.nextUp}
+        plannedCount={counts.planned}
+        starting={starting}
+        onStart={startTopic}
+      />
 
       {/* ---- struggle + library ---- */}
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
