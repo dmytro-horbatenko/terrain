@@ -181,7 +181,7 @@ describe('ExportGeneratorService', () => {
             noteRef: null,
             summary: null,
             parentId: null,
-            prerequisites: [{ prerequisite: { status: 'active' } }],
+            prerequisites: [{ prerequisite: { status: 'planned' } }],
             prompts: [],
           },
         ]),
