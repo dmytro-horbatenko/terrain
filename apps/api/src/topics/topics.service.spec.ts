@@ -133,7 +133,7 @@ describe('TopicsService', () => {
 
   it('findAll derives prerequisiteIds and labels (blocked planned + reviewing active)', async () => {
     prisma.topic.findMany.mockResolvedValue([
-      { id: 'p', title: 'Prereq', status: 'active', prompts: [], prerequisites: [] },
+      { id: 'p', title: 'Prereq', status: 'planned', prompts: [], prerequisites: [] },
       {
         id: 't1',
         title: 'Blocked',
