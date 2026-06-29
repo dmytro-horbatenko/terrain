@@ -7,6 +7,7 @@ import { topicColor, topicGlyph } from '../../components';
 export type TopicNodeData = {
   topic: TopicWithMeta;
   selected: boolean;
+  isNextUp?: boolean;
   onKeep?: (id: string) => void;
   onSetAside?: (id: string) => void;
   onRestore?: (id: string) => void;
@@ -22,7 +23,7 @@ export type TopicNodeType = Node<TopicNodeData, 'topic'>;
  * Restore / Delete controls. aiContext surfaces as the node tooltip.
  */
 export default function TopicNode({ data }: NodeProps<TopicNodeType>) {
-  const { topic, selected, onKeep, onSetAside, onRestore, onDelete } = data;
+  const { topic, selected, isNextUp, onKeep, onSetAside, onRestore, onDelete } = data;
   const [hover, setHover] = useState(false);
   const blocked = topic.labels.blocked;
   const color = topicColor(topic.status, blocked);
@@ -41,7 +42,9 @@ export default function TopicNode({ data }: NodeProps<TopicNodeType>) {
         borderLeft: `4px solid ${color}`,
         border: tentative ? `1px dashed ${color}` : undefined,
         borderLeftWidth: 4,
-        opacity: parked ? 0.55 : 1,
+        // Emphasis: startable/active pop; mastered and blocked recede.
+        opacity: parked || blocked || topic.status === 'mastered' ? 0.55 : 1,
+        boxShadow: isNextUp ? '0 0 0 2px var(--st-active)' : undefined,
       }}
     >
       <Handle type="target" position={Position.Left} />
