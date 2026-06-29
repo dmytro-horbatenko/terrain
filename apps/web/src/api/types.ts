@@ -176,10 +176,17 @@ export interface StreakState {
   lastEvaluatedDate: string | null;
 }
 
+export interface NextUp {
+  topic: Topic;
+  chapterTitle: string | null;
+  chapterProgress: { started: number; total: number } | null;
+}
+
 export interface Dashboard {
   generatedAt: string;
   struggleRatio7d: number;
   newCards: number;
+  nextUp: NextUp | null;
   due: { overdue: Topic[]; dueToday: Topic[] };
   counts: {
     total: number;
