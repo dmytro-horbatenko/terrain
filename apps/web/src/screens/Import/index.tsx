@@ -6,6 +6,7 @@ import {
   NewTopicsSection,
   NextSessionSection,
   NoteSummariesSection,
+  ProposedCardsSection,
   ReviewsSection,
   UnresolvedPanel,
 } from './sections';
@@ -84,6 +85,7 @@ export default function ImportScreen() {
         <>
           <ReviewsSection reviews={plan.reviews} />
           <NewTopicsSection topics={plan.newTopics} />
+          <ProposedCardsSection prompts={plan.newPrompts} />
           <NoteSummariesSection notes={plan.noteSummaries} />
           <NextSessionSection next={plan.nextSession} />
 
@@ -138,6 +140,10 @@ export default function ImportScreen() {
             <div className="kpi">
               <div>{applyResult.topicsCreated.length}</div>
               <div className="kpi-label">new topics</div>
+            </div>
+            <div className="kpi">
+              <div>{applyResult.promptsCreated}</div>
+              <div className="kpi-label">new cards</div>
             </div>
             <div className="kpi">
               <div>{applyResult.noteSummariesApplied}</div>

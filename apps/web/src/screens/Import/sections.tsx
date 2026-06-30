@@ -1,36 +1,23 @@
 import type { ReactNode } from 'react';
-import { Card, tint, useToast } from '../../components';
+import { Card, GRADES, tint, useToast } from '../../components';
 import { formatDate } from '../../lib/format';
 import type {
+  Grade,
   ImportPlan,
+  NewPromptPlan,
   NewTopicPlan,
   NoteSummaryPlan,
   ResolvedReview,
   Unresolved,
 } from '../../api/types';
 
-/** Legacy 0-5 import-quality scale (pasted session text, predates the
- *  Grade-based review flow) — local to this screen, not shared. */
-const IMPORT_QUALITY: { q: number; label: string; color: string }[] = [
-  { q: 0, label: 'Blackout', color: '#dc2626' },
-  { q: 1, label: 'Wrong', color: '#ef4444' },
-  { q: 2, label: 'Almost', color: '#f59e0b' },
-  { q: 3, label: 'Effort', color: '#84cc16' },
-  { q: 4, label: 'Good', color: '#22c55e' },
-  { q: 5, label: 'Perfect', color: '#16a34a' },
-];
-
-/** Colored quality glyph + number, matching the legacy import-quality palette. */
-function QualityBadge({ quality }: { quality: number }) {
-  const meta = IMPORT_QUALITY.find((x) => x.q === quality);
+/** Grade chip in the app's GradePicker colors (again/hard/good/easy). */
+function GradeBadge({ grade }: { grade: Grade }) {
+  const meta = GRADES.find((g) => g.grade === grade);
   const color = meta?.color ?? 'var(--text-muted)';
   return (
-    <span
-      className="badge mono"
-      style={{ color, background: tint(color, 14), borderColor: color }}
-      title={meta?.label}
-    >
-      q{quality}
+    <span className="badge mono" style={{ color, background: tint(color, 14), borderColor: color }}>
+      {meta?.label ?? grade}
     </span>
   );
 }
@@ -69,7 +56,12 @@ function SectionShell({
 // ---- a) Reviews ----
 
 function ReviewRow({ r }: { r: ResolvedReview }) {
-  const unresolved = r.resolvedTopicId === null && !r.srPreview;
+  // Card reviews resolve by promptId: topicId null means the id didn't
+  // resolve (a matching Unresolved entry blocks apply). Evidence reviews
+  // with resolvedTopicId null are NOT flagged here — that's either an
+  // in-batch topic (fine) or covered by the Unresolved panel.
+  const unresolved = r.kind === 'card' && r.topicId === null;
+  const title = r.kind === 'card' ? (r.topicTitle ?? `prompt ${r.promptId}`) : r.topicTitle;
   return (
     <div
       className="list-row row wrap gap-2"
@@ -80,20 +72,33 @@ function ReviewRow({ r }: { r: ResolvedReview }) {
       }
     >
       <span className="grow" style={{ fontWeight: 600 }}>
-        {r.topicTitle}
+        {title}
       </span>
-      <QualityBadge quality={r.quality} />
-      {r.srPreview ? (
-        <span className="sr-preview mono">
-          interval {r.srPreview.intervalBefore}d → {r.srPreview.intervalAfter}d · next{' '}
-          {formatDate(r.srPreview.nextReviewAt)}
+      {r.kind === 'evidence' && (
+        <span
+          className="pill"
+          style={{ fontSize: 12 }}
+          title="Logged against the topic; nothing is scheduled"
+        >
+          evidence
         </span>
-      ) : unresolved ? (
+      )}
+      <GradeBadge grade={r.grade} />
+      {r.kind === 'card' && r.cardPreview && (
+        <span className="sr-preview mono">
+          interval {r.cardPreview.intervalBefore}d → {r.cardPreview.intervalAfter}d
+          {r.cardPreview.nextReviewAt ? ` · next ${formatDate(r.cardPreview.nextReviewAt)}` : ''}
+        </span>
+      )}
+      {unresolved && (
         <span className="badge" style={{ color: 'var(--st-blocked)' }}>
           unresolved
         </span>
-      ) : (
-        <span className="faint">no projection</span>
+      )}
+      {r.kind === 'card' && r.promptText && (
+        <div className="muted" style={{ flexBasis: '100%', fontSize: 13 }}>
+          {r.promptText}
+        </div>
       )}
       {r.note && (
         <div className="muted" style={{ flexBasis: '100%', fontSize: 13 }}>
@@ -112,7 +117,7 @@ export function ReviewsSection({ reviews }: { reviews: ResolvedReview[] }) {
       ) : (
         <div className="col gap-2">
           {reviews.map((r, i) => (
-            <ReviewRow key={`${r.topicTitle}-${i}`} r={r} />
+            <ReviewRow key={r.kind === 'card' ? r.promptId + i : `${r.topicTitle}-${i}`} r={r} />
           ))}
         </div>
       )}
@@ -173,6 +178,47 @@ export function NewTopicsSection({ topics }: { topics: NewTopicPlan[] }) {
         <div className="col gap-2">
           {topics.map((t, i) => (
             <NewTopicRow key={`${t.title}-${i}`} t={t} />
+          ))}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
+// ---- b2) Proposed cards ----
+
+function ProposedCardRow({ p }: { p: NewPromptPlan }) {
+  return (
+    <div className="list-row col gap-1">
+      <div className="row wrap gap-2">
+        <span className="grow" style={{ fontWeight: 600 }}>
+          {p.topicTitle}
+        </span>
+        <Chip>{p.promptKind}</Chip>
+        {p.problemDifficulty && <Chip>{p.problemDifficulty}</Chip>}
+        {p.estimatedMinutes != null && <Chip>~{p.estimatedMinutes}m</Chip>}
+      </div>
+      <div className="muted" style={{ fontSize: 13 }}>
+        {p.promptText}
+      </div>
+      {p.url && (
+        <div className="faint mono" style={{ fontSize: 12 }}>
+          {p.url}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ProposedCardsSection({ prompts }: { prompts: NewPromptPlan[] }) {
+  return (
+    <SectionShell title="Proposed cards" count={prompts.length}>
+      {prompts.length === 0 ? (
+        <div className="muted">No new cards proposed.</div>
+      ) : (
+        <div className="col gap-2">
+          {prompts.map((p, i) => (
+            <ProposedCardRow key={`${p.topicTitle}-${i}`} p={p} />
           ))}
         </div>
       )}
@@ -290,14 +336,14 @@ export function UnresolvedPanel({ items }: { items: Unresolved[] }) {
       <div className="col gap-2">
         {items.map((u, i) => (
           <div
-            key={`${u.kind}-${u.title}-${i}`}
+            key={`${u.kind}-${u.title ?? u.ref}-${i}`}
             className="list-row col gap-1"
             style={{ borderLeft: '3px solid var(--st-blocked)' }}
           >
             <div className="row wrap gap-2">
               <span className="badge">{u.kind}</span>
-              <span className="grow" style={{ fontWeight: 600 }}>
-                {u.title}
+              <span className={'grow' + (u.title ? '' : ' mono')} style={{ fontWeight: 600 }}>
+                {u.title ?? `prompt ${u.ref}`}
               </span>
               <span className="badge" style={{ color: 'var(--st-blocked)' }}>
                 {u.reason}
@@ -309,7 +355,8 @@ export function UnresolvedPanel({ items }: { items: Unresolved[] }) {
           </div>
         ))}
         <div style={{ fontWeight: 600, marginTop: 4 }}>
-          Resolve these (fix the titles in your paste and Preview again) before importing.
+          Resolve these before importing — fix titles in your paste and Preview again (a missing
+          prompt id usually means the card was deleted or belongs to another account).
         </div>
       </div>
     </Card>
