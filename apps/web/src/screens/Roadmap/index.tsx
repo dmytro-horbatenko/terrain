@@ -44,7 +44,7 @@ import { projectRoadmap } from './projection';
 import { layoutGraph } from './layout';
 
 type RoadmapNode = TopicNodeType | GroupNodeType | GhostNodeType;
-const nodeTypes = { topic: TopicNode, group: GroupNode, ghost: GhostNode } as NodeTypes;
+const nodeTypes = { topic: TopicNode, chapter: GroupNode, ghost: GhostNode } as NodeTypes;
 
 const LEGEND: { glyph: string; label: string; color: string }[] = [
   { glyph: STATUS_META.planned.glyph, label: 'Planned', color: STATUS_META.planned.color },
@@ -133,7 +133,7 @@ export default function Roadmap() {
       if (item.kind === 'group') {
         return {
           id: item.topic.id,
-          type: 'group' as const,
+          type: 'chapter' as const,
           position: { x: 0, y: 0 },
           data: {
             topic: item.topic,
@@ -231,7 +231,7 @@ export default function Roadmap() {
   }, [derivedNodes, derivedEdges, setNodes, setEdges]);
 
   const onNodeClick: NodeMouseHandler<RoadmapNode> = (_e, node) => {
-    if (node.type === 'group') {
+    if (node.type === 'chapter') {
       setSelectedId(null);
       setFocusId(node.id);
     } else if (node.type === 'ghost') {

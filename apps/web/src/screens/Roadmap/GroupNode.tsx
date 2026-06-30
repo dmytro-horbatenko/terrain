@@ -10,7 +10,7 @@ export type GroupNodeData = {
   containsNextUp: boolean;
 };
 
-export type GroupNodeType = Node<GroupNodeData, 'group'>;
+export type GroupNodeType = Node<GroupNodeData, 'chapter'>;
 
 /**
  * Collapsed chapter node: a topic with children, shown as its whole subtree.
