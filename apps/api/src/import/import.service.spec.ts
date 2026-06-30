@@ -156,6 +156,8 @@ describe('ImportService.preview', () => {
       kind: 'card',
       promptId: '99999999-9999-9999-9999-999999999999',
       topicId: null,
+      topicTitle: null,
+      promptText: null,
       grade: 'good',
       note: undefined,
     });
@@ -423,6 +425,30 @@ describe('ImportService.preview', () => {
     await expect(service.preview('userA', raw)).rejects.toBeInstanceOf(
       UnprocessableEntityException,
     );
+  });
+
+  it('enriches a resolved card review with topicTitle and promptText for display', async () => {
+    const { prisma } = build({ prompt: { findMany: jest.fn().mockResolvedValue([PROMPT()]) } });
+    const service = await svc(prisma);
+    const raw = fence(
+      v2({ reviews: [{ promptId: '11111111-1111-1111-1111-111111111111', grade: 'good' }] }),
+    );
+    const plan = await service.preview('userA', raw);
+    expect(plan.reviews[0]).toMatchObject({
+      kind: 'card',
+      topicTitle: 'Stacks',
+      promptText: 'Explain Stacks',
+    });
+  });
+
+  it('a card-review resolution miss carries null topicTitle/promptText', async () => {
+    const { prisma } = build(); // prompt.findMany defaults to []
+    const service = await svc(prisma);
+    const raw = fence(
+      v2({ reviews: [{ promptId: '22222222-2222-2222-2222-222222222222', grade: 'good' }] }),
+    );
+    const plan = await service.preview('userA', raw);
+    expect(plan.reviews[0]).toMatchObject({ kind: 'card', topicTitle: null, promptText: null });
   });
 });
 
@@ -872,6 +898,35 @@ describe('ImportService.apply (transaction)', () => {
     const service = await svcWithTx(prisma);
     const raw = fence(v2());
     await expect(service.apply('userA', raw)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('reports promptsCreated = proposed prompts + starter cards', async () => {
+    const tx = txMock();
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: { findMany: jest.fn().mockResolvedValue([TOPIC()]) },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    };
+    const service = await svcWithTx(prisma);
+    const raw = fence(
+      v2({
+        proposedTopics: [
+          {
+            title: 'Leaf',
+            type: 'pattern',
+            domain: 'DSA',
+            prerequisiteTitles: [],
+            parentTitle: null,
+          },
+        ],
+        proposedPrompts: [{ topicTitle: 'Stacks', promptText: 'What is a stack?' }],
+      }),
+    );
+    const res = await service.apply('userA', raw);
+    // 1 starter card for batch leaf 'Leaf' + 1 proposed prompt on existing 'Stacks'
+    expect(res.promptsCreated).toBe(2);
+    expect(tx.prompt.create).toHaveBeenCalledTimes(2);
   });
 });
 

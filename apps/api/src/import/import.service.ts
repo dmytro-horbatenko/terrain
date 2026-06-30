@@ -43,6 +43,9 @@ export interface ResolvedCardReview {
   kind: 'card';
   promptId: string;
   topicId: string | null;
+  /** Display-only enrichment for the web preview (null on a resolution miss). */
+  topicTitle: string | null;
+  promptText: string | null;
   grade: Grade;
   note?: string;
   cardPreview?: CardPreview;
@@ -133,6 +136,7 @@ export interface ImportResult {
   sessionExportId: string;
   reviewsApplied: number;
   topicsCreated: string[];
+  promptsCreated: number;
   noteSummariesApplied: number;
   nextSessionStored: boolean;
 }
@@ -306,6 +310,7 @@ export class ImportService {
           .map((nt) => norm(nt.parentTitle!)),
       );
       const batchPromptTargets = new Set(plan.newPrompts.map((np) => norm(np.topicTitle)));
+      let promptsCreated = 0;
       for (const nt of plan.newTopics) {
         if (nt.alreadyExists) continue;
         const key = norm(nt.title);
@@ -313,6 +318,7 @@ export class ImportService {
         if (batchPromptTargets.has(key)) continue; // targeted by a batch prompt
         const topicId = idByNorm.get(key)!;
         await tx.prompt.create({ data: { topicId, ...STARTER_CARD_DATA(nt.title) } });
+        promptsCreated++;
       }
 
       // d. create prompts for resolved proposedPrompts
@@ -330,6 +336,7 @@ export class ImportService {
             estimatedMinutes: np.estimatedMinutes,
           },
         });
+        promptsCreated++;
       }
 
       // e. apply reviews — card reviews re-read fresh Prompt state inside
@@ -412,6 +419,7 @@ export class ImportService {
         sessionExportId: sessionExport.id,
         reviewsApplied,
         topicsCreated,
+        promptsCreated,
         noteSummariesApplied,
         nextSessionStored: nextFocusTitle != null,
       };
@@ -430,6 +438,7 @@ export class ImportService {
       const k = norm(t.title);
       (byNorm.get(k) ?? byNorm.set(k, []).get(k)!).push(t);
     }
+    const titleById = new Map(existing.map((t) => [t.id, t.title] as const));
     const batchNorm = new Set(parsed.proposedTopics.map((p) => norm(p.title)));
     const unresolved: Unresolved[] = [];
 
@@ -504,6 +513,8 @@ export class ImportService {
             kind: 'card',
             promptId: r.promptId,
             topicId: null,
+            topicTitle: null,
+            promptText: null,
             grade: r.grade,
             note: r.note,
           };
@@ -515,6 +526,8 @@ export class ImportService {
           kind: 'card',
           promptId: r.promptId,
           topicId: row.topicId,
+          topicTitle: titleById.get(row.topicId) ?? null,
+          promptText: row.promptText,
           grade: r.grade,
           note: r.note,
           cardPreview: {
