@@ -211,21 +211,34 @@ export interface ExportResult {
 }
 
 // ---- Import flow (POST /sessions/import/preview and /sessions/import) ----
+// Mirrors apps/api/src/import/import.service.ts plan shapes (v2 contract).
 
-export interface SrPreview {
+export interface CardPreview {
   intervalBefore: number;
   intervalAfter: number;
-  nextReviewAt: string;
+  nextReviewAt: string | null; // ISO over JSON
 }
 
-export interface ResolvedReview {
-  topicTitle: string;
+export interface ResolvedCardReview {
+  kind: 'card';
+  promptId: string;
   topicId: string | null;
-  quality: number;
+  topicTitle: string | null;
+  promptText: string | null;
+  grade: Grade;
   note?: string;
-  resolvedTopicId: string | null;
-  srPreview?: SrPreview;
+  cardPreview?: CardPreview;
 }
+
+export interface ResolvedEvidenceReview {
+  kind: 'evidence';
+  topicTitle: string;
+  resolvedTopicId: string | null;
+  grade: Grade;
+  note?: string;
+}
+
+export type ResolvedReview = ResolvedCardReview | ResolvedEvidenceReview;
 
 export interface NewTopicPlan {
   title: string;
@@ -238,6 +251,16 @@ export interface NewTopicPlan {
   alreadyExists: boolean;
 }
 
+export interface NewPromptPlan {
+  topicTitle: string;
+  promptText: string;
+  answerHint?: string;
+  promptKind: 'concept' | 'code' | 'problem';
+  url?: string;
+  problemDifficulty?: 'easy' | 'medium' | 'hard';
+  estimatedMinutes?: number;
+}
+
 export interface NoteSummaryPlan {
   topicTitle: string;
   resolvedTopicId: string | null;
@@ -247,7 +270,10 @@ export interface NoteSummaryPlan {
 
 export interface Unresolved {
   kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt';
-  title: string;
+  /** Topic title — absent only for card-review promptId misses (see ref). */
+  title?: string;
+  /** The unresolvable promptId — set only for kind 'prompt' card-review misses. */
+  ref?: string;
   context: string;
   reason: 'missing' | 'ambiguous' | 'self-reference';
 }
@@ -257,8 +283,9 @@ export interface ImportPlan {
   alreadyImported: boolean;
   reviews: ResolvedReview[];
   newTopics: NewTopicPlan[];
+  newPrompts: NewPromptPlan[];
   noteSummaries: NoteSummaryPlan[];
-  nextSession?: { focusTitle?: string; coldChallenge?: string };
+  nextSession?: { focusTitle?: string | null; coldChallenge?: string | null } | null;
   unresolved: Unresolved[];
   applicable: boolean;
 }
@@ -267,6 +294,7 @@ export interface ImportResult {
   sessionExportId: string;
   reviewsApplied: number;
   topicsCreated: string[];
+  promptsCreated: number;
   noteSummariesApplied: number;
   nextSessionStored: boolean;
 }
