@@ -1,27 +1,54 @@
 import { SettingsController } from './settings.controller';
+import { SettingsService } from './settings.service';
 
 describe('SettingsController', () => {
   it("returns the caller's settings row", async () => {
-    const findUnique = jest.fn().mockResolvedValue({
+    const get = jest.fn().mockResolvedValue({
       userId: 'userA',
       obsidianVault: '/vault',
-      telegramChatId: null,
+      timezone: 'UTC',
+      digestHour: 9,
+      nudgeHour: 20,
+      telegramLinked: false,
     });
-    const ctrl = new SettingsController({ settings: { findUnique } } as any);
+    const settings = { get } as any as SettingsService;
+    const ctrl = new SettingsController(settings);
 
     const result = await ctrl.get('userA');
 
-    expect(findUnique).toHaveBeenCalledWith({ where: { userId: 'userA' } });
-    expect(result).toEqual({ userId: 'userA', obsidianVault: '/vault', telegramChatId: null });
+    expect(get).toHaveBeenCalledWith('userA');
+    expect(result).toEqual({
+      userId: 'userA',
+      obsidianVault: '/vault',
+      timezone: 'UTC',
+      digestHour: 9,
+      nudgeHour: 20,
+      telegramLinked: false,
+    });
   });
 
   it('returns a default row scoped to the caller when none exists', async () => {
-    const findUnique = jest.fn().mockResolvedValue(null);
-    const ctrl = new SettingsController({ settings: { findUnique } } as any);
+    const get = jest.fn().mockResolvedValue({
+      userId: 'userB',
+      obsidianVault: null,
+      timezone: 'UTC',
+      digestHour: 9,
+      nudgeHour: 20,
+      telegramLinked: false,
+    });
+    const settings = { get } as any as SettingsService;
+    const ctrl = new SettingsController(settings);
 
     const result = await ctrl.get('userB');
 
-    expect(findUnique).toHaveBeenCalledWith({ where: { userId: 'userB' } });
-    expect(result).toEqual({ userId: 'userB', obsidianVault: null, telegramChatId: null });
+    expect(get).toHaveBeenCalledWith('userB');
+    expect(result).toEqual({
+      userId: 'userB',
+      obsidianVault: null,
+      timezone: 'UTC',
+      digestHour: 9,
+      nudgeHour: 20,
+      telegramLinked: false,
+    });
   });
 });
