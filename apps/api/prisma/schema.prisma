@@ -243,9 +243,13 @@ model TopicType {
 }
 
 model Settings {
-  userId         String  @id
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  obsidianVault  String?
-  telegramChatId String?
-  timezone       String  @default("UTC")
+  userId                     String    @id
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  obsidianVault              String?
+  telegramChatId             String?
+  timezone                   String    @default("UTC")
+  digestHour                 Int?      @default(9)
+  nudgeHour                  Int?      @default(20)
+  telegramLinkToken          String?   @unique
+  telegramLinkTokenExpiresAt DateTime?
 }
