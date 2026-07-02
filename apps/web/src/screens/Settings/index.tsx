@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useMe, useUpdateProfile, useLogout } from '../../api/hooks';
+import {
+  useMe,
+  useUpdateProfile,
+  useLogout,
+  useSettings,
+  useUpdateSettings,
+  useTelegramLinkToken,
+  useTelegramUnlink,
+} from '../../api/hooks';
 import { Card, Loading, useToast } from '../../components';
 
 export default function Settings() {
@@ -25,6 +33,27 @@ export default function Settings() {
         noteSystem: me.data.noteSystem ?? '',
       });
   }, [me.data]);
+
+  const settings = useSettings();
+  const updateSettings = useUpdateSettings();
+  const linkToken = useTelegramLinkToken();
+  const unlink = useTelegramUnlink();
+  const [notif, setNotif] = useState({
+    timezone: 'UTC',
+    digestHour: '9',
+    nudgeHour: '20',
+    obsidianVault: '',
+  });
+
+  useEffect(() => {
+    if (settings.data)
+      setNotif({
+        timezone: settings.data.timezone,
+        digestHour: settings.data.digestHour === null ? 'off' : String(settings.data.digestHour),
+        nudgeHour: settings.data.nudgeHour === null ? 'off' : String(settings.data.nudgeHour),
+        obsidianVault: settings.data.obsidianVault ?? '',
+      });
+  }, [settings.data]);
 
   if (me.isLoading) return <Loading label="Loading…" />;
   const field = (k: keyof typeof form, label: string) => (
@@ -59,6 +88,104 @@ export default function Settings() {
             }
           >
             {update.isPending ? 'Saving…' : 'Save profile'}
+          </button>
+        </div>
+      </Card>
+      <Card title="Notifications — Telegram digest & streak nudge">
+        <div className="col gap-3">
+          {settings.data?.telegramLinked ? (
+            <div className="row gap-2" style={{ alignItems: 'center' }}>
+              <span>Telegram: Linked ✓</span>
+              <button
+                className="btn"
+                disabled={unlink.isPending}
+                onClick={() =>
+                  unlink.mutate(undefined, {
+                    onSuccess: () => toast('Telegram unlinked', 'success'),
+                    onError: (e) =>
+                      toast(e instanceof Error ? e.message : 'Unlink failed', 'error'),
+                  })
+                }
+              >
+                Unlink
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-primary"
+              disabled={linkToken.isPending}
+              onClick={() =>
+                linkToken.mutate(undefined, {
+                  onSuccess: ({ url }) => window.open(url, '_blank'),
+                  onError: (e) =>
+                    toast(e instanceof Error ? e.message : 'Bot not configured', 'error'),
+                })
+              }
+            >
+              Connect Telegram
+            </button>
+          )}
+          <label className="col gap-1">
+            <span className="field-label">Timezone (IANA, e.g. Europe/Kyiv)</span>
+            <input
+              className="input"
+              value={notif.timezone}
+              onChange={(e) => setNotif({ ...notif, timezone: e.target.value })}
+            />
+          </label>
+          <label className="col gap-1">
+            <span className="field-label">Morning digest hour</span>
+            <select
+              className="input"
+              value={notif.digestHour}
+              onChange={(e) => setNotif({ ...notif, digestHour: e.target.value })}
+            >
+              <option value="off">Off</option>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+              ))}
+            </select>
+          </label>
+          <label className="col gap-1">
+            <span className="field-label">Evening streak-nudge hour</span>
+            <select
+              className="input"
+              value={notif.nudgeHour}
+              onChange={(e) => setNotif({ ...notif, nudgeHour: e.target.value })}
+            >
+              <option value="off">Off</option>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>
+              ))}
+            </select>
+          </label>
+          <label className="col gap-1">
+            <span className="field-label">Obsidian vault (enables obsidian:// links)</span>
+            <input
+              className="input"
+              value={notif.obsidianVault}
+              onChange={(e) => setNotif({ ...notif, obsidianVault: e.target.value })}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            disabled={updateSettings.isPending}
+            onClick={() =>
+              updateSettings.mutate(
+                {
+                  timezone: notif.timezone,
+                  digestHour: notif.digestHour === 'off' ? null : Number(notif.digestHour),
+                  nudgeHour: notif.nudgeHour === 'off' ? null : Number(notif.nudgeHour),
+                  obsidianVault: notif.obsidianVault === '' ? null : notif.obsidianVault,
+                },
+                {
+                  onSuccess: () => toast('Notification settings saved', 'success'),
+                  onError: (e) => toast(e instanceof Error ? e.message : 'Save failed', 'error'),
+                },
+              )
+            }
+          >
+            Save notifications
           </button>
         </div>
       </Card>
