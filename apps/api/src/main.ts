@@ -69,6 +69,11 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
 
+  // Required for OnModuleDestroy to fire on SIGTERM/SIGINT — the Telegram
+  // long-polling loop must be stopped or a zombie process keeps consuming
+  // getUpdates (and holds :3000, per the known nest-start zombie failure mode).
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   new Logger('Bootstrap').log(

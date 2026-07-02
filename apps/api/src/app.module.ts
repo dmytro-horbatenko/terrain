@@ -15,6 +15,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { ImportModule } from './import/import.module';
 import { TopicTypesModule } from './topic-types/topic-types.module';
 import { SettingsModule } from './settings/settings.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SettingsModule } from './settings/settings.module';
     ImportModule,
     TopicTypesModule,
     SettingsModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
