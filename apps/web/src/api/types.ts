@@ -95,7 +95,17 @@ export interface CreateAppEventInput {
 export interface Settings {
   userId: string;
   obsidianVault: string | null;
-  telegramChatId: string | null;
+  timezone: string;
+  digestHour: number | null;
+  nudgeHour: number | null;
+  telegramLinked: boolean;
+}
+
+export interface UpdateSettingsInput {
+  obsidianVault?: string | null;
+  timezone?: string;
+  digestHour?: number | null;
+  nudgeHour?: number | null;
 }
 
 export interface HeatmapCell {

@@ -21,6 +21,7 @@ import type {
   TopicType,
   TopicWithMeta,
   UpdateProfileInput,
+  UpdateSettingsInput,
   UpdateTopicInput,
 } from './types';
 
@@ -101,6 +102,11 @@ export const api = {
 
   // settings
   getSettings: () => req<Settings>('/settings'),
+  updateSettings: (input: UpdateSettingsInput) =>
+    req<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(input) }),
+  createTelegramLink: () =>
+    req<{ url: string }>('/settings/telegram/link-token', { method: 'POST' }),
+  unlinkTelegram: () => req<Settings>('/settings/telegram/unlink', { method: 'POST' }),
 
   // topic types
   getTopicTypes: () => req<TopicType[]>('/topic-types'),

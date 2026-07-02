@@ -7,6 +7,7 @@ import type {
   LogReviewInput,
   RegisterInput,
   UpdateProfileInput,
+  UpdateSettingsInput,
   UpdateTopicInput,
 } from './types';
 
@@ -69,6 +70,26 @@ export function useStreak() {
 
 export function useSettings() {
   return useQuery({ queryKey: qk.settings, queryFn: api.getSettings });
+}
+
+export function useUpdateSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateSettingsInput) => api.updateSettings(input),
+    onSuccess: (data) => qc.setQueryData(qk.settings, data),
+  });
+}
+
+export function useTelegramLinkToken() {
+  return useMutation({ mutationFn: () => api.createTelegramLink() });
+}
+
+export function useTelegramUnlink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.unlinkTelegram(),
+    onSuccess: (data) => qc.setQueryData(qk.settings, data),
+  });
 }
 
 export function useTopicTypes() {
