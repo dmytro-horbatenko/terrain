@@ -80,7 +80,28 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 # then step 4 again if the update includes a migration
 ```
 
-## 7. Backups
+## 7. Telegram digest
+
+Set the following optional env vars in `apps/api/.env` to enable hourly
+digest summaries and streak nudges via Telegram:
+
+```
+TELEGRAM_BOT_TOKEN=<from @BotFather>
+TELEGRAM_BOT_USERNAME=<@yourbot>
+TELEGRAM_WEBHOOK_URL=https://<DOMAIN>/api/telegram/webhook
+TELEGRAM_WEBHOOK_SECRET=<openssl rand -hex 32>
+WEB_BASE_URL=https://<DOMAIN>
+```
+
+In production:
+- The webhook URL is `https://<DOMAIN>/api/telegram/webhook`.
+- Caddy's `handle_path /api/*` already strips the `/api` prefix and forwards to
+  `api:3000`, so **no Caddyfile change is needed**.
+- The webhook registers itself on API boot (idempotent).
+
+All five env vars are optional; if unset, the bot integration is disabled.
+
+## 8. Backups
 
 The only state that matters is the `terrain_pg` Postgres volume. Take a
 logical backup regularly and copy it off-box:
