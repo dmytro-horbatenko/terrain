@@ -63,6 +63,7 @@ export const learningOsV2Schema = z
     proposedTopics: z.array(proposedTopicSchema).max(200).default([]),
     proposedPrompts: z.array(proposedPromptV2Schema).max(500).default([]),
     noteSummaries: z.array(noteSummarySchema).max(200).default([]),
+    studiedTopics: z.array(z.string().min(1).max(300)).max(20).optional(),
     nextSession: z
       .object({
         focusTitle: z.string().max(300).nullable().optional(),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLearningOs, LearningOsParseError } from './index';
+import { parseLearningOs, LearningOsParseError, learningOsV2Schema } from './index';
 
 const minimalV2 = `\`\`\`learning-os
 {
@@ -226,5 +226,36 @@ Some prose in between.
       expect(err).toBeInstanceOf(LearningOsParseError);
       expect((err as LearningOsParseError).code).toBe('schema');
     }
+  });
+});
+
+describe('studiedTopics', () => {
+  const base = { version: 2, sessionId: 'abc' };
+
+  it('accepts studiedTopics as an array of titles', () => {
+    const parsed = learningOsV2Schema.parse({
+      ...base,
+      studiedTopics: ['Prefix sums', 'Two pointers'],
+    });
+    expect(parsed.studiedTopics).toEqual(['Prefix sums', 'Two pointers']);
+  });
+
+  it('is optional — omitting it stays valid and yields undefined', () => {
+    const parsed = learningOsV2Schema.parse(base);
+    expect(parsed.studiedTopics).toBeUndefined();
+  });
+
+  it('rejects empty titles and more than 20 entries', () => {
+    expect(learningOsV2Schema.safeParse({ ...base, studiedTopics: [''] }).success).toBe(false);
+    expect(
+      learningOsV2Schema.safeParse({
+        ...base,
+        studiedTopics: Array.from({ length: 21 }, (_, i) => `t${i}`),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('still rejects unknown fields (strict)', () => {
+    expect(learningOsV2Schema.safeParse({ ...base, bogus: true }).success).toBe(false);
   });
 });
