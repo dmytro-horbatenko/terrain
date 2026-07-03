@@ -12,7 +12,8 @@ export class SessionsService {
   async createExport(userId: string, opts: { mode?: string; focusTopicId?: string }) {
     const mode = opts.mode ?? 'full';
     const draft = await this.generator.generate({ ...opts, now: new Date(), userId });
-    const exportMode = mode.startsWith('domain:') ? 'domain' : 'full';
+    const exportMode =
+      mode === 'repeat' || mode === 'learn' ? mode : mode.startsWith('domain:') ? 'domain' : 'full';
     const domain = mode.startsWith('domain:') ? mode.slice('domain:'.length) : null;
     const row = await this.prisma.sessionExport.create({
       data: {

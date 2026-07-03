@@ -27,6 +27,7 @@ When the session ends, output ONE fenced code block tagged \`learning-os\` conta
     { "topicTitle": "...", "keyInsight": "...", "invariant": "...",
       "contradiction": "...", "suggestedNoteRef": "..." }
   ],
+  "studiedTopics": ["<exact title of a topic genuinely studied this session>"],
   "nextSession": { "focusTitle": "...", "coldChallenge": "..." }
 }
 \`\`\`
@@ -34,6 +35,8 @@ When the session ends, output ONE fenced code block tagged \`learning-os\` conta
 Rules: grade is one of again|hard|good|easy — the user's own recall verdict, never yours.
 Quiz through the DUE cards listed in this export and reference them by promptId.
 Prefer promptId reviews; use topicTitle-only reviews only for work outside any listed card.
+studiedTopics: titles of topics genuinely studied this session — a planned topic listed here
+is activated on import (its successors unblock). Do not list topics merely mentioned.
 Omit arrays you have nothing for (use []). Do not add fields outside this schema — the parser
 is strict and will reject the whole block. Keep each prompt atomic — one fact or concept per
 prompt. promptKind: "code" = write an implementation from scratch; "problem" = a concrete

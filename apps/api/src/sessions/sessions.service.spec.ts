@@ -61,4 +61,14 @@ describe('SessionsService.createExport', () => {
     expect(data.mode).toBe('full');
     expect(data.domain).toBeNull();
   });
+
+  it.each([
+    ['repeat', 'repeat', null],
+    ['learn', 'learn', null],
+  ])("writes mode: '%s' and a null domain for mode %s", async (mode, expected, domain) => {
+    await service.createExport('userA', { mode });
+    const data = create.mock.calls[0][0].data;
+    expect(data.mode).toBe(expected);
+    expect(data.domain).toBe(domain);
+  });
 });

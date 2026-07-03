@@ -928,6 +928,165 @@ describe('ImportService.apply (transaction)', () => {
     expect(res.promptsCreated).toBe(2);
     expect(tx.prompt.create).toHaveBeenCalledTimes(2);
   });
+
+  describe('studiedTopics activation', () => {
+    it('plans activation for a planned topic (willActivate true)', async () => {
+      const { prisma } = build({
+        topic: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' })]),
+        },
+      });
+      const service = await svc(prisma);
+      const raw = fence(v2({ studiedTopics: ['prefix sums'] }));
+      const plan = await service.preview('userA', raw);
+      expect(plan.activations).toEqual([
+        {
+          topicTitle: 'prefix sums',
+          resolvedTopicId: 't1',
+          currentStatus: 'planned',
+          willActivate: true,
+        },
+      ]);
+      expect(plan.unresolved).toHaveLength(0);
+      expect(plan.applicable).toBe(true);
+    });
+
+    it('plans a no-op for an already active topic (willActivate false)', async () => {
+      const { prisma } = build({
+        topic: { findMany: jest.fn().mockResolvedValue([TOPIC({ id: 't1', status: 'active' })]) },
+      });
+      const service = await svc(prisma);
+      const raw = fence(v2({ studiedTopics: ['Stacks'] }));
+      const plan = await service.preview('userA', raw);
+      expect(plan.activations).toEqual([
+        {
+          topicTitle: 'Stacks',
+          resolvedTopicId: 't1',
+          currentStatus: 'active',
+          willActivate: false,
+        },
+      ]);
+      expect(plan.unresolved).toHaveLength(0);
+      expect(plan.applicable).toBe(true);
+    });
+
+    it('blocks on an archived topic with reason archived', async () => {
+      const { prisma } = build({
+        topic: { findMany: jest.fn().mockResolvedValue([TOPIC({ id: 't1', status: 'archived' })]) },
+      });
+      const service = await svc(prisma);
+      const raw = fence(v2({ studiedTopics: ['Stacks'] }));
+      const plan = await service.preview('userA', raw);
+      expect(plan.activations).toHaveLength(0);
+      expect(plan.unresolved).toEqual([
+        { kind: 'studiedTopic', title: 'Stacks', context: 'studiedTopics', reason: 'archived' },
+      ]);
+      expect(plan.applicable).toBe(false);
+    });
+
+    it('blocks on an unknown title with reason missing and on duplicate user titles with ambiguous', async () => {
+      const { prisma } = build({
+        topic: {
+          findMany: jest.fn().mockResolvedValue([TOPIC({ id: 'a' }), TOPIC({ id: 'b' })]),
+        },
+      });
+      const service = await svc(prisma);
+      const raw = fence(v2({ studiedTopics: ['Ghost topic', 'Stacks'] }));
+      const plan = await service.preview('userA', raw);
+      expect(plan.unresolved).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'studiedTopic',
+            title: 'Ghost topic',
+            context: 'studiedTopics',
+            reason: 'missing',
+          }),
+          expect.objectContaining({
+            kind: 'studiedTopic',
+            title: 'Stacks',
+            context: 'studiedTopics',
+            reason: 'ambiguous',
+          }),
+        ]),
+      );
+      expect(plan.activations).toHaveLength(0);
+      expect(plan.applicable).toBe(false);
+    });
+
+    it('resolves a title created by proposedTopics in the same block (in-batch)', async () => {
+      const { prisma } = build();
+      const service = await svc(prisma);
+      const raw = fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'Fresh topic',
+              type: 'pattern',
+              domain: 'DSA',
+              prerequisiteTitles: [],
+              parentTitle: null,
+            },
+          ],
+          studiedTopics: ['Fresh topic'],
+        }),
+      );
+      const plan = await service.preview('userA', raw);
+      expect(plan.activations).toEqual([
+        {
+          topicTitle: 'Fresh topic',
+          resolvedTopicId: null,
+          currentStatus: null,
+          willActivate: true,
+        },
+      ]);
+      expect(plan.unresolved).toHaveLength(0);
+    });
+
+    it('deduplicates repeated studiedTopics titles', async () => {
+      const { prisma } = build({
+        topic: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' })]),
+        },
+      });
+      const service = await svc(prisma);
+      const raw = fence(v2({ studiedTopics: ['Prefix sums', 'prefix sums'] }));
+      const plan = await service.preview('userA', raw);
+      expect(plan.activations).toHaveLength(1);
+    });
+
+    it('apply() activates planned topics and counts topicsActivated', async () => {
+      const tx = txMock();
+      const prisma: any = {
+        sessionExport: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }),
+        },
+        topic: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([
+              TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' }),
+              TOPIC({ id: 't2', title: 'Stacks', status: 'active' }),
+            ]),
+        },
+        prompt: { findMany: jest.fn().mockResolvedValue([]) },
+        $transaction: jest.fn((cb: any) => cb(tx)),
+      };
+      tx.topic.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const service = await svcWithTx(prisma);
+      const raw = fence(v2({ studiedTopics: ['Prefix sums', 'Stacks'] }));
+      const res = await service.apply('userA', raw);
+      expect(tx.topic.updateMany).toHaveBeenCalledTimes(1);
+      expect(tx.topic.updateMany).toHaveBeenCalledWith({
+        where: { id: 't1', userId: 'userA', status: 'planned' },
+        data: { status: 'active', aiProposed: false },
+      });
+      expect(res.topicsActivated).toBe(1);
+    });
+  });
 });
 
 describe('ImportService.apply guards (no writes on reject)', () => {

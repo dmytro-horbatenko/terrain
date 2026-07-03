@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma, Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { OUTPUT_CONTRACT } from './output-contract';
+import { estimateMinutes } from '../telegram/telegram.messages';
+import { LEARN_CONDUCT, REPEAT_CONDUCT } from './session-conduct';
 
 type TopicWithPrereqs = Prisma.TopicGetPayload<{
   include: {
@@ -25,6 +27,8 @@ export class ExportGeneratorService {
     userId: string;
   }): Promise<string> {
     const mode = opts.mode ?? 'full';
+    if (mode === 'repeat') return this.generateRepeat(opts.userId, opts.now);
+    if (mode === 'learn') return this.generateLearn(opts.userId, opts.now, opts.focusTopicId);
     const domainFilter = mode.startsWith('domain:') ? mode.slice('domain:'.length) : null;
 
     const topics = await this.prisma.topic.findMany({
@@ -36,19 +40,9 @@ export class ExportGeneratorService {
       },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: opts.userId } });
-    const whoIAm = `## WHO I AM (stable)
-Name: ${user?.name ?? ''}
-Role: ${user?.headline ?? ''}
-Learning style: ${user?.learningStyle ?? ''}
-Code style: ${user?.codeStyle ?? ''}
-Note system: ${user?.noteSystem ?? ''}`;
-
     const sections: string[] = [];
-    sections.push(
-      `---\nTERRAIN — SESSION CONTEXT\nGenerated: ${opts.now.toISOString()}\nSession: <set-on-persist>\nExport: ${mode}\n---`,
-    );
-    sections.push(whoIAm);
+    sections.push(this.header(mode, opts.now));
+    sections.push(await this.whoIAm(opts.userId));
     // ROADMAP shows the active/planned tree only. Archived topics are excluded
     // here so parked ideas (aiProposed && archived) aren't double-listed — they
     // appear solely under PARKED IDEAS below. The tree walk is orphan-safe, so a
@@ -85,6 +79,128 @@ Note system: ${user?.noteSystem ?? ''}`;
     const recent = await this.recentSessions(opts.userId);
     if (recent) sections.push(recent);
     sections.push(OUTPUT_CONTRACT);
+    return sections.join('\n\n');
+  }
+
+  private async whoIAm(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return `## WHO I AM (stable)
+Name: ${user?.name ?? ''}
+Role: ${user?.headline ?? ''}
+Learning style: ${user?.learningStyle ?? ''}
+Code style: ${user?.codeStyle ?? ''}
+Note system: ${user?.noteSystem ?? ''}`;
+  }
+
+  private header(mode: string, now: Date): string {
+    return `---\nTERRAIN — SESSION CONTEXT\nGenerated: ${now.toISOString()}\nSession: <set-on-persist>\nExport: ${mode}\n---`;
+  }
+
+  /** Today-scoped repetition context: the interleaved session queue + a
+   *  conduct script. Deliberately lean — no roadmap/mastery/landscape — so
+   *  the chat stays on-script. */
+  private async generateRepeat(userId: string, now: Date): Promise<string> {
+    const { items } = await this.metrics.sessionQueue(userId, now);
+    const sections = [this.header('repeat', now), await this.whoIAm(userId)];
+
+    if (items.length === 0) {
+      sections.push(`## TODAY'S REVIEW QUEUE\nNothing due today.`);
+    } else {
+      const prompts = await this.prisma.prompt.findMany({
+        where: { id: { in: items.map((i) => i.promptId) } },
+        select: { id: true, promptText: true, promptKind: true, estimatedMinutes: true },
+      });
+      const byId = new Map(prompts.map((p) => [p.id, p]));
+      const dueCount = items.filter((i) => !i.isNew).length;
+      const est = estimateMinutes(items.map((i) => byId.get(i.promptId)).filter((p) => p != null));
+      const lines = items.map((i) => {
+        const text = byId.get(i.promptId)?.promptText ?? '';
+        const tag = i.isNew ? ' [NEW]' : '';
+        return `- card ${i.promptId} [${i.kind}]${tag} (${i.chapterTitle}) ${text}`;
+      });
+      sections.push(
+        `## TODAY'S REVIEW QUEUE\n${items.length} cards (${dueCount} due, ${items.length - dueCount} new) · estimated ${est} min\n${lines.join('\n')}`,
+      );
+      sections.push(REPEAT_CONDUCT);
+    }
+
+    sections.push(OUTPUT_CONTRACT);
+    return sections.join('\n\n');
+  }
+
+  /** Learning context for one topic (default: Next Up): where it sits in the
+   *  roadmap, what it builds on (prerequisites with their note summaries as
+   *  the elaborative bridge), existing cards, and a teaching script. */
+  private async generateLearn(userId: string, now: Date, focusTopicId?: string): Promise<string> {
+    let focusId = focusTopicId;
+    if (!focusId) {
+      const next = await this.metrics.nextUp(userId);
+      if (!next) {
+        throw new UnprocessableEntityException(
+          'No startable topic — pass focusTopicId or start something from the roadmap.',
+        );
+      }
+      focusId = next.topic.id;
+    }
+    const focus = await this.prisma.topic.findFirst({
+      where: { id: focusId, userId },
+      include: {
+        parent: { select: { title: true, children: { select: { status: true } } } },
+        prerequisites: {
+          include: { prerequisite: { select: { title: true, status: true, summary: true } } },
+        },
+        prompts: {
+          where: { suspended: false },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, promptKind: true, promptText: true },
+        },
+      },
+    });
+    if (!focus || focus.status === 'archived') {
+      throw new NotFoundException(`Topic ${focusId} not found`);
+    }
+
+    const goal: string[] = [`## LEARNING GOAL`, `Topic: ${focus.title} [${focus.topicType}]`];
+    if (focus.parent) {
+      const started = focus.parent.children.filter(
+        (c) => c.status === 'active' || c.status === 'mastered',
+      ).length;
+      goal.push(
+        `Chapter: ${focus.parent.title} · ${started} of ${focus.parent.children.length} in this chapter started`,
+      );
+    }
+    if (focus.description) goal.push(`Description: ${focus.description}`);
+    if (focus.aiContext) goal.push(`AI context: ${focus.aiContext}`);
+    if (focus.prerequisites.length > 0) {
+      const lines = focus.prerequisites.map(({ prerequisite: p }) =>
+        p.summary ? `- ${p.title} — ${p.summary}` : `- ${p.title}`,
+      );
+      goal.push(`Builds on (your existing knowledge):\n${lines.join('\n')}`);
+    }
+    if (focus.prompts.length > 0) {
+      const lines = focus.prompts.map((c) => `- card ${c.id} [${c.promptKind}] ${c.promptText}`);
+      goal.push(`Existing cards (do not duplicate):\n${lines.join('\n')}`);
+    }
+
+    // Roadmap scoped to the focus topic's domain, same include shape/renderer
+    // as the full export.
+    const domainTopics = await this.prisma.topic.findMany({
+      where: { userId, domain: focus.domain },
+      orderBy: [{ domain: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        prerequisites: { include: { prerequisite: { select: { status: true } } } },
+        prompts: { select: { reps: true, stability: true, suspended: true } },
+      },
+    });
+
+    const sections = [
+      this.header('learn', now),
+      await this.whoIAm(userId),
+      this.roadmap(domainTopics.filter((t) => t.status !== 'archived')),
+      goal.join('\n'),
+      LEARN_CONDUCT,
+      OUTPUT_CONTRACT,
+    ];
     return sections.join('\n\n');
   }
 

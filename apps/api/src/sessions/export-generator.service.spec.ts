@@ -25,14 +25,17 @@ function makeMetrics(prisma: any) {
     struggleRatio7d: jest.fn().mockResolvedValue(0.44),
     masteryStatus: real.masteryStatus.bind(real),
     topicLabels: real.topicLabels.bind(real),
+    nextUp: jest.fn().mockResolvedValue(null),
   };
 }
 
 describe('ExportGeneratorService', () => {
   let service: ExportGeneratorService;
+  let prisma: any;
+  let metrics: any;
 
   beforeEach(async () => {
-    const prisma = {
+    prisma = {
       topic: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -48,6 +51,7 @@ describe('ExportGeneratorService', () => {
             prompts: [{ reps: 3, stability: null, suspended: false }],
           },
         ]),
+        findFirst: jest.fn(),
       },
       applicationEvent: { count: jest.fn().mockResolvedValue(0) },
       sessionExport: {
@@ -56,7 +60,7 @@ describe('ExportGeneratorService', () => {
       },
       user: makeUserMock(),
     };
-    const metrics = makeMetrics(prisma);
+    metrics = makeMetrics(prisma);
     const mod = await Test.createTestingModule({
       providers: [
         ExportGeneratorService,
@@ -603,5 +607,192 @@ describe('ExportGeneratorService', () => {
     const svc = mod.get(ExportGeneratorService);
     const md = await svc.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
     expect(md).not.toContain('Orphan card');
+  });
+
+  describe('mode=repeat', () => {
+    const NOW = new Date('2026-07-03T10:00:00Z');
+
+    function repeatMocks() {
+      const items = [
+        {
+          promptId: 'p1',
+          topicId: 't1',
+          topicTitle: 'Two Sum',
+          chapterTitle: 'Arrays & Hashing',
+          kind: 'concept',
+          isNew: false,
+          nextReviewAt: new Date('2026-07-02T00:00:00Z'),
+          createdAt: new Date('2026-06-01T00:00:00Z'),
+        },
+        {
+          promptId: 'p2',
+          topicId: 't2',
+          topicTitle: 'Binary Search',
+          chapterTitle: 'Binary Search',
+          kind: 'problem',
+          isNew: true,
+          nextReviewAt: null,
+          createdAt: new Date('2026-06-02T00:00:00Z'),
+        },
+      ];
+      const prompts = [
+        {
+          id: 'p1',
+          promptText: 'What does a hash map trade for O(1) lookups?',
+          promptKind: 'concept',
+          estimatedMinutes: null,
+        },
+        {
+          id: 'p2',
+          promptText: 'Solve: Search in Rotated Sorted Array',
+          promptKind: 'problem',
+          estimatedMinutes: 30,
+        },
+      ];
+      return { items, prompts };
+    }
+
+    it('renders the interleaved queue in order with [NEW] tags, conduct block, and no roadmap', async () => {
+      const prisma: any = {
+        user: makeUserMock(),
+        prompt: { findMany: jest.fn() },
+      };
+      const metrics: any = { sessionQueue: jest.fn() };
+      const { items, prompts } = repeatMocks();
+      metrics.sessionQueue = jest.fn().mockResolvedValue({ items });
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      prisma.prompt.findMany = jest.fn().mockResolvedValue(prompts);
+      const svc = new ExportGeneratorService(prisma, metrics);
+
+      const md = await svc.generate({ mode: 'repeat', now: NOW, userId: 'u1' });
+
+      expect(md).toContain("## TODAY'S REVIEW QUEUE");
+      expect(md).toContain('2 cards (1 due, 1 new)');
+      // concept fallback 2 min + explicit 30 min
+      expect(md).toContain('estimated 32 min');
+      const p1 = md.indexOf('card p1 [concept] (Arrays & Hashing) What does a hash map');
+      const p2 = md.indexOf('card p2 [problem] [NEW] (Binary Search) Solve: Search in Rotated');
+      expect(p1).toBeGreaterThan(-1);
+      expect(p2).toBeGreaterThan(p1); // queue order preserved
+      expect(md).toContain('## SESSION CONDUCT — repetition');
+      expect(md).toContain('## OUTPUT CONTRACT');
+      expect(md).toContain('Export: repeat');
+      // lean context: landscape sections omitted
+      expect(md).not.toContain('## ROADMAP');
+      expect(md).not.toContain('## MASTERY CONDITIONS');
+      expect(md).not.toContain('## RECENT SESSIONS');
+    });
+
+    it('renders "Nothing due today." and no conduct block for an empty queue', async () => {
+      const prisma: any = {
+        user: makeUserMock(),
+        prompt: { findMany: jest.fn() },
+      };
+      const metrics: any = { sessionQueue: jest.fn() };
+      metrics.sessionQueue = jest.fn().mockResolvedValue({ items: [] });
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      const svc = new ExportGeneratorService(prisma, metrics);
+
+      const md = await svc.generate({ mode: 'repeat', now: NOW, userId: 'u1' });
+
+      expect(md).toContain('Nothing due today.');
+      expect(md).not.toContain('## SESSION CONDUCT');
+      expect(md).toContain('## OUTPUT CONTRACT');
+    });
+  });
+
+  describe('mode=learn', () => {
+    const NOW = new Date('2026-07-03T10:00:00Z');
+
+    function focusTopic(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'focus-1',
+        title: 'Prefix sums',
+        topicType: 'pattern',
+        domain: 'DSA',
+        status: 'planned',
+        description: 'Running cumulative totals for O(1) range queries.',
+        aiContext: null,
+        parentId: 'chap-1',
+        parent: {
+          title: 'Arrays & Hashing',
+          children: [{ status: 'active' }, { status: 'planned' }, { status: 'mastered' }],
+        },
+        prerequisites: [
+          {
+            prerequisite: {
+              title: 'Hashing fundamentals',
+              status: 'active',
+              summary: '**Key insight:** buckets trade memory for time.',
+            },
+          },
+          { prerequisite: { title: 'Arrays 101', status: 'mastered', summary: null } },
+        ],
+        prompts: [{ id: 'c1', promptKind: 'concept', promptText: 'Define a prefix-sum array.' }],
+        ...overrides,
+      };
+    }
+
+    it('renders learning goal, prereq summaries, existing cards, conduct, scoped roadmap', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
+      // domain-scoped roadmap query (reuses the topics include shape)
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+
+      expect(md).toContain('Export: learn');
+      expect(md).toContain('## LEARNING GOAL');
+      expect(md).toContain('Topic: Prefix sums [pattern]');
+      expect(md).toContain('Chapter: Arrays & Hashing · 2 of 3 in this chapter started');
+      expect(md).toContain(
+        '- Hashing fundamentals — **Key insight:** buckets trade memory for time.',
+      );
+      expect(md).toContain('- Arrays 101');
+      expect(md).toContain('Existing cards (do not duplicate):');
+      expect(md).toContain('- card c1 [concept] Define a prefix-sum array.');
+      expect(md).toContain('## SESSION CONDUCT — learning');
+      expect(md).toContain('## OUTPUT CONTRACT');
+      expect(md).not.toContain('## MASTERY CONDITIONS');
+      // scoped roadmap query hit topics of the focus domain only
+      expect(prisma.topic.findMany.mock.calls[0][0].where).toMatchObject({
+        userId: 'u1',
+        domain: 'DSA',
+      });
+    });
+
+    it('defaults the focus to Next Up when focusTopicId is omitted', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      metrics.nextUp = jest.fn().mockResolvedValue({ topic: { id: 'focus-1' } });
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({ mode: 'learn', now: NOW, userId: 'u1' });
+      expect(md).toContain('Topic: Prefix sums');
+      expect(prisma.topic.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'focus-1', userId: 'u1' }),
+        }),
+      );
+    });
+
+    it('422s when there is no startable topic and no explicit focus', async () => {
+      metrics.nextUp = jest.fn().mockResolvedValue(null);
+      await expect(service.generate({ mode: 'learn', now: NOW, userId: 'u1' })).rejects.toThrow(
+        'No startable topic — pass focusTopicId or start something from the roadmap.',
+      );
+    });
+
+    it('404s on an archived focus topic', async () => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ status: 'archived' }));
+      await expect(
+        service.generate({ mode: 'learn', focusTopicId: 'focus-1', now: NOW, userId: 'u1' }),
+      ).rejects.toThrow('not found');
+    });
   });
 });

@@ -102,6 +102,15 @@ export interface NewPromptPlan {
   estimatedMinutes?: number;
 }
 
+export interface ActivationPlan {
+  topicTitle: string;
+  /** null = topic created in this same import (resolved by title inside apply's tx). */
+  resolvedTopicId: string | null;
+  /** null = in-batch (created planned in this import, then activated). */
+  currentStatus: string | null;
+  willActivate: boolean;
+}
+
 /**
  * An unresolved reference that blocks `apply()`.
  *
@@ -115,11 +124,11 @@ export interface NewPromptPlan {
  * always uses `title` (a topic title); `ref` is unused there.
  */
 export interface Unresolved {
-  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt';
+  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt' | 'studiedTopic';
   title?: string;
   ref?: string;
   context: string;
-  reason: 'missing' | 'ambiguous' | 'self-reference';
+  reason: 'missing' | 'ambiguous' | 'self-reference' | 'archived';
 }
 export interface ImportPlan {
   sessionExportId: string;
@@ -128,6 +137,7 @@ export interface ImportPlan {
   newTopics: NewTopicPlan[];
   newPrompts: NewPromptPlan[];
   noteSummaries: NoteSummaryPlan[];
+  activations: ActivationPlan[];
   nextSession?: LearningOsV2['nextSession'];
   unresolved: Unresolved[];
   applicable: boolean;
@@ -138,6 +148,7 @@ export interface ImportResult {
   topicsCreated: string[];
   promptsCreated: number;
   noteSummariesApplied: number;
+  topicsActivated: number;
   nextSessionStored: boolean;
 }
 
@@ -293,6 +304,22 @@ export class ImportService {
         }
       }
 
+      // b2. activate studied topics — explicit studiedTopics contract field.
+      // Guarded updateMany: only planned→active flips count, so an entry that
+      // was already active (willActivate false) or was concurrently activated
+      // is a clean no-op.
+      let topicsActivated = 0;
+      for (const a of plan.activations) {
+        if (!a.willActivate) continue;
+        const id = a.resolvedTopicId ?? idByNorm.get(norm(a.topicTitle));
+        if (!id) continue;
+        const res = await tx.topic.updateMany({
+          where: { id, userId, status: 'planned' },
+          data: { status: 'active', aiProposed: false },
+        });
+        topicsActivated += res.count;
+      }
+
       // c. starter-card rule: a batch-created topic gets a starter card
       // unless it either (i) is some other batch topic's parent (a
       // category/root node), or (ii) is targeted by a proposedPrompts
@@ -421,6 +448,7 @@ export class ImportService {
         topicsCreated,
         promptsCreated,
         noteSummariesApplied,
+        topicsActivated,
         nextSessionStored: nextFocusTitle != null,
       };
     });
@@ -604,6 +632,58 @@ export class ImportService {
       };
     });
 
+    const seenStudied = new Set<string>();
+    const activations: ActivationPlan[] = [];
+    for (const title of parsed.studiedTopics ?? []) {
+      const key = norm(title);
+      if (seenStudied.has(key)) continue;
+      seenStudied.add(key);
+      const matches = byNorm.get(key) ?? [];
+      if (matches.length > 1) {
+        unresolved.push({
+          kind: 'studiedTopic',
+          title,
+          context: 'studiedTopics',
+          reason: 'ambiguous',
+        });
+        continue;
+      }
+      const match = matches[0];
+      if (!match) {
+        if (inBatch(title)) {
+          activations.push({
+            topicTitle: title,
+            resolvedTopicId: null,
+            currentStatus: null,
+            willActivate: true,
+          });
+        } else {
+          unresolved.push({
+            kind: 'studiedTopic',
+            title,
+            context: 'studiedTopics',
+            reason: 'missing',
+          });
+        }
+        continue;
+      }
+      if (match.status === 'archived') {
+        unresolved.push({
+          kind: 'studiedTopic',
+          title,
+          context: 'studiedTopics',
+          reason: 'archived',
+        });
+        continue;
+      }
+      activations.push({
+        topicTitle: title,
+        resolvedTopicId: match.id,
+        currentStatus: match.status,
+        willActivate: match.status === 'planned',
+      });
+    }
+
     const alreadyImported = sessionExport.importedAt != null;
     return {
       sessionExportId: sessionExport.id,
@@ -612,6 +692,7 @@ export class ImportService {
       newTopics,
       newPrompts,
       noteSummaries,
+      activations,
       nextSession: parsed.nextSession,
       unresolved,
       applicable: unresolved.length === 0 && !alreadyImported,
