@@ -65,6 +65,8 @@ enum ProblemDifficulty {
 enum ExportMode {
   full
   domain
+  repeat
+  learn
 }
 
 model User {
