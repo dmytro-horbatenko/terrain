@@ -422,4 +422,90 @@ describe('MetricsService', () => {
     const result = await service.dashboard('userA', new Date('2026-01-08T12:00:00Z'));
     expect(result.nextUp).toBeNull();
   });
+
+  describe('sessionQueue', () => {
+    function queuePrompt(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'p1',
+        promptKind: 'concept',
+        state: 'review',
+        nextReviewAt: new Date('2026-07-01T00:00:00Z'),
+        createdAt: new Date('2026-06-01T00:00:00Z'),
+        topic: { id: 't1', title: 'Two Sum', domain: 'DSA', parent: { title: 'Arrays & Hashing' } },
+        ...overrides,
+      };
+    }
+
+    it('queries due cards and capped new cards with the right predicates', async () => {
+      prisma.prompt.findMany
+        .mockResolvedValueOnce([]) // due
+        .mockResolvedValueOnce([]); // new
+      const now = new Date('2026-07-03T10:00:00');
+
+      const result = await service.sessionQueue('u1', now);
+      expect(result).toEqual({ items: [] });
+      expect(prisma.prompt.findMany).toHaveBeenCalledTimes(2);
+
+      // due query: same predicate family as dueCards (suspended:false, lt endOfToday, non-archived topics)
+      expect(prisma.prompt.findMany.mock.calls[0][0]).toMatchObject({
+        where: {
+          suspended: false,
+          nextReviewAt: { not: null, lt: expect.any(Date) },
+          topic: { userId: 'u1', status: { not: 'archived' } },
+        },
+        orderBy: { nextReviewAt: 'asc' },
+      });
+
+      // new-cards query: active topics only, capped at 5, stable order
+      expect(prisma.prompt.findMany.mock.calls[1][0]).toMatchObject({
+        where: {
+          suspended: false,
+          state: 'new',
+          topic: { userId: 'u1', status: 'active' },
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 5,
+      });
+    });
+
+    it('maps prompts to queue items with parent title as chapter, domain as fallback', async () => {
+      prisma.prompt.findMany
+        .mockResolvedValueOnce([
+          queuePrompt(),
+          queuePrompt({
+            id: 'p2',
+            nextReviewAt: new Date('2026-07-02T00:00:00Z'),
+            topic: { id: 't2', title: 'Orphan topic', domain: 'Systems', parent: null },
+          }),
+        ])
+        .mockResolvedValueOnce([queuePrompt({ id: 'p3', state: 'new', nextReviewAt: null })]);
+
+      const { items } = await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'));
+      const byId = new Map(items.map((i) => [i.promptId, i]));
+
+      expect(byId.get('p1')).toMatchObject({
+        topicId: 't1',
+        topicTitle: 'Two Sum',
+        chapterTitle: 'Arrays & Hashing',
+        kind: 'concept',
+        isNew: false,
+      });
+      expect(byId.get('p2')!.chapterTitle).toBe('Systems'); // domain fallback
+      expect(byId.get('p3')).toMatchObject({ isNew: true, nextReviewAt: null });
+      expect(items).toHaveLength(3);
+    });
+
+    it('passes the domain filter into both queries', async () => {
+      prisma.prompt.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'), 'DSA');
+      expect(prisma.prompt.findMany.mock.calls[0][0].where.topic).toMatchObject({ domain: 'DSA' });
+      expect(prisma.prompt.findMany.mock.calls[1][0].where.topic).toMatchObject({ domain: 'DSA' });
+    });
+  });
+
+  it('dashboard includes sessionQueueCount', async () => {
+    // beforeEach stubs every findMany to [] — dashboard resolves with an empty queue.
+    const dash = await service.dashboard('u1', new Date('2026-07-03T10:00:00'));
+    expect(dash.sessionQueueCount).toBe(0);
+  });
 });

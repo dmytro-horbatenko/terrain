@@ -65,7 +65,7 @@ export class TelegramCron {
     });
     await this.telegram.sendTo(s.userId, s.telegramChatId!, html, {
       text: 'Start review',
-      url: this.webUrl(),
+      url: `${this.webUrl()}/?session=1`,
     });
   }
 

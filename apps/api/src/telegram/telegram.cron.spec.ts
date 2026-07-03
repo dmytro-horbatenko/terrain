@@ -64,7 +64,7 @@ describe('TelegramCron', () => {
     expect(html).toContain(`~${2 + 10 + 45} min`);
     expect(html).toContain('Streak: 12');
     expect(html).toContain('Next up: Interval DP');
-    expect(button).toEqual({ text: 'Start review', url: 'https://terrain.example' });
+    expect(button).toEqual({ text: 'Start review', url: 'https://terrain.example/?session=1' });
   });
 
   it('sends nothing when the hour matches neither setting', async () => {

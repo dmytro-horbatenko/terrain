@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { interleaveQueue, type SessionQueueItem } from './interleave';
 
 const DAY_MS = 86_400_000;
+const NEW_CARDS_PER_SESSION = 5;
 
 export interface NextUp {
   topic: Topic;
@@ -137,6 +139,64 @@ export class MetricsService {
   }
 
   /**
+   * Interleaved review-session queue: every due card (same predicate as
+   * `dueCards`, kept separate because this query needs topic/parent joins)
+   * plus up to NEW_CARDS_PER_SESSION new cards from *active* topics only —
+   * starting planned topics stays a deliberate act via Next Up.
+   */
+  async sessionQueue(
+    userId: string,
+    now: Date,
+    domain?: string,
+  ): Promise<{ items: SessionQueueItem[] }> {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
+    const topicJoin = {
+      select: {
+        id: true,
+        title: true,
+        domain: true,
+        parent: { select: { title: true } },
+      },
+    };
+    const [due, fresh] = await Promise.all([
+      this.prisma.prompt.findMany({
+        where: {
+          suspended: false,
+          nextReviewAt: { not: null, lt: endOfToday },
+          topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+        },
+        orderBy: { nextReviewAt: 'asc' },
+        include: { topic: topicJoin },
+      }),
+      this.prisma.prompt.findMany({
+        where: {
+          suspended: false,
+          state: 'new',
+          topic: { userId, status: 'active', ...(domain ? { domain } : {}) },
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: NEW_CARDS_PER_SESSION,
+        include: { topic: topicJoin },
+      }),
+    ]);
+    const items = [...due, ...fresh].map(
+      (p): SessionQueueItem => ({
+        promptId: p.id,
+        topicId: p.topic.id,
+        topicTitle: p.topic.title,
+        chapterTitle: p.topic.parent?.title ?? p.topic.domain,
+        kind: p.promptKind,
+        isNew: p.state === 'new',
+        nextReviewAt: p.nextReviewAt,
+        createdAt: p.createdAt,
+      }),
+    );
+    return { items: interleaveQueue(items) };
+  }
+
+  /**
    * IDs of planned topics whose direct prerequisites are all started
    * (active or mastered) — the startable frontier, in creation order.
    */
@@ -205,7 +265,7 @@ export class MetricsService {
   }
 
   async dashboard(userId: string, now: Date, domain?: string) {
-    const [struggleRatio7d, due, grouped, newCards, nextUp] = await Promise.all([
+    const [struggleRatio7d, due, grouped, newCards, nextUp, sessionQueue] = await Promise.all([
       this.struggleRatio7d(userId, now),
       this.dueTopics(userId, now, domain),
       this.prisma.topic.groupBy({
@@ -215,6 +275,7 @@ export class MetricsService {
       }),
       this.newCardsCount(userId, domain),
       this.nextUp(userId, domain),
+      this.sessionQueue(userId, now, domain),
     ]);
     const countOf = (status: string) => grouped.find((g) => g.status === status)?._count ?? 0;
     return {
@@ -223,6 +284,7 @@ export class MetricsService {
       due,
       newCards,
       nextUp,
+      sessionQueueCount: sessionQueue.items.length,
       counts: {
         total: grouped.reduce((sum, g) => sum + g._count, 0),
         planned: countOf('planned'),
