@@ -65,7 +65,23 @@ CDP gotchas (already handled in the script):
 - Use `.textContent`, not `.innerText`, in headless — `innerText` needs layout/paint
   and returns partial results.
 
-## 6. Quality gates
+## 6. Telegram bot (optional)
+
+To test the Telegram digest locally:
+
+1. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` in `apps/api/.env`.
+2. Leave `TELEGRAM_WEBHOOK_URL` unset — the bot automatically falls back to
+   long polling in dev.
+3. In the Settings screen, click "Connect Telegram" and confirm the link in Telegram
+   via the bot's `/start` handler.
+4. To trigger a test digest without waiting an hour, call the internal `tick()` helper
+   from a scratch script, e.g. `tick(new Date('2026-07-02T18:00:00Z'))` if your digest
+   hour is 18. Alternatively, temporarily set `digestHour` to the next full hour in your
+   timezone and wait for the cron to fire.
+
+The bot sends no messages during local dev if `TELEGRAM_BOT_TOKEN` is unset.
+
+## 7. Quality gates
 
 ```bash
 yarn lint            # oxlint
