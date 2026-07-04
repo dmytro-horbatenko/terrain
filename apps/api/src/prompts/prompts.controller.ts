@@ -17,6 +17,11 @@ export class PromptsController {
 export class PromptController {
   constructor(private service: PromptsService) {}
 
+  @Get(':id')
+  getOne(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.service.getOne(userId, id);
+  }
+
   @Patch(':id')
   setSuspended(
     @CurrentUser() userId: string,

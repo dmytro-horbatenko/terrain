@@ -43,6 +43,26 @@ export class PromptsService {
     return { prompt: candidate, previewIntervals: previewIntervals(state, now) };
   }
 
+  /** One specific card with fresh grade-preview intervals — same payload shape
+   *  as `next`, used by the review session which addresses cards by id. */
+  async getOne(userId: string, id: string): Promise<NextPrompt> {
+    const prompt = await this.prisma.prompt.findFirst({
+      where: { id, topic: { userId } },
+    });
+    if (!prompt) throw new NotFoundException(`Prompt ${id} not found`);
+
+    const state: CardSrState = {
+      stability: prompt.stability,
+      difficulty: prompt.difficulty,
+      reps: prompt.reps,
+      lapses: prompt.lapses,
+      state: prompt.state,
+      lastReviewedAt: prompt.lastReviewedAt,
+      nextReviewAt: prompt.nextReviewAt,
+    };
+    return { prompt, previewIntervals: previewIntervals(state, new Date()) };
+  }
+
   async setSuspended(userId: string, id: string, suspended: boolean): Promise<Prompt> {
     const prompt = await this.prisma.prompt.findFirst({ where: { id, topic: { userId } } });
     if (!prompt) throw new NotFoundException(`Prompt ${id} not found`);

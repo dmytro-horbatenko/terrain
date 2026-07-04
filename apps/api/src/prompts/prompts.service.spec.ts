@@ -183,6 +183,33 @@ describe('PromptsService.setSuspended', () => {
   });
 });
 
+describe('PromptsService.getOne', () => {
+  it('returns the prompt with preview intervals, scoped to the user', async () => {
+    const findFirst = jest.fn().mockResolvedValue(promptRow({ id: 'p9' }));
+    const prisma: any = { prompt: { findFirst } };
+    const service = new PromptsService(prisma);
+
+    const result = await service.getOne('userA', 'p9');
+
+    expect(result.prompt.id).toBe('p9');
+    expect(result.previewIntervals).toMatchObject({
+      again: expect.any(Number),
+      hard: expect.any(Number),
+      good: expect.any(Number),
+      easy: expect.any(Number),
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'p9', topic: { userId: 'userA' } },
+    });
+  });
+
+  it('404s when the prompt does not exist or belongs to another user', async () => {
+    const prisma: any = { prompt: { findFirst: jest.fn().mockResolvedValue(null) } };
+    const service = new PromptsService(prisma);
+    await expect(service.getOne('userA', 'nope')).rejects.toThrow(NotFoundException);
+  });
+});
+
 describe('PromptsService.remove', () => {
   it('409s a reviewed card and suggests suspension instead', async () => {
     const promptFindFirst = jest.fn().mockResolvedValue({ ...promptRow(), _count: { reviews: 2 } });
