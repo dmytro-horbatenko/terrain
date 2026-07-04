@@ -3,7 +3,7 @@ import { useGenerateExport, useTopics } from '../../api/hooks';
 import { Card, useToast, Loading, ErrorBox } from '../../components';
 import type { ExportResult, TopicWithMeta } from '../../api/types';
 
-type Mode = 'full' | 'domain' | 'focus';
+type Mode = 'full' | 'domain' | 'focus' | 'repeat' | 'learn';
 
 export default function ExportScreen() {
   const { toast } = useToast();
@@ -35,7 +35,9 @@ export default function ExportScreen() {
     !generate.isPending &&
     (mode === 'full' ||
       (mode === 'domain' && !!effectiveDomain) ||
-      (mode === 'focus' && !!focusTopicId));
+      (mode === 'focus' && !!focusTopicId) ||
+      mode === 'repeat' ||
+      mode === 'learn');
 
   function handleGenerate() {
     const args: { mode?: string; focusTopicId?: string } = {};
@@ -51,6 +53,11 @@ export default function ExportScreen() {
         return;
       }
       args.focusTopicId = focusTopicId;
+    } else if (mode === 'repeat') {
+      args.mode = 'repeat';
+    } else if (mode === 'learn') {
+      args.mode = 'learn';
+      if (focusTopicId) args.focusTopicId = focusTopicId;
     }
     generate.mutate(args, {
       onSuccess: (data) => {
@@ -108,6 +115,20 @@ export default function ExportScreen() {
               type="button"
             >
               Focus topic
+            </button>
+            <button
+              className={mode === 'repeat' ? 'on' : ''}
+              onClick={() => setMode('repeat')}
+              type="button"
+            >
+              Repeat today
+            </button>
+            <button
+              className={mode === 'learn' ? 'on' : ''}
+              onClick={() => setMode('learn')}
+              type="button"
+            >
+              Learn next
             </button>
           </div>
 
@@ -183,6 +204,40 @@ export default function ExportScreen() {
               <p className="muted" style={{ margin: 0 }}>
                 Pins this topic and its prerequisites at the top and adds an explicit SESSION GOAL
                 so Claude drives toward mastering it.
+              </p>
+            </div>
+          )}
+
+          {mode === 'repeat' && (
+            <p className="muted" style={{ margin: 0 }}>
+              Today&apos;s interleaved review queue plus a conduct script — Claude quizzes you card
+              by card and records your self-grades.
+            </p>
+          )}
+
+          {mode === 'learn' && (
+            <div className="col gap-2">
+              <label className="field-label" htmlFor="export-learn-topic">
+                Topic to learn
+              </label>
+              <select
+                id="export-learn-topic"
+                className="select"
+                value={focusTopicId}
+                onChange={(e) => setFocusTopicId(e.target.value)}
+                style={{ maxWidth: 480 }}
+              >
+                <option value="">Next Up (default)</option>
+                {sortedTopics.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                    {t.domain ? ` — ${t.domain}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="muted" style={{ margin: 0 }}>
+                A teaching session for one new topic: where it fits, what it builds on, and
+                instructions for Claude to propose cards and mark it studied.
               </p>
             </div>
           )}

@@ -3,6 +3,7 @@ import { useImportApply, useImportPreview } from '../../api/hooks';
 import { Card, ErrorBox, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
 import {
+  ActivationsSection,
   NewTopicsSection,
   NextSessionSection,
   NoteSummariesSection,
@@ -85,6 +86,7 @@ export default function ImportScreen() {
         <>
           <ReviewsSection reviews={plan.reviews} />
           <NewTopicsSection topics={plan.newTopics} />
+          <ActivationsSection activations={plan.activations} />
           <ProposedCardsSection prompts={plan.newPrompts} />
           <NoteSummariesSection notes={plan.noteSummaries} />
           <NextSessionSection next={plan.nextSession} />
@@ -144,6 +146,10 @@ export default function ImportScreen() {
             <div className="kpi">
               <div>{applyResult.promptsCreated}</div>
               <div className="kpi-label">new cards</div>
+            </div>
+            <div className="kpi">
+              <div>{applyResult.topicsActivated}</div>
+              <div className="kpi-label">topics activated</div>
             </div>
             <div className="kpi">
               <div>{applyResult.noteSummariesApplied}</div>

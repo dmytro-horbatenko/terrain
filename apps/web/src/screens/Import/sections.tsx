@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Card, GRADES, tint, useToast } from '../../components';
 import { formatDate } from '../../lib/format';
 import type {
+  ActivationPlan,
   Grade,
   ImportPlan,
   NewPromptPlan,
@@ -178,6 +179,41 @@ export function NewTopicsSection({ topics }: { topics: NewTopicPlan[] }) {
         <div className="col gap-2">
           {topics.map((t, i) => (
             <NewTopicRow key={`${t.title}-${i}`} t={t} />
+          ))}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
+// ---- b1) Activations (studied topics moving planned → active) ----
+
+function ActivationRow({ a }: { a: ActivationPlan }) {
+  return (
+    <div className="list-row row wrap gap-2">
+      <span className="grow" style={{ fontWeight: 600 }}>
+        {a.topicTitle}
+      </span>
+      {a.willActivate ? (
+        <span className="pill" style={{ color: 'var(--st-active)' }}>
+          planned → active
+        </span>
+      ) : (
+        <span className="pill faint">already {a.currentStatus}</span>
+      )}
+    </div>
+  );
+}
+
+export function ActivationsSection({ activations }: { activations: ActivationPlan[] }) {
+  return (
+    <SectionShell title="Studied topics" count={activations.length}>
+      {activations.length === 0 ? (
+        <div className="muted">No topics activated in this session.</div>
+      ) : (
+        <div className="col gap-2">
+          {activations.map((a, i) => (
+            <ActivationRow key={`${a.topicTitle}-${i}`} a={a} />
           ))}
         </div>
       )}
