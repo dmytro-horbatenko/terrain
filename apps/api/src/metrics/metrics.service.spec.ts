@@ -18,6 +18,7 @@ describe('MetricsService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(0),
       },
+      sessionExport: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     const mod = await Test.createTestingModule({
       providers: [MetricsService, { provide: PrismaService, useValue: prisma }],
@@ -443,7 +444,7 @@ describe('MetricsService', () => {
       const now = new Date('2026-07-03T10:00:00');
 
       const result = await service.sessionQueue('u1', now);
-      expect(result).toEqual({ items: [] });
+      expect(result).toEqual({ items: [], estimatedMinutes: 0 });
       expect(prisma.prompt.findMany).toHaveBeenCalledTimes(2);
 
       // due query: same predicate family as dueCards (suspended:false, lt endOfToday, non-archived topics)
@@ -501,11 +502,86 @@ describe('MetricsService', () => {
       expect(prisma.prompt.findMany.mock.calls[0][0].where.topic).toMatchObject({ domain: 'DSA' });
       expect(prisma.prompt.findMany.mock.calls[1][0].where.topic).toMatchObject({ domain: 'DSA' });
     });
+
+    it('returns estimatedMinutes from explicit values with kind fallbacks', async () => {
+      prisma.prompt.findMany
+        .mockResolvedValueOnce([
+          {
+            id: 'p1',
+            promptKind: 'concept',
+            estimatedMinutes: null,
+            state: 'review',
+            nextReviewAt: new Date('2026-07-03T09:00:00'),
+            createdAt: new Date('2026-01-01'),
+            topic: { id: 't1', title: 'T1', domain: 'DSA', parent: null },
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: 'p2',
+            promptKind: 'code',
+            estimatedMinutes: 5,
+            state: 'new',
+            nextReviewAt: null,
+            createdAt: new Date('2026-01-02'),
+            topic: { id: 't2', title: 'T2', domain: 'DSA', parent: null },
+          },
+        ]);
+      const result = await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'));
+      // concept fallback (2) + explicit estimate (5)
+      expect(result.estimatedMinutes).toBe(7);
+    });
   });
 
   it('dashboard includes sessionQueueCount', async () => {
     // beforeEach stubs every findMany to [] — dashboard resolves with an empty queue.
     const dash = await service.dashboard('u1', new Date('2026-07-03T10:00:00'));
     expect(dash.sessionQueueCount).toBe(0);
+  });
+
+  it('dashboard includes sessionQueueMinutes', async () => {
+    // beforeEach stubs every findMany to [] — empty queue estimates 0 minutes.
+    const dash = await service.dashboard('u1', new Date('2026-07-03T10:00:00'));
+    expect(dash.sessionQueueMinutes).toBe(0);
+  });
+
+  describe('pendingSessions (via dashboard)', () => {
+    const now = new Date('2026-07-03T10:00:00Z');
+
+    it('reports the latest un-imported repeat/learn export within 48h', async () => {
+      prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.mode === 'learn'
+            ? {
+                id: 'se2',
+                mode: 'learn',
+                generatedAt: new Date('2026-07-03T08:00:00Z'),
+                importedAt: null,
+              }
+            : {
+                id: 'se1',
+                mode: 'repeat',
+                generatedAt: new Date('2026-07-02T09:00:00Z'),
+                importedAt: new Date('2026-07-02T10:00:00Z'),
+              },
+        ),
+      );
+      const dash = await service.dashboard('u1', now);
+      // repeat's latest was imported → excluded; learn is pending → included
+      expect(dash.pendingSessions).toEqual([
+        { id: 'se2', mode: 'learn', generatedAt: new Date('2026-07-03T08:00:00Z') },
+      ]);
+    });
+
+    it('ignores un-imported exports older than 48h', async () => {
+      prisma.sessionExport.findFirst.mockResolvedValue({
+        id: 'old',
+        mode: 'learn',
+        generatedAt: new Date('2026-06-30T08:00:00Z'),
+        importedAt: null,
+      });
+      const dash = await service.dashboard('u1', now);
+      expect(dash.pendingSessions).toEqual([]);
+    });
   });
 });

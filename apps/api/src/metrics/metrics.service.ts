@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { estimateMinutes } from '../telegram/telegram.messages';
 import { interleaveQueue, type SessionQueueItem } from './interleave';
 
 const DAY_MS = 86_400_000;
@@ -148,7 +149,7 @@ export class MetricsService {
     userId: string,
     now: Date,
     domain?: string,
-  ): Promise<{ items: SessionQueueItem[] }> {
+  ): Promise<{ items: SessionQueueItem[]; estimatedMinutes: number }> {
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
@@ -181,7 +182,8 @@ export class MetricsService {
         include: { topic: topicJoin },
       }),
     ]);
-    const items = [...due, ...fresh].map(
+    const raw = [...due, ...fresh];
+    const items = raw.map(
       (p): SessionQueueItem => ({
         promptId: p.id,
         topicId: p.topic.id,
@@ -193,7 +195,12 @@ export class MetricsService {
         createdAt: p.createdAt,
       }),
     );
-    return { items: interleaveQueue(items) };
+    return {
+      items: interleaveQueue(items),
+      estimatedMinutes: estimateMinutes(
+        raw.map((p) => ({ promptKind: p.promptKind, estimatedMinutes: p.estimatedMinutes })),
+      ),
+    };
   }
 
   /**
@@ -264,19 +271,48 @@ export class MetricsService {
     };
   }
 
+  /**
+   * Latest repeat/learn export per mode that hasn't come back through Import,
+   * within 48h — the Dashboard's "session in flight" breadcrumb. Only the
+   * newest row per mode counts, so repeated copies don't stack entries.
+   */
+  private async pendingSessions(
+    userId: string,
+    now: Date,
+  ): Promise<{ id: string; mode: 'repeat' | 'learn'; generatedAt: Date }[]> {
+    const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    const modes = ['repeat', 'learn'] as const;
+    const latest = await Promise.all(
+      modes.map((mode) =>
+        this.prisma.sessionExport.findFirst({
+          where: { userId, mode },
+          orderBy: { generatedAt: 'desc' },
+          select: { id: true, mode: true, generatedAt: true, importedAt: true },
+        }),
+      ),
+    );
+    return latest.flatMap((row) =>
+      row && row.importedAt === null && row.generatedAt >= cutoff
+        ? [{ id: row.id, mode: row.mode as 'repeat' | 'learn', generatedAt: row.generatedAt }]
+        : [],
+    );
+  }
+
   async dashboard(userId: string, now: Date, domain?: string) {
-    const [struggleRatio7d, due, grouped, newCards, nextUp, sessionQueue] = await Promise.all([
-      this.struggleRatio7d(userId, now),
-      this.dueTopics(userId, now, domain),
-      this.prisma.topic.groupBy({
-        by: ['status'],
-        _count: true,
-        where: { userId, ...(domain ? { domain } : {}) },
-      }),
-      this.newCardsCount(userId, domain),
-      this.nextUp(userId, domain),
-      this.sessionQueue(userId, now, domain),
-    ]);
+    const [struggleRatio7d, due, grouped, newCards, nextUp, sessionQueue, pendingSessions] =
+      await Promise.all([
+        this.struggleRatio7d(userId, now),
+        this.dueTopics(userId, now, domain),
+        this.prisma.topic.groupBy({
+          by: ['status'],
+          _count: true,
+          where: { userId, ...(domain ? { domain } : {}) },
+        }),
+        this.newCardsCount(userId, domain),
+        this.nextUp(userId, domain),
+        this.sessionQueue(userId, now, domain),
+        this.pendingSessions(userId, now),
+      ]);
     const countOf = (status: string) => grouped.find((g) => g.status === status)?._count ?? 0;
     return {
       generatedAt: now.toISOString(),
@@ -285,6 +321,8 @@ export class MetricsService {
       newCards,
       nextUp,
       sessionQueueCount: sessionQueue.items.length,
+      sessionQueueMinutes: sessionQueue.estimatedMinutes,
+      pendingSessions,
       counts: {
         total: grouped.reduce((sum, g) => sum + g._count, 0),
         planned: countOf('planned'),
