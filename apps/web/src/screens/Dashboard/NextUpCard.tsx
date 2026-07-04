@@ -12,11 +12,15 @@ export default function NextUpCard({
   plannedCount,
   starting,
   onStart,
+  copying,
+  onCopyContext,
 }: {
   nextUp: NextUp | null;
   plannedCount: number;
   starting: boolean;
   onStart: (topic: Topic) => void;
+  copying: boolean;
+  onCopyContext: () => void;
 }) {
   if (!nextUp && plannedCount === 0) return null;
 
@@ -28,7 +32,13 @@ export default function NextUpCard({
             All remaining topics are blocked — keep reviewing to unlock them.
           </p>
         ) : (
-          <NextUpBody nextUp={nextUp} starting={starting} onStart={onStart} />
+          <NextUpBody
+            nextUp={nextUp}
+            starting={starting}
+            onStart={onStart}
+            copying={copying}
+            onCopyContext={onCopyContext}
+          />
         )}
       </Card>
     </div>
@@ -39,10 +49,14 @@ function NextUpBody({
   nextUp: { topic, chapterTitle, chapterProgress },
   starting,
   onStart,
+  copying,
+  onCopyContext,
 }: {
   nextUp: NextUp;
   starting: boolean;
   onStart: (topic: Topic) => void;
+  copying: boolean;
+  onCopyContext: () => void;
 }) {
   const snippet =
     topic.description && topic.description.length > 220
@@ -70,9 +84,12 @@ function NextUpBody({
           {snippet}
         </p>
       )}
-      <div>
+      <div className="row gap-2">
         <button className="btn btn-primary" disabled={starting} onClick={() => onStart(topic)}>
           {starting ? 'Starting…' : 'Start'}
+        </button>
+        <button className="btn" disabled={copying} onClick={onCopyContext}>
+          {copying ? 'Generating…' : '⧉ Copy learning context'}
         </button>
       </div>
     </div>

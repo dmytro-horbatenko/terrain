@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   useDashboard,
+  useGenerateExport,
   useHeatmap,
   useSkipStreak,
   useStreak,
@@ -8,6 +9,7 @@ import {
 } from '../../api/hooks';
 import type { Topic, TopicStatus } from '../../api/types';
 import NextUpCard from './NextUpCard';
+import ReviewSession from './ReviewSession';
 import {
   Card,
   EmptyState,
@@ -35,7 +37,35 @@ export default function Dashboard() {
   const skip = useSkipStreak();
   const { toast } = useToast();
   const [logTopic, setLogTopic] = useState<Topic | null>(null);
+  const [sessionOpen, setSessionOpen] = useState(false);
   const { mutate: updateTopic, isPending: starting } = useUpdateTopic();
+  const exportCtx = useGenerateExport();
+
+  function copyContext(args: { mode: string }, label: string) {
+    exportCtx.mutate(args, {
+      onSuccess: (data) => {
+        if (!navigator.clipboard?.writeText) {
+          toast('Clipboard unavailable — use the Export screen to copy manually', 'info');
+          return;
+        }
+        navigator.clipboard
+          .writeText(data.exportMd)
+          .then(() => toast(`${label} copied — paste into a fresh Claude chat`, 'success'))
+          .catch(() => toast('Could not copy — use the Export screen to copy manually', 'error'));
+      },
+      onError: (e) => toast(e instanceof Error ? e.message : 'Export failed', 'error'),
+    });
+  }
+
+  // Telegram digest deep link: /?session=1 auto-opens the review session.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session') !== '1') return;
+    setSessionOpen(true);
+    params.delete('session');
+    const qs = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, []);
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -129,6 +159,8 @@ export default function Dashboard() {
         plannedCount={counts.planned}
         starting={starting}
         onStart={startTopic}
+        copying={exportCtx.isPending}
+        onCopyContext={() => copyContext({ mode: 'learn' }, 'Learning context')}
       />
 
       {/* ---- struggle + library ---- */}
@@ -173,6 +205,20 @@ export default function Dashboard() {
       </div>
 
       {/* ---- due for review ---- */}
+      {dash.sessionQueueCount > 0 && (
+        <div className="row gap-2" style={{ marginBottom: 14 }}>
+          <button className="btn btn-primary" onClick={() => setSessionOpen(true)}>
+            ▶ Review all ({dash.sessionQueueCount})
+          </button>
+          <button
+            className="btn"
+            disabled={exportCtx.isPending}
+            onClick={() => copyContext({ mode: 'repeat' }, 'Repetition context')}
+          >
+            {exportCtx.isPending ? 'Generating…' : '⧉ Copy repetition context'}
+          </button>
+        </div>
+      )}
       <h2 className="card-title" style={{ marginBottom: 10 }}>
         Due for review
       </h2>
@@ -208,6 +254,10 @@ export default function Dashboard() {
             )}
           </ReviewGate>
         )}
+      </Modal>
+
+      <Modal open={sessionOpen} onClose={() => setSessionOpen(false)} title="Review session">
+        {sessionOpen && <ReviewSession onClose={() => setSessionOpen(false)} />}
       </Modal>
     </div>
   );
