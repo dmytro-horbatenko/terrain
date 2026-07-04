@@ -16,6 +16,7 @@ export const qk = {
   topic: (id: string) => ['topic', id] as const,
   reviews: (topicId: string) => ['reviews', topicId] as const,
   nextPrompt: (topicId: string) => ['next-prompt', topicId] as const,
+  prompt: (id: string) => ['prompt', id] as const,
   dashboard: (domain?: string) => ['dashboard', domain ?? 'all'] as const,
   heatmap: (days?: number) => ['heatmap', days ?? 'default'] as const,
   streak: ['streak'] as const,
@@ -50,6 +51,17 @@ export function useNextPrompt(topicId: string | null) {
     queryKey: qk.nextPrompt(topicId ?? ''),
     queryFn: () => api.getNextPrompt(topicId!),
     enabled: !!topicId,
+  });
+}
+
+/** One card by id, for the review session. retry:false so a 404 (card
+ *  deleted mid-session) surfaces immediately and the session can skip it. */
+export function usePrompt(id: string | null) {
+  return useQuery({
+    queryKey: qk.prompt(id ?? ''),
+    queryFn: () => api.getPrompt(id!),
+    enabled: !!id,
+    retry: false,
   });
 }
 

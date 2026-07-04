@@ -168,6 +168,23 @@ export interface NextPromptPayload {
   previewIntervals: Record<Grade, number>;
 }
 
+/** GET /reviews/session-queue — interleaved review-session queue (metadata
+ *  only; card text + previews come per-card from GET /prompts/:id). */
+export interface SessionQueueItem {
+  promptId: string;
+  topicId: string;
+  topicTitle: string;
+  chapterTitle: string;
+  kind: PromptKind;
+  isNew: boolean;
+  nextReviewAt: string | null;
+  createdAt: string;
+}
+
+export interface SessionQueue {
+  items: SessionQueueItem[];
+}
+
 export interface LogReviewInput {
   topicId: string;
   promptId?: string;
@@ -197,6 +214,7 @@ export interface Dashboard {
   struggleRatio7d: number;
   newCards: number;
   nextUp: NextUp | null;
+  sessionQueueCount: number;
   due: { overdue: Topic[]; dueToday: Topic[] };
   counts: {
     total: number;
@@ -279,13 +297,20 @@ export interface NoteSummaryPlan {
 }
 
 export interface Unresolved {
-  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt';
+  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt' | 'studiedTopic';
   /** Topic title — absent only for card-review promptId misses (see ref). */
   title?: string;
   /** The unresolvable promptId — set only for kind 'prompt' card-review misses. */
   ref?: string;
   context: string;
-  reason: 'missing' | 'ambiguous' | 'self-reference';
+  reason: 'missing' | 'ambiguous' | 'self-reference' | 'archived';
+}
+
+export interface ActivationPlan {
+  topicTitle: string;
+  resolvedTopicId: string | null;
+  currentStatus: string | null;
+  willActivate: boolean;
 }
 
 export interface ImportPlan {
@@ -298,6 +323,7 @@ export interface ImportPlan {
   nextSession?: { focusTitle?: string | null; coldChallenge?: string | null } | null;
   unresolved: Unresolved[];
   applicable: boolean;
+  activations: ActivationPlan[];
 }
 
 export interface ImportResult {
@@ -307,6 +333,7 @@ export interface ImportResult {
   promptsCreated: number;
   noteSummariesApplied: number;
   nextSessionStored: boolean;
+  topicsActivated: number;
 }
 
 // ---- Auth ----

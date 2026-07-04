@@ -15,6 +15,7 @@ import type {
   RegisterInput,
   Review,
   Settings,
+  SessionQueue,
   StreakState,
   Topic,
   TopicDetail,
@@ -86,6 +87,8 @@ export const api = {
   getReviews: (topicId: string) => req<Review[]>(`/reviews?topicId=${encodeURIComponent(topicId)}`),
   getNextPrompt: (topicId: string) =>
     req<NextPromptPayload | null>(`/topics/${topicId}/prompts/next`),
+  getSessionQueue: () => req<SessionQueue>('/reviews/session-queue'),
+  getPrompt: (id: string) => req<NextPromptPayload>(`/prompts/${id}`),
   setPromptSuspended: (id: string, suspended: boolean) =>
     req<Prompt>(`/prompts/${id}`, { method: 'PATCH', ...json({ suspended }) }),
   deletePrompt: (id: string) => req<void>(`/prompts/${id}`, { method: 'DELETE' }),

@@ -3,34 +3,29 @@ import CodeMirror from '@uiw/react-codemirror';
 import { keymap } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
 import { useNextPrompt } from '../api/hooks';
-import type { Grade } from '../api/types';
+import type { Grade, Prompt } from '../api/types';
 
 const tabKeymap = keymap.of([indentWithTab]);
 
-/** Gates review submission behind a recall-then-reveal step when the topic
- *  has a due/new prompt. Falls back to rendering `children` immediately when
- *  the topic has none (evidence-only review), so today's review flow is
- *  unaffected. */
-export function ReviewGate({
-  topic,
+/** The recall-then-reveal step for one card: shows the prompt, a scratch
+ *  area, and only renders `children` (the grade form) after Reveal. Used by
+ *  ReviewGate (topic-scoped fetch) and ReviewSession (card-scoped fetch). */
+export function PromptRecall({
+  prompt,
+  previewIntervals,
   children,
 }: {
-  topic: { id: string };
+  prompt: Prompt;
+  previewIntervals: Record<Grade, number>;
   children: (promptId?: string, previewIntervals?: Record<Grade, number>) => ReactNode;
 }) {
-  const { data, isLoading } = useNextPrompt(topic.id);
   const [revealed, setRevealed] = useState(false);
   const [scratch, setScratch] = useState('');
 
   useEffect(() => {
     setRevealed(false);
     setScratch('');
-  }, [data?.prompt.id]);
-
-  if (isLoading) return null;
-  if (!data) return <>{children()}</>;
-
-  const { prompt, previewIntervals } = data;
+  }, [prompt.id]);
 
   return (
     <div className="col gap-3">
@@ -67,5 +62,28 @@ export function ReviewGate({
       </div>
       {revealed && children(prompt.id, previewIntervals)}
     </div>
+  );
+}
+
+/** Gates review submission behind a recall-then-reveal step when the topic
+ *  has a due/new prompt. Falls back to rendering `children` immediately when
+ *  the topic has none (evidence-only review), so today's review flow is
+ *  unaffected. */
+export function ReviewGate({
+  topic,
+  children,
+}: {
+  topic: { id: string };
+  children: (promptId?: string, previewIntervals?: Record<Grade, number>) => ReactNode;
+}) {
+  const { data, isLoading } = useNextPrompt(topic.id);
+
+  if (isLoading) return null;
+  if (!data) return <>{children()}</>;
+
+  return (
+    <PromptRecall prompt={data.prompt} previewIntervals={data.previewIntervals}>
+      {children}
+    </PromptRecall>
   );
 }
