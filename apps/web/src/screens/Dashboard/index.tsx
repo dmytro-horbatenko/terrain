@@ -8,7 +8,7 @@ import {
   useUpdateTopic,
 } from '../../api/hooks';
 import type { Topic, TopicStatus } from '../../api/types';
-import NextUpCard from './NextUpCard';
+import TodayCard from './TodayCard';
 import ReviewSession from './ReviewSession';
 import {
   Card,
@@ -41,20 +41,26 @@ export default function Dashboard() {
   const { mutate: updateTopic, isPending: starting } = useUpdateTopic();
   const exportCtx = useGenerateExport();
 
-  function copyContext(args: { mode: string }, label: string) {
-    exportCtx.mutate(args, {
-      onSuccess: (data) => {
-        if (!navigator.clipboard?.writeText) {
-          toast('Clipboard unavailable — use the Export screen to copy manually', 'info');
-          return;
-        }
-        navigator.clipboard
-          .writeText(data.exportMd)
-          .then(() => toast(`${label} copied — paste into a fresh Claude chat`, 'success'))
-          .catch(() => toast('Could not copy — use the Export screen to copy manually', 'error'));
-      },
-      onError: (e) => toast(e instanceof Error ? e.message : 'Export failed', 'error'),
-    });
+  async function copyContext(args: { mode: string }, label: string): Promise<boolean> {
+    let exportMd: string;
+    try {
+      ({ exportMd } = await exportCtx.mutateAsync(args));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Export failed', 'error');
+      return false;
+    }
+    if (!navigator.clipboard?.writeText) {
+      toast('Clipboard unavailable — use the Export screen to copy manually', 'info');
+      return false;
+    }
+    try {
+      await navigator.clipboard.writeText(exportMd);
+      toast(`${label} copied — paste into a fresh Claude chat`, 'success');
+      return true;
+    } catch {
+      toast('Could not copy — use the Export screen to copy manually', 'error');
+      return false;
+    }
   }
 
   // Telegram digest deep link: /?session=1 auto-opens the review session.
@@ -107,6 +113,16 @@ export default function Dashboard() {
       <h1 className="page-title">Dashboard</h1>
       <p className="page-sub">{today}</p>
 
+      <TodayCard
+        dash={dash}
+        onOpenSession={() => setSessionOpen(true)}
+        starting={starting}
+        onActivate={startTopic}
+        copying={exportCtx.isPending}
+        onCopyRepeat={() => void copyContext({ mode: 'repeat' }, 'Repetition context')}
+        onCopyLearn={() => copyContext({ mode: 'learn' }, 'Learning context')}
+      />
+
       {/* ---- KPI row ---- */}
       <div
         className="grid"
@@ -153,16 +169,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* ---- next up ---- */}
-      <NextUpCard
-        nextUp={dash.nextUp}
-        plannedCount={counts.planned}
-        starting={starting}
-        onStart={startTopic}
-        copying={exportCtx.isPending}
-        onCopyContext={() => copyContext({ mode: 'learn' }, 'Learning context')}
-      />
-
       {/* ---- struggle + library ---- */}
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
         <Card title="Struggle ratio (7d)">
@@ -205,20 +211,6 @@ export default function Dashboard() {
       </div>
 
       {/* ---- due for review ---- */}
-      {dash.sessionQueueCount > 0 && (
-        <div className="row gap-2" style={{ marginBottom: 14 }}>
-          <button className="btn btn-primary" onClick={() => setSessionOpen(true)}>
-            ▶ Review all ({dash.sessionQueueCount})
-          </button>
-          <button
-            className="btn"
-            disabled={exportCtx.isPending}
-            onClick={() => copyContext({ mode: 'repeat' }, 'Repetition context')}
-          >
-            {exportCtx.isPending ? 'Generating…' : '⧉ Copy repetition context'}
-          </button>
-        </div>
-      )}
       <h2 className="card-title" style={{ marginBottom: 10 }}>
         Due for review
       </h2>
