@@ -28,6 +28,15 @@ const noteSummarySchema = z
   })
   .strict();
 
+const applicationEventSchema = z
+  .object({
+    topicTitle: z.string().min(1).max(300),
+    kind: z.enum(['project_usage', 'problem_solved', 'audit_exercise', 'real_debugging']),
+    description: z.string().min(1).max(2000),
+    url: z.string().url().max(500).optional(),
+  })
+  .strict();
+
 export const GRADES = ['again', 'hard', 'good', 'easy'] as const;
 export type Grade = (typeof GRADES)[number];
 
@@ -63,6 +72,7 @@ export const learningOsV2Schema = z
     proposedTopics: z.array(proposedTopicSchema).max(200).default([]),
     proposedPrompts: z.array(proposedPromptV2Schema).max(500).default([]),
     noteSummaries: z.array(noteSummarySchema).max(200).default([]),
+    applicationEvents: z.array(applicationEventSchema).max(50).default([]),
     studiedTopics: z.array(z.string().min(1).max(300)).max(20).optional(),
     nextSession: z
       .object({

@@ -259,3 +259,68 @@ describe('studiedTopics', () => {
     expect(learningOsV2Schema.safeParse({ ...base, bogus: true }).success).toBe(false);
   });
 });
+
+describe('applicationEvents (v2)', () => {
+  it('defaults to [] when omitted (old blocks still parse)', () => {
+    const out = parseLearningOs(minimalV2);
+    expect(out.applicationEvents).toEqual([]);
+  });
+
+  it('parses a valid application event', () => {
+    const block = `\`\`\`learning-os
+{
+  "version": 2,
+  "reviews": [],
+  "proposedTopics": [],
+  "proposedPrompts": [],
+  "noteSummaries": [],
+  "applicationEvents": [
+    { "topicTitle": "Monotonic stack", "kind": "problem_solved",
+      "description": "Solved LC 739 from scratch", "url": "https://leetcode.com/problems/daily-temperatures/" }
+  ]
+}
+\`\`\``;
+    const out = parseLearningOs(block);
+    expect(out.applicationEvents).toHaveLength(1);
+    expect(out.applicationEvents[0].kind).toBe('problem_solved');
+    expect(out.applicationEvents[0].topicTitle).toBe('Monotonic stack');
+  });
+
+  it('rejects an unknown kind', () => {
+    const bad = {
+      version: 2,
+      reviews: [],
+      proposedTopics: [],
+      proposedPrompts: [],
+      noteSummaries: [],
+      applicationEvents: [{ topicTitle: 'X', kind: 'invented', description: 'd' }],
+    };
+    expect(learningOsV2Schema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a missing description', () => {
+    const bad = {
+      version: 2,
+      reviews: [],
+      proposedTopics: [],
+      proposedPrompts: [],
+      noteSummaries: [],
+      applicationEvents: [{ topicTitle: 'X', kind: 'problem_solved' }],
+    };
+    expect(learningOsV2Schema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a malformed url', () => {
+    const bad = {
+      version: 2,
+      reviews: [],
+      proposedTopics: [],
+      proposedPrompts: [],
+      noteSummaries: [],
+      applicationEvents: [
+        { topicTitle: 'X', kind: 'problem_solved', description: 'd', url: 'not-a-url' },
+      ],
+    };
+    expect(learningOsV2Schema.safeParse(bad).success).toBe(false);
+  });
+});
