@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useImportApply, useImportPreview } from '../../api/hooks';
 import { Card, ErrorBox, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
@@ -21,13 +22,28 @@ export default function ImportScreen() {
   const importPreview = useImportPreview();
   const importApply = useImportApply();
 
-  const onPreview = () => {
-    setApplyResult(null);
-    importPreview.mutate(text, {
-      onSuccess: (p) => setPlan(p),
-      onError: () => setPlan(null),
-    });
-  };
+  const lastPreviewed = useRef<string | null>(null);
+
+  const runPreview = useCallback(
+    (raw: string) => {
+      lastPreviewed.current = raw;
+      setApplyResult(null);
+      importPreview.mutate(raw, {
+        onSuccess: (p) => setPlan(p),
+        onError: () => setPlan(null),
+      });
+    },
+    [importPreview.mutate],
+  );
+
+  // Auto-preview: once the pasted text contains a learning-os block, the
+  // deterministic read-only diff runs on its own; the button stays for
+  // manual re-runs.
+  useEffect(() => {
+    if (!/```\s*learning-os/.test(text) || text === lastPreviewed.current) return;
+    const t = setTimeout(() => runPreview(text), 600);
+    return () => clearTimeout(t);
+  }, [text, runPreview]);
 
   const onApply = () => {
     importApply.mutate(text, {
@@ -65,7 +81,7 @@ export default function ImportScreen() {
               type="button"
               className="btn btn-primary"
               disabled={!text.trim() || importPreview.isPending}
-              onClick={onPreview}
+              onClick={() => runPreview(text)}
             >
               {importPreview.isPending ? (
                 <span className="row gap-2">
@@ -134,32 +150,43 @@ export default function ImportScreen() {
           }
           style={{ borderColor: 'var(--st-mastered)' }}
         >
-          <div className="stat-strip">
-            <div className="kpi">
-              <div>{applyResult.reviewsApplied}</div>
-              <div className="kpi-label">reviews applied</div>
-            </div>
-            <div className="kpi">
-              <div>{applyResult.topicsCreated.length}</div>
-              <div className="kpi-label">new topics</div>
-            </div>
-            <div className="kpi">
-              <div>{applyResult.promptsCreated}</div>
-              <div className="kpi-label">new cards</div>
-            </div>
-            <div className="kpi">
-              <div>{applyResult.topicsActivated}</div>
-              <div className="kpi-label">topics activated</div>
-            </div>
-            <div className="kpi">
-              <div>{applyResult.noteSummariesApplied}</div>
-              <div className="kpi-label">note summaries</div>
-            </div>
-            <div className="kpi">
-              <div>{applyResult.nextSessionStored ? '✓' : '—'}</div>
-              <div className="kpi-label">
-                {applyResult.nextSessionStored ? 'next focus stored' : 'no next focus'}
+          <div className="col gap-3">
+            <div className="stat-strip">
+              <div className="kpi">
+                <div>{applyResult.reviewsApplied}</div>
+                <div className="kpi-label">reviews applied</div>
               </div>
+              <div className="kpi">
+                <div>{applyResult.topicsCreated.length}</div>
+                <div className="kpi-label">new topics</div>
+              </div>
+              <div className="kpi">
+                <div>{applyResult.promptsCreated}</div>
+                <div className="kpi-label">new cards</div>
+              </div>
+              <div className="kpi">
+                <div>{applyResult.topicsActivated}</div>
+                <div className="kpi-label">topics activated</div>
+              </div>
+              <div className="kpi">
+                <div>{applyResult.noteSummariesApplied}</div>
+                <div className="kpi-label">note summaries</div>
+              </div>
+              <div className="kpi">
+                <div>{applyResult.nextSessionStored ? '✓' : '—'}</div>
+                <div className="kpi-label">
+                  {applyResult.nextSessionStored ? 'next focus stored' : 'no next focus'}
+                </div>
+              </div>
+            </div>
+
+            <div className="row gap-2" style={{ alignItems: 'center' }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>
+                The loop is re-armed — the Dashboard reflects these changes.
+              </span>
+              <Link to="/" className="btn btn-primary btn-sm">
+                Back to Dashboard
+              </Link>
             </div>
           </div>
         </Card>
