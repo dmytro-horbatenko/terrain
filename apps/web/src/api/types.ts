@@ -209,12 +209,20 @@ export interface NextUp {
   chapterProgress: { started: number; total: number } | null;
 }
 
+export interface PendingSession {
+  id: string;
+  mode: 'repeat' | 'learn';
+  generatedAt: string; // ISO over JSON
+}
+
 export interface Dashboard {
   generatedAt: string;
   struggleRatio7d: number;
   newCards: number;
   nextUp: NextUp | null;
   sessionQueueCount: number;
+  sessionQueueMinutes: number;
+  pendingSessions: PendingSession[];
   due: { overdue: Topic[]; dueToday: Topic[] };
   counts: {
     total: number;

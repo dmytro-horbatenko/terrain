@@ -215,8 +215,11 @@ export function useSkipStreak() {
 }
 
 export function useGenerateExport() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (opts: { mode?: string; focusTopicId?: string }) => api.getExport(opts),
+    // A new SessionExport row may change the dashboard's pendingSessions.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
   });
 }
 

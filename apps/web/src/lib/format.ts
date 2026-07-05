@@ -75,3 +75,14 @@ export function noteRefHref(
   if (!m && file.includes('>')) return null;
   return `obsidian://open?vault=${encodeURIComponent(obsidianVault)}&file=${encodeURIComponent(file)}`;
 }
+
+/** Compact relative "how long ago" label for a past ISO timestamp. */
+export function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms) || ms < 60_000) return 'just now';
+  const min = Math.floor(ms / 60_000);
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
