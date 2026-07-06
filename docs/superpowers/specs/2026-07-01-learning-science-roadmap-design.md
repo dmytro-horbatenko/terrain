@@ -1,5 +1,25 @@
 # Learning-Science Roadmap — Design
 
+> **Status (updated 2026-07-03 — supersedes the present-tense framing below).**
+> This spec was written 2026-07-01 as forward-looking sequencing. Three of the
+> four stages have since shipped; the problem statements below describe the
+> *pre-build* world and are kept for history.
+>
+> - **Stage 1 — Retrieval prompts: SHIPPED (2026-07-01).** `Prompt` entity with
+>   its own SR schedule, `proposedPrompts[]` in the import contract, `ReviewGate`
+>   recall-then-reveal, prompt graduation/suspension, write-from-scratch code
+>   recall. See `progress.md` ("RETRIEVAL PROMPTS", "PROMPT GRADUATION").
+> - **Stage 2 — Reminders (Telegram): SHIPPED (2026-07-02).** grammY digest +
+>   streak nudge, per-user hours, deep-link linking. Scope cut to digest+nudge
+>   only (no in-Telegram grading) per the 2026-07-02 deep review. See
+>   `progress.md` ("TELEGRAM DIGEST").
+> - **Stage 3 — Interleaving: SHIPPED (2026-07-03).** Built as the Interleaved
+>   Review Session (`interleaveQueue`, `sessionQueue`, in-app `ReviewSession`),
+>   not merely a due-queue reorder. See `progress.md` ("Interleaved Review
+>   Session"). *This stage's design paragraph below undersold what was built.*
+> - **Stage 4 — Structured notes: NOT STARTED, premise stale — see the rewritten
+>   Stage 4 section below for the current-reality scope + open product decision.**
+
 ## Purpose
 
 Terrain currently implements real spaced repetition (SM-2 scheduling per
@@ -92,28 +112,57 @@ due-queue query to reorder rather than defining it from scratch.
 
 ## Stage 4 — Structured notes
 
-**Problem:** the manual topic-edit UI (`apps/web` `TopicDetailPanel.tsx`)
-exposes a single free-text `summary` textarea, while the AI-import path
-already composes structured notes via `composeSummary()`
-(`apps/api/src/import/import.service.ts`) from three fields: key insight,
-invariant, and contradiction/watch-out. Manually-written notes don't get
-the benefit of that structure.
+> **Rewritten 2026-07-03 — the original design (kept at the bottom of this
+> section) rested on assumptions that no longer hold. This stage now needs a
+> product decision before any plan is written.**
 
-**Design:** replace the single textarea with the same three fields
-(`keyInsight`, `invariant`, `contradiction`) in the manual edit UI, composed
-into the stored `summary` via the same `composeSummary()` function so
-hand-written and Claude-imported notes are structurally identical. This
-stage is about elaboration (explaining why/how a concept works and where it
-breaks), a distinct mechanism from Stage 1's retrieval — deliberately not
-adding retrieval-style cues (e.g. Cloze deletion) into notes, since that
-would duplicate Stage 1's job rather than complementing it.
+**Original premise (2026-07-01):** the manual topic-edit UI exposes "a single
+free-text `summary` textarea" with no structure, unlike AI imports.
 
-**Depends on:** fully independent; sequenced last by priority only, not by
-technical dependency — could be built any time after this spec.
+**What's actually true now** (`apps/web/src/components/TopicDetailPanel.tsx`,
+`apps/api/prisma/schema.prisma`):
+- `Topic` carries **three** note-ish fields, all editable in the panel:
+  `description` (short blurb), `summary` (the "Written summary (teaching
+  condition)" textarea), and `noteRef` (external reference).
+- `noteRef` is a full **external-note-system integration** — `User.noteSystem`
+  + `Settings.obsidianVault` produce clickable `obsidian://` deep links
+  (`noteRefHref`). This has existed since the original 2026-06-30 design, which
+  deliberately positions Terrain as **not a note app**: real notes live in
+  Obsidian/OneNote, Terrain holds only a short teaching summary + a named
+  reference.
+- `summary` is **load-bearing for mastery**: the "teaching" condition is
+  `summary != null || noteRef != null`.
+- `composeSummary()` (keyInsight / invariant / contradiction) and the
+  `noteSummaries[]` import contract are **unchanged** — the original mechanism
+  is still available if we want it.
+
+**The open decision** (mechanically the original plan still works; the question
+is whether it's worth it):
+1. **Re-brainstorm** — decide what "better elaboration" means today given
+   `description` + `summary` + `noteRef` + Obsidian already exist. Likely
+   narrower/different than the 2026-07-01 sketch.
+2. **Build as originally specced** — swap the `summary` textarea for the three
+   `composeSummary()` fields. Small, ignores the `noteRef`/`description` overlap
+   and the "don't be a note app" tension.
+3. **Drop the stage** — accept that structured in-app notes fight the Obsidian
+   philosophy; close the roadmap at Stage 3 and remove dangling Stage-4
+   references (e.g. `2026-07-02-scheduling-core-fsrs-design.md` re: re-adding
+   `DailyLog.eveningNote`).
+
+**Depends on:** fully independent. **Decision owner: user (pending).**
+
+---
+
+**Original design text (2026-07-01, retained for history):** replace the single
+textarea with the same three fields (`keyInsight`, `invariant`, `contradiction`)
+in the manual edit UI, composed into the stored `summary` via the same
+`composeSummary()` function so hand-written and Claude-imported notes are
+structurally identical. Elaboration (why/how a concept works and where it
+breaks), distinct from Stage 1's retrieval — deliberately no Cloze-style cues.
 
 ## Sequencing summary
 
-1. Retrieval prompts (no dependencies)
-2. Reminders / Telegram bot (no dependencies, but unlocks the value of 1)
-3. Interleaving (builds on 2's due-queue query)
-4. Structured notes (fully independent, lowest priority)
+1. Retrieval prompts (no dependencies) — **SHIPPED 2026-07-01**
+2. Reminders / Telegram bot (no dependencies, but unlocks the value of 1) — **SHIPPED 2026-07-02**
+3. Interleaving (builds on 2's due-queue query) — **SHIPPED 2026-07-03 (as the Interleaved Review Session)**
+4. Structured notes (fully independent, lowest priority) — **NOT STARTED; premise stale, decision pending (see Stage 4 above)**
