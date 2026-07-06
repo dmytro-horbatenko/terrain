@@ -173,6 +173,10 @@ export default function ImportScreen() {
                 <div className="kpi-label">note summaries</div>
               </div>
               <div className="kpi">
+                <div>{applyResult.appEventsApplied}</div>
+                <div className="kpi-label">app. events</div>
+              </div>
+              <div className="kpi">
                 <div>{applyResult.nextSessionStored ? '✓' : '—'}</div>
                 <div className="kpi-label">
                   {applyResult.nextSessionStored ? 'next focus stored' : 'no next focus'}
