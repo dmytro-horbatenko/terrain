@@ -480,6 +480,7 @@ describe('ImportService.apply (transaction)', () => {
         update: jest.fn().mockResolvedValue({}),
         aggregate: jest.fn().mockResolvedValue({ _min: { nextReviewAt: null } }),
       },
+      applicationEvent: { create: jest.fn().mockResolvedValue({ id: 'ae-1' }) },
     };
   }
   async function svcWithTx(prisma: any): Promise<ImportService> {
@@ -1085,6 +1086,90 @@ describe('ImportService.apply (transaction)', () => {
         data: { status: 'active', aiProposed: false },
       });
       expect(res.topicsActivated).toBe(1);
+    });
+  });
+
+  describe('applicationEvents import', () => {
+    it('preview resolves an existing topic and reports no unresolved', async () => {
+      const { prisma } = build();
+      const service = await svc(prisma);
+      const raw = fence(
+        v2({
+          applicationEvents: [
+            { topicTitle: 'Stacks', kind: 'problem_solved', description: 'Solved LC739' },
+          ],
+        }),
+      );
+      const plan = await service.preview('userA', raw);
+      expect(plan.applicationEvents).toHaveLength(1);
+      expect(plan.applicationEvents[0].resolvedTopicId).toBe('t1');
+      expect(plan.unresolved).toHaveLength(0);
+    });
+
+    it('preview flags an unresolved topic title (blocks apply)', async () => {
+      const { prisma } = build();
+      const service = await svc(prisma);
+      const raw = fence(
+        v2({
+          applicationEvents: [{ topicTitle: 'Nope', kind: 'problem_solved', description: 'd' }],
+        }),
+      );
+      const plan = await service.preview('userA', raw);
+      expect(plan.applicable).toBe(false);
+      expect(plan.unresolved).toContainEqual(
+        expect.objectContaining({ kind: 'applicationEvent', title: 'Nope', reason: 'missing' }),
+      );
+    });
+
+    it('dedupes identical (topicTitle, kind, description) entries', async () => {
+      const { prisma } = build();
+      const service = await svc(prisma);
+      const raw = fence(
+        v2({
+          applicationEvents: [
+            { topicTitle: 'Stacks', kind: 'problem_solved', description: 'same' },
+            { topicTitle: 'stacks', kind: 'problem_solved', description: 'same' },
+          ],
+        }),
+      );
+      const plan = await service.preview('userA', raw);
+      expect(plan.applicationEvents).toHaveLength(1);
+    });
+
+    it('apply creates an ApplicationEvent row and counts it', async () => {
+      const tx = txMock();
+      const prisma: any = {
+        sessionExport: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }),
+        },
+        topic: { findMany: jest.fn().mockResolvedValue([TOPIC()]) },
+        prompt: { findMany: jest.fn().mockResolvedValue([]) },
+        $transaction: jest.fn((cb: any) => cb(tx)),
+      };
+      const service = await svcWithTx(prisma);
+      const raw = fence(
+        v2({
+          applicationEvents: [
+            {
+              topicTitle: 'Stacks',
+              kind: 'problem_solved',
+              description: 'Solved LC739',
+              url: 'https://leetcode.com/problems/daily-temperatures/',
+            },
+          ],
+        }),
+      );
+      const res = await service.apply('userA', raw);
+      expect(res.appEventsApplied).toBe(1);
+      expect(tx.applicationEvent.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'userA',
+          topicId: 't1',
+          kind: 'problem_solved',
+          description: 'Solved LC739',
+          url: 'https://leetcode.com/problems/daily-temperatures/',
+        },
+      });
     });
   });
 });

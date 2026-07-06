@@ -87,6 +87,14 @@ export interface NoteSummaryPlan {
   composedSummary: string;
   suggestedNoteRef?: string;
 }
+export interface ApplicationEventPlan {
+  topicTitle: string;
+  /** null = topic created in this same import (resolved by title inside apply's tx). */
+  resolvedTopicId: string | null;
+  kind: LearningOsV2['applicationEvents'][number]['kind'];
+  description: string;
+  url?: string;
+}
 // Aligned with the v2 contract's proposedPrompts entry type (packages/types)
 // rather than duplicated/widened, so promptKind/problemDifficulty stay
 // exactly the literal unions Prisma's Prompt columns expect.
@@ -124,7 +132,14 @@ export interface ActivationPlan {
  * always uses `title` (a topic title); `ref` is unused there.
  */
 export interface Unresolved {
-  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt' | 'studiedTopic';
+  kind:
+    | 'review'
+    | 'noteSummary'
+    | 'prerequisite'
+    | 'parent'
+    | 'prompt'
+    | 'studiedTopic'
+    | 'applicationEvent';
   title?: string;
   ref?: string;
   context: string;
@@ -137,6 +152,7 @@ export interface ImportPlan {
   newTopics: NewTopicPlan[];
   newPrompts: NewPromptPlan[];
   noteSummaries: NoteSummaryPlan[];
+  applicationEvents: ApplicationEventPlan[];
   activations: ActivationPlan[];
   nextSession?: LearningOsV2['nextSession'];
   unresolved: Unresolved[];
@@ -148,6 +164,7 @@ export interface ImportResult {
   topicsCreated: string[];
   promptsCreated: number;
   noteSummariesApplied: number;
+  appEventsApplied: number;
   topicsActivated: number;
   nextSessionStored: boolean;
 }
@@ -426,6 +443,25 @@ export class ImportService {
         noteSummariesApplied++;
       }
 
+      // f2. apply application events — the "doing" a session captured. Each
+      // resolves to an existing or in-batch topic (unresolved already blocked
+      // apply earlier); creating a row satisfies mastery's application gate.
+      let appEventsApplied = 0;
+      for (const ae of plan.applicationEvents) {
+        const id = ae.resolvedTopicId ?? idByNorm.get(norm(ae.topicTitle));
+        if (!id) continue;
+        await tx.applicationEvent.create({
+          data: {
+            userId,
+            topicId: id,
+            kind: ae.kind,
+            description: ae.description,
+            url: ae.url ?? null,
+          },
+        });
+        appEventsApplied++;
+      }
+
       // g. stamp the originating SessionExport + store nextSession
       const focusTitle = plan.nextSession?.focusTitle;
       const coldChallenge = plan.nextSession?.coldChallenge;
@@ -448,6 +484,7 @@ export class ImportService {
         topicsCreated,
         promptsCreated,
         noteSummariesApplied,
+        appEventsApplied,
         topicsActivated,
         nextSessionStored: nextFocusTitle != null,
       };
@@ -605,6 +642,38 @@ export class ImportService {
       };
     });
 
+    const seenAppEvent = new Set<string>();
+    const applicationEvents: ApplicationEventPlan[] = [];
+    for (const ae of parsed.applicationEvents) {
+      const dedupKey = `${norm(ae.topicTitle)}|${ae.kind}|${ae.description.trim()}`;
+      if (seenAppEvent.has(dedupKey)) continue; // drop exact duplicates
+      seenAppEvent.add(dedupKey);
+      const ex = resolveExisting(ae.topicTitle);
+      let resolvedTopicId: string | null = null;
+      if (ex.ambiguous)
+        unresolved.push({
+          kind: 'applicationEvent',
+          title: ae.topicTitle,
+          context: 'applicationEvent',
+          reason: 'ambiguous',
+        });
+      else if (ex.id != null) resolvedTopicId = ex.id;
+      else if (!inBatch(ae.topicTitle))
+        unresolved.push({
+          kind: 'applicationEvent',
+          title: ae.topicTitle,
+          context: 'applicationEvent',
+          reason: 'missing',
+        });
+      applicationEvents.push({
+        topicTitle: ae.topicTitle,
+        resolvedTopicId,
+        kind: ae.kind,
+        description: ae.description,
+        url: ae.url,
+      });
+    }
+
     const newPrompts: NewPromptPlan[] = parsed.proposedPrompts.map((p) => {
       const ex = resolveExisting(p.topicTitle);
       if (ex.ambiguous)
@@ -692,6 +761,7 @@ export class ImportService {
       newTopics,
       newPrompts,
       noteSummaries,
+      applicationEvents,
       activations,
       nextSession: parsed.nextSession,
       unresolved,

@@ -15,4 +15,18 @@ describe('OUTPUT_CONTRACT', () => {
     expect(OUTPUT_CONTRACT).toContain('grade');
     expect(OUTPUT_CONTRACT).toContain('promptId');
   });
+
+  it('documents the applicationEvents array', () => {
+    expect(OUTPUT_CONTRACT).toContain('applicationEvents');
+    expect(OUTPUT_CONTRACT).toContain('problem_solved');
+  });
+
+  it('keeps the grade-is-the-users-verdict rule', () => {
+    expect(OUTPUT_CONTRACT).toContain('never yours');
+  });
+
+  it('tells Claude to keep noteSummaries terse and point to external notes', () => {
+    expect(OUTPUT_CONTRACT.toLowerCase()).toContain('brief');
+    expect(OUTPUT_CONTRACT).toContain('Obsidian');
+  });
 });

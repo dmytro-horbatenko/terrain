@@ -24,8 +24,15 @@ When the session ends, output ONE fenced code block tagged \`learning-os\` conta
       "estimatedMinutes": 15 }
   ],
   "noteSummaries": [
-    { "topicTitle": "...", "keyInsight": "...", "invariant": "...",
-      "contradiction": "...", "suggestedNoteRef": "..." }
+    { "topicTitle": "...", "keyInsight": "brief — 1-2 sentences, depth lives in Obsidian",
+      "invariant": "only when genuinely sharp", "contradiction": "only when real",
+      "suggestedNoteRef": "Obsidian: DSA/Stacks/Monotonic" }
+  ],
+  "applicationEvents": [
+    { "topicTitle": "<exact title, existing or from proposedTopics>",
+      "kind": "problem_solved | project_usage | audit_exercise | real_debugging",
+      "description": "what I actually did/solved",
+      "url": "https://leetcode.com/problems/... (optional)" }
   ],
   "studiedTopics": ["<exact title of a topic genuinely studied this session>"],
   "nextSession": { "focusTitle": "...", "coldChallenge": "..." }
@@ -35,6 +42,13 @@ When the session ends, output ONE fenced code block tagged \`learning-os\` conta
 Rules: grade is one of again|hard|good|easy — the user's own recall verdict, never yours.
 Quiz through the DUE cards listed in this export and reference them by promptId.
 Prefer promptId reviews; use topicTitle-only reviews only for work outside any listed card.
+applicationEvents: record only things the user genuinely did this session (solved a novel
+problem, used it in a project) — one such event satisfies the topic's mastery application
+condition, so do not fabricate them.
+noteSummaries: keep each entry BRIEF — Terrain is an index, not a note store. Put the full
+conspect in the Obsidian note (write it as chat prose); keyInsight is a short pointer and
+suggestedNoteRef names where the depth lives. Name any secondary artifact (a OneNote drawing)
+inside the summary prose, not as a separate field.
 studiedTopics: titles of topics genuinely studied this session — a planned topic listed here
 is activated on import (its successors unblock). Do not list topics merely mentioned.
 Omit arrays you have nothing for (use []). Do not add fields outside this schema — the parser
