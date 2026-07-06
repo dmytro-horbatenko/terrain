@@ -1,15 +1,8 @@
-import { useEffect, useState } from 'react';
-import {
-  useDashboard,
-  useGenerateExport,
-  useHeatmap,
-  useSkipStreak,
-  useStreak,
-  useUpdateTopic,
-} from '../../api/hooks';
+import { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useDashboard, useHeatmap, useSkipStreak, useStreak } from '../../api/hooks';
 import type { Topic, TopicStatus } from '../../api/types';
 import TodayCard from './TodayCard';
-import ReviewSession from './ReviewSession';
 import {
   Card,
   EmptyState,
@@ -17,9 +10,6 @@ import {
   Gauge,
   Heatmap,
   Loading,
-  LogReviewForm,
-  Modal,
-  ReviewGate,
   STATUS_META,
   StatusBadge,
   tint,
@@ -36,42 +26,17 @@ export default function Dashboard() {
   const heatmapQ = useHeatmap();
   const skip = useSkipStreak();
   const { toast } = useToast();
-  const [logTopic, setLogTopic] = useState<Topic | null>(null);
-  const [sessionOpen, setSessionOpen] = useState(false);
-  const { mutate: updateTopic, isPending: starting } = useUpdateTopic();
-  const exportCtx = useGenerateExport();
+  const navigate = useNavigate();
 
-  async function copyContext(args: { mode: string }, label: string): Promise<boolean> {
-    let exportMd: string;
-    try {
-      ({ exportMd } = await exportCtx.mutateAsync(args));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Export failed', 'error');
-      return false;
-    }
-    if (!navigator.clipboard?.writeText) {
-      toast('Clipboard unavailable — use the Export screen to copy manually', 'info');
-      return false;
-    }
-    try {
-      await navigator.clipboard.writeText(exportMd);
-      toast(`${label} copied — paste into a fresh Claude chat`, 'success');
-      return true;
-    } catch {
-      toast('Could not copy — use the Export screen to copy manually', 'error');
-      return false;
-    }
-  }
-
-  // Telegram digest deep link: /?session=1 auto-opens the review session.
+  // Telegram digest deep link: /?session=1 opens the review wizard.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('session') !== '1') return;
-    setSessionOpen(true);
     params.delete('session');
     const qs = params.toString();
     window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
-  }, []);
+    navigate({ to: '/session/$mode', params: { mode: 'repeat' } });
+  }, [navigate]);
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -96,16 +61,6 @@ export default function Dashboard() {
     });
   }
 
-  function startTopic(topic: Topic) {
-    updateTopic(
-      { id: topic.id, input: { status: 'active', aiProposed: false } },
-      {
-        onSuccess: () => setLogTopic({ ...topic, status: 'active' }),
-        onError: (e) => toast(e instanceof Error ? e.message : 'Could not start topic', 'error'),
-      },
-    );
-  }
-
   const dueCount = due.overdue.length + due.dueToday.length;
 
   return (
@@ -113,15 +68,7 @@ export default function Dashboard() {
       <h1 className="page-title">Dashboard</h1>
       <p className="page-sub">{today}</p>
 
-      <TodayCard
-        dash={dash}
-        onOpenSession={() => setSessionOpen(true)}
-        starting={starting}
-        onActivate={startTopic}
-        copying={exportCtx.isPending}
-        onCopyRepeat={() => void copyContext({ mode: 'repeat' }, 'Repetition context')}
-        onCopyLearn={() => copyContext({ mode: 'learn' }, 'Learning context')}
-      />
+      <TodayCard dash={dash} />
 
       {/* ---- KPI row ---- */}
       <div
@@ -219,38 +166,11 @@ export default function Dashboard() {
       ) : (
         <div className="col gap-4">
           {due.overdue.length > 0 && (
-            <DueGroup
-              label="Overdue"
-              labelColor="var(--st-blocked)"
-              topics={due.overdue}
-              onLog={setLogTopic}
-            />
+            <DueGroup label="Overdue" labelColor="var(--st-blocked)" topics={due.overdue} />
           )}
-          {due.dueToday.length > 0 && (
-            <DueGroup label="Due today" topics={due.dueToday} onLog={setLogTopic} />
-          )}
+          {due.dueToday.length > 0 && <DueGroup label="Due today" topics={due.dueToday} />}
         </div>
       )}
-
-      <Modal open={!!logTopic} onClose={() => setLogTopic(null)} title={logTopic?.title}>
-        {logTopic && (
-          <ReviewGate topic={logTopic}>
-            {(promptId, previewIntervals) => (
-              <LogReviewForm
-                topic={logTopic}
-                onLogged={() => setLogTopic(null)}
-                autoFocusNote
-                promptId={promptId}
-                previewIntervals={previewIntervals}
-              />
-            )}
-          </ReviewGate>
-        )}
-      </Modal>
-
-      <Modal open={sessionOpen} onClose={() => setSessionOpen(false)} title="Review session">
-        {sessionOpen && <ReviewSession onClose={() => setSessionOpen(false)} />}
-      </Modal>
     </div>
   );
 }
@@ -259,12 +179,10 @@ function DueGroup({
   label,
   labelColor,
   topics,
-  onLog,
 }: {
   label: string;
   labelColor?: string;
   topics: Topic[];
-  onLog: (t: Topic) => void;
 }) {
   return (
     <div className="col gap-2">
@@ -304,9 +222,6 @@ function DueGroup({
               >
                 {due.text}
               </span>
-              <button className="btn btn-primary btn-sm" onClick={() => onLog(t)}>
-                Log
-              </button>
             </div>
           );
         })}
