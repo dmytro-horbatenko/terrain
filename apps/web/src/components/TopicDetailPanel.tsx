@@ -62,6 +62,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
   const [domain, setDomain] = useState('');
   const [topicType, setTopicType] = useState('');
   const [description, setDescription] = useState('');
+  const [editingSummary, setEditingSummary] = useState(false);
 
   useEffect(() => {
     if (t) {
@@ -73,6 +74,13 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       setDescription(t.description ?? '');
     }
   }, [t?.id]); // re-seed when a different topic loads
+
+  // Keep the read-only summary's save payload in sync with server truth even
+  // while the panel stays mounted on the same topic, so a reference-only save
+  // never clobbers a freshly session-authored summary. Skip while mid-edit.
+  useEffect(() => {
+    if (t && !editingSummary) setSummary(t.summary ?? '');
+  }, [t?.summary, editingSummary]);
 
   if (isLoading) return <Loading />;
   if (error || !t) return <ErrorBox error={error ?? 'Topic not found'} />;
@@ -322,20 +330,64 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
             ↗ {noteHref.startsWith('obsidian://') ? 'open in Obsidian' : 'open current reference'}
           </a>
         )}
-        <textarea
-          className="textarea"
-          placeholder="Written summary (teaching condition)"
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-        />
         <button
           className="btn btn-sm"
           style={{ alignSelf: 'flex-start' }}
           disabled={update.isPending}
           onClick={saveNotes}
         >
-          Save notes
+          Save reference
         </button>
+        {/* Summary is authored by Claude sessions (composeSummary on import),
+            not hand-typed. Show it read-only; manual edits are an escape hatch. */}
+        {t.summary ? (
+          <div className="card card-pad" style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>
+            {t.summary}
+          </div>
+        ) : (
+          <span className="faint" style={{ fontSize: 12 }}>
+            No summary yet — a Claude learning session writes one on import.
+          </span>
+        )}
+        {editingSummary ? (
+          <>
+            <textarea
+              className="textarea"
+              placeholder="Manual summary override (teaching condition)"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
+            <div className="row gap-2">
+              <button
+                className="btn btn-sm"
+                disabled={update.isPending}
+                onClick={() => {
+                  saveNotes();
+                  setEditingSummary(false);
+                }}
+              >
+                Save notes
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setSummary(t.summary ?? '');
+                  setEditingSummary(false);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setEditingSummary(true)}
+          >
+            Edit manually
+          </button>
+        )}
       </div>
 
       {/* review history */}

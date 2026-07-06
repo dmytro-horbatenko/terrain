@@ -305,7 +305,14 @@ export interface NoteSummaryPlan {
 }
 
 export interface Unresolved {
-  kind: 'review' | 'noteSummary' | 'prerequisite' | 'parent' | 'prompt' | 'studiedTopic';
+  kind:
+    | 'review'
+    | 'noteSummary'
+    | 'prerequisite'
+    | 'parent'
+    | 'prompt'
+    | 'studiedTopic'
+    | 'applicationEvent';
   /** Topic title — absent only for card-review promptId misses (see ref). */
   title?: string;
   /** The unresolvable promptId — set only for kind 'prompt' card-review misses. */
@@ -340,6 +347,7 @@ export interface ImportResult {
   topicsCreated: string[];
   promptsCreated: number;
   noteSummariesApplied: number;
+  appEventsApplied: number;
   nextSessionStored: boolean;
   topicsActivated: number;
 }
