@@ -12,6 +12,4 @@ export * from './PromptsPanel';
 export * from './Gauge';
 export * from './GradePicker';
 export * from './TypeAutocomplete';
-export * from './LogReviewForm';
-export * from './ReviewGate';
 export * from './TopicDetailPanel';

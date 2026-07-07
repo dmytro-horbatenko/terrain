@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useSettings, useTopic, useUpdateTopic } from '../api/hooks';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
-import { LogReviewForm } from './LogReviewForm';
-import { ReviewGate } from './ReviewGate';
 import { IntervalGrowthChart } from './IntervalGrowthChart';
 import { AppEventsPanel } from './AppEventsPanel';
 import { PromptsPanel } from './PromptsPanel';
@@ -428,18 +426,6 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
             ))}
           </div>
         )}
-      </div>
-
-      {/* log a review */}
-      <div className="card card-pad col gap-3">
-        <div className="card-title" style={{ margin: 0 }}>
-          Log a review
-        </div>
-        <ReviewGate topic={t}>
-          {(promptId, previewIntervals) => (
-            <LogReviewForm topic={t} promptId={promptId} previewIntervals={previewIntervals} />
-          )}
-        </ReviewGate>
       </div>
     </div>
   );

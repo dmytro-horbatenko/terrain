@@ -4,7 +4,6 @@ import type {
   CreateAppEventInput,
   CreateTopicInput,
   LoginInput,
-  LogReviewInput,
   RegisterInput,
   UpdateProfileInput,
   UpdateSettingsInput,
@@ -43,25 +42,6 @@ export function useReviews(topicId: string | null) {
     queryKey: qk.reviews(topicId ?? ''),
     queryFn: () => api.getReviews(topicId!),
     enabled: !!topicId,
-  });
-}
-
-export function useNextPrompt(topicId: string | null) {
-  return useQuery({
-    queryKey: qk.nextPrompt(topicId ?? ''),
-    queryFn: () => api.getNextPrompt(topicId!),
-    enabled: !!topicId,
-  });
-}
-
-/** One card by id, for the review session. retry:false so a 404 (card
- *  deleted mid-session) surfaces immediately and the session can skip it. */
-export function usePrompt(id: string | null) {
-  return useQuery({
-    queryKey: qk.prompt(id ?? ''),
-    queryFn: () => api.getPrompt(id!),
-    enabled: !!id,
-    retry: false,
   });
 }
 
@@ -170,14 +150,6 @@ export function useDeleteTopic() {
   return useMutation({
     mutationFn: (id: string) => api.deleteTopic(id),
     onSuccess: () => invalidate(),
-  });
-}
-
-export function useLogReview() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (input: LogReviewInput) => api.logReview(input),
-    onSuccess: (_data, vars) => invalidate(vars.topicId),
   });
 }
 

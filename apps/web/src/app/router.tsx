@@ -6,6 +6,7 @@ import Roadmap from '../screens/Roadmap';
 import ExportScreen from '../screens/Export';
 import ImportScreen from '../screens/Import';
 import Settings from '../screens/Settings';
+import SessionWizard from '../screens/Session';
 
 const rootRoute = createRootRoute({ component: Layout });
 
@@ -39,6 +40,11 @@ const settingsRoute = createRoute({
   path: '/settings',
   component: Settings,
 });
+export const sessionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/session/$mode',
+  component: SessionWizard,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -47,6 +53,7 @@ const routeTree = rootRoute.addChildren([
   exportRoute,
   importRoute,
   settingsRoute,
+  sessionRoute,
 ]);
 
 export const router = createRouter({ routeTree });

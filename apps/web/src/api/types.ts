@@ -328,6 +328,14 @@ export interface ActivationPlan {
   willActivate: boolean;
 }
 
+export interface ApplicationEventPlan {
+  topicTitle: string;
+  resolvedTopicId: string | null;
+  kind: AppEventKind;
+  description: string;
+  url?: string;
+}
+
 export interface ImportPlan {
   sessionExportId: string;
   alreadyImported: boolean;
@@ -339,6 +347,7 @@ export interface ImportPlan {
   unresolved: Unresolved[];
   applicable: boolean;
   activations: ActivationPlan[];
+  applicationEvents?: ApplicationEventPlan[];
 }
 
 export interface ImportResult {
