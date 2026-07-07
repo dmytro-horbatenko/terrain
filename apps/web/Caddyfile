@@ -6,6 +6,17 @@
 # back to plain HTTP. For a local smoke test of these prod images, either add
 # `-k`/`--insecure` to curl or trust Caddy's internal root (it prints where
 # to find it in the `web` container's logs on first boot).
+# Global options block (must come first, no site address). Restricts Caddy to
+# HTTP/1.1 + HTTP/2 — without this it also tries to speak HTTP/3 over UDP/443,
+# which can collide with another service already bound to that port on a
+# shared box (see docs/ops/deploy.md). h1/h2 alone is a negligible speed cost;
+# browsers fall back to h2 transparently.
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 {$DOMAIN:localhost} {
 	encode gzip
 

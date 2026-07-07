@@ -25,7 +25,7 @@ export default defineConfig({
     },
   },
   server: {
-    // Dedicated port (5173/5174 are taken by the Midas Backoffice dev server).
+    // Dedicated port, distinct from Vite's default 5173/5174 range.
     port: 5180,
     strictPort: true,
     proxy: {
