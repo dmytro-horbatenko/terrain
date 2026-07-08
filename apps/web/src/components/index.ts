@@ -4,7 +4,6 @@ export * from './Toast';
 export * from './StatusBadge';
 export * from './status';
 export * from './Feedback';
-export * from './Sparkline';
 export * from './IntervalGrowthChart';
 export * from './Heatmap';
 export * from './AppEventsPanel';

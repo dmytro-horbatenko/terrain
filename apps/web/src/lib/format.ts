@@ -47,10 +47,6 @@ export function dueLabel(nextReviewAt: string | null | undefined): DueInfo {
   return { text: `in ${days}d`, overdue: false, quiet: false, days };
 }
 
-export function pct(x: number): string {
-  return `${Math.round(x * 100)}%`;
-}
-
 export function isUrl(s: string | null | undefined): boolean {
   return !!s && /^https?:\/\//i.test(s);
 }
@@ -74,15 +70,4 @@ export function noteRefHref(
   // A "A > B > C" path with no obsidian prefix reads as a OneNote section path.
   if (!m && file.includes('>')) return null;
   return `obsidian://open?vault=${encodeURIComponent(obsidianVault)}&file=${encodeURIComponent(file)}`;
-}
-
-/** Compact relative "how long ago" label for a past ISO timestamp. */
-export function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms) || ms < 60_000) return 'just now';
-  const min = Math.floor(ms / 60_000);
-  if (min < 60) return `${min}m ago`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
 }

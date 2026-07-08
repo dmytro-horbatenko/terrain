@@ -8,7 +8,6 @@ export const STATUS_META: Record<TopicStatus, { label: string; glyph: string; co
 };
 
 export const BLOCKED_COLOR = 'var(--st-blocked)';
-export const REVIEWING_COLOR = 'var(--st-reviewing)';
 
 /** Effective display color: a blocked topic reads red regardless of status. */
 export function topicColor(status: TopicStatus, blocked?: boolean): string {
