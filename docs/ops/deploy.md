@@ -10,16 +10,28 @@ the security review report.
   it requests a Let's Encrypt certificate for that name on first boot and
   will fail (or fall back to HTTP) if the DNS isn't live yet.
 - Install Docker Engine + the Compose plugin.
-- Firewall: only 22 (SSH), 80, and 443 need to be open.
+- Firewall: only 22 (SSH), 80/tcp, and 443/tcp need to be open for Terrain.
   ```bash
-  ufw allow 22/tcp
-  ufw allow 80/tcp
-  ufw allow 443/tcp
-  ufw enable
+  sudo ufw allow 80/tcp
+  sudo ufw allow 443/tcp
   ```
+  If `ufw` isn't active yet on this box, also run `sudo ufw allow 22/tcp` and
+  `sudo ufw enable` — but check `sudo ufw status verbose` **first**. On a box
+  already running something else (e.g. a game server, a VPN), `ufw` may
+  already be active with its own rules; `allow` only adds a rule, it never
+  removes existing ones, so it's always safe to run — but `enable` on an
+  *inactive* firewall applies its default-deny policy immediately, which can
+  cut off a service's ports that were reachable un-firewalled until now. Add
+  rules for any other service's ports first if you're enabling `ufw` for the
+  first time on a box that already runs something else.
+
   Postgres (5432) and the API (3000) are **not** exposed on the host at all —
   `docker-compose.prod.yml` keeps them on an internal Docker network only, so
-  there's nothing to firewall there.
+  there's nothing to firewall there. Caddy's global options
+  (`apps/web/Caddyfile`) also restrict it to HTTP/1.1 + HTTP/2, so it never
+  tries to bind UDP/443 — safe even if another service already owns that port
+  (e.g. a UDP-443 VPN/proxy), since it's a distinct protocol+port pair from
+  the TCP/443 Caddy actually needs.
 - SSH: key-only auth, disable root login and password auth
   (`PasswordAuthentication no`, `PermitRootLogin no` in `sshd_config`), and
   turn on unattended security upgrades (`unattended-upgrades` package).
@@ -32,7 +44,9 @@ Neither file below is committed — both are gitignored.
 
 ```bash
 cp .env.production.example .env.production
-# fill in POSTGRES_PASSWORD (openssl rand -base64 24) and DOMAIN
+# fill in POSTGRES_PASSWORD (openssl rand -hex 24 — hex, not base64; the
+# value is spliced unescaped into a connection-string URL, and base64's `/`
+# and `+` break URL parsing there) and DOMAIN
 
 cp apps/api/.env.example apps/api/.env
 # fill in JWT_SECRET (openssl rand -base64 48)
