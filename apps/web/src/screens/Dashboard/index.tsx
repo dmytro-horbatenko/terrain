@@ -68,86 +68,83 @@ export default function Dashboard() {
       <h1 className="page-title">Dashboard</h1>
       <p className="page-sub">{today}</p>
 
-      <TodayCard dash={dash} />
+      <div className="col gap-4">
+        <TodayCard dash={dash} />
 
-      {/* ---- KPI row ---- */}
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 18 }}
-      >
-        <Card>
-          <div className="kpi" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span aria-hidden>🔥</span>
-            <span>{streak.currentStreak}</span>
-          </div>
-          <div className="kpi-label">day streak — best {streak.longestStreak}</div>
-        </Card>
+        {/* ---- KPI row ---- */}
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <Card>
+            <div className="kpi" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span aria-hidden>🔥</span>
+              <span>{streak.currentStreak}</span>
+            </div>
+            <div className="kpi-label">day streak — best {streak.longestStreak}</div>
+          </Card>
 
-        <Card>
-          <div className="kpi" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span aria-hidden>🛡️</span>
-            <span>{streak.freezeBalance}</span>
-          </div>
-          <div className="kpi-label">freezes available</div>
-          <button
-            className="btn btn-sm"
-            style={{ marginTop: 10 }}
-            disabled={skip.isPending || streak.freezeBalance <= 0}
-            onClick={useFreeze}
-          >
-            {skip.isPending ? 'Using…' : 'Use freeze (skip today)'}
-          </button>
-        </Card>
+          <Card>
+            <div className="kpi" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span aria-hidden>🛡️</span>
+              <span>{streak.freezeBalance}</span>
+            </div>
+            <div className="kpi-label">freezes available</div>
+            <button
+              className="btn btn-sm"
+              style={{ marginTop: 10 }}
+              disabled={skip.isPending || streak.freezeBalance <= 0}
+              onClick={useFreeze}
+            >
+              {skip.isPending ? 'Using…' : 'Use freeze (skip today)'}
+            </button>
+          </Card>
 
-        <Card>
-          <div className="kpi">{counts.dueToday}</div>
-          <div className="kpi-label">
-            due today
-            {counts.overdue > 0 && <span className="faint"> · + {counts.overdue} overdue</span>}
-            <span className="pill" style={{ marginLeft: 6 }}>
-              New: {dash.newCards}
-            </span>
-          </div>
-        </Card>
+          <Card>
+            <div className="kpi">{counts.dueToday}</div>
+            <div className="kpi-label">
+              due today
+              {counts.overdue > 0 && <span className="faint"> · + {counts.overdue} overdue</span>}
+              <span className="pill" style={{ marginLeft: 6 }}>
+                New: {dash.newCards}
+              </span>
+            </div>
+          </Card>
 
-        <Card>
-          <div className="kpi">{counts.mastered}</div>
-          <div className="kpi-label">of {counts.total} topics mastered</div>
-        </Card>
-      </div>
+          <Card>
+            <div className="kpi">{counts.mastered}</div>
+            <div className="kpi-label">of {counts.total} topics mastered</div>
+          </Card>
+        </div>
 
-      {/* ---- struggle + library ---- */}
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
-        <Card title="Struggle ratio (7d)">
-          <Gauge value={dash.struggleRatio7d} />
-          <p className="muted" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.5 }}>
-            The 40–60% band is the desirable-difficulty zone: hard enough to build durable memory,
-            not so hard you stall. Drifting low means reviews are too easy; high means you may be
-            overreaching.
-          </p>
-        </Card>
+        {/* ---- struggle + library ---- */}
+        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Card title="Struggle ratio (7d)">
+            <Gauge value={dash.struggleRatio7d} />
+            <p className="muted" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.5 }}>
+              The 40–60% band is the desirable-difficulty zone: hard enough to build durable memory,
+              not so hard you stall. Drifting low means reviews are too easy; high means you may be
+              overreaching.
+            </p>
+          </Card>
 
-        <Card title="Library">
-          <div className="row wrap gap-2">
-            {LIBRARY_ORDER.map((status) => {
-              const color = topicColor(status);
-              return (
-                <span key={status} className="badge" style={{ background: tint(color), color }}>
-                  <span aria-hidden>{STATUS_META[status].glyph}</span>
-                  {STATUS_META[status].label}
-                  <b style={{ marginLeft: 2 }}>{counts[status]}</b>
-                </span>
-              );
-            })}
-          </div>
-          <div className="kpi-label" style={{ marginTop: 14 }}>
-            {counts.total} topics total
-          </div>
-        </Card>
-      </div>
+          <Card title="Library">
+            <div className="row wrap gap-2">
+              {LIBRARY_ORDER.map((status) => {
+                const color = topicColor(status);
+                return (
+                  <span key={status} className="badge" style={{ background: tint(color), color }}>
+                    <span aria-hidden>{STATUS_META[status].glyph}</span>
+                    {STATUS_META[status].label}
+                    <b style={{ marginLeft: 2 }}>{counts[status]}</b>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="kpi-label" style={{ marginTop: 14 }}>
+              {counts.total} topics total
+            </div>
+          </Card>
+        </div>
 
-      {/* ---- activity heatmap ---- */}
-      <div style={{ marginBottom: 18 }}>
+        {/* ---- activity heatmap ---- */}
         <Card title="Review activity">
           {heatmapQ.data ? (
             <Heatmap cells={heatmapQ.data} />
@@ -155,22 +152,27 @@ export default function Dashboard() {
             <span className="faint">Loading activity…</span>
           )}
         </Card>
-      </div>
 
-      {/* ---- due for review ---- */}
-      <h2 className="card-title" style={{ marginBottom: 10 }}>
-        Due for review
-      </h2>
-      {dueCount === 0 ? (
-        <EmptyState title="All clear" hint="Nothing due today — a quiet day keeps your streak." />
-      ) : (
-        <div className="col gap-4">
-          {due.overdue.length > 0 && (
-            <DueGroup label="Overdue" labelColor="var(--st-blocked)" topics={due.overdue} />
+        {/* ---- due for review ---- */}
+        <div className="col gap-2">
+          <h2 className="card-title" style={{ margin: 0 }}>
+            Due for review
+          </h2>
+          {dueCount === 0 ? (
+            <EmptyState
+              title="All clear"
+              hint="Nothing due today — a quiet day keeps your streak."
+            />
+          ) : (
+            <div className="col gap-4">
+              {due.overdue.length > 0 && (
+                <DueGroup label="Overdue" labelColor="var(--st-blocked)" topics={due.overdue} />
+              )}
+              {due.dueToday.length > 0 && <DueGroup label="Due today" topics={due.dueToday} />}
+            </div>
           )}
-          {due.dueToday.length > 0 && <DueGroup label="Due today" topics={due.dueToday} />}
         </div>
-      )}
+      </div>
     </div>
   );
 }
