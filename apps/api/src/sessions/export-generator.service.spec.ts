@@ -715,8 +715,9 @@ describe('ExportGeneratorService', () => {
         aiContext: null,
         parentId: 'chap-1',
         parent: {
+          id: 'chap-1',
           title: 'Arrays & Hashing',
-          children: [{ status: 'active' }, { status: 'planned' }, { status: 'mastered' }],
+          prerequisites: [],
         },
         prerequisites: [
           {
@@ -733,11 +734,23 @@ describe('ExportGeneratorService', () => {
       };
     }
 
-    it('renders learning goal, prereq summaries, existing cards, conduct, scoped roadmap', async () => {
+    it('renders learning goal, prereq summaries, existing cards, conduct, and chapter context siblings', async () => {
       prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
       prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
-      // domain-scoped roadmap query (reuses the topics include shape)
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+      // chapter-context query returns the focus topic itself (must be excluded)
+      // plus one real sibling
+      prisma.topic.findMany = jest.fn().mockResolvedValue([
+        focusTopic(),
+        {
+          id: 'sib-1',
+          title: 'Two Sum / complement lookup',
+          domain: 'DSA',
+          status: 'planned',
+          parentId: 'chap-1',
+          prerequisites: [],
+          prompts: [],
+        },
+      ]);
 
       const md = await service.generate({
         mode: 'learn',
@@ -749,7 +762,7 @@ describe('ExportGeneratorService', () => {
       expect(md).toContain('Export: learn');
       expect(md).toContain('## LEARNING GOAL');
       expect(md).toContain('Topic: Prefix sums [pattern]');
-      expect(md).toContain('Chapter: Arrays & Hashing · 2 of 3 in this chapter started');
+      expect(md).not.toContain('in this chapter started');
       expect(md).toContain(
         '- Hashing fundamentals — **Key insight:** buckets trade memory for time.',
       );
@@ -759,11 +772,92 @@ describe('ExportGeneratorService', () => {
       expect(md).toContain('## SESSION CONDUCT — learning');
       expect(md).toContain('## OUTPUT CONTRACT');
       expect(md).not.toContain('## MASTERY CONDITIONS');
-      // scoped roadmap query hit topics of the focus domain only
-      expect(prisma.topic.findMany.mock.calls[0][0].where).toMatchObject({
+
+      const ctxStart = md.indexOf('## CHAPTER CONTEXT');
+      const ctxEnd = md.indexOf('## LEARNING GOAL');
+      expect(ctxStart).toBeGreaterThan(-1);
+      const chapterContext = md.slice(ctxStart, ctxEnd);
+      expect(chapterContext).toContain('In this chapter (Arrays & Hashing):');
+      expect(chapterContext).toContain('○ Two Sum / complement lookup');
+      expect(chapterContext).not.toContain('Prefix sums');
+      expect(chapterContext).not.toContain('Builds on (chapters)');
+
+      expect(prisma.topic.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'u1',
+            status: { not: 'archived' },
+            OR: [{ parentId: 'chap-1' }, { id: { in: [] } }],
+          },
+        }),
+      );
+    });
+
+    it('lists prerequisite chapters under Builds on (chapters), with a placeholder when the chapter itself has no siblings yet', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(
+        focusTopic({
+          parent: {
+            id: 'chap-1',
+            title: 'Two Pointers',
+            prerequisites: [{ prerequisite: { id: 'chap-0' } }],
+          },
+        }),
+      );
+      prisma.topic.findMany = jest.fn().mockResolvedValue([
+        {
+          id: 'chap-0',
+          title: 'Arrays & Hashing',
+          domain: 'DSA',
+          status: 'mastered',
+          parentId: null,
+          prerequisites: [],
+          prompts: [],
+        },
+      ]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
         userId: 'u1',
-        domain: 'DSA',
       });
+
+      const ctxStart = md.indexOf('## CHAPTER CONTEXT');
+      const ctxEnd = md.indexOf('## LEARNING GOAL');
+      const chapterContext = md.slice(ctxStart, ctxEnd);
+      expect(chapterContext).toContain('In this chapter (Two Pointers):');
+      expect(chapterContext).toContain('- (none yet)');
+      expect(chapterContext).toContain('Builds on (chapters):');
+      expect(chapterContext).toContain('✓ Arrays & Hashing');
+
+      expect(prisma.topic.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'u1',
+            status: { not: 'archived' },
+            OR: [{ parentId: 'chap-1' }, { id: { in: ['chap-0'] } }],
+          },
+        }),
+      );
+    });
+
+    it('omits CHAPTER CONTEXT entirely when the focus topic has no parent chapter', async () => {
+      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
+      prisma.topic.findFirst = jest
+        .fn()
+        .mockResolvedValue(focusTopic({ parentId: null, parent: null }));
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+
+      expect(md).not.toContain('## CHAPTER CONTEXT');
+      expect(prisma.topic.findMany).not.toHaveBeenCalled();
     });
 
     it('defaults the focus to Next Up when focusTopicId is omitted', async () => {

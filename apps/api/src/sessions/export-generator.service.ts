@@ -145,7 +145,13 @@ Note system: ${user?.noteSystem ?? ''}`;
     const focus = await this.prisma.topic.findFirst({
       where: { id: focusId, userId },
       include: {
-        parent: { select: { title: true, children: { select: { status: true } } } },
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            prerequisites: { include: { prerequisite: { select: { id: true } } } },
+          },
+        },
         prerequisites: {
           include: { prerequisite: { select: { title: true, status: true, summary: true } } },
         },
@@ -161,14 +167,6 @@ Note system: ${user?.noteSystem ?? ''}`;
     }
 
     const goal: string[] = [`## LEARNING GOAL`, `Topic: ${focus.title} [${focus.topicType}]`];
-    if (focus.parent) {
-      const started = focus.parent.children.filter(
-        (c) => c.status === 'active' || c.status === 'mastered',
-      ).length;
-      goal.push(
-        `Chapter: ${focus.parent.title} · ${started} of ${focus.parent.children.length} in this chapter started`,
-      );
-    }
     if (focus.description) goal.push(`Description: ${focus.description}`);
     if (focus.aiContext) goal.push(`AI context: ${focus.aiContext}`);
     if (focus.prerequisites.length > 0) {
@@ -182,25 +180,29 @@ Note system: ${user?.noteSystem ?? ''}`;
       goal.push(`Existing cards (do not duplicate):\n${lines.join('\n')}`);
     }
 
-    // Roadmap scoped to the focus topic's domain, same include shape/renderer
-    // as the full export.
-    const domainTopics = await this.prisma.topic.findMany({
-      where: { userId, domain: focus.domain },
-      orderBy: [{ domain: 'asc' }, { createdAt: 'asc' }],
-      include: {
-        prerequisites: { include: { prerequisite: { select: { status: true } } } },
-        prompts: { select: { reps: true, stability: true, suspended: true } },
-      },
-    });
+    const sections = [this.header('learn', now), await this.whoIAm(userId)];
 
-    const sections = [
-      this.header('learn', now),
-      await this.whoIAm(userId),
-      this.roadmap(domainTopics.filter((t) => t.status !== 'archived')),
-      goal.join('\n'),
-      LEARN_CONDUCT,
-      OUTPUT_CONTRACT,
-    ];
+    if (focus.parent) {
+      const prereqChapterIds = focus.parent.prerequisites.map((p) => p.prerequisite.id);
+      const chapterTopics = await this.prisma.topic.findMany({
+        where: {
+          userId,
+          status: { not: 'archived' },
+          OR: [{ parentId: focus.parent.id }, { id: { in: prereqChapterIds } }],
+        },
+        include: {
+          prerequisites: { include: { prerequisite: { select: { status: true } } } },
+          prompts: { select: { reps: true, stability: true, suspended: true } },
+        },
+      });
+      const siblings = chapterTopics.filter(
+        (t) => t.parentId === focus.parent!.id && t.id !== focus.id,
+      );
+      const prereqChapters = chapterTopics.filter((t) => prereqChapterIds.includes(t.id));
+      sections.push(this.chapterContext(focus.parent.title, siblings, prereqChapters));
+    }
+
+    sections.push(goal.join('\n'), LEARN_CONDUCT, OUTPUT_CONTRACT);
     return sections.join('\n\n');
   }
 
@@ -233,6 +235,20 @@ Note system: ${user?.noteSystem ?? ''}`;
     const tentative = t.aiProposed && t.status !== 'archived';
     if (!tentative || !t.aiContext) return '';
     return `${'  '.repeat(depth + 1)}↳ AI context: ${t.aiContext}`;
+  }
+
+  private chapterContext(
+    chapterTitle: string,
+    siblings: TopicWithPrereqs[],
+    prereqChapters: TopicWithPrereqs[],
+  ): string {
+    const line = (t: TopicWithPrereqs) => `${this.glyph(t)} ${t.title}${this.reviewingTag(t)}`;
+    const siblingBlock = siblings.length > 0 ? siblings.map(line).join('\n') : '- (none yet)';
+    const parts = [`In this chapter (${chapterTitle}):\n${siblingBlock}`];
+    if (prereqChapters.length > 0) {
+      parts.push(`Builds on (chapters):\n${prereqChapters.map(line).join('\n')}`);
+    }
+    return `## CHAPTER CONTEXT\n${parts.join('\n\n')}`;
   }
 
   private roadmap(topics: TopicWithPrereqs[]): string {

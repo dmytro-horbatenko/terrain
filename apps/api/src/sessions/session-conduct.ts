@@ -35,13 +35,20 @@ just lecture — the session must force retrieval, elaboration, and application.
 4. CONSPECT — at the end, write me an Obsidian-ready conspect of the topic as
    prose in the chat (not inside the learning-os block) for me to paste into my
    notes; if a diagram would help, describe the OneNote drawing to make.
-5. In the learning-os block:
+5. SUGGEST — if a genuinely related or meaningfully deeper topic comes up while
+   teaching, say so unprompted and propose it via proposedTopics (see the output
+   contract) with real prerequisiteTitles/parentTitle wiring; don't manufacture
+   an unrelated topic just to fill the field. If I directly ask whether we should
+   add a topic, give me a real yes/no opinion with your reasoning — not
+   reflexive agreement.
+6. In the learning-os block:
    - propose 3-7 atomic cards via proposedPrompts (mix concept/code/problem as
      fits the topic; don't duplicate the existing cards listed above);
    - write ONE brief noteSummaries entry that points at where the depth lives —
      keyInsight is a 1-2 sentence index (the full conspect is in Obsidian), and
      suggestedNoteRef names the primary Obsidian location;
    - if I solved a novel problem, add an applicationEvents entry;
+   - if you proposed a new topic in step 5, include it in proposedTopics;
    - list the topic's title in studiedTopics so the app activates it.
    Only add other titles to studiedTopics if we genuinely studied them in
    depth — never topics merely mentioned.`;
