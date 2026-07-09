@@ -268,9 +268,17 @@ describe('MetricsService', () => {
       Promise.resolve(
         where?.status === 'planned'
           ? [
-              { id: 'startable', prerequisites: [{ prerequisite: { status: 'active' } }] },
-              { id: 'zero-prereq', prerequisites: [] },
-              { id: 'blocked', prerequisites: [{ prerequisite: { status: 'planned' } }] },
+              {
+                id: 'startable',
+                prerequisites: [{ prerequisite: { status: 'active' } }],
+                children: [],
+              },
+              { id: 'zero-prereq', prerequisites: [], children: [] },
+              {
+                id: 'blocked',
+                prerequisites: [{ prerequisite: { status: 'planned' } }],
+                children: [],
+              },
             ]
           : [],
       ),
@@ -349,8 +357,16 @@ describe('MetricsService', () => {
         Promise.resolve(
           where?.status === 'planned'
             ? [
-                { id: 't-blocked', prerequisites: [{ prerequisite: { status: 'planned' } }] },
-                { id: 't-startable', prerequisites: [{ prerequisite: { status: 'active' } }] },
+                {
+                  id: 't-blocked',
+                  prerequisites: [{ prerequisite: { status: 'planned' } }],
+                  children: [],
+                },
+                {
+                  id: 't-startable',
+                  prerequisites: [{ prerequisite: { status: 'active' } }],
+                  children: [],
+                },
               ]
             : [],
         ),
@@ -377,7 +393,9 @@ describe('MetricsService', () => {
 
     it('attaches chapter title and started/total progress when the topic has a parent', async () => {
       prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(where?.status === 'planned' ? [{ id: 't1', prerequisites: [] }] : []),
+        Promise.resolve(
+          where?.status === 'planned' ? [{ id: 't1', prerequisites: [], children: [] }] : [],
+        ),
       );
       prisma.topic.findFirst
         .mockResolvedValueOnce({ id: 't1', title: 'Two Sum', parentId: 'chapter-1' })
@@ -394,7 +412,13 @@ describe('MetricsService', () => {
       prisma.topic.findMany.mockImplementation(({ where }: any) =>
         Promise.resolve(
           where?.status === 'planned'
-            ? [{ id: 't1', prerequisites: [{ prerequisite: { status: 'planned' } }] }]
+            ? [
+                {
+                  id: 't1',
+                  prerequisites: [{ prerequisite: { status: 'planned' } }],
+                  children: [],
+                },
+              ]
             : [],
         ),
       );
@@ -405,6 +429,34 @@ describe('MetricsService', () => {
     it('returns null when no planned topics exist', async () => {
       prisma.topic.findMany.mockResolvedValue([]);
       expect(await service.nextUp('userA')).toBeNull();
+    });
+
+    it('skips a category/chapter topic (has children) even when otherwise startable, preferring its leaf', async () => {
+      prisma.topic.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.status === 'planned'
+            ? [
+                { id: 'chapter', prerequisites: [], children: [{ id: 'leaf' }] },
+                { id: 'leaf', prerequisites: [], children: [] },
+              ]
+            : [],
+        ),
+      );
+      prisma.topic.findFirst.mockResolvedValue({ id: 'leaf', title: 'Leaf', parentId: null });
+      const result = await service.nextUp('userA');
+      expect(result?.topic.id).toBe('leaf');
+    });
+
+    it('returns null when the only startable planned topics are category/chapter nodes', async () => {
+      prisma.topic.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.status === 'planned'
+            ? [{ id: 'chapter', prerequisites: [], children: [{ id: 'leaf' }] }]
+            : [],
+        ),
+      );
+      expect(await service.nextUp('userA')).toBeNull();
+      expect(prisma.topic.findFirst).not.toHaveBeenCalled();
     });
 
     it('scopes the candidate query by domain', async () => {

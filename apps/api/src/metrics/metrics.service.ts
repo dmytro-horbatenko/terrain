@@ -206,6 +206,10 @@ export class MetricsService {
   /**
    * IDs of planned topics whose direct prerequisites are all started
    * (active or mastered) — the startable frontier, in creation order.
+   * Topics with children are category/chapter nodes (organizational, per the
+   * same hasChildren convention as the web roadmap projection), not
+   * reviewable units — they're excluded so a category can't outrank its own
+   * leaves just for being created first.
    */
   private async startablePlannedIds(userId: string, domain?: string): Promise<string[]> {
     const planned = await this.prisma.topic.findMany({
@@ -214,9 +218,11 @@ export class MetricsService {
       select: {
         id: true,
         prerequisites: { select: { prerequisite: { select: { status: true } } } },
+        children: { select: { id: true }, take: 1 },
       },
     });
     return planned
+      .filter((t) => t.children.length === 0)
       .filter((t) =>
         t.prerequisites.every(
           (p) => p.prerequisite.status === 'active' || p.prerequisite.status === 'mastered',
