@@ -250,6 +250,22 @@ export default function SessionWizard() {
               />
               <PreviewStat n={plan.noteSummaries.length} label="notes" hideWhenZero />
             </div>
+            {plan.newTopics.filter((t) => !t.alreadyExists).length > 0 ? (
+              <div className="col gap-1">
+                <span className="faint">Proposed topics:</span>
+                {plan.newTopics
+                  .filter((t) => !t.alreadyExists)
+                  .map((t, i) => (
+                    <span key={i} className="faint" style={{ fontSize: 12 }}>
+                      • {t.title}
+                      {t.parentTitle ? ` — under ${t.parentTitle}` : ''}
+                      {t.prerequisiteTitles.length > 0
+                        ? ` (requires: ${t.prerequisiteTitles.join(', ')})`
+                        : ''}
+                    </span>
+                  ))}
+              </div>
+            ) : null}
             {plan.unresolved.length > 0 ? (
               <div className="col gap-1">
                 <span className="faint">Resolve these before saving:</span>
