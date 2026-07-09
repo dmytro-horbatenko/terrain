@@ -158,7 +158,7 @@ Note system: ${user?.noteSystem ?? ''}`;
         prompts: {
           where: { suspended: false },
           orderBy: { createdAt: 'asc' },
-          select: { id: true, promptKind: true, promptText: true },
+          select: { id: true, promptKind: true, promptText: true, reps: true },
         },
       },
     });
@@ -167,6 +167,7 @@ Note system: ${user?.noteSystem ?? ''}`;
     }
 
     const goal: string[] = [`## LEARNING GOAL`, `Topic: ${focus.title} [${focus.topicType}]`];
+    goal.push(`Exposure: ${this.exposureLabel(focus)}`);
     if (focus.description) goal.push(`Description: ${focus.description}`);
     if (focus.aiContext) goal.push(`AI context: ${focus.aiContext}`);
     if (focus.prerequisites.length > 0) {
@@ -208,6 +209,25 @@ Note system: ${user?.noteSystem ?? ''}`;
 
   private prereqStatuses(t: TopicWithPrereqs): string[] {
     return (t.prerequisites ?? []).map((p) => p.prerequisite.status);
+  }
+
+  /** Explicit prior-exposure state for the focus topic, so the model doesn't
+   *  have to infer (or worse, recall from outside this document) whether
+   *  this is a first pass or a review. */
+  private exposureLabel(focus: {
+    status: string;
+    prerequisites: { prerequisite: { status: string } }[];
+    prompts: { reps: number }[];
+  }): string {
+    if (focus.status === 'mastered') return 'mastered — this is a deliberate re-review';
+    const { blocked, reviewing } = this.metrics.topicLabels({
+      status: focus.status,
+      cards: focus.prompts,
+      prerequisiteStatuses: focus.prerequisites.map((p) => p.prerequisite.status),
+    });
+    if (blocked) return 'blocked — prerequisites incomplete';
+    if (reviewing) return 'in progress — you have studied this before, teach it as a review';
+    return 'not yet studied — treat this as first exposure, start from fundamentals';
   }
 
   private glyph(t: TopicWithPrereqs): string {

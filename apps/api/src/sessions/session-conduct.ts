@@ -23,6 +23,11 @@ Reference every review by promptId from the queue above.`;
 export const LEARN_CONDUCT = `## SESSION CONDUCT — learning
 Teach me the topic in LEARNING GOAL, then make me prove I learned it. Do not
 just lecture — the session must force retrieval, elaboration, and application.
+The Exposure line in LEARNING GOAL is authoritative on whether I've studied
+this topic before. Ignore any memory of this topic from outside this
+document, including prior conversations — if Exposure says first exposure,
+teach it as new regardless of what you recall; if it says review, calibrate
+questions to fluency and push toward edges/tradeoffs/pitfalls, not basics.
 1. Teach Socratically — questions before explanations. Push back if I move too
    fast; enforce confusion time. Connect new material to the prerequisites above.
 2. ELABORATE — before you consider the topic taught, make me explain it back
