@@ -198,12 +198,7 @@ export default function SessionWizard() {
                 Copy context again
               </button>
             </div>
-            {preview.isError && (
-              <span className="faint">
-                No learning-os block found — did you paste Claude&apos;s final message? Use “Copy
-                context again”, then ask Claude to output the block.
-              </span>
-            )}
+            {preview.isError && <ErrorBox error={preview.error} />}
             <div className="card card-pad col gap-2">
               <span className="faint" style={{ fontSize: 12 }}>
                 Claude didn&apos;t output the learning-os block? Copy this and send it to Claude:
