@@ -1,0 +1,343 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Token Standards",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The ERC token interfaces every dApp speaks: ERC-20 (fungible), ERC-721 (non-fungible), ERC-1155 (multi-token), ERC-4626 (tokenized vaults), and ERC-165 interface detection. Standardization is what lets wallets, DEXes, and marketplaces integrate a token they've never seen. Resources: https://docs.openzeppelin.com/contracts/5.x/tokens",
+      "prerequisiteTitles": ["Mappings", "Events & indexed topics"],
+      "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
+    },
+    {
+      "title": "Proxies & Upgradeability",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How to ship a fixable contract on an immutable chain: a proxy holds state and delegatecalls logic, so the logic address can be swapped. Covers Transparent, UUPS, Beacon and Diamond patterns, ERC-1967 slots, the initializer discipline, and the storage-collision minefield they all share. Resources: https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+      "prerequisiteTitles": ["delegatecall & storage context"],
+      "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
+    },
+    {
+      "title": "Access Control Patterns",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Who is allowed to call privileged functions: single-owner (Ownable), role-based (AccessControl), and two-step ownership handoff. Getting this wrong — a missing modifier or an owner set to the wrong address — is the most common critical finding in real audits. Resources: https://docs.openzeppelin.com/contracts/5.x/access-control",
+      "prerequisiteTitles": ["Function modifiers"],
+      "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
+    },
+
+    {
+      "title": "ERC-20 fungible token standard",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-20 defines fungible tokens through nine functions — totalSupply, balanceOf, transfer, transferFrom, approve, allowance — and the Transfer/Approval events. Every DEX, lending market, and wallet integrates against this shape, which is why deviating from it silently breaks composability. Note the standard specifies a bool return, but famous tokens (old USDT) return nothing, so raw transfer reverts or mis-reads. Resources: 📖 https://eips.ethereum.org/EIPS/eip-20",
+      "aiContext": "Build: implement contracts/phase04/Token.sol extending OpenZeppelin ERC20 with an initial mint, plus test/phase04/Token.t.sol. Done when: forge test proves transfer moves balances, emits Transfer, and reverts on insufficient balance. Threat: fee-on-transfer / rebasing tokens (amount received != amount sent), missing-return non-compliant tokens, and the approval race — never assume a token is well-behaved.",
+      "prerequisiteTitles": ["Mappings", "Events & indexed topics"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-20 approvals & SafeERC20",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "approve + transferFrom lets a contract pull your tokens, but changing a non-zero allowance is racy: a spender watching the mempool can spend the old allowance then the new one (approval front-running). OZ v5 removed increaseAllowance/decreaseAllowance from the base ERC20; the safe path is SafeERC20's forceApprove/safeIncreaseAllowance and wrapping every external token call in safeTransfer/safeTransferFrom so non-returning tokens don't slip through. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
+      "aiContext": "Build: implement contracts/phase04/SafeApprove.sol that pulls a token via SafeERC20 and demonstrates the set-to-zero-then-set approval pattern, with test/phase04/SafeApprove.t.sol using a non-returning mock token. Done when: forge test proves the raw transfer path reverts on the mock while the SafeERC20 path succeeds. Threat: approval-race front-running — mitigate by resetting to 0 first or using forceApprove.",
+      "prerequisiteTitles": ["ERC-20 fungible token standard", "Low-level calls"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-165 interface detection",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-165 lets a contract advertise which interfaces it implements via supportsInterface(bytes4), where the id is the XOR of the interface's function selectors. ERC-721/1155 receiver checks and many integrations gate on it, so declaring it correctly is how other contracts decide it's safe to interact. It is only a self-declaration, though — a contract can claim support it doesn't honour. Resources: 📖 https://eips.ethereum.org/EIPS/eip-165",
+      "aiContext": "Build: implement contracts/phase04/Introspectable.sol overriding supportsInterface for a custom interface, with test/phase04/Introspectable.t.sol. Done when: forge test proves supportsInterface returns true for the declared interface id and the ERC-165 id (0x01ffc9a7) and false for 0xffffffff. Threat: interface-detection spoofing — supportsInterface is a claim, not a proof; still guard the actual calls.",
+      "prerequisiteTitles": ["abi.decode & function selectors"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-721 non-fungible tokens",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-721 gives each token a unique id with ownerOf/balanceOf, approve/setApprovalForAll, and safeTransferFrom, which calls onERC721Received on contract recipients so tokens can't get stuck. tokenURI (metadata extension) points at the JSON describing the asset. The receiver callback is also an attack surface: minting via _safeMint hands control to the recipient mid-transaction. Resources: 📖 https://eips.ethereum.org/EIPS/eip-721",
+      "aiContext": "Build: implement contracts/phase04/NFT.sol extending OZ ERC721 with a mint counter and tokenURI, plus test/phase04/NFT.t.sol including a malicious onERC721Received that re-enters mint. Done when: forge test proves ownerOf tracks transfers and the reentrant mint is stopped by CEI or a guard. Threat: onERC721Received reentrancy during _safeMint, and setApprovalForAll phishing that drains a whole collection.",
+      "prerequisiteTitles": ["ERC-165 interface detection", "Function modifiers"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-1155 multi-token standard",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-1155 holds many token types — fungible and non-fungible — in one contract, with balanceOf(account,id), balanceOfBatch, and safeBatchTransferFrom for gas-efficient multi-transfers. A single URI with an {id} placeholder serves every token's metadata, and recipients implement onERC1155Received/BatchReceived. It's the standard behind game items and editions where minting a new type shouldn't mean a new deployment. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1155",
+      "aiContext": "Build: implement contracts/phase04/GameItems.sol extending OZ ERC1155 with a batch mint of several ids, plus test/phase04/GameItems.t.sol. Done when: forge test proves balanceOfBatch returns the minted amounts and a batch transfer updates every id atomically. Threat: receiver-callback reentrancy via onERC1155Received/Batch — apply CEI and nonReentrant on state-changing paths.",
+      "prerequisiteTitles": ["ERC-165 interface detection", "Arrays in Solidity"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-4626 tokenized vaults",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-4626 standardizes a yield-bearing vault as an ERC-20 share token over an underlying asset: deposit/mint add assets for shares, withdraw/redeem do the reverse, and convertToShares/convertToAssets/totalAssets expose the exchange rate. Standardizing the interface lets aggregators and integrators plug into any vault. The share price is totalAssets/totalSupply, so rounding direction matters — always round in the vault's favour. Resources: 📖 https://eips.ethereum.org/EIPS/eip-4626",
+      "aiContext": "Build: implement contracts/phase04/Vault.sol extending OZ ERC4626 over a mock asset, plus test/phase04/Vault.t.sol. Done when: forge test proves deposit mints shares, redeem returns assets, and convertToShares rounds down (assets→shares) so a user can never round up free value. Threat: first-depositor inflation via a direct donation to totalAssets — see the dedicated inflation-attack leaf.",
+      "prerequisiteTitles": ["ERC-20 fungible token standard", "Reading & writing state variables"],
+      "parentTitle": "Token Standards"
+    },
+    {
+      "title": "ERC-4626 inflation attack & virtual shares",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The classic ERC-4626 exploit: an attacker deposits 1 wei to mint 1 share, then transfers a large amount of the asset directly into the vault (a donation not routed through deposit), inflating totalAssets while totalSupply stays 1. The next honest depositor's shares = assets*supply/totalAssets rounds down to zero, so their deposit is captured. OZ's defense adds virtual shares/assets via _decimalsOffset(), making the rounding always favour the vault and rendering the attack unprofitable. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/erc4626#inflation-attack",
+      "aiContext": "Build: in contracts/phase04/InflationAttack.sol reproduce the donate-and-round exploit against a naive vault, then defend with OZ's _decimalsOffset virtual shares, with test/phase04/InflationAttack.t.sol. Done when: forge test proves the second depositor loses funds against the naive vault and does NOT against the offset-defended vault. Threat: first-depositor / share-price inflation via donation + rounding-to-zero.",
+      "prerequisiteTitles": ["ERC-4626 tokenized vaults"],
+      "parentTitle": "Token Standards"
+    },
+
+    {
+      "title": "delegatecall & the proxy pattern",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A proxy is a thin contract that stores all state and forwards every unmatched call via delegatecall to a separate implementation, so the implementation's code runs against the proxy's storage while msg.sender and msg.value are preserved. Swapping the implementation address = upgrading the logic without moving funds or state. The catch: because logic runs in the proxy's storage, the two contracts must agree exactly on storage layout. Resources: 📖 https://solidity-by-example.org/delegatecall/",
+      "aiContext": "Build: implement contracts/phase04/MinimalProxy.sol — a fallback that delegatecalls a stored implementation — plus a LogicV1/LogicV2 pair and test/phase04/MinimalProxy.t.sol. Done when: forge test proves state set through the proxy survives an implementation swap and the swapped logic runs against the same storage. Threat: storage collision between proxy and logic, and delegatecall to an untrusted/self-destructible implementation.",
+      "prerequisiteTitles": ["delegatecall & storage context", "Storage slots & variable packing"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "ERC-1967 proxy storage slots",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "To stop the implementation's own variables from colliding with the proxy's bookkeeping, ERC-1967 standardizes fixed pseudo-random slots for the implementation address (keccak256('eip1967.proxy.implementation') - 1), the admin, and the beacon. Because those slots are astronomically unlikely to be hit by sequential variable layout, the logic contract can use slot 0 upward freely. Tools like block explorers read these standard slots to detect and label proxies. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1967",
+      "aiContext": "Build: in contracts/phase04/Erc1967Slots.sol write to the implementation slot with sstore in assembly and read it back, plus test/phase04/Erc1967Slots.t.sol using vm.load. Done when: forge test proves the value read at keccak256('eip1967.proxy.implementation')-1 matches what you stored. Threat: slot collision — a proxy that parks its implementation pointer at slot 0 lets logic variables overwrite it.",
+      "prerequisiteTitles": [
+        "delegatecall & the proxy pattern",
+        "Storage & memory access in assembly"
+      ],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "Transparent proxy pattern",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The Transparent proxy solves the 'function clash' — where a proxy admin function and an implementation function share a selector — by routing on the caller: the admin can only hit upgrade functions, everyone else is always delegated to the logic. In OZ v5 the proxy's admin is an immutable ProxyAdmin contract (itself Ownable), and upgrades go through it. It costs an extra SLOAD per call to check the admin versus UUPS. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#TransparentUpgradeableProxy",
+      "aiContext": "Build: deploy contracts/phase04 logic behind OZ's TransparentUpgradeableProxy + ProxyAdmin in a forge script/test test/phase04/Transparent.t.sol, then upgrade it. Done when: forge test proves a non-admin call reaches the logic, an admin-initiated upgrade swaps the implementation, and state persists across the upgrade. Threat: admin-key compromise (full upgrade power) and function-selector clash if you bypass the transparent routing.",
+      "prerequisiteTitles": ["ERC-1967 proxy storage slots"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "UUPS proxy pattern",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "UUPS (ERC-1822) moves the upgrade logic into the implementation instead of the proxy: the implementation inherits UUPSUpgradeable and exposes upgradeToAndCall, gated by the mandatory _authorizeUpgrade override. This makes the proxy smaller/cheaper, but shifts two footguns onto you — forget to protect _authorizeUpgrade and anyone can upgrade (steal) the contract; ship a new implementation that lacks the UUPS upgrade code and the contract is permanently frozen. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#UUPSUpgradeable",
+      "aiContext": "Build: implement contracts/phase04/CounterUUPS.sol (UUPSUpgradeable + onlyOwner _authorizeUpgrade) behind an ERC1967Proxy, plus test/phase04/UUPS.t.sol. Done when: forge test proves an unauthorized upgradeToAndCall reverts, an owner upgrade succeeds, and state persists. Threat: unprotected _authorizeUpgrade → anyone upgrades; a non-UUPS new implementation → bricked forever. (cf. Ethernaut Motorbike)",
+      "prerequisiteTitles": ["ERC-1967 proxy storage slots", "Role-based access control"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "Beacon proxy pattern",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A Beacon proxy reads its implementation address from a shared UpgradeableBeacon contract rather than storing it locally, so upgrading the beacon once atomically upgrades every proxy pointing at it. This is the pattern for factories that deploy thousands of identical instances (e.g. per-user vaults) that must all be upgraded together. The trade-off: the beacon is a single, powerful upgrade point for the whole fleet. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy",
+      "aiContext": "Build: implement contracts/phase04/BeaconFactory.sol deploying multiple BeaconProxy instances against one UpgradeableBeacon, plus test/phase04/Beacon.t.sol. Done when: forge test proves upgrading the beacon changes the logic seen by all deployed proxies at once while their individual state is untouched. Threat: single-beacon compromise upgrades the entire fleet — guard beacon ownership as tightly as the funds.",
+      "prerequisiteTitles": ["UUPS proxy pattern"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "Diamond pattern (EIP-2535)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The Diamond (EIP-2535) is a multi-facet proxy: one proxy maps each function selector to one of many facet contracts via a diamondCut, letting a system exceed the 24 KB contract-size limit and upgrade facet-by-facet. Because all facets share the proxy's storage, they use Diamond Storage — each facet keeps its state in a struct at a namespaced slot (keccak of a unique string) to avoid collisions. Powerful but complex; selector and storage discipline is unforgiving. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2535",
+      "aiContext": "Build: implement contracts/phase04/diamond/ with a Diamond, DiamondCutFacet, and two feature facets using Diamond Storage, plus test/phase04/Diamond.t.sol. Done when: forge test proves a diamondCut adds a facet, calls route to the right facet by selector, and two facets read/write independent namespaced storage. Threat: selector clash between facets and storage-namespace collision corrupting unrelated facet state.",
+      "prerequisiteTitles": ["ERC-1967 proxy storage slots", "abi.decode & function selectors"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "Storage layout for upgrades",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Because a new implementation shares the proxy's existing storage, the cardinal rule of upgrades is: never reorder, remove, insert-between, or change the type of an existing state variable — only append new ones at the end. Base contracts in an inheritance chain reserve a storage gap (uint256[50] __gap) so a future version can add variables without shifting a child's slots. Break the layout and V2 reads V1's bytes as garbage — a storage collision that silently corrupts state. Resources: 📖 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+      "aiContext": "Build: in contracts/phase04/LayoutV1.sol / LayoutV2.sol demonstrate a safe append and a deliberately-broken reorder, with test/phase04/Layout.t.sol. Done when: forge test proves the appended-variable V2 preserves V1 state while the reordered V2 mis-reads it (values collide). Threat: storage-collision on reorder/insert and missing __gap in an upgradeable base contract.",
+      "prerequisiteTitles": [
+        "Storage slots & variable packing",
+        "delegatecall & the proxy pattern"
+      ],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+    {
+      "title": "Initializers & _disableInitializers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Upgradeable contracts can't use constructors — a constructor runs in the implementation's own context, so it never touches the proxy's storage. Instead they inherit Initializable and put setup in an initialize() guarded by the initializer modifier (with reinitializer(n) for later versions). Critically, the implementation contract must call _disableInitializers() in its own constructor, or an attacker can call initialize on the implementation directly and, in UUPS, self-destruct or hijack it (the Parity-wallet class of bug). Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/upgradeable#usage",
+      "aiContext": "Build: implement contracts/phase04/InitializableLogic.sol with an initializer, _disableInitializers() in the constructor, and a reinitializer(2), plus test/phase04/Initializer.t.sol. Done when: forge test proves initialize runs once (a second call reverts), the implementation itself cannot be initialized, and reinitializer(2) runs exactly once. Threat: unprotected initializer / uninitialized implementation — the Parity multisig freeze.",
+      "prerequisiteTitles": ["The constructor", "delegatecall & the proxy pattern"],
+      "parentTitle": "Proxies & Upgradeability"
+    },
+
+    {
+      "title": "Ownable (OZ v5)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ownable gives a contract one privileged owner and an onlyOwner modifier, with transferOwnership and renounceOwnership. The OZ v5 breaking change: the constructor now takes an explicit initialOwner argument (constructor(address initialOwner) Ownable(initialOwner)) instead of defaulting to msg.sender — passing address(0) reverts. Simple and cheap, but a single key is a single point of failure. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable",
+      "aiContext": "Build: implement contracts/phase04/Owned5.sol extending OZ v5 Ownable with an onlyOwner setter, plus test/phase04/Owned5.t.sol. Done when: forge test proves the constructor sets initialOwner, a non-owner call reverts with OwnableUnauthorizedAccount, and renounceOwnership leaves owner == address(0). Threat: single-key compromise = full control, and renouncing to address(0) permanently disables every admin path.",
+      "prerequisiteTitles": ["Function modifiers", "The constructor"],
+      "parentTitle": "Access Control Patterns"
+    },
+    {
+      "title": "Role-based access control",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "OZ AccessControl replaces a single owner with named bytes32 roles (e.g. MINTER_ROLE, PAUSER_ROLE): grantRole/revokeRole/hasRole, an onlyRole modifier, and a DEFAULT_ADMIN_ROLE that administers the others. This enforces least privilege — the minter can't pause, the pauser can't mint — and lets you rotate one capability without touching the rest. Use AccessControlDefaultAdminRules to make transferring the powerful admin role two-step and time-delayed. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/access-control#role-based-access-control",
+      "aiContext": "Build: implement contracts/phase04/Roled.sol with MINTER_ROLE and PAUSER_ROLE granted via AccessControl, plus test/phase04/Roled.t.sol. Done when: forge test proves a minter can mint but not pause, revokeRole removes the capability, and an unauthorized call reverts with AccessControlUnauthorizedAccount. Threat: a missing onlyRole modifier or an over-broad DEFAULT_ADMIN_ROLE collapses least-privilege back to one god key.",
+      "prerequisiteTitles": ["Function modifiers", "keccak256 hashing"],
+      "parentTitle": "Access Control Patterns"
+    },
+    {
+      "title": "Two-step ownership transfer",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Single-step transferOwnership sends control to whatever address you type — a typo or an address you don't actually control loses the contract forever. Ownable2Step splits it: transferOwnership records a pendingOwner, and ownership only moves when that address calls acceptOwnership, proving it exists and is controllable. The same idea underlies AccessControlDefaultAdminRules for the admin role. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable2Step",
+      "aiContext": "Build: implement contracts/phase04/Owned2Step.sol extending Ownable2Step, plus test/phase04/Owned2Step.t.sol. Done when: forge test proves transferOwnership only sets pendingOwner (owner unchanged), acceptOwnership from the pending address completes the move, and acceptance from any other address reverts. Threat: single-step transfer to a wrong/uncontrolled address = irreversible loss of admin.",
+      "prerequisiteTitles": ["Ownable (OZ v5)"],
+      "parentTitle": "Access Control Patterns"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "ERC-20 fungible token standard",
+      "promptText": "Name the core ERC-20 functions and one way a real token can break code that assumes 'standard' behaviour.",
+      "answerHint": "totalSupply, balanceOf, transfer, transferFrom, approve, allowance (+ Transfer/Approval events). Pitfall: some tokens don't return the bool the spec mandates (old USDT), and fee-on-transfer/rebasing tokens deliver a different amount than requested — always use SafeERC20 and measure balance deltas.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-20 approvals & SafeERC20",
+      "promptText": "Explain the ERC-20 approval race and how to change an allowance safely.",
+      "answerHint": "If you change allowance from N to M, a spender can front-run: spend N, then spend M for N+M total. Reset to 0 first (or use SafeERC20.forceApprove / safeIncreaseAllowance). Pitfall: OZ v5 removed increaseAllowance/decreaseAllowance from base ERC20 — use SafeERC20 for the safe variants and for non-returning tokens.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-20 approvals & SafeERC20",
+      "promptText": "Write the safe two-step reset for changing a non-zero ERC-20 allowance using SafeERC20.",
+      "answerHint": "token.forceApprove(spender, 0); token.forceApprove(spender, newAmount); — or a single token.forceApprove that overwrites, since forceApprove sets rather than adds. Avoid a bare approve on a non-zero allowance.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ERC-165 interface detection",
+      "promptText": "How is an ERC-165 interface id computed, and what does supportsInterface actually guarantee?",
+      "answerHint": "The id is the XOR of the interface's 4-byte function selectors; supportsInterface(id) returns whether the contract claims to implement it. Pitfall: it's a self-declaration, not a proof — a contract can return true and still not honour the behaviour, so keep guarding the real calls.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-721 non-fungible tokens",
+      "promptText": "Why does safeTransferFrom call onERC721Received, and what risk does that introduce during _safeMint?",
+      "answerHint": "It checks a contract recipient can handle NFTs (returns the magic selector) so tokens don't get stranded. Pitfall: the callback hands execution to the recipient mid-transaction — if _safeMint runs before state is finalized, the recipient can re-enter and mint again. Follow checks-effects-interactions or add nonReentrant.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-721 non-fungible tokens",
+      "promptText": "Ethernaut-style: exploit a mint function that calls _safeMint before updating its per-address mint cap.",
+      "answerHint": "Deploy a contract whose onERC721Received calls mint again; because the cap is written after _safeMint, the callback sees the stale count and mints past the limit. Fix by writing the count before the external _safeMint (CEI) or guarding with nonReentrant.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "ERC-1155 multi-token standard",
+      "promptText": "What does ERC-1155 do that needing a separate ERC-20/721 deployment per asset would not?",
+      "answerHint": "One contract holds many token types (fungible and NFT) addressed by id, with batch balance queries and safeBatchTransferFrom for atomic multi-transfers and a single {id}-templated metadata URI. Pitfall: recipients' onERC1155Received/Batch callbacks are a reentrancy surface — apply CEI/nonReentrant on mint and transfer paths.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-4626 tokenized vaults",
+      "promptText": "What is an ERC-4626 vault's share price, and which way must conversions round?",
+      "answerHint": "Share price = totalAssets / totalSupply(shares); deposit/withdraw convert between assets and shares at that rate. Round in the vault's favour: assets→shares rounds down on deposit, shares→assets rounds down on withdraw, so a user can never extract rounding dust. Pitfall: rounding the wrong way leaks value on every interaction.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-4626 inflation attack & virtual shares",
+      "promptText": "Walk through the ERC-4626 first-depositor inflation attack and OZ's defense.",
+      "answerHint": "Attacker mints 1 share with 1 wei, then donates a large asset amount straight to the vault so totalAssets balloons while supply stays 1; the next depositor's shares round to zero and their deposit is captured on redeem. Defense: virtual shares/assets via _decimalsOffset(), so the empty-vault ratio can't be manipulated and rounding favours the vault. Pitfall: a naive vault with no offset or dead shares is exploitable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-4626 inflation attack & virtual shares",
+      "promptText": "Practice the inflation/donation class of vault bug on a wargame vault.",
+      "answerHint": "Reproduce it: deposit a dust amount, donate directly to inflate the share price, then let a victim deposit and round to zero shares. Then patch with virtual-offset shares and prove the exploit no longer profits. Damn Vulnerable DeFi has share/price-manipulation challenges in this family.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "delegatecall & the proxy pattern",
+      "promptText": "In a proxy, whose storage does the implementation's code modify, and what must the two contracts agree on?",
+      "answerHint": "delegatecall runs the implementation's code in the PROXY's storage context (msg.sender/msg.value preserved), so all state lives in the proxy. They must agree exactly on storage layout. Pitfall: if the proxy stores its implementation pointer at a slot the logic also uses, a write collides and can brick or hijack the proxy — hence ERC-1967's reserved slots.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-1967 proxy storage slots",
+      "promptText": "Why does ERC-1967 store the implementation address at keccak256('eip1967.proxy.implementation') - 1 instead of slot 0?",
+      "answerHint": "Sequential variable layout starts at slot 0 and grows up, so a pseudo-random high slot is astronomically unlikely to collide with the logic contract's variables, keeping the pointer safe. The '- 1' avoids the address being a known keccak preimage. Pitfall: rolling your own proxy with the pointer at slot 0 invites a storage collision.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transparent proxy pattern",
+      "promptText": "What problem does the Transparent proxy solve, and how?",
+      "answerHint": "The function-clash problem: if the proxy and implementation expose the same selector, calls are ambiguous. It routes by caller — the admin can only invoke upgrade functions, all other callers are always delegated to the logic (in OZ v5 via an immutable ProxyAdmin). Pitfall: it costs an extra admin-check SLOAD per call versus UUPS, and the admin key holds total upgrade power.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "UUPS proxy pattern",
+      "promptText": "Where does UUPS put the upgrade logic, and what are its two signature footguns?",
+      "answerHint": "In the implementation (UUPSUpgradeable.upgradeToAndCall), gated by the mandatory _authorizeUpgrade override — the proxy itself is minimal. Footguns: (1) leaving _authorizeUpgrade unprotected lets anyone upgrade and steal the contract; (2) upgrading to an implementation that lacks UUPS upgrade code freezes it permanently. Pitfall: always access-control _authorizeUpgrade and keep UUPS in every version.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "UUPS proxy pattern",
+      "promptText": "Ethernaut Motorbike: why can an uninitialized UUPS implementation be destroyed, and how is the proxy affected?",
+      "answerHint": "If the implementation's initializer was never called (and _disableInitializers wasn't run in its constructor), an attacker initializes the implementation directly, becomes its owner, and calls an upgrade/delegatecall path that selfdestructs the implementation — leaving the proxy delegatecalling to empty code (bricked). Fix: _disableInitializers() in the implementation constructor.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "Beacon proxy pattern",
+      "promptText": "How does a Beacon proxy let you upgrade thousands of instances at once, and what's the trade-off?",
+      "answerHint": "Each proxy reads its implementation from a shared UpgradeableBeacon rather than storing it; upgrading the beacon once changes the logic for every proxy simultaneously, while each proxy keeps its own state. Pitfall: the beacon is a single fleet-wide upgrade point — compromising its owner upgrades (and can drain) every instance at once.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Diamond pattern (EIP-2535)",
+      "promptText": "How does a Diamond route calls and keep facets from corrupting each other's storage?",
+      "answerHint": "diamondCut maps each function selector to a facet; the fallback delegatecalls the facet owning the called selector, letting the system exceed 24 KB and upgrade per-facet. Facets share the proxy's storage, so each uses Diamond Storage — a struct at a namespaced slot keccak(unique string). Pitfall: two facets claiming the same selector, or reusing a storage namespace, corrupts state.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage layout for upgrades",
+      "promptText": "State the cardinal rule for changing storage between upgrade versions, and the purpose of __gap.",
+      "answerHint": "Only append new state variables at the end — never reorder, remove, insert-between, or change the type of existing ones, or V2 reads V1's bytes as garbage (storage collision). A uint256[50] __gap in an upgradeable base reserves slots so the base can add variables later without shifting a derived contract's storage. Pitfall: forgetting __gap in a shared base breaks every child on upgrade.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Initializers & _disableInitializers",
+      "promptText": "Why can't upgradeable contracts use constructors, and why must the implementation call _disableInitializers()?",
+      "answerHint": "A constructor runs in the implementation's own context and never writes the proxy's storage, so setup goes in an initialize() guarded by the initializer modifier. _disableInitializers() in the implementation's constructor stops an attacker from initializing the naked implementation and hijacking it (the Parity freeze class). Pitfall: an unprotected/uninitialized implementation behind UUPS can be self-destructed.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ownable (OZ v5)",
+      "promptText": "What changed about Ownable's constructor in OpenZeppelin v5, and what does renouncing ownership do?",
+      "answerHint": "v5's constructor takes an explicit initialOwner (constructor(address initialOwner) Ownable(initialOwner)) and reverts on address(0), instead of v4's implicit msg.sender. renounceOwnership sets owner to address(0), permanently disabling every onlyOwner path. Pitfall: passing the wrong initialOwner at deploy, or renouncing while admin-only functions are still needed, is unrecoverable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Role-based access control",
+      "promptText": "How does AccessControl enforce least privilege, and what is the DEFAULT_ADMIN_ROLE risk?",
+      "answerHint": "Capabilities are separate bytes32 roles gated by onlyRole (MINTER_ROLE can't pause, etc.), granted/revoked independently via grantRole/revokeRole. Pitfall: DEFAULT_ADMIN_ROLE administers all roles, so one compromised admin can grant itself everything — protect it (AccessControlDefaultAdminRules for a delayed two-step admin handoff) and never leave a privileged function without its onlyRole check.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Two-step ownership transfer",
+      "promptText": "Why is Ownable2Step safer than single-step transferOwnership?",
+      "answerHint": "Single-step hands control to whatever address you pass — a typo or an address nobody controls loses the contract permanently. Ownable2Step records a pendingOwner and only completes when that address calls acceptOwnership, proving it exists and is controllable. Pitfall: even two-step can't save you if you set the pending owner to a contract that can't call acceptOwnership.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}
