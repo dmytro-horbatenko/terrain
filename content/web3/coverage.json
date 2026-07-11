@@ -1,0 +1,76 @@
+{
+  "owasp_sc_top10_2026": [
+    "access control",
+    "business logic",
+    "price oracle",
+    "flash loan",
+    "input validation",
+    "unchecked external call",
+    "arithmetic",
+    "reentrancy",
+    "integer overflow",
+    "proxy"
+  ],
+  "ethernaut_selected": [
+    "fallback",
+    "coinflip",
+    "telephone",
+    "delegation",
+    "force",
+    "re-entrancy",
+    "vault",
+    "privacy",
+    "gatekeeper",
+    "motorbike",
+    "puzzle wallet",
+    "dex"
+  ],
+  "damn_vulnerable_defi_v4": [
+    "unstoppable",
+    "naive receiver",
+    "truster",
+    "side entrance",
+    "the rewarder",
+    "puppet",
+    "curvy puppet",
+    "withdrawal"
+  ],
+  "attack_families": [
+    "cross-function reentrancy",
+    "read-only reentrancy",
+    "tx.origin",
+    "uninitialized proxy",
+    "signature replay",
+    "erc-4626",
+    "first-depositor",
+    "sandwich",
+    "storage collision",
+    "selector clash",
+    "force-feeding",
+    "fee-on-transfer"
+  ],
+  "gas_families": [
+    "storage packing",
+    "warm",
+    "cold",
+    "calldata",
+    "unchecked",
+    "custom errors",
+    "immutable",
+    "bitmap",
+    "minimal proxy",
+    "transient storage"
+  ],
+  "defi_builds": [
+    "constant product",
+    "stableswap",
+    "uniswap v2",
+    "uniswap v3",
+    "uniswap v4",
+    "aave",
+    "stablecoin",
+    "flash loan",
+    "erc-4626",
+    "eigenlayer"
+  ]
+}
