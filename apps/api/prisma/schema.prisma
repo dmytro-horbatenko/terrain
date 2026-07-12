@@ -88,6 +88,7 @@ model User {
   settings       Settings?
   dailyLogs      DailyLog[]
   topicTypes     TopicType[]
+  courseImports  CourseImport[]
 }
 
 // Case-insensitive title identity per user is enforced by a raw unique
@@ -254,4 +255,14 @@ model Settings {
   nudgeHour                  Int?      @default(20)
   telegramLinkToken          String?   @unique
   telegramLinkTokenExpiresAt DateTime?
+}
+
+model CourseImport {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId   String
+  importedAt DateTime @default(now())
+
+  @@unique([userId, courseId])
 }
