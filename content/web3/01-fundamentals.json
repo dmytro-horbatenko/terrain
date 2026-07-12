@@ -1,0 +1,526 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Blockchain basics",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "What a blockchain is and why it is trustless: linked blocks, hashing, immutability, distributed consensus. Resources: https://updraft.cyfrin.io/courses/blockchain-basics",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Accounts, transactions & gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Ethereum's account model, transaction anatomy, and the gas/fee market. Resources: https://ethereum.org/en/developers/docs/accounts/",
+      "prerequisiteTitles": ["Blockchain basics"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "EVM execution model",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How the EVM executes bytecode: state machine, data locations, opcodes. Resources: https://www.evm.codes/",
+      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+
+    {
+      "title": "Public-key cryptography & wallets",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A wallet is a keypair, not an account of coins: the private key signs, the public key derives the 20-byte address (keccak of the pubkey, last 20 bytes). Losing the key = losing control; there is no reset. Resources: 📖 https://ethereum.org/en/developers/docs/accounts/",
+      "aiContext": "Build: run `cast wallet new` in web3-practice; in contracts/phase01/README.md explain, in your own words, how the address is derived from the public key and why the private key must never touch the chain. Done when: you can state the derivation (pubkey → keccak256 → last 20 bytes) without looking.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics"
+    },
+    {
+      "title": "Transaction anatomy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A transaction carries nonce, gasLimit, maxFeePerGas/maxPriorityFeePerGas (EIP-1559), to, value, data, and a signature (v,r,s). The nonce enforces ordering and replay protection; `data` is the ABI-encoded call. Resources: 📖 https://ethereum.org/en/developers/docs/transactions/",
+      "aiContext": "Build: pick a real mainnet tx and run `cast tx <hash>` and `cast receipt <hash>` in web3-practice; write contracts/phase01/tx-anatomy.md mapping each field to its purpose. Done when: you can explain why the same signed tx cannot be replayed at a different nonce or chainId.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Accounts, transactions & gas"
+    },
+    {
+      "title": "Gas & the fee market (EIP-1559)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Gas prices execution; EIP-1559 splits the price into a burned base fee (set by protocol from block fullness) and a priority tip to the proposer. Under-pricing the max fee means the tx stalls. Resources: 📖 https://ethereum.org/en/developers/docs/gas/",
+      "aiContext": "Build: read a recent block's base fee via `cast base-fee`; in contracts/phase01/gas.md work a numeric example of total cost = gasUsed × (baseFee + priorityFee). Done when: you can predict whether a tx with a given maxFeePerGas will include in a block of known base fee.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas"
+    },
+    {
+      "title": "Stack / memory / storage / calldata",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM's four data locations differ in lifetime and cost: the stack (1024 words, transient), memory (byte-addressed, transient, expansion-priced), storage (persistent, 32-byte slots, expensive), and calldata (read-only tx input, cheapest). Choosing wrong is the root of both bugs and gas waste. Resources: 🔗 https://www.evm.codes/",
+      "aiContext": "Build: in contracts/phase01/data-locations.md, tabulate the four locations by lifetime, addressing, and gas cost, with one example use of each. Done when: you can say why a function argument marked `calldata` is cheaper than `memory` for a read-only array.",
+      "prerequisiteTitles": [],
+      "parentTitle": "EVM execution model"
+    },
+
+    {
+      "title": "Consensus (PoS)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proof-of-Stake: validators, attestations, finality, slashing, and post-Merge issuance. Resources: https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/",
+      "prerequisiteTitles": ["EVM execution model"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "L2s & rollups",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How rollups scale Ethereum: optimistic vs ZK proofs, data availability and blobs, sequencers, and the L2Beat trust framework. Resources: https://ethereum.org/en/developers/docs/scaling/",
+      "prerequisiteTitles": ["Consensus (PoS)"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Account abstraction",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Smart-account UX without protocol forks: ERC-4337 (UserOps, bundlers, EntryPoint, paymasters) and EIP-7702 EOA delegation. Resources: https://ethereum.org/en/roadmap/account-abstraction/",
+      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "2025–26 protocol state",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Where Ethereum is now: the Pectra and Fusaka forks, validator consolidation, and the Verge/Purge/Splurge roadmap. Resources: https://ethereum.org/en/roadmap/",
+      "prerequisiteTitles": ["L2s & rollups"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+
+    {
+      "title": "What a blockchain is",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A blockchain is an append-only ledger of blocks, each committing to its parent by hash, replicated across many nodes that agree on one history via consensus. Tampering with an old block changes its hash and breaks every child, so the chain is immutable in practice. Trust comes from cryptography and replication, not an operator. Resources: ▶ https://updraft.cyfrin.io/courses/blockchain-basics",
+      "aiContext": "Build: write contracts/phase01/what-is-a-blockchain.md — a one-page explainer of blocks, hashes, and immutability with a diagram of three linked blocks. Done when: you can explain why editing block N forces re-doing every block after it and out-racing honest consensus.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics"
+    },
+    {
+      "title": "Hashing & Merkle trees",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "keccak256 is Ethereum's workhorse hash: deterministic, one-way, collision-resistant, fixed 32-byte output. Merkle trees hash data in pairs up to a single root, so one 32-byte root commits to a whole set and any member is provable with a log-sized branch. Block headers and state use this to make tampering detectable. Resources: 📖 https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/",
+      "aiContext": "Build: in contracts/phase01/hashing-merkle.md, compute a hash with `cast keccak \"hello\"` and sketch a 4-leaf Merkle tree by hand, showing the proof path for leaf 2. Done when: you can state why a Merkle proof needs only ~log2(n) hashes to verify membership.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics"
+    },
+    {
+      "title": "Mnemonics & HD wallets",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A BIP-39 mnemonic (12/24 words) encodes a seed; BIP-32 derives a tree of keypairs from it, and BIP-44 fixes the derivation path (e.g. m/44'/60'/0'/0/0 for Ethereum). One phrase therefore backs up an unlimited set of addresses, and anyone holding the phrase controls every derived key. Resources: 📖 https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki",
+      "aiContext": "Build: run `cast wallet new-mnemonic` then derive two addresses with `cast wallet derive-private-key`; in contracts/phase01/hd-wallets.md record the path and both addresses. Done when: you can explain how changing the last path index yields a fresh address from the same seed.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Blockchain basics"
+    },
+    {
+      "title": "Nodes, clients & JSON-RPC",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An Ethereum node runs an execution client (geth, reth) plus a consensus client (Lighthouse, Prysm) and exposes a JSON-RPC API — eth_call, eth_getBalance, eth_sendRawTransaction, and more. Independent clients speaking one spec is what keeps the network resilient; your tools (cast, viem) are just RPC callers. Resources: 📖 https://ethereum.org/en/developers/docs/nodes-and-clients/",
+      "aiContext": "Build: point `cast` at a public RPC and run `cast block latest` and `cast client`; in contracts/phase01/nodes-rpc.md list three read methods and one write method. Done when: you can name the difference between execution and consensus clients and why both must run.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics"
+    },
+
+    {
+      "title": "EOAs vs contract accounts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum has two account types sharing one 20-byte address space: EOAs, controlled by a private key with no code; and contract accounts, controlled by their code with no key. Both hold a balance and nonce; only contracts have code and storage, and only an EOA (pre-7702) can originate a transaction. Resources: 📖 https://ethereum.org/en/developers/docs/accounts/",
+      "aiContext": "Build: in contracts/phase01/account-types.md, diagram both account types with their fields (nonce, balance, [codeHash, storageRoot]) and mark which can start a tx. Done when: you can say why a contract cannot spontaneously send a transaction.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Accounts, transactions & gas"
+    },
+    {
+      "title": "Nonce & replay protection",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Every EOA has a monotonically increasing nonce equal to the count of txs it has sent; a tx is valid only at its exact next nonce, which forces ordering and blocks replay of an already-mined tx. EIP-155 folds chainId into the signature so a mainnet tx can't be replayed on another chain. Resources: 📖 https://eips.ethereum.org/EIPS/eip-155",
+      "aiContext": "Build: send two txs from an anvil account, then in contracts/phase01/nonce.md show their nonces and explain what happens if you broadcast nonce 5 before nonce 4. Done when: you can explain why a gapped-nonce tx sits pending and why EIP-155 stops cross-chain replay.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas"
+    },
+    {
+      "title": "Transaction types & the mempool",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-2718 made transactions typed: legacy (0x0), EIP-2930 access-list (0x1), EIP-1559 dynamic-fee (0x2), EIP-4844 blob (0x3), and EIP-7702 set-code (0x4). Signed txs wait in each node's mempool until a proposer includes them, ordered largely by the priority tip. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2718",
+      "aiContext": "Build: in contracts/phase01/tx-types.md, tabulate the five transaction types with the EIP that introduced each and its distinguishing field. Done when: you can say which type a wallet defaults to today and why blob data is carried separately.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas"
+    },
+
+    {
+      "title": "The EVM as a state machine",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM is a deterministic state machine: a transaction maps the pre-state (world state = mapping of address → account state, each with balance/nonce/code/storage) to a post-state, gas-metered every step. All nodes re-running the same tx on the same state reach the same result. Resources: 📖 https://ethereum.org/en/developers/docs/evm/",
+      "aiContext": "Build: in contracts/phase01/evm-state-machine.md, draw world state → account state → storage trie and describe how one tx transitions it. Done when: you can explain why execution must be deterministic across every node (no clock, no randomness, no I/O).",
+      "prerequisiteTitles": [],
+      "parentTitle": "EVM execution model"
+    },
+    {
+      "title": "Opcodes & the interpreter loop",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EVM bytecode is a sequence of 1-byte opcodes run in a fetch-decode-execute loop over a program counter, a 1024-slot stack, and gas. Each opcode (ADD, SLOAD, CALL, …) has a fixed stack effect and gas cost; the loop halts on STOP/RETURN/REVERT or out-of-gas. evm.codes is the interactive reference and playground. Resources: 🔗 https://www.evm.codes/",
+      "aiContext": "Build: on evm.codes, step through `PUSH1 0x02 PUSH1 0x03 ADD` and record the stack after each opcode in contracts/phase01/opcodes.md. Done when: you can trace stack depth and gas for a 3–4 opcode program by hand.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "EVM execution model"
+    },
+    {
+      "title": "Reading storage slots",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Contract storage is a 2^256 mapping of 32-byte slots. The compiler lays out state variables sequentially from slot 0 (packing small vars together); mappings and dynamic arrays hash the key or base slot to find their location. Any slot is publicly readable, bypassing getters and `private`. Resources: 🔗 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+      "aiContext": "Build: deploy a small contract on anvil, then read a slot with `cast storage <addr> <slot>`; in contracts/phase01/storage-slots.md map two state variables to their slots. Done when: you can compute the slot of a mapping entry as keccak256(key . slot).",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "EVM execution model"
+    },
+    {
+      "title": "World state & Merkle Patricia tries",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum's world state lives in a Merkle Patricia Trie keyed by account address; each account's storage is itself a trie. The block header commits only the 32-byte state root, so any account or slot is provable against it with a Merkle branch — the basis for light clients trusting data they didn't compute. Resources: 📖 https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/",
+      "aiContext": "Build: in contracts/phase01/state-trie.md, explain how stateRoot in the block header lets a light client verify an account balance it didn't compute. Done when: you can describe what a Merkle proof against the state root contains and why it is tamper-evident.",
+      "prerequisiteTitles": ["The EVM as a state machine"],
+      "parentTitle": "EVM execution model"
+    },
+
+    {
+      "title": "Proof-of-Stake basics",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Post-Merge Ethereum secures itself with validators who stake 32 ETH and are pseudo-randomly assigned to propose and attest to blocks each 12-second slot (32 slots per epoch). Honest attestations accrue rewards; equivocation or downtime is penalized. Economic stake, not hashpower, backs finality. Resources: 📖 https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/",
+      "aiContext": "Build: in contracts/phase01/pos-basics.md, explain validators, attestations, and finality in your own words with the 32-ETH stake and slot/epoch timing. Done when: you can describe how a block gets attested and roughly when it finalizes.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "The Merge & post-merge issuance",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The Merge (Sept 2022) swapped PoW for PoS, cutting new-ETH issuance by roughly 90% because there are no miner block rewards, only validator rewards. Combined with the EIP-1559 base-fee burn, net issuance can go negative under load ('ultrasound money'). Resources: 📖 https://ethereum.org/en/roadmap/merge/",
+      "aiContext": "Build: in contracts/phase01/the-merge.md, write a one-paragraph before/after comparison of issuance (PoW miner rewards vs PoS validator rewards) and note the burn's effect. Done when: you can explain why net ETH supply can shrink post-Merge and why the Merge did not change gas fees or throughput.",
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "Slashing & the beacon chain",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The beacon chain coordinates validators. Slashing is the severe penalty for provably malicious acts — double-proposing or surround/double voting — that burns part of the stake and ejects the validator; ordinary downtime is only a small inactivity leak. This makes attacks financially self-punishing. Resources: 📖 https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/rewards-and-penalties/",
+      "aiContext": "Build: in contracts/phase01/slashing.md, list the two slashable offenses and contrast them with the inactivity leak. Done when: you can explain why running one validator key on two machines risks slashing.",
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "Finality & fork choice (Gasper)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Gasper combines Casper FFG (finality) with LMD-GHOST (fork choice). Fork choice picks the head by heaviest attestation weight each slot; FFG then justifies and finalizes checkpoints every epoch. Once finalized, reverting a block would require slashing at least one-third of all staked ETH. Resources: 📖 https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/gasper/",
+      "aiContext": "Build: in contracts/phase01/finality.md, explain the difference between a block being 'head', 'justified', and 'finalized', with the ~2-epoch timing. Done when: you can state the cost, in stake, of reverting a finalized block.",
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+
+    {
+      "title": "Rollups: optimistic vs ZK",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Rollups execute transactions off-L1 and post data plus a state commitment back to Ethereum for security. Optimistic rollups assume validity and allow a fraud-proof challenge window (days of withdrawal delay); ZK rollups post a validity proof verified on L1 (near-instant finality, harder technology). Resources: 📖 https://ethereum.org/en/developers/docs/scaling/",
+      "aiContext": "Build: in contracts/phase01/rollups.md, make a table comparing optimistic vs ZK rollups on proof type, withdrawal latency, and trust assumptions. Done when: you can explain why an optimistic-rollup withdrawal takes ~7 days but a ZK one need not.",
+      "prerequisiteTitles": [],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "Data availability & blobs (EIP-4844)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-4844 (proto-danksharding) added blob-carrying transactions: large (~128 KB) data attached to a tx but stored only ~18 days by consensus nodes and priced in a separate blob-gas market. Rollups post their data as blobs instead of expensive calldata, which cut L2 fees by an order of magnitude. Resources: 📖 https://ethereum.org/en/roadmap/danksharding/",
+      "aiContext": "Build: in contracts/phase01/blobs.md, explain what a blob is, why it is cheaper than calldata, and why it is ephemeral. Done when: you can say why L2 fees dropped sharply after 4844 and why blobs don't bloat state forever.",
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "L2Beat trust framework",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Not all 'L2s' inherit Ethereum security equally. L2Beat classifies rollups by Stage 0/1/2 — how much the system still depends on a trusted operator and upgradability versus being governed by proofs and exit guarantees. Reading it teaches you to judge decentralization claims, not marketing. Resources: 🔗 https://l2beat.com/",
+      "aiContext": "Build: on l2beat.com pick three L2s and record each one's stage (0/1/2) and the main risk that caps it, in contracts/phase01/l2beat.md. Done when: you can explain what separates a Stage 0 from a Stage 1 rollup.",
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "Sequencers & batchers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Most rollups run a single sequencer that orders L2 transactions and gives fast soft-confirmations; a batcher then posts the compressed batch (as blobs) to L1. A centralized sequencer can't steal funds but can censor or reorder, which is why forced-inclusion escape hatches and sequencer decentralization matter. Resources: 📖 https://ethereum.org/en/developers/docs/scaling/optimistic-rollups/",
+      "aiContext": "Build: in contracts/phase01/sequencers.md, diagram user → sequencer → batcher → L1 and mark where censorship and MEV can occur. Done when: you can explain what a forced-inclusion mechanism protects against.",
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+
+    {
+      "title": "Account abstraction (ERC-4337)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-4337 brings smart-contract wallets without a protocol change: users sign UserOperations that bundlers collect into a single tx to a singleton EntryPoint contract, which validates and executes each op against the user's wallet, and a paymaster can sponsor gas. This unlocks social recovery, batching, and gasless UX. Resources: 🔗 https://erc4337.io/",
+      "aiContext": "Build: in contracts/phase01/erc4337.md, draw the flow UserOp → bundler → EntryPoint → wallet (→ paymaster). Done when: you can name each actor's job and why the EntryPoint is a single audited singleton.",
+      "prerequisiteTitles": ["EOAs vs contract accounts"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "EIP-7702 EOA delegation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-7702 (Pectra) lets an ordinary EOA temporarily set its code to point at a contract for a transaction, so a plain wallet gains smart-account features (batching, sponsorship, session keys) without migrating to a new address. It is a lighter path to account abstraction than deploying a 4337 wallet. Resources: 📖 https://eips.ethereum.org/EIPS/eip-7702",
+      "aiContext": "Build: in contracts/phase01/eip7702.md, explain what a 7702 delegation authorization does and contrast it with a 4337 smart wallet. Done when: you can say why 7702 keeps your existing address while adding contract behavior.",
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "Bundler economics",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A bundler is the ERC-4337 actor that pays L1 gas to submit a batch of UserOps and is reimbursed, plus a margin, from each op's prefund, enforced by the EntryPoint. To avoid loss, bundlers simulate each op's validation and drop ops that would revert or grief them, which is why the 4337 mempool has storage-access rules. Resources: 🔗 https://erc4337.io/",
+      "aiContext": "Build: in contracts/phase01/bundler-economics.md, explain how a bundler is reimbursed and why it must simulate before including a UserOp. Done when: you can describe the griefing risk a bundler avoids by simulating.",
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "Paymasters & gas sponsorship",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A paymaster is a contract that agrees to pay a UserOperation's gas, enabling gasless onboarding or letting users pay fees in an ERC-20. It posts a deposit/stake with the EntryPoint and runs its own validation to decide whom to sponsor. Misdesigned sponsorship logic is a drain vector. Resources: 📖 https://ethereum.org/en/roadmap/account-abstraction/",
+      "aiContext": "Build: in contracts/phase01/paymasters.md, explain the two common paymaster modes (sponsor-all vs pay-in-ERC20) and the deposit it posts to the EntryPoint. Done when: you can name one way a naive paymaster can be drained.",
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+
+    {
+      "title": "Pectra & Fusaka deltas",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pectra (2025) bundled EIP-7702 (EOA delegation), EIP-7251 (raising max effective balance to 2048 ETH for validator consolidation), and blob-count and other changes; Fusaka (2025–26) headlines PeerDAS (EIP-7594) to scale blob data availability. Tracking forks keeps your mental model current. Resources: 📖 https://ethereum.org/en/roadmap/",
+      "aiContext": "Build: in contracts/phase01/forks.md, list what Pectra and Fusaka each shipped (headline EIPs) in a short table. Done when: you can name one user-facing change from Pectra and one scaling change from Fusaka.",
+      "prerequisiteTitles": [],
+      "parentTitle": "2025–26 protocol state"
+    },
+    {
+      "title": "The Ethereum roadmap (Verge/Purge/Splurge)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The roadmap groups upgrades into tracks: the Merge (PoS, done), Surge (rollup/DA scaling), Scourge (MEV and censorship resistance), Verge (stateless clients / Verkle-or-successor), Purge (state and history expiry), and Splurge (everything else). It is the map that tells you where a given EIP fits. Resources: 📖 https://ethereum.org/en/roadmap/",
+      "aiContext": "Build: in contracts/phase01/roadmap.md, list the roadmap tracks and place two recent EIPs (e.g. 4844, 7702) onto them. Done when: you can say which track proto-danksharding belongs to and why.",
+      "prerequisiteTitles": ["Pectra & Fusaka deltas"],
+      "parentTitle": "2025–26 protocol state"
+    },
+    {
+      "title": "EIP-7251 & validator consolidation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-7251 (Pectra) raised the maximum effective balance from 32 to 2048 ETH, letting large stakers consolidate many 32-ETH validators into one. Fewer validator keys means less attestation and aggregation overhead and simpler operations, without changing the 32-ETH minimum to join. Resources: 📖 https://eips.ethereum.org/EIPS/eip-7251",
+      "aiContext": "Build: in contracts/phase01/maxeb.md, explain what MaxEB changes for a large staker and what stays the same for a solo 32-ETH validator. Done when: you can state why consolidation reduces beacon-chain message load.",
+      "prerequisiteTitles": ["Pectra & Fusaka deltas"],
+      "parentTitle": "2025–26 protocol state"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Public-key cryptography & wallets",
+      "promptText": "How is an Ethereum address derived from a private key, and what is irreversible about it?",
+      "answerHint": "privkey → (secp256k1) pubkey → keccak256(pubkey) → last 20 bytes = address. One-way at each step; a lost private key is unrecoverable and there is no admin reset.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transaction anatomy",
+      "promptText": "Name the fields of an EIP-1559 transaction and say which one prevents replay.",
+      "answerHint": "nonce, gasLimit, maxFeePerGas, maxPriorityFeePerGas, to, value, data, (v,r,s). The nonce (per-sender, monotonic) plus chainId in the signature prevent replay.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Gas & the fee market (EIP-1559)",
+      "promptText": "Break down what a sender pays per gas under EIP-1559, and where each part goes.",
+      "answerHint": "base fee (burned, set by protocol from block fullness) + priority tip (to the proposer). Total = gasUsed × (baseFee + tip), capped by maxFeePerGas.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack / memory / storage / calldata",
+      "promptText": "Order the EVM data locations by gas cost and explain when each is appropriate.",
+      "answerHint": "calldata (cheapest, read-only input) < stack < memory (transient scratch, expansion-priced) < storage (persistent, most expensive). Use calldata for read-only args, memory for scratch, storage only for state that must persist.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "What a blockchain is",
+      "promptText": "Why is a blockchain immutable in practice, rather than by decree?",
+      "answerHint": "Each block includes its parent's hash, so altering an old block changes its hash and invalidates every descendant; a rewrite must redo all later blocks and out-race honest consensus. Pitfall: immutability is economic/probabilistic, not absolute.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hashing & Merkle trees",
+      "promptText": "What does a Merkle root let you prove, and how large is the proof?",
+      "answerHint": "A single 32-byte root commits to an entire set; membership of any leaf is provable with a branch of ~log2(n) sibling hashes, without revealing the rest. Pitfall: it proves inclusion, not exclusion (that needs a sorted/sparse variant).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mnemonics & HD wallets",
+      "promptText": "Why can one seed phrase back up an unlimited number of Ethereum addresses?",
+      "answerHint": "BIP-32 hierarchical-deterministic derivation expands the BIP-39 seed into a tree of child keys along a BIP-44 path (m/44'/60'/…); each index is a new keypair. Pitfall: the phrase is the master secret — leaking it compromises every derived account.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Nodes, clients & JSON-RPC",
+      "promptText": "What is JSON-RPC's role, and why does Ethereum want many independent clients?",
+      "answerHint": "JSON-RPC is the request/response API (eth_call, eth_sendRawTransaction, …) apps use to read and write chain state. Client diversity means one client's bug can't halt or split the network. Pitfall: a public RPC is trusted infrastructure — it can lie unless you verify.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EOAs vs contract accounts",
+      "promptText": "How do EOAs and contract accounts differ in control and fields?",
+      "answerHint": "EOA = key-controlled, no code, can originate txs; contract = code-controlled, has codeHash + storageRoot, only acts when called. Both carry nonce + balance. Pitfall: pre-EIP-7702 a contract can never be the tx origin.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Nonce & replay protection",
+      "promptText": "How does the nonce prevent replay and enforce ordering?",
+      "answerHint": "Each EOA tx must use its exact next sequential nonce, so a mined tx (nonce consumed) can't re-execute and txs process in order. EIP-155 adds chainId to the signature to block cross-chain replay. Pitfall: a missing lower nonce stalls all higher-nonce txs.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transaction types & the mempool",
+      "promptText": "Name the modern Ethereum transaction types and what makes each distinct.",
+      "answerHint": "0x0 legacy, 0x1 access-list (2930), 0x2 dynamic-fee (1559, the default), 0x3 blob (4844), 0x4 set-code (7702), under EIP-2718's typed envelope. Pitfall: blob data isn't in calldata — it rides in a separate, short-lived sidecar.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The EVM as a state machine",
+      "promptText": "In what sense is the EVM a state machine?",
+      "answerHint": "Each tx deterministically maps world state (address→account: balance/nonce/code/storageRoot) to a new world state, metered by gas. Determinism lets every node recompute and agree. Pitfall: no wall-clock, no randomness, no external I/O during execution.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Opcodes & the interpreter loop",
+      "promptText": "Describe the EVM's interpreter loop and its working memory.",
+      "answerHint": "Fetch opcode at PC → decode → execute against the 1024-deep stack (plus memory/storage), charge gas, advance or jump PC; halt on STOP/RETURN/REVERT or out-of-gas. Pitfall: stack overflow (>1024) or underflow reverts the whole call.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Reading storage slots",
+      "promptText": "Where does the value of `mapping(k=>v) m` declared at slot p live in storage?",
+      "answerHint": "At keccak256(abi.encode(k, p)); the mapping itself occupies slot p only as a placeholder. Dynamic arrays keep length at p and data at keccak256(p). Pitfall: `private` hides nothing — any slot is publicly readable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "World state & Merkle Patricia tries",
+      "promptText": "What does the block header's stateRoot commit to, and why does it matter?",
+      "answerHint": "It's the root of the Merkle Patricia Trie over all accounts (each with its own storage trie); any account or slot is provable against it with a log-sized branch. Pitfall: change one slot and the state root changes, so proofs are tamper-evident.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Proof-of-Stake basics",
+      "promptText": "What replaces mining under Proof-of-Stake, and how are validators kept honest?",
+      "answerHint": "Validators stake ETH and are pseudo-randomly chosen to propose/attest per 12s slot; correct attestations earn rewards, equivocation or downtime is slashed or penalized. Pitfall: security is economic — an attacker must risk stake, not buy hashpower.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The Merge & post-merge issuance",
+      "promptText": "How did the Merge change ETH issuance?",
+      "answerHint": "It removed PoW miner rewards, leaving only the much smaller PoS validator rewards (~90% issuance drop); with EIP-1559 burn, net issuance can be negative under demand. Pitfall: the Merge changed consensus and issuance, not gas fees or throughput.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Slashing & the beacon chain",
+      "promptText": "What gets a validator slashed, versus merely penalized?",
+      "answerHint": "Slashing (stake burn + ejection) is for provable equivocation: double block proposals or surround/double attestations. Being offline is only a small inactivity leak. Pitfall: redundant setups sharing one key can double-sign and self-slash.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Finality & fork choice (Gasper)",
+      "promptText": "What does 'finalized' mean under Gasper, and how does it differ from the current head?",
+      "answerHint": "Head = current heaviest-attested block (LMD-GHOST), reorg-able; finalized = a checkpoint justified in two consecutive epochs (Casper FFG), and reverting it burns ≥1/3 of stake. Pitfall: only data ~2 epochs old is finalized, not the latest block.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Rollups: optimistic vs ZK",
+      "promptText": "Optimistic vs ZK rollups — what is the core difference and its consequence?",
+      "answerHint": "Optimistic assumes txs valid and relies on fraud proofs + a challenge window (~7-day withdrawal); ZK posts a validity proof verified on L1 (fast finality, no challenge window) at higher proving cost. Pitfall: both inherit L1 security only if the data is actually posted (DA).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Data availability & blobs (EIP-4844)",
+      "promptText": "What is a blob (EIP-4844) and why did it cut L2 fees?",
+      "answerHint": "A ~128 KB data chunk attached to a tx, in its own blob-gas fee market, pruned after ~18 days — enough for rollups to prove data availability without paying permanent calldata prices. Pitfall: blob data isn't readable by the EVM, only its KZG commitment is.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "L2Beat trust framework",
+      "promptText": "What does L2Beat's Stage 0/1/2 framework measure?",
+      "answerHint": "How far a rollup has removed trust in the operator: Stage 0 = training wheels (operator/upgrades can override), Stage 1 = security council + working proof system, Stage 2 = fully proof-governed with user exits. Pitfall: 'L2' branding ≠ Ethereum-equivalent security.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sequencers & batchers",
+      "promptText": "What powers does a rollup sequencer have, and what protects users from it?",
+      "answerHint": "It orders L2 txs and gives fast pre-confirmations, and can censor or reorder (MEV) — but can't forge state or steal funds. Forced-inclusion via L1 plus eventual sequencer decentralization limit censorship. Pitfall: a down centralized sequencer halts the L2's fast path.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Account abstraction (ERC-4337)",
+      "promptText": "Trace an ERC-4337 UserOperation from signing to execution.",
+      "answerHint": "User signs a UserOp → bundler batches it into a tx → singleton EntryPoint validates (wallet + optional paymaster) then calls the wallet's execute. No consensus change. Pitfall: bundlers must simulate validation to avoid paying for ops that revert on-chain.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-7702 EOA delegation",
+      "promptText": "What does EIP-7702 change, and how does it differ from ERC-4337?",
+      "answerHint": "7702 lets an EOA delegate its code to a contract (via a signed authorization), gaining smart-account features at the same address; 4337 requires a separately deployed contract wallet. Pitfall: delegation makes an EOA run contract logic — a malicious target can drain it.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bundler economics",
+      "promptText": "How does a bundler get paid, and why does it simulate UserOps first?",
+      "answerHint": "The EntryPoint reimburses the bundler's gas (+ margin) from each op's prefund; simulation ensures validation won't revert on-chain, which would make the bundler eat the gas. Pitfall: storage-access rules (ERC-7562) keep simulation predictive of real execution.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Paymasters & gas sponsorship",
+      "promptText": "What is a paymaster and what is its main risk?",
+      "answerHint": "An ERC-4337 contract that funds a UserOp's gas (free onboarding or pay-in-token), backed by a deposit/stake at the EntryPoint. Risk: unchecked sponsorship rules let anyone spend its balance. Pitfall: it must validate the op cheaply within the 4337 storage rules.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Pectra & Fusaka deltas",
+      "promptText": "Name a headline change from Pectra and from Fusaka.",
+      "answerHint": "Pectra: EIP-7702 EOA delegation + EIP-7251 higher max effective balance (validator consolidation); Fusaka: PeerDAS (EIP-7594) scaling blob data availability. Pitfall: fork contents shift until final — verify against the roadmap.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The Ethereum roadmap (Verge/Purge/Splurge)",
+      "promptText": "What are the Ethereum roadmap tracks, and what is each about?",
+      "answerHint": "Merge (PoS), Surge (scaling/DA via rollups + blobs), Scourge (MEV/censorship), Verge (stateless/Verkle), Purge (state and history expiry), Splurge (misc). Pitfall: the tracks run in parallel, not a strict sequence.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-7251 & validator consolidation",
+      "promptText": "What did EIP-7251 (MaxEB) change and why does it help?",
+      "answerHint": "It raised the max effective balance 32→2048 ETH so operators can consolidate many validators into one key, cutting attestation and aggregation overhead; the 32-ETH activation minimum is unchanged. Pitfall: a consolidated validator concentrates more stake behind one slashing risk.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

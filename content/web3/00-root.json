@@ -1,0 +1,98 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Web3 / Solidity / DeFi",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Root of the Web3 learning path: fundamentals → Solidity → tooling → standards → gas → security → DeFi → EVM internals → frontier → full-stack. Code-first — every leaf has a Build task in the web3-practice repo and a Done-when gate; security threads from Phase 4 and is exhaustive in Phase 6. Study one leaf at a time.",
+      "aiContext": "path root, created 2026-07-07. Approach B (phased spiral, woven security). Toolchain: Foundry-primary + Hardhat 3 for TS deploy/full-stack. Extend via living-roadmap prompting.",
+      "prerequisiteTitles": [],
+      "parentTitle": null
+    },
+    {
+      "title": "Phase 1 — Blockchain & Ethereum Fundamentals",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How Ethereum works: accounts, transactions, gas, the EVM, PoS consensus, L2s/rollups, account abstraction, and the 2025–26 protocol state (Pectra/Fusaka). Mostly theory; entry point. Resources: https://updraft.cyfrin.io/courses/blockchain-basics",
+      "prerequisiteTitles": [],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 2 — Solidity Language",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The Solidity language end to end: types, storage, functions, inheritance, events, errors, low-level calls, ABI, signatures, assembly intro. Resources: https://updraft.cyfrin.io/courses/solidity, https://solidity-by-example.org/",
+      "prerequisiteTitles": ["Phase 1 — Blockchain & Ethereum Fundamentals"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 3 — Tooling: Foundry & Hardhat",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Foundry (primary: test/fuzz/invariant/gas/security) and Hardhat 3 (secondary: TS deploy pipelines, full-stack), plus their interop. Resources: https://updraft.cyfrin.io/courses/foundry, https://hardhat.org/docs",
+      "prerequisiteTitles": ["Phase 2 — Solidity Language"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 4 — Core Contract Patterns & Standards",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Token standards (ERC-20/721/1155/4626), proxies/upgradeability, access control, signatures/permit/meta-tx, airdrops, multisig, factories, DAOs — each with its threat model. Resources: https://updraft.cyfrin.io/courses/advanced-foundry",
+      "prerequisiteTitles": ["Phase 3 — Tooling: Foundry & Hardhat"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 5 — Gas Optimization",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Exhaustive gas: storage packing, warm/cold access, calldata, unchecked, bitmaps, custom errors, assembly, architecture. Resources: https://www.rareskills.io/post/gas-optimization-in-solidity, https://github.com/RareSkills/gas-puzzles",
+      "prerequisiteTitles": ["Phase 4 — Core Contract Patterns & Standards"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 6 — Security & Auditing",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The full attack taxonomy + audit methodology, static analysis, fuzzing/invariants, report writing, wargames (Ethernaut, Damn Vulnerable DeFi v4), real-exploit replays, and CodeHawks First Flights. Resources: https://updraft.cyfrin.io/courses/security",
+      "prerequisiteTitles": ["Phase 4 — Core Contract Patterns & Standards"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 7 — DeFi Mechanics & From-Scratch Builds",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Build DeFi from scratch: AMMs, Uniswap V2→V3→V4, lending, stablecoins, oracles, staking/restaking, perps, vaults, flash loans. Resources: https://updraft.cyfrin.io/courses, https://jeiwan.net/",
+      "prerequisiteTitles": ["Phase 6 — Security & Auditing"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 8 — EVM Internals & Advanced Solidity",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Opcodes, Yul/Huff, storage/memory/calldata at the bytecode level, proxies at bytecode level, formal verification. Resources: https://updraft.cyfrin.io/courses/formal-verification, https://www.evm.codes/",
+      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 9 — Frontier Strands",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "MEV, intents/ERC-7683, Uniswap V4 hooks, restaking, RWAs, ZK, L2 internals. Independently orderable after Phase 7. Resources: https://docs.flashbots.net/, https://www.rareskills.io/zk-book",
+      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    },
+    {
+      "title": "Phase 10 — Full-Stack dApp",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "viem/wagmi, wallet connection, reading/writing contracts, events/indexing, Scaffold-ETH 2, the Speedrun Ethereum challenge ladder. Resources: https://speedrunethereum.com/, https://scaffoldeth.io/",
+      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "parentTitle": "Web3 / Solidity / DeFi"
+    }
+  ],
+  "proposedPrompts": [],
+  "noteSummaries": []
+}

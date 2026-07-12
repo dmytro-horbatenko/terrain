@@ -1,0 +1,463 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Errors & reverts",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How Solidity signals failure and rolls back: require/revert/assert, custom errors, and the Error(string) / Panic(uint) selectors the EVM returns. Resources: https://solidity-by-example.org/error/",
+      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "ETH transfer",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Receiving and sending native ETH: payable, msg.value, transfer/send/call, and the receive/fallback special functions. The most reentrancy-prone corner of the language. Resources: https://solidity-by-example.org/sending-ether/",
+      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Low-level calls",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The raw call/delegatecall/staticcall primitives and try/catch — how contracts talk to other contracts, the storage-context trap of delegatecall, and the read-only guarantee of staticcall. Resources: https://solidity-by-example.org/call/",
+      "prerequisiteTitles": ["ETH transfer"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "ABI encoding & decoding",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How arguments are serialized for calls and hashes: abi.encode vs encodePacked, abi.decode, function selectors, and encodeCall/encodeWithSelector. Collision-safety matters. Resources: https://solidity-by-example.org/abi-encode/",
+      "prerequisiteTitles": ["Low-level calls"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Hashing",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "keccak256 as Ethereum's universal hash — mappings, merkle proofs, selectors, and commit-reveal — and the encode-vs-encodePacked collision trap when hashing. Resources: https://solidity-by-example.org/hashing/",
+      "prerequisiteTitles": ["ABI encoding & decoding"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Signatures (ECDSA & EIP-712)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Verifying off-chain authorizations on-chain: ecrecover, malleability, the EIP-191 prefix, and EIP-712 typed structured data with a domain separator for safe, human-readable signing. Resources: https://eips.ethereum.org/EIPS/eip-712",
+      "prerequisiteTitles": ["Hashing"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Libraries & interfaces",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Reusable, stateless libraries (using-for, internal-inlined vs external-delegatecalled) and interfaces for type-safe cross-contract calls. Resources: https://solidity-by-example.org/library/",
+      "prerequisiteTitles": ["Inheritance"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Assembly & Yul intro",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Dropping to inline assembly (Yul): raw opcodes, the memory model (free pointer, scratch space), and direct storage access — power at the cost of every safety check. Resources: https://docs.soliditylang.org/en/latest/assembly.html",
+      "prerequisiteTitles": ["Storage layout"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "Transient storage",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "EIP-1153's TSTORE/TLOAD: cheap storage that lives for one transaction then auto-clears — ideal for reentrancy locks and transient accumulators. Resources: https://soliditylang.org/blog/2024/01/26/transient-storage/",
+      "prerequisiteTitles": ["Storage layout"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+    {
+      "title": "User-defined value types",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "UDVTs wrap an elementary type in a new, distinct compile-time type (Duration is uint256) for zero-cost type safety without arithmetic operators unless you add them. Resources: https://docs.soliditylang.org/en/latest/types.html#user-defined-value-types",
+      "prerequisiteTitles": ["Types & data locations"],
+      "parentTitle": "Phase 2 — Solidity Language"
+    },
+
+    {
+      "title": "Custom errors",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Custom errors (error InsufficientBalance(uint have, uint want); revert InsufficientBalance(...)) replace revert strings since 0.8.4: the revert data is just a 4-byte selector plus ABI-encoded args, far cheaper to deploy and to revert with than a string. They also give callers structured, decodable failure data. Since 0.8.26 you can even use require(cond, CustomError()). Resources: 📖 https://solidity-by-example.org/error/",
+      "aiContext": "Build: implement contracts/phase02/Errors.sol with a withdraw guarded by a custom error carrying (have, want), with a test in test/phase02/Errors.t.sol using vm.expectRevert(abi.encodeWithSelector(...)). Done when: forge test passes and the test decodes the error's arguments from the revert data.",
+      "prerequisiteTitles": ["Function modifiers"],
+      "parentTitle": "Errors & reverts"
+    },
+    {
+      "title": "require, revert & assert",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "require validates inputs and preconditions and returns an Error(string); revert does the same for complex/early exits; assert checks invariants that should never fail and returns a Panic(uint) — e.g. 0x11 overflow, 0x12 divide-by-zero, 0x32 array out-of-bounds. Since 0.8 a failed assert reverts and refunds remaining gas rather than consuming it all. A triggered assert means a bug, never a user error. Resources: 🔗 https://docs.soliditylang.org/en/latest/control-structures.html#error-handling-assert-require-revert-and-exceptions",
+      "aiContext": "Build: implement contracts/phase02/Guards.sol with a require input check, a revert branch, and an assert invariant, with a test in test/phase02/Guards.t.sol asserting each failure's selector. Done when: forge test passes and the test distinguishes an Error(string) revert from a Panic(0x11) on overflow.",
+      "prerequisiteTitles": ["Custom errors"],
+      "parentTitle": "Errors & reverts"
+    },
+
+    {
+      "title": "payable functions & msg.value",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A function must be marked payable to accept ETH; a non-payable function reverts if sent value. msg.value (in wei) is the amount attached to the current call and is visible to internal calls in the same execution context, while address(this).balance is the contract's total. Forgetting payable, or double-counting msg.value across internal calls, are common mistakes. Resources: 📖 https://solidity-by-example.org/payable/",
+      "aiContext": "Build: implement contracts/phase02/Payable.sol with a payable deposit that credits a balance mapping and a getBalance view of address(this).balance, with a test in test/phase02/Payable.t.sol. Done when: forge test passes and the test proves sending value to a non-payable function reverts and deposit credits msg.value.",
+      "prerequisiteTitles": [],
+      "parentTitle": "ETH transfer"
+    },
+    {
+      "title": "Sending ETH: transfer, send, call",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Three ways to send ETH differ in gas and error handling: transfer forwards a fixed 2300-gas stipend and reverts on failure; send does the same but returns a bool you must check; call{value: x}(\"\") forwards all remaining gas and returns (bool, bytes). The 2300-gas stipend of transfer/send breaks for contract recipients whose receive logic costs more, so the current guidance is call — combined with checks-effects-interactions or a reentrancy guard, because call reopens reentrancy. Resources: 📖 https://solidity-by-example.org/sending-ether/",
+      "aiContext": "Build: implement contracts/phase02/SendEth.sol exposing sendViaCall that checks the returned success bool, with a test in test/phase02/SendEth.t.sol sending to both an EOA and a contract. Done when: forge test passes and the test asserts a failed call reverts (bubbled) rather than silently succeeding.",
+      "prerequisiteTitles": ["payable functions & msg.value"],
+      "parentTitle": "ETH transfer"
+    },
+    {
+      "title": "receive & fallback",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "receive() external payable runs when the contract is sent plain ETH with empty calldata; fallback() external [payable] runs when no function selector matches (or when ETH arrives with data and there is no receive). The dispatch rule: empty calldata + a receive present → receive, otherwise → fallback. A contract with neither cannot accept plain transfers (only forced ETH via selfdestruct/coinbase). Resources: 📖 https://solidity-by-example.org/fallback/",
+      "aiContext": "Build: implement contracts/phase02/Fallback.sol with both receive and fallback logging which one ran, with a test in test/phase02/Fallback.t.sol sending empty vs non-matching calldata. Done when: forge test passes and the test proves empty calldata hits receive and unknown-selector calldata hits fallback.",
+      "prerequisiteTitles": ["payable functions & msg.value"],
+      "parentTitle": "ETH transfer"
+    },
+
+    {
+      "title": "Low-level call",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "addr.call{value, gas}(abi.encodeWithSelector(...)) is the type-unsafe primitive that forwards a raw payload and returns (bool success, bytes returndata) WITHOUT reverting on failure — you must check success yourself. It also does not verify the target has code: calling an EOA or empty address returns success = true with empty data. This is the escape hatch when you don't have the callee's ABI, at the cost of every compiler guarantee. Resources: 📖 https://solidity-by-example.org/call/",
+      "aiContext": "Build: implement contracts/phase02/LowCall.sol invoking a target function via call and reverting on !success, with a test in test/phase02/LowCall.t.sol. Done when: forge test passes and the test proves an unchecked call to a reverting target would silently continue unless success is checked.",
+      "prerequisiteTitles": ["Sending ETH: transfer, send, call"],
+      "parentTitle": "Low-level calls"
+    },
+    {
+      "title": "delegatecall & storage context",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "delegatecall runs the target's code in the CALLER's context: the caller's storage is read and written, and msg.sender/msg.value are preserved from the original call. This is the mechanism behind every proxy, but it demands that the proxy's and implementation's storage layouts match slot-for-slot — a mismatch makes the implementation write to the wrong slots and corrupt state. address(this) is the caller, not the code's contract. Resources: 📖 https://solidity-by-example.org/delegatecall/",
+      "aiContext": "Build: implement contracts/phase02/Delegate.sol as a proxy-like caller and a logic contract that sets a uint and address, with a test in test/phase02/Delegate.t.sol proving the caller's storage changes. Done when: forge test passes and the test asserts the logic wrote into the caller's slots and msg.sender inside the logic equals the original caller.",
+      "prerequisiteTitles": ["Low-level call"],
+      "parentTitle": "Low-level calls"
+    },
+    {
+      "title": "staticcall & read-only enforcement",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "staticcall is like call but the EVM reverts the sub-call if it attempts any state change — SSTORE, log emission, contract creation, selfdestruct, or a value-bearing call. It is how external view functions are invoked, guaranteeing a call cannot mutate state behind your back. If you invoke a 'view' function through a raw call instead of staticcall, that guarantee is gone. Resources: 🔗 https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html#index-6",
+      "aiContext": "Build: implement contracts/phase02/Static.sol calling a read-only function via staticcall and a writing function via staticcall (expected to revert), with a test in test/phase02/Static.t.sol. Done when: forge test passes and the test proves the read succeeds and the state-writing staticcall reverts.",
+      "prerequisiteTitles": ["Low-level call"],
+      "parentTitle": "Low-level calls"
+    },
+    {
+      "title": "try/catch for external calls",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "try/catch handles reverts from an external call or a new-contract creation only — not internal/private calls. You can branch on catch Error(string reason) (a revert/require string), catch Panic(uint code) (an assert/arithmetic panic), catch (bytes lowLevelData) (custom errors and everything else), or a bare catch. It lets a caller recover instead of bubbling the callee's failure. Resources: 📖 https://solidity-by-example.org/try-catch/",
+      "aiContext": "Build: implement contracts/phase02/TryCatch.sol calling an external contract that can revert with a string, a panic, or a custom error, with a test in test/phase02/TryCatch.t.sol hitting each catch arm. Done when: forge test passes and the test asserts the Error(string) reason and the Panic code are captured separately.",
+      "prerequisiteTitles": ["Low-level call"],
+      "parentTitle": "Low-level calls"
+    },
+
+    {
+      "title": "abi.encode vs encodePacked",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "abi.encode pads every argument to a 32-byte boundary, producing canonical, unambiguously decodable bytes; abi.encodePacked concatenates the minimal representation with no padding, which is compact but NOT decodable and ambiguous for adjacent dynamic types. Because encodePacked((\"a\"),(\"bc\")) equals encodePacked((\"ab\"),(\"c\")), hashing packed user-controlled dynamic arguments can collide — a real authorization-bypass vector. Use encode (or a fixed separator) when the bytes feed a hash used for security. Resources: 📖 https://solidity-by-example.org/abi-encode/",
+      "aiContext": "Build: implement contracts/phase02/AbiEncode.sol with both encoders and a function hashing two strings each way, with a test in test/phase02/AbiEncode.t.sol demonstrating the packed collision. Done when: forge test passes and the test proves two different string pairs produce the SAME encodePacked hash but DIFFERENT encode hashes.",
+      "prerequisiteTitles": [],
+      "parentTitle": "ABI encoding & decoding"
+    },
+    {
+      "title": "abi.decode & function selectors",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "abi.decode(data, (uint, address)) reverses abi.encode back into typed values. A function selector is the first 4 bytes of keccak256 of the canonical signature (\"transfer(address,uint256)\"); calldata is selector ++ abi.encode(args). Prefer abi.encodeCall(IERC20.transfer, (to, amt)) — it is type-checked at compile time — over abi.encodeWithSignature, whose string signature typos slip through silently. Resources: 📖 https://solidity-by-example.org/abi-decode/",
+      "aiContext": "Build: implement contracts/phase02/AbiDecode.sol that encodes a struct+array with abi.encode, decodes it back, and builds a call payload with abi.encodeCall, with a test in test/phase02/AbiDecode.t.sol. Done when: forge test passes and the test asserts the round-trip decode equals the input and the selector equals bytes4(keccak256(sig)).",
+      "prerequisiteTitles": ["abi.encode vs encodePacked"],
+      "parentTitle": "ABI encoding & decoding"
+    },
+
+    {
+      "title": "keccak256 hashing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "keccak256(bytes) is Ethereum's workhorse 256-bit hash (the pre-standard Keccak, not NIST SHA3-256) — deterministic, one-way, collision-resistant — and underlies mapping slots, merkle proofs, function selectors, commit-reveal, and signatures. You hash by first ABI-encoding the inputs, and the choice of encode vs encodePacked changes the digest and the collision risk. Resources: 📖 https://solidity-by-example.org/hashing/",
+      "aiContext": "Build: implement contracts/phase02/Keccak.sol with a commit-reveal (commit = keccak256(abi.encode(secret, salt))) plus a reveal check, with a test in test/phase02/Keccak.t.sol. Done when: forge test passes and the test proves a correct reveal matches the commitment and a wrong secret does not.",
+      "prerequisiteTitles": ["abi.encode vs encodePacked"],
+      "parentTitle": "Hashing"
+    },
+
+    {
+      "title": "ECDSA signatures & ecrecover",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ecrecover(hash, v, r, s) returns the address that signed hash, or address(0) on failure — so you MUST reject a zero return, otherwise a bad signature 'authorizes' address(0). Signatures are malleable: for any valid (r, s) there is a second valid (r, n−s), so enforce low-s and add a nonce/deadline to stop replay. Off-chain signers hash the EIP-191 prefixed message (\"\\x19Ethereum Signed Message:\\n32\"); use OpenZeppelin's ECDSA library to get all of this right. Resources: 📖 https://solidity-by-example.org/signature/",
+      "aiContext": "Build: implement contracts/phase02/VerifySig.sol recovering a signer with the EIP-191 prefix and rejecting address(0), with a test in test/phase02/VerifySig.t.sol using vm.sign. Done when: forge test passes and the test proves a valid signature recovers the expected signer and a tampered message does not.",
+      "prerequisiteTitles": ["keccak256 hashing"],
+      "parentTitle": "Signatures (ECDSA & EIP-712)"
+    },
+    {
+      "title": "EIP-712 typed structured data",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-712 makes signed data human-readable in the wallet and replay-safe by hashing a typed struct together with a domain separator built from name, version, chainId, and verifyingContract. The digest is keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(message)). Omitting chainId or verifyingContract from the domain lets a signature be replayed on another chain or contract — this is exactly what ERC-2612 permit relies on getting right. Resources: 🔗 https://eips.ethereum.org/EIPS/eip-712",
+      "aiContext": "Build: implement contracts/phase02/Permit712.sol computing a domain separator and verifying an EIP-712 Mail/permit-style struct signature, with a test in test/phase02/Permit712.t.sol. Done when: forge test passes and the test proves a signature valid for this contract's domain fails verification when the chainId in the domain is changed.",
+      "prerequisiteTitles": ["ECDSA signatures & ecrecover"],
+      "parentTitle": "Signatures (ECDSA & EIP-712)"
+    },
+
+    {
+      "title": "Libraries & using-for",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A library is stateless reusable code: it holds no state, cannot receive ETH, and cannot be destroyed. internal library functions are inlined into the caller's bytecode; external ones are deployed once and reached by DELEGATECALL (so they run in the caller's context and must never assume their own storage). using Lib for Type attaches the library's functions as methods on that type. Resources: 📖 https://solidity-by-example.org/library/",
+      "aiContext": "Build: implement contracts/phase02/Lib.sol with an internal library (e.g. a Math.max) attached via using-for and used on a uint, with a test in test/phase02/Lib.t.sol. Done when: forge test passes and the test calls the attached method as x.max(y) and asserts the result.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Libraries & interfaces"
+    },
+    {
+      "title": "Interfaces",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An interface declares only external function signatures — no bodies, no state, no constructor — and all its functions are implicitly virtual. You wrap an address as IToken(addr) to make type-safe high-level calls to a contract you don't have the source for, and type(IToken).interfaceId gives the ERC-165 identifier. An interface is a promise about the target; calling it on a non-conforming address may revert or misbehave. Resources: 📖 https://solidity-by-example.org/interface/",
+      "aiContext": "Build: implement contracts/phase02/UseInterface.sol defining an ICounter interface and a consumer that increments and reads a separate Counter through it, with a test in test/phase02/UseInterface.t.sol. Done when: forge test passes and the test drives the Counter entirely through the interface type.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Libraries & interfaces"
+    },
+    {
+      "title": "Calling other contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The high-level way to call another contract is Contract(addr).f(args) or Interface(addr).f(args): the compiler ABI-encodes the arguments, performs a CALL, checks the callee has code, and bubbles up any revert automatically. Since 0.8 a high-level call to an address with no code reverts. This is safer than raw call but still trusts the target's declared ABI — a wrong interface silently mis-encodes arguments. Resources: 📖 https://solidity-by-example.org/calling-contract/",
+      "aiContext": "Build: implement contracts/phase02/CallContract.sol calling a Callee's setX and setXandSendEther via the high-level syntax, with a test in test/phase02/CallContract.t.sol. Done when: forge test passes and the test asserts the callee's state and balance changed and a call to a codeless address reverts.",
+      "prerequisiteTitles": ["Interfaces"],
+      "parentTitle": "Libraries & interfaces"
+    },
+
+    {
+      "title": "Inline assembly & Yul basics",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An assembly { } block drops into Yul, letting you emit near-raw opcodes with direct access to memory, storage, and calldata and none of Solidity's type or overflow checks. It is used for gas-critical paths and low-level ops the language can't express. The power is dangerous: you must respect the memory model — scratch space 0x00–0x3f, the free-memory pointer at 0x40 — or you corrupt the surrounding Solidity. Resources: 🔗 https://docs.soliditylang.org/en/latest/assembly.html",
+      "aiContext": "Build: implement contracts/phase02/Asm.sol with an assembly add and a mload/mstore round-trip that reads and restores the free memory pointer, with a test in test/phase02/Asm.t.sol. Done when: forge test passes and the test asserts the assembly result equals the Solidity equivalent.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Assembly & Yul intro"
+    },
+    {
+      "title": "Storage & memory access in assembly",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "In Yul, sload(slot)/sstore(slot,val) read and write storage directly, and mload/mstore/mstore8 operate on memory; keccak256(ptr, len) hashes a memory region. You compute a mapping's slot as keccak256(key . baseSlot), which is exactly how proxy patterns read arbitrary slots. Overwriting the free-memory pointer at 0x40 or the scratch space without restoring it corrupts higher-level allocations. Resources: 🔗 https://docs.soliditylang.org/en/latest/yul.html",
+      "aiContext": "Build: implement contracts/phase02/AsmStorage.sol reading a state variable's slot via sload and computing a mapping entry's slot with keccak256(key.slot) in assembly, with a test in test/phase02/AsmStorage.t.sol. Done when: forge test passes and the test asserts the assembly-read value equals the Solidity getter and the computed mapping slot holds the stored value.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Assembly & Yul intro"
+    },
+
+    {
+      "title": "Transient storage (EIP-1153)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-1153 adds TSTORE/TLOAD — storage that persists for the duration of a single transaction and is automatically wiped when the transaction ends, at a flat ~100 gas versus cold SSTORE's 20000. Because a value written by TSTORE survives across nested calls within the same tx, it is ideal for a reentrancy lock or a transient accumulator without the SSTORE/refund cost. Solidity exposes it via the transient keyword (0.8.28+) or tstore/tload in assembly; remember it clears at end-of-tx, not end-of-call, so a lock must be reset before returning. Resources: 🔗 https://soliditylang.org/blog/2024/01/26/transient-storage/",
+      "aiContext": "Build: implement contracts/phase02/Transient.sol with a reentrancy guard backed by transient storage, with a test in test/phase02/Transient.t.sol that reenters. Done when: forge test passes and the test proves a reentrant call reverts and a second independent transaction succeeds (the lock cleared).",
+      "prerequisiteTitles": [],
+      "parentTitle": "Transient storage"
+    },
+
+    {
+      "title": "Defining a UDVT with wrap/unwrap",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "type Duration is uint256 defines a user-defined value type — a new, distinct type over an elementary one, converted only via Duration.wrap(x) and Duration.unwrap(d). It costs nothing at runtime (it's the same underlying value) but stops you from accidentally mixing, say, a Price and a Quantity that are both uint256. A UDVT has no operators or implicit conversions by default; since 0.8.19 you can attach operators with using-for, but it adds compile-time distinctness only, never runtime checks. Resources: 🔗 https://docs.soliditylang.org/en/latest/types.html#user-defined-value-types",
+      "aiContext": "Build: implement contracts/phase02/Udvt.sol with a Duration UDVT plus an add() helper via using-for, and a function that would not compile if a raw uint256 were passed, with a test in test/phase02/Udvt.t.sol. Done when: forge test passes and the test round-trips wrap/unwrap and asserts add() sums two Durations.",
+      "prerequisiteTitles": [],
+      "parentTitle": "User-defined value types"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Custom errors",
+      "promptText": "Why are custom errors cheaper than revert strings, and what data does a caller get?",
+      "answerHint": "Revert data is a 4-byte selector + ABI-encoded args instead of a stored string, cutting deploy and revert gas; the caller gets structured, decodable failure data. Pitfall: the caller must decode the selector/args to read it — plain string tooling won't show the values.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Custom errors",
+      "promptText": "Write a custom error carrying the shortfall and the revert that uses it.",
+      "answerHint": "error InsufficientBalance(uint256 have, uint256 want); ... if (bal < amt) revert InsufficientBalance(bal, amt);",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "require, revert & assert",
+      "promptText": "When do you use require vs assert, and what does each return on failure?",
+      "answerHint": "require/revert for input/precondition and complex checks → Error(string); assert for invariants that should be unreachable → Panic(uint) (0x11 overflow, 0x12 div-by-zero, 0x32 OOB). Pitfall: a triggered assert signals a contract bug, not bad user input — never guard normal user errors with assert.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "payable functions & msg.value",
+      "promptText": "What must a function be to receive ETH, and in what unit is msg.value?",
+      "answerHint": "It must be marked payable, else sending value reverts; msg.value is the attached amount in wei for the current call. Pitfall: msg.value is the same across internal calls in one context — summing it per internal call double-counts the actual ETH received.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sending ETH: transfer, send, call",
+      "promptText": "Compare transfer, send, and call for sending ETH, and state today's recommendation.",
+      "answerHint": "transfer: 2300-gas stipend, reverts on fail. send: 2300-gas stipend, returns bool (check it!). call{value:}(\"\"): forwards all gas, returns (bool, bytes) — the recommended method. Pitfall: call reopens reentrancy, so pair it with checks-effects-interactions or a guard; the 2300 stipend of transfer/send breaks many contract recipients.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sending ETH: transfer, send, call",
+      "promptText": "Write a safe ETH send using call that reverts on failure.",
+      "answerHint": "(bool ok, ) = to.call{value: amount}(\"\"); require(ok, \"send failed\"); — forward all gas, check success.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "receive & fallback",
+      "promptText": "Which of receive/fallback runs for a given call, and can a contract with neither accept ETH?",
+      "answerHint": "Empty calldata + a receive present → receive; otherwise (data, or no receive) → fallback (must be payable to hold ETH). Pitfall: a contract with neither cannot accept plain transfers — only forced ETH via selfdestruct or block-reward coinbase, and only 2300 gas is available when reached via transfer/send.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Low-level call",
+      "promptText": "What does addr.call return, and what two things does it NOT do for you?",
+      "answerHint": "Returns (bool success, bytes returndata). It does NOT revert on failure (you must check success) and does NOT verify the target has code — a call to an EOA/empty address returns success = true. Pitfall: ignoring the returned bool silently swallows the callee's revert.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "delegatecall & storage context",
+      "promptText": "In a delegatecall, whose storage and msg.sender are used, and what is the critical safety requirement?",
+      "answerHint": "The caller's storage is read/written and msg.sender/msg.value are preserved from the original call; the target's code runs but address(this) is the caller. Requirement: proxy and implementation storage layouts must match slot-for-slot. Pitfall: a layout mismatch makes the implementation write to the wrong slots and corrupt state.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "delegatecall & storage context",
+      "promptText": "Write a delegatecall that forwards a payload and reverts on failure.",
+      "answerHint": "(bool ok, bytes memory data) = impl.delegatecall(msg.data); require(ok); — runs impl's code against this contract's storage.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "staticcall & read-only enforcement",
+      "promptText": "What does staticcall guarantee, and what happens if the callee tries to write state?",
+      "answerHint": "It runs the sub-call read-only; any state change — SSTORE, LOG, CREATE, selfdestruct, or value-call — makes the EVM revert the sub-call. Pitfall: invoking a 'view' function through a plain call instead of staticcall loses the read-only guarantee entirely.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "try/catch for external calls",
+      "promptText": "What can try/catch handle, and how do you separate a revert string from an arithmetic panic?",
+      "answerHint": "Only external calls and new-contract creation (not internal/private). catch Error(string reason) captures require/revert strings; catch Panic(uint code) captures asserts/arithmetic; catch (bytes) catches custom errors; bare catch is the fallback. Pitfall: it cannot catch failures in internal calls, so wrapping your own function in try does nothing.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "abi.encode vs encodePacked",
+      "promptText": "How do abi.encode and abi.encodePacked differ, and why is encodePacked dangerous for hashing?",
+      "answerHint": "encode pads each arg to 32 bytes (decodable, canonical); encodePacked concatenates tightly (compact, not decodable). Pitfall: with two adjacent dynamic types, encodePacked collides — (\"a\",\"bc\") and (\"ab\",\"c\") hash identically — so hashing packed user input can forge authorizations. Use encode or a fixed separator for security-relevant hashes.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "abi.encode vs encodePacked",
+      "promptText": "Write the hash of two strings in a way that is NOT vulnerable to the packed collision.",
+      "answerHint": "keccak256(abi.encode(a, b)) — encode pads each field, so distinct pairs never collide (unlike keccak256(abi.encodePacked(a, b))).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "abi.decode & function selectors",
+      "promptText": "How is a function selector computed, and why prefer abi.encodeCall over abi.encodeWithSignature?",
+      "answerHint": "Selector = bytes4(keccak256(\"name(type1,type2)\")) using canonical types (uint256, not uint); calldata is selector ++ abi.encode(args). Pitfall: encodeWithSignature takes a string that the compiler can't type-check, so a typo mis-encodes silently — encodeCall(IFoo.f, (args)) is verified at compile time.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "keccak256 hashing",
+      "promptText": "What kind of hash is keccak256, and what does the encode-vs-packed choice affect?",
+      "answerHint": "The pre-standard Keccak-256 (not NIST SHA3-256): deterministic, one-way, collision-resistant, 32-byte output; used for mapping slots, merkle roots, selectors, commit-reveal. Pitfall: hashing abi.encodePacked of dynamic inputs can collide, and keccak256(encode(x)) ≠ keccak256(encodePacked(x)) — pick one deliberately.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ECDSA signatures & ecrecover",
+      "promptText": "What does ecrecover return on failure, and name two ways signature verification is abused.",
+      "answerHint": "It returns address(0) on failure — you must reject that or a bad sig 'authorizes' the zero address. Pitfall: (1) signature malleability — (r, n−s) is a second valid signature — enforce low-s; (2) replay — reuse the same signature — bind a nonce/deadline and the verifying contract/chain (EIP-712). Prefer OpenZeppelin's ECDSA.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ECDSA signatures & ecrecover",
+      "promptText": "Write the recovery of a signer from an EIP-191 personal-signed 32-byte hash.",
+      "answerHint": "bytes32 d = keccak256(abi.encodePacked(\"\\x19Ethereum Signed Message:\\n32\", hash)); address signer = ecrecover(d, v, r, s); require(signer != address(0));",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "EIP-712 typed structured data",
+      "promptText": "What goes into an EIP-712 domain separator, and why does it matter for replay?",
+      "answerHint": "name, version, chainId, verifyingContract → the domain separator, combined as keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(msg)). Pitfall: omitting chainId or verifyingContract lets one signature be replayed on another chain or contract — permit/ERC-2612 security depends on including both.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-712 typed structured data",
+      "promptText": "Write the final EIP-712 digest given domainSeparator and structHash.",
+      "answerHint": "bytes32 digest = keccak256(abi.encodePacked(\"\\x19\\x01\", domainSeparator, structHash));",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Libraries & using-for",
+      "promptText": "How do internal and external library functions differ, and what can a library not do?",
+      "answerHint": "internal functions are inlined into the caller's bytecode; external ones are deployed once and reached via DELEGATECALL (run in the caller's context). A library holds no state, can't receive ETH, and can't be destroyed. Pitfall: an external library runs in the caller's storage context, so it must never assume its own storage; it also needs linking at deploy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Interfaces",
+      "promptText": "What can an interface contain, and what does IToken(addr).f() assume?",
+      "answerHint": "Only external function signatures — no bodies, state, or constructor; all functions are implicitly virtual. IToken(addr).f() assumes addr implements that ABI. Pitfall: calling the interface on a non-conforming or codeless address can revert or misbehave — the type is a promise, not a guarantee.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Calling other contracts",
+      "promptText": "What does the high-level Contract(addr).f() do that raw call doesn't?",
+      "answerHint": "It ABI-encodes args from the declared types, performs the CALL, checks the callee has code, and auto-bubbles any revert; since 0.8 a call to a codeless address reverts. Pitfall: it still trusts the declared ABI — a wrong interface silently mis-encodes the arguments.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Inline assembly & Yul basics",
+      "promptText": "What safety do you give up in an assembly block, and what memory regions must you respect?",
+      "answerHint": "You lose type checking and overflow/underflow reverts and can touch memory/storage/calldata directly. Respect scratch space 0x00–0x3f and the free-memory pointer at 0x40. Pitfall: clobbering 0x40 or scratch space without restoring it corrupts the surrounding Solidity's allocations.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage & memory access in assembly",
+      "promptText": "In Yul, which opcodes read/write storage and memory, and how is a mapping entry's slot located?",
+      "answerHint": "sload/sstore for storage, mload/mstore/mstore8 for memory, keccak256(ptr,len) to hash a memory region; a mapping value lives at keccak256(key . baseSlot). Pitfall: the assembly bypasses the compiler's slot bookkeeping, so a wrong slot computation reads/writes unrelated state and disturbing 0x40 corrupts Solidity allocations.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage & memory access in assembly",
+      "promptText": "Write the Yul that computes the storage slot of mapping entry m[key] where m is at baseSlot.",
+      "answerHint": "mstore(0x00, key); mstore(0x20, baseSlot); let slot := keccak256(0x00, 0x40); — uses scratch space for the keccak input.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Transient storage (EIP-1153)",
+      "promptText": "What is the lifetime and cost of transient storage, and why is it a good reentrancy lock?",
+      "answerHint": "TSTORE/TLOAD persist for one transaction then auto-clear, at ~100 gas vs cold SSTORE's 20000; the value survives across nested calls in the same tx. Pitfall: it clears at end-of-tx, not end-of-call — a lock set true must be reset false before the function returns, or it stays locked for the rest of the tx.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transient storage (EIP-1153)",
+      "promptText": "Write a reentrancy guard modifier using the transient keyword (0.8.28+).",
+      "answerHint": "bool transient locked; modifier nonReentrant() { require(!locked); locked = true; _; locked = false; } — the transient bool auto-clears at tx end.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Defining a UDVT with wrap/unwrap",
+      "promptText": "What does a user-defined value type give you, and what does it NOT do?",
+      "answerHint": "type Duration is uint256 creates a distinct compile-time type converted via Duration.wrap/unwrap, preventing accidental mixing of same-underlying values (Price vs Quantity) at zero runtime cost. Pitfall: it has no operators or implicit conversions by default (add them via using-for since 0.8.19) and adds no runtime checks — only compile-time distinctness.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}
