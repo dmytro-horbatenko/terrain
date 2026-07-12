@@ -1,0 +1,425 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Automated Market Makers (AMMs)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How on-chain exchanges price and settle without an orderbook: a bonding curve invariant (constant-product, constant-sum, or stableswap) holds reserves in a pool, and every trade moves along the curve. Resources: https://www.rareskills.io/uniswap-v2-book",
+      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
+    },
+    {
+      "title": "Uniswap V2",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The canonical constant-product AMM: pair contracts holding two reserves, LP tokens for shares, a cumulative-price TWAP oracle, flash swaps, and an optional protocol fee. The reference every later AMM is measured against. Resources: https://docs.uniswap.org/contracts/v2/concepts/protocol-overview/how-uniswap-works",
+      "prerequisiteTitles": ["Automated Market Makers (AMMs)"],
+      "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
+    },
+    {
+      "title": "Uniswap V3",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Concentrated liquidity: LPs supply capital only within a chosen price range, expressed via ticks and a sqrtPriceX96 fixed-point price, with per-position fee-growth accounting. Far higher capital efficiency at the cost of active management. Resources: https://uniswapv3book.com/",
+      "prerequisiteTitles": ["Uniswap V2"],
+      "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
+    },
+    {
+      "title": "Uniswap V4",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "A singleton PoolManager holding all pools, flash accounting via transient storage, hooks for custom pool logic, and ERC-6909 claim balances. Same concentrated-liquidity math as V3 with a radically cheaper, more extensible architecture. Resources: https://docs.uniswap.org/contracts/v4/overview",
+      "prerequisiteTitles": ["Uniswap V3"],
+      "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
+    },
+    {
+      "title": "DeFi Oracles",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How contracts learn off-chain prices safely: Chainlink push feeds, Uniswap TWAPs, and Pyth pull updates, plus the manipulation-resistance decisions that separate a safe price source from a drainable one. Resources: https://docs.chain.link/data-feeds",
+      "prerequisiteTitles": ["Automated Market Makers (AMMs)"],
+      "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
+    },
+
+    {
+      "title": "Constant-product market maker (x*y=k)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The core AMM invariant: reserves x and y must satisfy x*y=k, so a swap of dx in yields dy = y*dx/(x+dx) out, keeping the product constant. Price is the reserve ratio y/x and moves against the trader as the pool depletes — large trades suffer growing price impact (slippage) because the curve is convex. A 0.3% fee is taken from the input, so k actually grows slightly on every swap. Resources: 📖 https://www.rareskills.io/post/constant-product-formula",
+      "aiContext": "Build: implement defi/amm/ConstantProduct.sol from scratch — swap/addLiquidity/removeLiquidity + a getAmountOut using the (amountIn*997*reserveOut)/(reserveIn*1000+amountIn*997) fee formula; Foundry test in test/defi/ConstantProduct.t.sol. Done when: an invariant/fuzz test proves k (reserve0*reserve1) never DECREASES across any sequence of swaps and that removeLiquidity rounds in the pool's favor.",
+      "prerequisiteTitles": ["ERC-20 fungible token standard"],
+      "parentTitle": "Automated Market Makers (AMMs)"
+    },
+    {
+      "title": "Constant-sum & hybrid AMMs",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A constant-sum curve x+y=k gives zero slippage and a fixed 1:1 price but can be fully drained of one asset, so it is unusable alone. Real stable pools use a hybrid that behaves like constant-sum near the peg (tight prices for correlated assets) and like constant-product far from it (so reserves are never exhausted). Understanding both extremes is the setup for the stableswap invariant. Resources: 📖 https://www.rareskills.io/post/curve-amm-defi",
+      "aiContext": "Build: in defi/amm/ConstantSum.sol implement x+y=k swaps, then write test/defi/ConstantSum.t.sol proving one asset can be drained to zero; document in a comment why a pure constant-sum pool is arbitrageable to empty. Done when: a test drains reserveY to 0 with a single large swap, demonstrating the failure mode.",
+      "prerequisiteTitles": ["Constant-product market maker (x*y=k)"],
+      "parentTitle": "Automated Market Makers (AMMs)"
+    },
+    {
+      "title": "Stableswap invariant & amplification (Curve)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Curve's stableswap blends constant-sum and constant-product with an amplification coefficient A: high A keeps prices near 1:1 across a wide range (ideal for pegged assets like USDC/DAI), low A degrades toward constant-product. The invariant A*n^n*S + D = A*D*n^n + D^(n+1)/(n^n*P) is solved for D (and for the output) by Newton's iteration on-chain, since it has no closed form. A only holds while assets stay pegged — a depeg turns the flat region into a trap. Resources: 📖 https://docs.curve.finance/",
+      "aiContext": "Build: in defi/amm/StableSwap.sol implement the 2-asset stableswap invariant with a fixed A, solving for D and for get_dy via Newton iteration; test/defi/StableSwap.t.sol compares its slippage to x*y=k. Done when: a test shows near-zero slippage for balanced swaps at high A and that raising A flattens the price curve near the peg.",
+      "prerequisiteTitles": ["Constant-sum & hybrid AMMs"],
+      "parentTitle": "Automated Market Makers (AMMs)"
+    },
+    {
+      "title": "LP shares & impermanent loss",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Liquidity providers deposit both assets and receive fungible LP tokens representing a pro-rata claim on the reserves. Because the pool auto-rebalances along x*y=k, an LP always ends up holding relatively more of the asset that fell in price — impermanent loss is the gap between the pool value and simply holding the two assets, and it is only offset if accrued fees exceed it. IL is a function of the price ratio change, not of volatility per se. Resources: 📖 https://finematics.com/impermanent-loss-explained/",
+      "aiContext": "Build: in defi/amm/LiquidityMath.sol add a pure function computing IL as a function of the price ratio r (IL = 2*sqrt(r)/(1+r) - 1) and test it against hand-worked cases (r=2 -> ~5.7% loss, r=4 -> 20%). Done when: test/defi/LiquidityMath.t.sol matches the closed-form IL at r=1,2,4 within rounding.",
+      "prerequisiteTitles": ["Constant-product market maker (x*y=k)"],
+      "parentTitle": "Automated Market Makers (AMMs)"
+    },
+
+    {
+      "title": "Uniswap V2 pair & reserves",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Each pair holds reserve0/reserve1 of two sorted tokens and enforces x*y=k in swap(): it optimistically sends the requested outputs, then requires the post-balances (adjusted for the 0.3% fee: balance*1000 - amountIn*3) still satisfy the k invariant. The factory deploys one pair per token pair deterministically with CREATE2, so the pair address is derivable off-chain without a call. sync()/skim() reconcile reserves with actual balances. Resources: 📖 https://www.rareskills.io/post/uniswap-v2-swap-function",
+      "aiContext": "Build: in defi/univ2/Pair.sol implement swap() with the k-invariant check after optimistic transfer, plus the CREATE2 factory in defi/univ2/Factory.sol; test/defi/Univ2Pair.t.sol. Done when: swap reverts if the caller doesn't pay enough input to keep k*1000^2 non-decreasing, and the factory's computed CREATE2 address matches the deployed pair.",
+      "prerequisiteTitles": [
+        "Constant-product market maker (x*y=k)",
+        "CREATE2 deterministic deployment"
+      ],
+      "parentTitle": "Uniswap V2"
+    },
+    {
+      "title": "Uniswap V2 LP mint/burn math",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The FIRST liquidity provider mints sqrt(amount0*amount1) - MINIMUM_LIQUIDITY shares, with MINIMUM_LIQUIDITY (1000 wei) permanently burned to address(0) to defend against the share-inflation attack. Every later deposit mints min(amount0*totalSupply/reserve0, amount1*totalSupply/reserve1) — the MIN over both assets, which forces balanced deposits (any excess of one token is a gift to the pool) and rounds down in the pool's favor. Resources: 📖 https://www.rareskills.io/post/uniswap-v2-mint-and-burn",
+      "aiContext": "Build: implement mint()/burn() in defi/univ2/Pair.sol with the sqrt-minus-MINIMUM_LIQUIDITY first mint and the min() subsequent mint; test/defi/Univ2Mint.t.sol. Done when: a fuzz test shows the second depositor can never mint more shares than their pro-rata contribution and that donating extra of one token does not increase minted shares.",
+      "prerequisiteTitles": [
+        "LP shares & impermanent loss",
+        "ERC-4626 first-depositor share inflation"
+      ],
+      "parentTitle": "Uniswap V2"
+    },
+    {
+      "title": "Uniswap V2 TWAP oracle",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The pair accumulates price0CumulativeLast += price0 * timeElapsed (price stored as a UQ112.112 fixed-point ratio reserve1/reserve0), sampled once per block at the FIRST interaction, BEFORE reserves change. A consumer snapshots the cumulative at t1 and t2 and computes the TWAP as (cumulative2 - cumulative1)/(t2 - t1). Because each block contributes its opening price, manipulating the average requires holding a distorted price across whole blocks — costly, but not immune on thin pools over short windows. Resources: 📖 https://docs.uniswap.org/contracts/v2/concepts/core-concepts/oracles",
+      "aiContext": "Build: in defi/oracle/Univ2Twap.sol read a pair's price0CumulativeLast at two times and compute the time-weighted average; test/defi/Univ2Twap.t.sol uses vm.warp to advance blocks. Done when: the computed TWAP over N blocks equals the manually accumulated price/time within fixed-point rounding, and a single-block spike barely moves a long-window average.",
+      "prerequisiteTitles": ["Uniswap V2 pair & reserves", "TWAP oracle manipulation"],
+      "parentTitle": "Uniswap V2"
+    },
+    {
+      "title": "Uniswap V2 flash swaps",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "swap() sends the output tokens BEFORE checking the k invariant, and if the recipient supplies non-empty calldata the pair calls uniswapV2Call on it in between — so you can borrow either token, use it, and repay (with the 0.3% fee) within the same transaction. The k-invariant check at the end enforces repayment: either return the same tokens or pay back the other side, or the whole tx reverts. This is a flash loan built into the AMM. Resources: 📖 https://docs.uniswap.org/contracts/v2/concepts/core-concepts/flash-swaps",
+      "aiContext": "Build: in defi/univ2/FlashBorrower.sol implement uniswapV2Call to borrow token0, do a no-op, and repay amount+0.3% fee; test/defi/FlashSwap.t.sol. Done when: the borrow succeeds only when the callback repays enough to keep k non-decreasing, and a callback that under-repays reverts the entire transaction.",
+      "prerequisiteTitles": ["Uniswap V2 pair & reserves"],
+      "parentTitle": "Uniswap V2"
+    },
+    {
+      "title": "Uniswap V2 protocol fee (1/6)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "When feeTo is switched on, the protocol takes 1/6 of the LP trading fees (i.e. 0.05% of the 0.3%), collected lazily on the next mint/burn by minting fresh LP tokens to feeTo. The amount is derived from the growth in sqrt(k) since the last collection: liquidity = totalSupply*(sqrt(k) - sqrt(kLast)) / (5*sqrt(k) + sqrt(kLast)), where the factor 5 encodes the 1/6 share. Fees are captured as reserve growth, not skimmed per swap, so this reconstructs the protocol's cut retroactively. Resources: 📖 https://docs.uniswap.org/contracts/v2/concepts/advanced-topics/fees",
+      "aiContext": "Build: add _mintFee() to defi/univ2/Pair.sol implementing the sqrt(k) growth formula and gating it on a feeTo flag; test/defi/ProtocolFee.t.sol. Done when: with feeTo set, feeTo's minted LP equals ~1/6 of the fee-driven k growth after a series of swaps, and with feeTo unset no protocol shares are minted.",
+      "prerequisiteTitles": ["Uniswap V2 LP mint/burn math"],
+      "parentTitle": "Uniswap V2"
+    },
+
+    {
+      "title": "Concentrated liquidity & the L parameter",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V3 lets an LP concentrate liquidity L within a price range [pa, pb] instead of across all prices. Inside the range the position behaves like a constant-product pool with virtual reserves, holding amount0 = L*(sqrt(pb)-sqrt(P))/(sqrt(P)*sqrt(pb)) and amount1 = L*(sqrt(P)-sqrt(pa)); the same capital provides far deeper liquidity near the current price. But if price exits the range the position becomes 100% of one asset and earns no fees until price returns — concentration trades passive safety for capital efficiency. Resources: 📖 https://uniswapv3book.com/milestone_1/introduction.html",
+      "aiContext": "Build: in defi/univ3/LiquidityAmounts.sol implement getAmount0/getAmount1 for a range from L and the three sqrt prices; test/defi/LiquidityAmounts.t.sol against Uniswap's reference values. Done when: your amounts match the LiquidityAmounts library for a known (L, sqrtPa, sqrtPb, sqrtP) tuple within 1 wei.",
+      "prerequisiteTitles": ["Uniswap V2 pair & reserves"],
+      "parentTitle": "Uniswap V3"
+    },
+    {
+      "title": "Ticks & tick spacing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V3 discretizes price into ticks where price(i) = 1.0001^i, so each tick is a 0.01% (1 basis point) step; range bounds must land on initialized ticks. Each fee tier has a tickSpacing (1/10/60/200 for the 0.01%/0.05%/0.3%/1% tiers) that thins the usable ticks to bound gas. When a swap crosses an initialized tick, net liquidity is added or removed as positions start/stop applying. Ticks are how continuous ranges become a tractable on-chain data structure. Resources: 📖 https://uniswapv3book.com/milestone_1/introduction.html",
+      "aiContext": "Build: in defi/univ3/TickMath.sol implement getSqrtRatioAtTick / getTickAtSqrtRatio (or port and test the reference) and a helper snapping an arbitrary tick to the nearest valid one for a given spacing; test/defi/TickMath.t.sol. Done when: round-tripping tick -> sqrtPriceX96 -> tick is stable across the supported range and spacing-snapping rejects mis-aligned ticks.",
+      "prerequisiteTitles": ["Concentrated liquidity & the L parameter"],
+      "parentTitle": "Uniswap V3"
+    },
+    {
+      "title": "sqrtPriceX96 & Q64.96 fixed point",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V3 stores the square root of the price (token1 per token0) as a Q64.96 fixed-point number: sqrtPriceX96 = floor(sqrt(price) * 2^96), so price = (sqrtPriceX96 / 2^96)^2. Tracking sqrt(price) rather than price makes the swap math linear in sqrt-price along a tick, avoiding a square root per step, and Q64.96 keeps enough precision for the full price range. Getting the 2^96 scaling or the token0/token1 direction wrong is a classic integration bug. Resources: 📖 https://blog.uniswap.org/uniswap-v3-math-primer",
+      "aiContext": "Build: in defi/univ3/PriceMath.sol implement priceToSqrtPriceX96 and back, and a getNextSqrtPrice for a given input amount along a tick; test/defi/PriceMath.t.sol. Done when: converting a human price to sqrtPriceX96 and back is lossless to rounding, and a swap step's next sqrt price matches the reference SqrtPriceMath output.",
+      "prerequisiteTitles": ["Concentrated liquidity & the L parameter"],
+      "parentTitle": "Uniswap V3"
+    },
+    {
+      "title": "Uniswap V3 fee growth & positions",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V3 tracks feeGrowthGlobal0/1X128 — cumulative fees earned per unit of liquidity, in Q128.128. A position's owed fees are liquidity * (feeGrowthInside_now - feeGrowthInside_last), where feeGrowthInside is the global growth MINUS the feeGrowthOutside recorded at the lower and upper ticks, so only fees earned while price was inside the range count. This per-position accounting is why V3 LP tokens are non-fungible NFTs, not fungible ERC-20 shares. Resources: 📖 https://uniswapv3book.com/milestone_5/introduction.html",
+      "aiContext": "Build: in defi/univ3/FeeGrowth.sol implement getFeeGrowthInside(lower, upper, currentTick, feeGrowthGlobal) using the tick feeGrowthOutside values, and computeFeesOwed for a position; test/defi/FeeGrowth.t.sol. Done when: a position accrues fees only for swaps that occur while the price sits inside its range, and zero while price is outside.",
+      "prerequisiteTitles": ["Ticks & tick spacing", "Uniswap V2 protocol fee (1/6)"],
+      "parentTitle": "Uniswap V3"
+    },
+
+    {
+      "title": "Uniswap V4 singleton PoolManager",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V4 replaces V3's one-contract-per-pool with a single PoolManager that custodies every pool's tokens and stores all pool state keyed by a PoolId. Creating a pool is a state entry, not a deployment, so it costs almost nothing, and multi-hop swaps never move tokens between pool contracts — they net internally. Concentrated-liquidity math is unchanged from V3; the win is architectural: shared custody plus flash accounting slashes gas. Resources: 📖 https://docs.uniswap.org/contracts/v4/concepts/v4-vs-v3",
+      "aiContext": "Build: in defi/univ4/notes/ deploy against a v4-core PoolManager, initialize a pool via a PoolKey, and record the gas of a swap vs a hypothetical per-pool transfer path; test/defi/Univ4Init.t.sol. Done when: a test initializes a pool and executes a swap through the singleton, and you can state why routing avoids inter-contract token transfers.",
+      "prerequisiteTitles": ["Uniswap V3 fee growth & positions"],
+      "parentTitle": "Uniswap V4"
+    },
+    {
+      "title": "Uniswap V4 flash accounting (lock/unlock)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "All V4 operations run inside PoolManager.unlock(): the caller's callback performs swaps/liquidity changes that accrue signed currency deltas (owed to or from the manager) tracked in EIP-1153 transient storage, and unlock reverts unless every delta nets to zero via settle() (pay) and take() (withdraw) before it returns. You move net tokens once at the end instead of per hop, so a complex multi-pool route touches each token's balance a single time. Resources: 📖 https://docs.uniswap.org/contracts/v4/concepts/flash-accounting",
+      "aiContext": "Build: in defi/univ4/Router.sol implement an unlockCallback that swaps across two pools and settles all currency deltas to zero; test/defi/FlashAccounting.t.sol. Done when: a route that leaves any non-zero delta reverts on unlock, and a correctly-settled multi-hop swap transfers each token exactly once.",
+      "prerequisiteTitles": ["Uniswap V4 singleton PoolManager", "Uniswap V2 flash swaps"],
+      "parentTitle": "Uniswap V4"
+    },
+    {
+      "title": "Uniswap V4 hooks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A hook is a contract the PoolManager calls at lifecycle points — beforeInitialize, before/afterAddLiquidity, before/afterSwap, before/afterDonate — to inject custom logic: dynamic fees, limit orders, custom oracles, TWAMM. Crucially the hook's ADDRESS encodes its permissions: the low bits of the deployed address must match the callbacks it implements, so pools mine a salt to place the hook at a conforming address. A malicious or buggy hook can tax or block swaps, so hook trust is part of pool risk. Resources: 📖 https://docs.uniswap.org/contracts/v4/concepts/hooks",
+      "aiContext": "Build: in defi/univ4/hooks/FeeHook.sol implement a beforeSwap hook that adjusts the fee, deployed (via CREATE2 salt mining) to an address whose flag bits enable beforeSwap; test/defi/FeeHook.t.sol. Done when: the pool calls the hook on swap, the fee change takes effect, and deploying the hook to a non-conforming address is rejected by the manager.",
+      "prerequisiteTitles": [
+        "Uniswap V4 singleton PoolManager",
+        "CREATE2 deterministic deployment"
+      ],
+      "parentTitle": "Uniswap V4"
+    },
+    {
+      "title": "Uniswap V4 ERC-6909 claims",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V4 uses ERC-6909 (a minimal multi-token standard, like ERC-1155 but without transfer callbacks) to let users hold CLAIM balances inside the PoolManager instead of withdrawing ERC-20s each time. A frequent trader can take() as 6909 claims and settle from them, skipping real token transfers between actions — pure internal ledger updates — which is a large gas saving for MEV bots and routers. Resources: 📖 https://docs.uniswap.org/contracts/v4/concepts/erc6909",
+      "aiContext": "Build: in defi/univ4/Router.sol take output as ERC-6909 claim tokens and reuse them to settle a later swap without touching the underlying ERC-20; test/defi/Erc6909Claims.t.sol. Done when: two chained swaps settle purely via 6909 claim balance changes with no intermediate ERC-20 transfer, and the final redemption matches the net position.",
+      "prerequisiteTitles": [
+        "Uniswap V4 flash accounting (lock/unlock)",
+        "ERC-1155 multi-token standard"
+      ],
+      "parentTitle": "Uniswap V4"
+    },
+
+    {
+      "title": "Chainlink push price feeds",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Chainlink aggregates prices off-chain across a decentralized node network and PUSHES a new on-chain answer whenever the price deviates past a threshold or a heartbeat interval elapses. Consumers call latestRoundData() -> (roundId, answer, startedAt, updatedAt, answeredInRound); answer is scaled by decimals() (usually 8 for USD pairs). Safe use REQUIRES checking answer > 0 and updatedAt within the feed's heartbeat, or a halted/stale feed silently mis-prices the protocol. Resources: 📖 https://docs.chain.link/data-feeds/price-feeds",
+      "aiContext": "Build: in defi/oracle/ChainlinkConsumer.sol read latestRoundData(), revert on answer<=0 or a stale updatedAt, and normalize by decimals(); test/defi/ChainlinkConsumer.t.sol with a mock aggregator. Done when: the consumer reverts on a stale/zero price and returns a correctly-scaled value on a fresh one.",
+      "prerequisiteTitles": ["Stale & misconfigured price feeds"],
+      "parentTitle": "DeFi Oracles"
+    },
+    {
+      "title": "Uniswap V3 TWAP from tick cumulatives",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "V3 pools store an observation ring of tickCumulative (and secondsPerLiquidityCumulative); observe([t2, t1]) returns two tickCumulatives, and the arithmetic-mean tick over the window is (tickCumulative2 - tickCumulative1)/(t2 - t1), converted to price by 1.0001^meanTick. This is a geometric-mean TWAP that needs the pool's observation cardinality grown (increaseObservationCardinalityNext) to cover the desired window. It resists single-block manipulation but still lags real price and is weak on thin pools. Resources: 📖 https://docs.uniswap.org/concepts/protocol/oracle",
+      "aiContext": "Build: in defi/oracle/Univ3Twap.sol call observe() and derive the mean-tick price over a 30-minute window, guarding for insufficient cardinality; test/defi/Univ3Twap.t.sol on a mock oracle. Done when: the derived TWAP matches a hand-computed mean tick and the code reverts (or grows cardinality) when the window exceeds stored observations.",
+      "prerequisiteTitles": ["sqrtPriceX96 & Q64.96 fixed point", "Uniswap V2 TWAP oracle"],
+      "parentTitle": "DeFi Oracles"
+    },
+    {
+      "title": "Pyth pull oracle",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pyth is a PULL oracle: prices are aggregated and signed off-chain on Pythnet, and the CONSUMER submits the signed update on demand — call updatePriceFeeds(updateData) paying getUpdateFee(), then read getPriceNoOlderThan(id, maxAge). The Price struct carries price, a confidence interval conf, and an exponent expo (apply price * 10^expo). Pull means fresher, wider asset coverage and caller-paid updates, but you MUST bound staleness yourself and account for the confidence band. Resources: 📖 https://docs.pyth.network/price-feeds/pull-updates",
+      "aiContext": "Build: in defi/oracle/PythConsumer.sol update then read a price with getPriceNoOlderThan, apply expo, and reject if conf/price exceeds a tolerance; test/defi/PythConsumer.t.sol with a mock Pyth. Done when: reading without a fresh update reverts on max-age, and a wide confidence interval is rejected by the tolerance check.",
+      "prerequisiteTitles": ["Chainlink push price feeds"],
+      "parentTitle": "DeFi Oracles"
+    },
+    {
+      "title": "Oracle manipulation resistance",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A price source is only as safe as the cost to move it for the duration an attacker needs. Spot AMM reserves can be rewritten in one flash-loaned transaction; a long TWAP with a liquidity floor, a decentralized push feed (Chainlink), or a signed pull feed (Pyth) all raise that cost. The design job is choosing a source whose manipulation cost exceeds the value it secures, and layering staleness, deviation, and sanity bounds — never trusting a single on-chain spot price. Resources: 📖 https://docs.uniswap.org/concepts/protocol/oracle",
+      "aiContext": "Build: in defi/oracle/SafePrice.sol combine a Chainlink feed with a Uniswap TWAP and revert if they diverge beyond a bound (a sanity cross-check); test/defi/SafePrice.t.sol simulates a spot-price attack. Done when: a flash-loan spot manipulation that would fool a naive reader is caught by the TWAP+feed divergence guard and reverts.",
+      "prerequisiteTitles": [
+        "Uniswap V3 TWAP from tick cumulatives",
+        "Flash-loan price manipulation"
+      ],
+      "parentTitle": "DeFi Oracles"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Constant-product market maker (x*y=k)",
+      "promptText": "For a constant-product pool with reserves x, y and a fee-free input dx, derive the output dy and explain why large trades slip.",
+      "answerHint": "Keep x*y=k: after adding dx, new reserve is x+dx, so new y' = k/(x+dx) and dy = y - k/(x+dx) = y*dx/(x+dx). Price y/x worsens as the pool depletes because the curve is convex — the marginal price moves against the trader continuously, so a trade twice as large costs more than twice the slippage. Pitfall: with the 0.3% fee only 997/1000 of dx enters the invariant, so k actually grows on every swap; a swap that leaves k unchanged or lower must revert.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Constant-product market maker (x*y=k)",
+      "promptText": "Write Uniswap's getAmountOut with the 0.3% fee baked in.",
+      "answerHint": "function getAmountOut(uint amountIn, uint rIn, uint rOut) pure returns (uint) { uint inWithFee = amountIn * 997; uint num = inWithFee * rOut; uint den = rIn * 1000 + inWithFee; return num / den; } // fee taken from input, division truncates in the pool's favor",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Constant-product market maker (x*y=k)",
+      "promptText": "Ethernaut level 22 (Dex): drain almost all of one token from the two-token AMM.",
+      "answerHint": "The Dex prices swaps as amount*toReserve/fromReserve with integer truncation and no invariant guard; swap the full balance back and forth so the ratio skews further each round until one side rounds enough in your favor to take nearly the entire reserve. It shows why a naive spot-price AMM without a k check is drainable.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Constant-sum & hybrid AMMs",
+      "promptText": "Why is a pure constant-sum (x+y=k) pool unusable on its own, and what does a hybrid curve fix?",
+      "answerHint": "x+y=k gives a fixed 1:1 price and zero slippage, so an arbitrageur can swap until one reserve hits zero and drains it — there is no rising price to stop them. A hybrid (stableswap) behaves like constant-sum near the peg for tight pricing but bends toward constant-product as reserves skew, so the pool can never be fully emptied. Pitfall: constant-sum only makes sense for assets that are actually pegged; if one depegs, the flat curve lets it be arbitraged out cheaply.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stableswap invariant & amplification (Curve)",
+      "promptText": "What does the amplification coefficient A control in Curve's stableswap, and what is its hidden risk?",
+      "answerHint": "A interpolates between constant-sum (high A: prices pinned near 1:1 across a wide balance range, great for pegged pairs) and constant-product (low A: more slippage but reserves never exhaust). The invariant has no closed form, so D and outputs are solved by on-chain Newton iteration. Pitfall: high A assumes the peg holds — if an asset depegs, the flat low-slippage region becomes a trap where arbitrage drains the good asset cheaply, exactly what happened in stablecoin depeg events.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "LP shares & impermanent loss",
+      "promptText": "What is impermanent loss, and on what does it actually depend?",
+      "answerHint": "It is the shortfall between holding LP position value and just holding the two tokens, caused by the pool auto-rebalancing along x*y=k so you end up heavier in the asset that dropped. It depends on the RATIO of price change, not volatility alone: IL = 2*sqrt(r)/(1+r) - 1 where r is the price ratio (r=2 -> ~5.7%, r=4 -> ~20%). Pitfall: it is only 'impermanent' if price returns; if you withdraw after a permanent move, the loss is realized and only offset if accrued fees exceeded it.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V2 pair & reserves",
+      "promptText": "How does Uniswap V2's swap() enforce the invariant and the fee without computing an output amount itself?",
+      "answerHint": "It optimistically transfers the caller-requested outputs, then requires that the post-swap balances, adjusted by the 0.3% fee (balanceAdjusted = balance*1000 - amountIn*3), still satisfy balance0Adj*balance1Adj >= reserve0*reserve1*1000^2. The caller must have paid enough input beforehand or the check reverts. Pitfall: reserves are cached, not read from balanceOf — sync()/skim() reconcile donated tokens, and pricing off raw balanceOf instead of reserves is manipulable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V2 LP mint/burn math",
+      "promptText": "How many LP shares does the first vs a subsequent depositor mint in Uniswap V2, and why the MINIMUM_LIQUIDITY burn?",
+      "answerHint": "First: sqrt(amount0*amount1) - MINIMUM_LIQUIDITY, with 1000 wei of shares permanently sent to address(0). Subsequent: min(amount0*totalSupply/reserve0, amount1*totalSupply/reserve1), the MIN forcing balanced deposits and rounding down for the pool. The 1000-wei burn makes totalSupply never zero-and-tiny, blocking the first-depositor share-inflation/donation attack. Pitfall: depositing imbalanced tokens just gifts the excess to existing LPs because only the min side counts.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V2 LP mint/burn math",
+      "promptText": "Write the subsequent-deposit LP mint amount for Uniswap V2.",
+      "answerHint": "uint liquidity = Math.min(amount0 * totalSupply / reserve0, amount1 * totalSupply / reserve1); // MIN over both assets, integer division rounds down (pool-favorable); the excess of the over-supplied token is not credited",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Uniswap V2 TWAP oracle",
+      "promptText": "How is a Uniswap V2 TWAP computed, and what makes it manipulation-resistant (and where does it still fail)?",
+      "answerHint": "The pair accumulates price*timeElapsed into priceCumulativeLast (UQ112.112) sampled once per block BEFORE reserves change; a consumer takes (cumulative_t2 - cumulative_t1)/(t2 - t1). Because only each block's OPENING price counts, a manipulator must hold the distorted price across full blocks, paying arbitrage each block. Pitfall: on a thin pool or a short window the average is still draggable over a few blocks (Mango-style), and a very long window lags real price — window length and a liquidity floor are the real security knobs.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V2 flash swaps",
+      "promptText": "What makes a Uniswap V2 flash swap possible, and what enforces repayment?",
+      "answerHint": "swap() sends the outputs BEFORE the k check and, given non-empty calldata, calls uniswapV2Call on the recipient in between — so you receive tokens, act, and repay within one tx. Repayment is enforced by the final invariant: the post-balances (fee-adjusted) must keep k non-decreasing, i.e. you return the same token plus 0.3% or pay the other side, else the whole tx reverts. Pitfall: there is no separate 'repay' call — you must transfer the owed tokens into the pair before swap() returns.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V2 protocol fee (1/6)",
+      "promptText": "How does Uniswap V2 collect its 1/6 protocol fee, and why lazily via sqrt(k)?",
+      "answerHint": "When feeTo is on, 1/6 of LP fees (0.05% of the 0.3%) is minted as fresh LP tokens to feeTo on the next mint/burn: liquidity = totalSupply*(sqrt(k) - sqrt(kLast))/(5*sqrt(k) + sqrt(kLast)). Fees accrue as reserve (k) growth, so measuring sqrt(k) growth since kLast reconstructs the protocol's share without tracking every swap. Pitfall: kLast is only updated when the fee is on; toggling feeTo mid-life needs care so past growth isn't over- or under-counted.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "sqrtPriceX96 & Q64.96 fixed point",
+      "promptText": "Write the conversions between a price and sqrtPriceX96 (Q64.96).",
+      "answerHint": "// price = token1/token0\\nfunction priceToSqrtX96(uint price1e18) pure returns (uint160) { return uint160(Math.sqrt(price1e18 << 192) / 1e9); } // sqrt(price)*2^96\\n// back: price = (sqrtPriceX96^2) >> 192, i.e. mulDiv(s, s, 2**192)",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Concentrated liquidity & the L parameter",
+      "promptText": "Write getAmount1 for a Uniswap V3 position (amount of token1 for liquidity L over a sqrt-price range).",
+      "answerHint": "// amount1 = L * (sqrtP - sqrtPa), clamped so sqrtP stays within [sqrtPa, sqrtPb]\\nfunction getAmount1(uint128 L, uint160 sqrtA, uint160 sqrtB, uint160 sqrtP) pure returns (uint) { if (sqrtP < sqrtA) sqrtP = sqrtA; if (sqrtP > sqrtB) sqrtP = sqrtB; return uint(L) * (sqrtP - sqrtA) / (1 << 96); }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Concentrated liquidity & the L parameter",
+      "promptText": "In Uniswap V3, what does liquidity L represent and what happens when price leaves a position's range?",
+      "answerHint": "L is the concentrated liquidity active within [pa, pb]; inside the range the position holds amount0 = L*(sqrt(pb)-sqrt(P))/(sqrt(P)*sqrt(pb)) and amount1 = L*(sqrt(P)-sqrt(pa)), acting like a constant-product pool with virtual reserves so the same capital gives deeper liquidity near P. When price exits the range the position becomes entirely the one asset at that boundary and earns NO fees until price re-enters. Pitfall: concentration multiplies both fee yield and impermanent loss, and out-of-range capital is idle — V3 LPing is active, not set-and-forget.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ticks & tick spacing",
+      "promptText": "What is a tick in Uniswap V3, and why does each fee tier have a tickSpacing?",
+      "answerHint": "A tick i is a discrete price where price = 1.0001^i, so adjacent ticks differ by 1 basis point; range bounds must sit on ticks. tickSpacing (1/10/60/200 for the 0.01/0.05/0.3/1% tiers) restricts which ticks are usable, bounding the gas of crossing ticks during a swap — higher-fee tiers (more volatile pairs) use wider spacing. Pitfall: liquidity only changes at INITIALIZED ticks; a range whose bounds aren't spacing-aligned is invalid, and crossing an uninitialized tick is cheap while an initialized one updates net liquidity.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "sqrtPriceX96 & Q64.96 fixed point",
+      "promptText": "Why does Uniswap V3 store sqrt(price) as a Q64.96 number, and how do you convert back to price?",
+      "answerHint": "sqrtPriceX96 = floor(sqrt(price) * 2^96) where price is token1/token0; recover price = (sqrtPriceX96 / 2^96)^2. Tracking sqrt(price) makes each swap step linear in sqrt-price along a tick (no per-step square root), and Q64.96 (64 integer + 96 fractional bits) preserves precision across the whole price range. Pitfall: forgetting the 2^96 scale or flipping the token0/token1 direction inverts or mis-scales the price by huge factors — a very common integration bug.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V3 fee growth & positions",
+      "promptText": "How does Uniswap V3 attribute fees to a specific position's range?",
+      "answerHint": "It tracks feeGrowthGlobalX128 (fees per unit liquidity, Q128.128) and, per tick, feeGrowthOutside; feeGrowthInside(lower, upper) = global - outside(lower) - outside(upper) (adjusted by which side the current tick is on). Owed fees = liquidity * (feeGrowthInside_now - feeGrowthInside_last), so only fees earned while price was inside the range count. Pitfall: this per-range accounting is why V3 positions are NFTs — fees aren't a fungible pro-rata claim like V2 LP tokens, and an out-of-range position accrues nothing.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V4 singleton PoolManager",
+      "promptText": "What changes when every Uniswap V4 pool lives inside one singleton PoolManager?",
+      "answerHint": "All pools' tokens are custodied by one contract and pool state is keyed by PoolId, so creating a pool is a cheap state write (not a deployment) and multi-hop swaps net internally instead of transferring tokens between separate pool contracts. The concentrated-liquidity math is identical to V3; the gain is architectural — shared custody plus flash accounting cuts gas sharply. Pitfall: a single custody contract concentrates risk, so V4's core is heavily audited and hooks (not the manager) carry the customizable — and riskier — logic.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V4 flash accounting (lock/unlock)",
+      "promptText": "Explain V4's flash accounting: how do lock/unlock and currency deltas guarantee solvency?",
+      "answerHint": "Operations run inside PoolManager.unlock(): swaps/liquidity changes accrue signed currency deltas (owed to/from the manager) in EIP-1153 transient storage, and unlock reverts unless every delta is zeroed via settle() (pay in) and take() (withdraw) before it returns. Net tokens move once at the end, so a multi-pool route touches each token balance a single time. Pitfall: any unsettled non-zero delta reverts the whole transaction — you cannot leave the manager owed or owing at unlock's end.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V4 hooks",
+      "promptText": "How does Uniswap V4 know which callbacks a hook implements, and why is that encoded in the address?",
+      "answerHint": "The hook's ADDRESS low bits are permission flags (beforeSwap, afterSwap, before/afterAddLiquidity, etc.); the PoolManager reads those bits to decide which callbacks to invoke, so hooks are CREATE2-mined to an address whose bits match their implemented functions. This makes permissions immutable and gas-cheap to check. Pitfall: a hook is untrusted code the pool calls mid-operation — a malicious or buggy hook can tax, block, or reorder swaps, so hook trust is part of a pool's risk profile, not an afterthought.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V4 ERC-6909 claims",
+      "promptText": "What do ERC-6909 claim tokens let a Uniswap V4 trader avoid, and when does it pay off?",
+      "answerHint": "Instead of withdrawing ERC-20s after each action, a trader can hold CLAIM balances (ERC-6909, a minimal multi-token standard without transfer callbacks) inside the PoolManager and settle later swaps from them — pure internal ledger updates, no real token transfers. It pays off for high-frequency traders/MEV bots and routers doing many actions per block. Pitfall: 6909 balances live inside the manager, so they carry the manager's custody risk and must eventually be redeemed to real tokens to leave the system.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Chainlink push price feeds",
+      "promptText": "What must a Chainlink consumer validate on latestRoundData(), and why is a 'push' feed shaped this way?",
+      "answerHint": "Validate answer > 0 (reject zero/negative), updatedAt within the feed's heartbeat (reject stale after a halt), and scale by decimals() (usually 8). Push means the DON writes a new answer only on a deviation threshold or heartbeat, so between updates the last value is reused — fine if fresh, dangerous if the feed froze. Pitfall: checking only answer > 0 while ignoring updatedAt is the classic stale-price bug; a healthy-looking number can be hours old after an outage.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uniswap V3 TWAP from tick cumulatives",
+      "promptText": "How do you derive a TWAP from a Uniswap V3 pool's observations?",
+      "answerHint": "Call observe([t2, t1]) to get two tickCumulatives; the arithmetic-mean tick over the window is (tickCumulative2 - tickCumulative1)/(t2 - t1), and price = 1.0001^meanTick (a geometric-mean TWAP). The pool must have enough stored observations — grow it with increaseObservationCardinalityNext to cover the window. Pitfall: it resists single-block manipulation but lags real price and is weak on thin pools; requesting a window longer than stored observations reverts (OLD).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Pyth pull oracle",
+      "promptText": "How does a Pyth pull oracle differ from a Chainlink push feed in the consumer's flow?",
+      "answerHint": "With Pyth the CONSUMER supplies the price: call updatePriceFeeds(updateData) paying getUpdateFee() with an off-chain-signed update, then read getPriceNoOlderThan(id, maxAge); the Price has price, a confidence conf, and exponent expo (value = price * 10^expo). Push (Chainlink) has the network write on-chain on its own schedule. Pitfall: pull means nothing is on-chain until you post it, so you must bound staleness yourself and treat a wide confidence interval as low-quality — don't read a stale or low-confidence price as ground truth.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Oracle manipulation resistance",
+      "promptText": "What is the single question that decides whether a price source is safe to trust for collateral?",
+      "answerHint": "Is the cost to move (and hold) the price for the attacker's needed duration greater than the value it secures? Spot AMM reserves fail — a flash loan rewrites them in one tx for free; a long TWAP with a liquidity floor, a decentralized push feed, or a signed pull feed raise that cost. Layer staleness, deviation, and cross-source sanity checks on top. Pitfall: 'it's an on-chain DEX price so it's decentralized' confuses decentralization with manipulation-resistance — the two are unrelated.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Oracle manipulation resistance",
+      "promptText": "Damn Vulnerable DeFi — Puppet: drain the lending pool that prices collateral from a Uniswap spot pool.",
+      "answerHint": "The pool computes required collateral from the Uniswap spot price; dump a large amount of the token into Uniswap to crater its price, then borrow the pool's entire token balance for almost no collateral. Puppet V2/V3 raise the bar (V2 pair, V3 TWAP window) but reduce to the same manipulable-price root — fix is a resistant oracle, not blocking flash loans.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    }
+  ],
+  "noteSummaries": []
+}

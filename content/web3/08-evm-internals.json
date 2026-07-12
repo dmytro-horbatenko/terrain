@@ -1,0 +1,631 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Opcodes Deep Dive",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The EVM at the raw opcode level: gas per opcode, stack/memory/storage/transient ops, the CALL and CREATE families, external-code and halting opcodes — deeper than the Phase-1 interpreter sketch. Resources: https://www.evm.codes/",
+      "prerequisiteTitles": ["Opcodes & the interpreter loop"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Yul & Inline Assembly",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Yul as Solidity's low-level dialect: syntax, the solc memory model (free memory pointer, scratch space), calldata decoding, reverting with data, and standalone Yul objects. Resources: https://docs.soliditylang.org/en/latest/yul.html",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Huff & Hand-Written Bytecode",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Huff — opcodes plus macros, no compiler safety — for hand-built dispatchers and gas-critical primitives: macros, manual stack management, jump tables, and when the effort pays off. Resources: https://github.com/huff-language/huff-rs",
+      "prerequisiteTitles": ["Yul & Inline Assembly"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Function Selectors & Dispatch",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How an external call finds its function: the 4-byte selector = first 4 bytes of keccak256(signature), the compiler's dispatcher jump table, calldata layout, and fallback/receive at the bytecode level. Resources: https://docs.soliditylang.org/en/latest/abi-spec.html",
+      "prerequisiteTitles": ["abi.decode & function selectors"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Storage Layout at the Bytecode Level",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Exactly where state lives: sequential slot assignment and packing, the keccak256 derivation for mappings and dynamic arrays, and ERC-7201 namespaced storage for modular/upgradeable contracts. Resources: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+      "prerequisiteTitles": ["Reading storage slots"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Proxies at the Bytecode Level",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proxies as delegatecall forwarders: the EIP-1167 minimal-proxy runtime, ERC-1967 storage slots and dispatch, and metamorphic contracts (and why EIP-6780 mostly killed them). Resources: https://eips.ethereum.org/EIPS/eip-1967",
+      "prerequisiteTitles": ["Minimal-proxy clones (EIP-1167)", "delegatecall & storage context"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Formal Verification",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proving properties instead of sampling them: symbolic execution vs fuzzing, Halmos (Foundry-native), the Certora Prover with CVL, Kontrol/KEVM, and writing a real invariant proof. Resources: https://updraft.cyfrin.io/courses/formal-verification",
+      "prerequisiteTitles": ["Foundry invariant testing"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+
+    {
+      "title": "Opcode gas accounting",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Every opcode has a fixed base cost plus, for some, a dynamic component: SLOAD/CALL pay cold-vs-warm (EIP-2929), memory ops pay expansion, SSTORE pays set/reset with a capped refund. A CALL only forwards 63/64 of the gas remaining (EIP-150), keeping a sliver for the caller to clean up. When cumulative charges exceed the frame's gas, execution halts out-of-gas: state rolls back and the consumed gas is gone. Resources: 🔗 https://www.evm.codes/",
+      "aiContext": "Build: in contracts/phase08/gas-trace.md take a ~6-opcode Yul snippet, hand-compute its gas from evm.codes, then confirm with a vm.startSnapshotGas block in test/phase08/GasTrace.t.sol. Done when: your by-hand static total matches the measured gas and you can name which opcode paid a dynamic (cold-access or memory-expansion) surcharge.",
+      "prerequisiteTitles": ["Opcodes & the interpreter loop", "Warm vs cold access (EIP-2929)"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "Stack, arithmetic & bitwise opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The stack is 1024 words of 256 bits; PUSH0–PUSH32 push literals (PUSH0 since EIP-3855), DUP1–16 copy, SWAP1–16 reorder. Arithmetic (ADD/MUL/SUB/DIV/SDIV/MOD/EXP/ADDMOD) and comparison (LT/GT/SLT/SGT/EQ/ISZERO) come in unsigned and signed (S-prefixed) forms; bitwise ops are AND/OR/XOR/NOT/BYTE/SHL/SHR/SAR. Resources: 🔗 https://www.evm.codes/",
+      "aiContext": "Build: on evm.codes' playground assemble PUSH1 0x03 PUSH1 0x02 ADD and one signed vs unsigned case (e.g. SDIV of a negative), recording each in contracts/phase08/stack-ops.md. Done when: you can predict the stack after each opcode and explain why DIV by zero yields 0 rather than reverting.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "Memory opcodes & expansion",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Memory is a zero-initialized, byte-addressed linear array. MLOAD reads a 32-byte word at an offset, MSTORE writes 32 bytes, MSTORE8 writes a single byte, and MSIZE reports the highest touched size. Accessing a higher offset expands memory in 32-byte words at a quadratic cost (3·words + words²/512), so blowing past the current size silently pays for the gap. Resources: 🔗 https://www.evm.codes/#54",
+      "aiContext": "Build: in contracts/phase08/Mem.sol write an assembly function that MSTOREs a value at 0x80 and MLOADs it back, plus one that MSTORE8s a single byte; test in test/phase08/Mem.t.sol. Done when: forge test passes and you can explain, from gas, why writing at offset 0x2000 costs far more than at 0x80.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata", "Avoiding memory expansion"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "Storage & transient opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "SLOAD reads a 32-byte slot (cold 2100 / warm 100 gas); SSTORE writes it — ~20000 to set a zero slot to nonzero, ~5000 to update, 100 for a warm no-op, plus a 2100 cold surcharge, with a refund (EIP-3529-capped) for clearing to zero. TLOAD/TSTORE (EIP-1153) are transient twins at a flat ~100 gas with no refund; the whole transient region is wiped at end-of-transaction, not end-of-call. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1153",
+      "aiContext": "Build: in contracts/phase08/Transient08.sol implement a reentrancy lock with tstore/tload and a test in test/phase08/Transient08.t.sol that reenters. Done when: forge test passes proving a reentrant call reverts and a fresh transaction succeeds (the lock cleared at tx end).",
+      "prerequisiteTitles": ["Reading storage slots", "Transient storage (EIP-1153)"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "The CALL family opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "CALL runs the target's code in its own context (its storage, msg.sender = caller, and a passed value). DELEGATECALL runs the target's code in the caller's context — caller's storage, and msg.sender/msg.value preserved from the outer call. STATICCALL forbids any state change in the sub-call. CALLCODE is the deprecated predecessor of DELEGATECALL. Only 63/64 of remaining gas is forwarded. Resources: 🔗 https://www.evm.codes/#f1",
+      "aiContext": "Build: in contracts/phase08/CallFamily.sol implement one function per opcode (call/delegatecall/staticcall) and prove in test/phase08/CallFamily.t.sol how each sees storage and msg.sender. Done when: forge test passes and you can state why a delegatecall to attacker code is a full takeover of your storage.",
+      "prerequisiteTitles": [
+        "delegatecall & storage context",
+        "staticcall & read-only enforcement"
+      ],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "CREATE & CREATE2 opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Both deploy by running init code that must RETURN the runtime code (the constructor IS the init code). CREATE's address = keccak256(rlp(deployer, nonce))[12:] — nonce-dependent, so unpredictable in advance. CREATE2 adds a salt: address = keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:], fully deterministic and precomputable. Resources: 📖 https://www.evm.codes/#f5",
+      "aiContext": "Build: in contracts/phase08/Create2Addr.sol implement the CREATE2 address formula and a factory, and in test/phase08/Create2Addr.t.sol assert the predicted address equals the deployed one. Done when: forge test passes and you can explain why changing a constructor argument changes the CREATE2 address.",
+      "prerequisiteTitles": ["CREATE2 deterministic deployment"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "Context, external-code & halting opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EXTCODESIZE/EXTCODECOPY/EXTCODEHASH inspect another account's deployed code (EXTCODEHASH is the code's keccak, 0 for an empty account). RETURNDATASIZE/RETURNDATACOPY read the last sub-call's return buffer. LOG0–LOG4 emit events (375 base + 375/topic + 8/byte). RETURN and REVERT both return a memory range, but REVERT rolls back state and refunds remaining gas; STOP halts empty; INVALID (0xfe) burns all gas. Resources: 🔗 https://www.evm.codes/#3d",
+      "aiContext": "Build: in contracts/phase08/CodeProbe.sol write assembly using extcodesize and extcodehash on a target address, plus a function that emits a LOG with two topics; test in test/phase08/CodeProbe.t.sol. Done when: forge test passes and you can explain why extcodesize == 0 inside a contract's own constructor makes 'is-EOA' checks bypassable.",
+      "prerequisiteTitles": ["Low-level call"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+    {
+      "title": "Building an EVM interpreter from scratch",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The surest way to internalize the EVM is to implement it: a fetch-decode-execute loop over bytecode with a program counter, a 1024-deep stack of 256-bit words, byte-addressed memory, a storage map, and a gas meter, handling each opcode's stack effect. JUMP/JUMPI targets must land on a real JUMPDEST that is not inside PUSH data. w1nt3r's evm-from-scratch is a test-driven ladder, one opcode group at a time. Resources: 🔗 https://github.com/w1nt3r-eth/evm-from-scratch",
+      "aiContext": "Build: fork evm-from-scratch into contracts/phase08/evm-from-scratch (any language) and implement through the arithmetic, PUSH/DUP/SWAP, and JUMP/JUMPI groups. Done when: the repo's test suite passes for those groups and your interpreter rejects a JUMP to an offset that is not a JUMPDEST.",
+      "prerequisiteTitles": ["The EVM as a state machine", "Stack, arithmetic & bitwise opcodes"],
+      "parentTitle": "Opcodes Deep Dive"
+    },
+
+    {
+      "title": "Yul syntax & the assembly block",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Yul is Solidity's intermediate assembly language: functions, `let` variables, `if`/`switch`/`for` loops, and typed literals, lowered to opcodes. Inside Solidity, an `assembly { ... }` block is the EVM dialect of Yul — variables map to stack slots and opcodes are called like functions (mstore, sload, add). There are no overflow checks, no bounds checks, and no memory management: you get exactly the opcodes you write. Resources: 📖 https://docs.soliditylang.org/en/latest/yul.html",
+      "aiContext": "Build: in contracts/phase08/YulLoop.sol write an assembly `for` loop that sums an array passed in calldata, and compare its gas to the Solidity version in test/phase08/YulLoop.t.sol. Done when: forge test passes (same sum) and forge snapshot shows the assembly path cheaper, with no bounds check emitted.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Yul & Inline Assembly"
+    },
+    {
+      "title": "Solidity memory layout & the free memory pointer",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "solc reserves the first memory words: 0x00–0x3f is scratch space (used by hashing and transient math), 0x40 holds the free memory pointer (next free byte, initialized to 0x80), and 0x60 is the permanently-zero slot used to initialize empty dynamic arrays. Allocating means reading 0x40, using that region, and bumping 0x40 by the size. Free memory begins at 0x80. Resources: 📖 https://docs.soliditylang.org/en/latest/internals/layout_in_memory.html",
+      "aiContext": "Build: in contracts/phase08/FreeMem.sol write assembly that allocates 32 bytes by reading and advancing the 0x40 pointer, then abi.encodes something afterward; test in test/phase08/FreeMem.t.sol. Done when: forge test passes and a deliberately-broken variant that clobbers 0x40 corrupts the later abi.encode, proving why the pointer matters.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Yul & Inline Assembly"
+    },
+    {
+      "title": "Decoding calldata in Yul",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "In Yul you read calldata with calldataload(offset) (32 bytes) and calldatacopy(destOff, srcOff, len); calldatasize gives the total. Arguments start at offset 4 (after the selector), each static arg padded to a 32-byte word; a dynamic arg stores a 32-byte offset in the head, with its length+data in the tail. Resources: 📖 https://docs.soliditylang.org/en/latest/yul.html",
+      "aiContext": "Build: in contracts/phase08/CalldataYul.sol decode a (uint256,address) pair by hand with calldataload at offsets 4 and 0x24, and a dynamic bytes arg via its offset; test in test/phase08/CalldataYul.t.sol against abi.encode. Done when: forge test passes and you can explain why calldataload past calldatasize returns zero-padding, not a revert.",
+      "prerequisiteTitles": ["Yul syntax & the assembly block", "ABI encoding & decoding"],
+      "parentTitle": "Yul & Inline Assembly"
+    },
+    {
+      "title": "Reverting with data in assembly",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`revert(offset, size)` returns the given memory range as revert data and rolls back state. To bubble a custom error you store its 4-byte selector left-aligned (shl(224, sig)) plus ABI-encoded args in memory, then revert over that range. After a failed sub-call, returndatacopy(0,0,returndatasize()) then revert(0, returndatasize()) forwards the callee's exact reason. Resources: 🔗 https://www.evm.codes/#fd",
+      "aiContext": "Build: in contracts/phase08/AsmRevert.sol write assembly that reverts with a custom-error selector, and another that re-reverts a child call's returndata; test in test/phase08/AsmRevert.t.sol with expectRevert. Done when: forge test passes catching the right selector and the forwarded child reason (not an opaque revert(0,0)).",
+      "prerequisiteTitles": ["Custom errors", "Yul syntax & the assembly block"],
+      "parentTitle": "Yul & Inline Assembly"
+    },
+    {
+      "title": "Yul objects & the deploy/runtime split",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A standalone Yul `object` is nested: the outer object is the creation (init) code and contains a `code { }` plus a sub-object (conventionally \"runtime\") whose `code { }` is the deployed runtime. The init code copies the runtime via datacopy/datasize and RETURNs it — the same two-part shape every deployed contract has. This is the model behind hand-written contracts and `solc --strict-assembly`. Resources: 📖 https://docs.soliditylang.org/en/latest/yul.html#specification-of-yul-object",
+      "aiContext": "Build: in contracts/phase08/Object.yul write a minimal Yul object whose runtime returns a constant, compile with solc --strict-assembly, and deploy it in test/phase08/Object.t.sol. Done when: the deployed address has nonzero code and a call returns the constant — and removing the RETURN of the runtime deploys empty code (you can explain why).",
+      "prerequisiteTitles": ["Yul syntax & the assembly block"],
+      "parentTitle": "Yul & Inline Assembly"
+    },
+
+    {
+      "title": "Huff macros & manual stack management",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Huff is essentially named opcodes plus macros. `#define macro NAME() = takes(n) returns(m) { ... }` groups opcodes; takes/returns document the expected stack in/out but are NOT enforced — you juggle the stack by hand with dup/swap. Builtins like `__FUNC_SIG(\"f(uint256)\")` and constants help, but nothing type- or stack-checks you. You reach for Huff when you need bytecode solc won't emit. Resources: 📖 https://github.com/huff-language/huff-rs",
+      "aiContext": "Build: in contracts/phase08/AddOne.huff write a macro that adds 1 to a stack item (takes(1) returns(1)), wrap it in a callable function, and test in test/phase08/AddOne.t.sol. Done when: forge test passes and a deliberately-wrong variant that leaves an extra stack item is shown to corrupt the caller (proving takes/returns are unchecked).",
+      "prerequisiteTitles": ["Stack, arithmetic & bitwise opcodes"],
+      "parentTitle": "Huff & Hand-Written Bytecode"
+    },
+    {
+      "title": "Huff jump tables & when Huff pays off",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Huff builds the function dispatcher by hand: read the selector (calldataload(0) then shr 0xe0), then for each function `dup1 __FUNC_SIG(f) eq <label> jumpi`, falling through to a revert. Huff also offers `#define jumptable` for packed destination tables used in switch-like dispatch. This manual control is exactly why Huff can undercut solc's dispatcher on gas — at the cost of writing (and auditing) every opcode. Resources: 📖 https://github.com/huff-language/huffmate",
+      "aiContext": "Build: write contracts/phase08/SelectorDispatch.huff implementing a hand-rolled 2-function dispatcher (e.g. get()/set(uint256)). Done when: forge test in test/phase08/SelectorDispatch.t.sol calls both selectors successfully and a call with an unknown selector reverts (proving the fallback revert is in place).",
+      "prerequisiteTitles": [
+        "Huff macros & manual stack management",
+        "The 4-byte function selector"
+      ],
+      "parentTitle": "Huff & Hand-Written Bytecode"
+    },
+
+    {
+      "title": "The 4-byte function selector",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A function selector is the first 4 bytes of keccak256 of the canonical signature string — bytes4(keccak256(\"transfer(address,uint256)\")) = 0xa9059cbb — using canonical types (uint256 not uint, no argument names, no spaces). An external call's calldata is this selector followed by the ABI-encoded arguments. Only 2³² of space means collisions exist and matter for proxies. Resources: 📖 https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector",
+      "aiContext": "Build: in contracts/phase08/Selector.sol compute a selector in Solidity and cross-check with `cast sig \"transfer(address,uint256)\"`; record three signatures and their selectors in test/phase08/Selector.t.sol. Done when: forge test asserts your computed bytes4 equals the expected value and you can explain why `uint` vs `uint256` in the string breaks it.",
+      "prerequisiteTitles": ["abi.decode & function selectors", "keccak256 hashing"],
+      "parentTitle": "Function Selectors & Dispatch"
+    },
+    {
+      "title": "The dispatcher jump table",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "solc's runtime prologue loads the selector with CALLDATALOAD(0) then SHR 0xe0 (224) to right-align the top 4 bytes, then routes it: a linear EQ/JUMPI chain for a few functions, or a binary search over sorted selectors (log₂ comparisons) for many. Unmatched selectors fall through to fallback/receive or revert. The dispatcher runs on every call, which is why selector ordering has a gas cost. Resources: 🔗 https://www.evm.codes/#35",
+      "aiContext": "Build: in contracts/phase08/Dispatch.md disassemble a 3-function contract (forge inspect <C> deployedBytecode, or `cast disassemble`) and annotate the selector-extract and the EQ/JUMPI comparisons. Done when: you can point to the SHR 0xe0 and show which selector is compared first, and explain how binary-search dispatch differs from the linear chain.",
+      "prerequisiteTitles": ["The 4-byte function selector"],
+      "parentTitle": "Function Selectors & Dispatch"
+    },
+    {
+      "title": "Calldata layout, fallback & receive at bytecode level",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Calldata is a 4-byte selector followed by head/tail ABI encoding: each static argument is one 32-byte word in the head; each dynamic argument puts a 32-byte offset in the head and its length+data in the tail. Empty calldata with a receive() present routes to receive; non-empty calldata that matches no selector routes to fallback(). Proxies exploit this by making fallback the delegatecall forwarder. Resources: 📖 https://docs.soliditylang.org/en/latest/abi-spec.html#formal-specification-of-the-encoding",
+      "aiContext": "Build: in contracts/phase08/Fallback.sol implement receive() and a fallback() that logs msg.data, then in test/phase08/Fallback.t.sol send (a) empty calldata, (b) 3 bytes, (c) an unknown 4-byte selector. Done when: forge test proves which handler each case hits and you can explain why <4-byte data never matches a selector.",
+      "prerequisiteTitles": ["The dispatcher jump table", "receive & fallback"],
+      "parentTitle": "Function Selectors & Dispatch"
+    },
+
+    {
+      "title": "Sequential slot assignment & struct packing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "solc assigns state variables to storage slots sequentially from slot 0 in declaration order; small variables that fit together are packed into one 32-byte slot (low-order first), and a variable that won't fit starts a fresh slot. Structs and fixed arrays pack the same way, and inheritance lays out base contracts first. constant/immutable take no slot — they live in code. Resources: 📖 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+      "aiContext": "Build: in contracts/phase08/Layout.sol declare a mix of uint256, uint64, address, and bool, deploy on anvil, then read raw slots with `cast storage <addr> <n>` and map each variable in test notes. Done when: you can predict which variables share a slot and explain why reordering them is fatal to a delegatecall/upgradeable contract.",
+      "prerequisiteTitles": ["Reading storage slots", "Packing variables into slots"],
+      "parentTitle": "Storage Layout at the Bytecode Level"
+    },
+    {
+      "title": "Mapping & dynamic-array slot derivation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "For a mapping at slot p, the value for key k lives at keccak256(h(k) . p) — the key padded to 32 bytes concatenated with the slot number padded to 32 bytes; a nested mapping hashes again with the previous result as the slot. A dynamic array at slot p stores its length in p and element i at keccak256(p) + i (for 32-byte elements). Resources: 📖 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays",
+      "aiContext": "Build: in contracts/phase08/MapSlot.sol compute a mapping entry's slot in assembly (mstore key, mstore p, keccak256) and read it back with sload; assert equality against the Solidity mapping in test/phase08/MapSlot.t.sol. Done when: forge test passes and you can explain why a short `string`/`bytes` (≤31 bytes) is the exception that packs into slot p itself.",
+      "prerequisiteTitles": ["Reading storage slots", "Cheap hashing in assembly"],
+      "parentTitle": "Storage Layout at the Bytecode Level"
+    },
+    {
+      "title": "ERC-7201 namespaced storage",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-7201 prevents slot collisions in upgradeable and modular (facet/diamond) contracts by placing each module's struct at a pseudo-random base slot: keccak256(abi.encode(uint256(keccak256(namespace)) - 1)) & ~bytes32(uint256(0xff)) — the −1 and the cleared low byte keep the whole erasure range clear of ordinary mapping/array preimages. Each module owns its namespaced struct, so adding fields never shifts another module's storage. Resources: 📖 https://eips.ethereum.org/EIPS/eip-7201",
+      "aiContext": "Build: in contracts/phase08/Erc7201.sol define a namespaced storage struct with the standard base-slot formula and a getter that sloads it; test in test/phase08/Erc7201.t.sol. Done when: forge test asserts the computed base slot matches the ERC-7201 formula (cross-check with a known reference value) and reads/writes round-trip.",
+      "prerequisiteTitles": [
+        "Direct storage slots in assembly",
+        "Sequential slot assignment & struct packing"
+      ],
+      "parentTitle": "Storage Layout at the Bytecode Level"
+    },
+
+    {
+      "title": "EIP-1167 minimal-proxy runtime bytecode",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An EIP-1167 clone is a fixed 45-byte runtime whose only job is to delegatecall a hard-coded implementation: it copies all calldata into memory, delegatecalls the immutable 20-byte implementation forwarding all gas, then returns or reverts with the returndata. The creation code is 55 bytes (a 10-byte prefix that returns the runtime). Because it's a proxy, the implementation's constructor never runs against the clone — initialize via a function. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1167",
+      "aiContext": "Build: in contracts/phase08/Clone1167.sol deploy a clone by writing the 45-byte runtime template (363d3d373d3d3d363d73<impl>5af43d82803e903d91602b57fd5bf3) with the implementation address spliced in; test in test/phase08/Clone1167.t.sol. Done when: forge test proves the clone delegatecalls the implementation (behaves identically) and that an uninitialized clone can be initialized by anyone.",
+      "prerequisiteTitles": ["Minimal-proxy clones (EIP-1167)"],
+      "parentTitle": "Proxies at the Bytecode Level"
+    },
+    {
+      "title": "ERC-1967 storage slots & delegatecall dispatch",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An upgradeable proxy stores the implementation address at a fixed slot that can't collide with the implementation's own layout: ERC-1967 fixes it at bytes32(uint256(keccak256(\"eip1967.proxy.implementation\")) − 1) = 0x360894…382bbc, with sibling slots for admin and beacon. The proxy's fallback sloads that slot and delegatecalls it, forwarding calldata and returndata. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1967",
+      "aiContext": "Build: in contracts/phase08/Proxy1967.sol write a minimal proxy whose fallback reads the ERC-1967 implementation slot and delegatecalls it, plus an upgrade function; test upgrade + call in test/phase08/Proxy1967.t.sol. Done when: forge test proves a call routes to the current implementation and an upgrade swaps behavior — and you can explain why the slot uses '−1'.",
+      "prerequisiteTitles": [
+        "delegatecall & storage context",
+        "EIP-1167 minimal-proxy runtime bytecode"
+      ],
+      "parentTitle": "Proxies at the Bytecode Level"
+    },
+    {
+      "title": "Metamorphic contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A metamorphic contract changes the code at a fixed address by deploying via CREATE2, SELFDESTRUCTing, then redeploying different runtime from the same init code — the address is pinned by the init-code hash, but the init code can fetch its runtime from a mutable external source. EIP-6780 (Cancun) neutered this: SELFDESTRUCT only clears code when called in the same transaction as creation, so classic metamorphism is largely dead on mainnet. Resources: 🔗 https://eips.ethereum.org/EIPS/eip-6780",
+      "aiContext": "Build: in contracts/phase08/Metamorphic.md write up how a pre-Cancun metamorphic (CREATE2 → selfdestruct → redeploy) worked and demonstrate on an EIP-6780 chain that the redeploy no longer clears code. Done when: you can explain why 'immutable CREATE2 code' was never a safe assumption if the init code sources runtime externally, and what EIP-6780 changed.",
+      "prerequisiteTitles": ["CREATE & CREATE2 opcodes"],
+      "parentTitle": "Proxies at the Bytecode Level"
+    },
+
+    {
+      "title": "Symbolic execution vs fuzzing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Fuzzing throws many concrete random inputs and checks properties — fast bug-finding, but it never proves absence. Symbolic execution treats inputs as symbolic variables and explores each feasible path with an SMT solver, either proving a property for all inputs or returning a concrete counterexample. The catch is path explosion: loops and large state blow up the solver, so tools bound loop unrolling. Resources: ▶ https://updraft.cyfrin.io/courses/formal-verification",
+      "aiContext": "Build: in contracts/phase08/SymVsFuzz.md take one property of a contracts/phase08 contract, test it with a Foundry fuzz test and then with a symbolic tool, and record where each stops. Done when: you can state one property fuzzing can only sample but symbolic execution can prove, and why 'no counterexample' from a bounded symbolic run is not a full proof.",
+      "prerequisiteTitles": ["Fuzz testing", "Foundry invariant testing"],
+      "parentTitle": "Formal Verification"
+    },
+    {
+      "title": "Halmos: symbolic testing in Foundry",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Halmos (a16z) runs your existing Foundry tests with symbolic inputs: a function it checks gets all-symbolic arguments, and it proves each assertion for every input or reports a counterexample calldata. It reuses forge-std and your setUp, so a property test becomes a proof with almost no new syntax (svm cheatcodes create extra symbolic values). Resources: 🔗 https://github.com/a16z/halmos",
+      "aiContext": "Build: write test/phase08/HalmosInvariant.t.sol with a check_ property over contracts/phase08/<C>.sol and run `halmos`. Done when: halmos reports the property PASSED for all symbolic inputs, or you fix the contract after it prints a counterexample. Note the loop/array bound you set.",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification"
+    },
+    {
+      "title": "Certora Prover & CVL",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The Certora Prover verifies a contract against a specification written in CVL: a .spec file with a `methods` block, `rule`s asserting post-conditions over arbitrary env/args, and `invariant`s that must hold across all functions. The prover compiles contract + spec to SMT and returns 'verified' or a counterexample call trace. It is industry-standard for high-value protocol verification. Resources: 📖 https://docs.certora.com/",
+      "aiContext": "Build: write specs/phase08/<C>.spec with an invariant (e.g. totalSupply == sum of balances) for contracts/phase08/<C>.sol and run the Certora Prover. Done when: the prover reports the rule/invariant verified, or you fix the contract after its counterexample — and your rule's `require` assumptions are documented (not over-constraining the environment).",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification"
+    },
+    {
+      "title": "Kontrol & KEVM",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Kontrol (Runtime Verification) proves properties about Foundry tests using KEVM — a formal semantics of the EVM written in the K framework — so verification runs against a rigorous bytecode-level model rather than a re-implementation. You write property tests in Solidity, run `kontrol build` then `kontrol prove`, and get a proof or a failing proof node. It's heavier than Halmos but grounded in an audited EVM semantics. Resources: 🔗 https://github.com/runtimeverification/kontrol",
+      "aiContext": "Build: in contracts/phase08/kontrol/ set up a Kontrol property test for a small contracts/phase08 function and run kontrol build + prove. Done when: kontrol reports the proof passing, or you supply the loop-invariant/lemma hint it needs — and you can explain why an unproven branch is 'unproven', not 'safe'.",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification"
+    },
+    {
+      "title": "Writing a verifiable invariant proof",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A good FV target is a stated invariant — an equation true in every reachable state (sum of balances == totalSupply; a vault's shares↔assets monotonicity). You encode it as a spec/property, let the prover explore all inputs from arbitrary state, and get a proof or a minimal counterexample that pinpoints the broken transition. This is the capstone: one contract, one invariant, proven. Resources: ▶ https://updraft.cyfrin.io/courses/formal-verification",
+      "aiContext": "Build: (FV) pick contracts/phase08/Vault.sol, state the invariant totalAssets == sum(userDeposits), and prove it with Halmos or Certora. Done when: the prover reports the invariant holds, or you find and fix the transition that breaks it (documented in specs/phase08/Vault.md). The prover must start from symbolic state, not a seeded setUp.",
+      "prerequisiteTitles": ["Halmos: symbolic testing in Foundry", "Writing good invariants"],
+      "parentTitle": "Formal Verification"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Opcode gas accounting",
+      "promptText": "What happens, to state and to gas, when a call frame runs out of gas mid-execution?",
+      "answerHint": "The frame halts out-of-gas: all its state changes roll back and the gas it consumed is not refunded. Pitfall: a CALL forwards only 63/64 of remaining gas (EIP-150), so the caller keeps a sliver — an inner out-of-gas need not kill the outer frame if the caller checks the returned success flag.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack, arithmetic & bitwise opcodes",
+      "promptText": "How do signed and unsigned opcodes differ, and what does DIV by zero do?",
+      "answerHint": "Unsigned (DIV/LT/GT/MOD) treat words as 0..2²⁵⁶−1; signed (SDIV/SLT/SGT/SMOD) treat them as two's-complement. DIV/SDIV/MOD by zero return 0 — no revert at the opcode level. Pitfall: a raw uint8/address on the stack can carry dirty high bits; compare/mask before trusting it, since opcodes operate on full 256-bit words.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack, arithmetic & bitwise opcodes",
+      "promptText": "Give the raw opcodes that push 3 and 2 and add them.",
+      "answerHint": "PUSH1 0x03 PUSH1 0x02 ADD → leaves 0x05 on the stack (ADD pops the two operands, pushes the sum).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Memory opcodes & expansion",
+      "promptText": "Why can writing to a high memory offset cost far more than writing near 0x80?",
+      "answerHint": "Memory expands in 32-byte words at a quadratic cost (3·words + words²/512), and you pay for the whole range up to the highest byte touched. Pitfall: MSTORE writes 32 bytes — an MSTORE at offset+1 overlaps and overwrites part of the previous word; use MSTORE8 for a single byte.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Memory opcodes & expansion",
+      "promptText": "Write assembly that stores a value at 0x80 and reads it back.",
+      "answerHint": "assembly { mstore(0x80, v) let x := mload(0x80) } — MSTORE writes the 32-byte word at 0x80, MLOAD reads it. Pitfall: 0x80 is the first free byte; don't write into 0x00–0x7f (scratch + free-pointer + zero-slot) without care.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Storage & transient opcodes",
+      "promptText": "How do TSTORE/TLOAD differ from SSTORE/SLOAD in cost and lifetime?",
+      "answerHint": "Transient ops are a flat ~100 gas with no refund and are wiped at end-of-transaction, not end-of-call; SLOAD/SSTORE are cold 2100 / set 20000 / update ~5000 with a capped clear refund and persist forever. Pitfall: because transient state survives nested calls within one tx, a TSTORE lock must be reset before the outer call returns — it clears only at tx end otherwise.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage & transient opcodes",
+      "promptText": "Write a transient-storage reentrancy guard in assembly.",
+      "answerHint": "assembly { if tload(0) { revert(0,0) } tstore(0,1) } _; assembly { tstore(0,0) } — sets a transient lock, runs the body, clears it; ~100 gas per op and auto-cleared at tx end if you forget.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "The CALL family opcodes",
+      "promptText": "Contrast CALL, DELEGATECALL, and STATICCALL by storage, msg.sender, and value.",
+      "answerHint": "CALL: target's own storage, msg.sender = caller, can pass value. DELEGATECALL: caller's storage, msg.sender & msg.value preserved from the outer call, no value arg. STATICCALL: like CALL but any state change (SSTORE/LOG/CREATE/value) reverts. Pitfall: a call to a codeless address returns success=true with empty returndata — EXTCODESIZE-check when you need real code; delegatecall to untrusted code hands over your storage.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CREATE & CREATE2 opcodes",
+      "promptText": "Give the address formulas for CREATE and CREATE2 and the practical difference.",
+      "answerHint": "CREATE: keccak256(rlp(deployer, nonce))[12:] — nonce-dependent, not knowable in advance. CREATE2: keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:] — deterministic and precomputable. Pitfall: init_code includes constructor args, so changing an arg changes the CREATE2 address; both run init code that must RETURN the runtime.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CREATE & CREATE2 opcodes",
+      "promptText": "Write the Solidity that computes a CREATE2 address for known salt and init code.",
+      "answerHint": "address a = address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(initCode)))))); — take the last 20 bytes of the keccak of 0xff‖deployer‖salt‖keccak256(initCode).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Context, external-code & halting opcodes",
+      "promptText": "How do RETURN and REVERT differ, and what does EXTCODESIZE return during a constructor?",
+      "answerHint": "Both return a memory range, but REVERT rolls back all state changes and refunds remaining gas while RETURN commits; STOP halts empty and INVALID (0xfe) burns all gas. Pitfall: EXTCODESIZE of an address is 0 while that contract's own constructor is running, so 'reject contracts via extcodesize==0' checks are bypassable from a constructor.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building an EVM interpreter from scratch",
+      "promptText": "What state does a minimal EVM interpreter track per call frame, and what must JUMP validate?",
+      "answerHint": "A program counter, a 1024-deep stack of 256-bit words, byte-addressed memory, gas remaining, and the last returndata — plus references to storage and world state. JUMP/JUMPI must land on a JUMPDEST (0x5b) that is a real instruction, not a byte inside PUSH data. Pitfall: failing to exclude PUSH-immediate bytes from valid jump destinations lets crafted bytecode jump into data.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building an EVM interpreter from scratch",
+      "promptText": "Pass the w1nt3r evm-from-scratch test ladder through the JUMP group.",
+      "answerHint": "Fork the repo, implement STOP/PUSH/arithmetic/DUP/SWAP, then JUMP/JUMPI with JUMPDEST validation; run the provided tests per opcode group.",
+      "promptKind": "problem",
+      "url": "https://github.com/w1nt3r-eth/evm-from-scratch",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 240
+    },
+    {
+      "topicTitle": "Yul syntax & the assembly block",
+      "promptText": "What safety does an assembly block give up compared to Solidity?",
+      "answerHint": "No overflow/underflow checks, no array bounds checks, no automatic memory management, and no type checking on values written back to Solidity variables. Pitfall: writing a value with dirty high bits into an address/bool variable from assembly can break later comparisons — mask to the type width yourself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Solidity memory layout & the free memory pointer",
+      "promptText": "What lives at 0x00–0x3f, 0x40, and 0x60 in Solidity's memory model?",
+      "answerHint": "0x00–0x3f = scratch space (hashing/temp math); 0x40 = free memory pointer (next free byte, starts at 0x80); 0x60 = permanently-zero slot for empty dynamic arrays; usable memory starts at 0x80. Pitfall: clobbering 0x40, or writing past scratch without advancing the pointer, corrupts every later abi.encode and array allocation.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Solidity memory layout & the free memory pointer",
+      "promptText": "Write assembly that allocates 32 bytes using the free memory pointer.",
+      "answerHint": "assembly { let p := mload(0x40) mstore(0x40, add(p, 0x20)) mstore(p, v) } — read the pointer at 0x40, bump it by the size, then use the region.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Decoding calldata in Yul",
+      "promptText": "Where do a function's arguments start in calldata, and what does an out-of-range calldataload return?",
+      "answerHint": "Arguments start at offset 4 (after the 4-byte selector); each static arg is a 32-byte word, dynamic args store a 32-byte offset in the head with length+data in the tail. Pitfall: calldataload past calldatasize returns zero-padded bytes (not a revert), so hand-decoding short calldata can read attacker-friendly zeros as valid args — solc's ABI decoder adds the bounds checks you lose.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Decoding calldata in Yul",
+      "promptText": "Write Yul that loads the first uint256 argument from calldata.",
+      "answerHint": "let a := calldataload(4) — the selector occupies bytes 0–3, so the first 32-byte argument word begins at offset 4 (the second is at 0x24).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Reverting with data in assembly",
+      "promptText": "How do you bubble a child call's exact revert reason back up in assembly?",
+      "answerHint": "returndatacopy(0, 0, returndatasize()) then revert(0, returndatasize()) — copy the callee's returndata into memory and revert over it. Pitfall: revert(0,0) discards all error data (opaque failure); to raise your own custom error, store shl(224, selector) plus encoded args and revert over that range.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Reverting with data in assembly",
+      "promptText": "Write assembly that reverts with a 4-byte custom-error selector.",
+      "answerHint": "assembly { mstore(0x00, shl(224, 0x12345678)) revert(0x00, 0x04) } — put the selector in the top 4 bytes of the word at 0x00 and revert over those 4 bytes.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Yul objects & the deploy/runtime split",
+      "promptText": "How is a standalone Yul object structured, and what does its init code do?",
+      "answerHint": "An outer object = creation/init code with a `code{}` and a nested sub-object (\"runtime\") whose `code{}` is the deployed code; the init code datacopy's the runtime and RETURNs it. Pitfall: forgetting to RETURN the runtime from the constructor deploys empty code, and dataoffset(\"runtime\") must match the sub-object's name.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff macros & manual stack management",
+      "promptText": "What do takes/returns mean in a Huff macro, and what enforces them?",
+      "answerHint": "They document the expected stack depth consumed/produced — nothing enforces them; you manage the stack by hand with dup/swap and there is no type or stack checker. Pitfall: a macro that leaves the wrong number of items on the stack silently corrupts every caller, so takes/returns are a promise you must keep manually.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff macros & manual stack management",
+      "promptText": "Write a Huff macro that adds one to the top stack item.",
+      "answerHint": "#define macro ADD_ONE() = takes(1) returns(1) { 0x01 add } — pushes 1 and ADDs it to the existing top-of-stack value.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Huff jump tables & when Huff pays off",
+      "promptText": "How does a hand-written Huff dispatcher route a call, and what must not be forgotten?",
+      "answerHint": "Load the selector (calldataload(0), shr 0xe0), then for each function `dup1 __FUNC_SIG(f) eq <label> jumpi`, else fall through to a revert. Pitfall: omit the final fallback revert and an unknown selector falls into the first function's body — the manual control that makes Huff cheap also makes this your responsibility.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff jump tables & when Huff pays off",
+      "promptText": "Practice hand-writing Huff macros and dispatch on the RareSkills Huff puzzles.",
+      "answerHint": "Work the huff-puzzles ladder: implement each macro so its test passes, managing the stack and selector dispatch by hand.",
+      "promptKind": "problem",
+      "url": "https://github.com/RareSkills/huff-puzzles",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 180
+    },
+    {
+      "topicTitle": "The 4-byte function selector",
+      "promptText": "How is a function selector computed, and what breaks it?",
+      "answerHint": "bytes4(keccak256(canonicalSignature)) — first 4 bytes of the keccak of e.g. \"transfer(address,uint256)\" (= 0xa9059cbb), using canonical types, no names, no spaces. Pitfall: writing \"uint\" instead of \"uint256\", adding spaces, or including argument names hashes to the wrong selector; 4 bytes also means collisions exist.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The 4-byte function selector",
+      "promptText": "Write the Solidity expression for the selector of transfer(address,uint256).",
+      "answerHint": "bytes4(keccak256(\"transfer(address,uint256)\")) == 0xa9059cbb — canonical signature string, first 4 bytes of the keccak256.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "The dispatcher jump table",
+      "promptText": "How does the compiled dispatcher extract and route the selector?",
+      "answerHint": "CALLDATALOAD(0) then SHR 0xe0 (224) right-aligns the top 4 bytes; a few functions get a linear EQ/JUMPI chain, many get a binary search over sorted selectors (log₂ comparisons); no match falls to fallback/receive or revert. Pitfall: it runs on every call, so selector ordering/mining has a real per-call gas cost.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The dispatcher jump table",
+      "promptText": "Write the two-op sequence that extracts the selector from calldata.",
+      "answerHint": "shr(0xe0, calldataload(0)) — load the first 32 bytes of calldata and shift right by 224 bits to leave the 4-byte selector right-aligned.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Calldata layout, fallback & receive at bytecode level",
+      "promptText": "Which of receive/fallback runs for empty vs unmatched calldata?",
+      "answerHint": "Empty calldata with a receive() present → receive(); non-empty calldata that matches no selector (including <4 bytes) → fallback(). Pitfall: data shorter than 4 bytes can never match a selector, so it hits fallback — the mechanism proxies rely on to forward everything via delegatecall.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sequential slot assignment & struct packing",
+      "promptText": "How does solc assign storage slots, and what is fatal for an upgradeable contract?",
+      "answerHint": "State variables get slots sequentially from 0 in declaration order, packing small ones into a shared 32-byte slot; a variable that won't fit starts a new slot; constant/immutable use no slot. Pitfall: reordering, inserting, or resizing state variables shifts slots — catastrophic for a delegatecall/upgradeable contract whose layout must stay identical across versions.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mapping & dynamic-array slot derivation",
+      "promptText": "Where does mapping value m[k] (m at slot p) and dynamic-array element i live?",
+      "answerHint": "m[k] at keccak256(h(k) . p) — key padded to 32 bytes ‖ slot padded to 32 bytes (nested mappings hash again); a dynamic array at p keeps its length in p and element i at keccak256(p)+i. Pitfall: short bytes/string (≤31 bytes) are the exception — they pack length+data into slot p itself and only spill to keccak256(p) when longer.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mapping & dynamic-array slot derivation",
+      "promptText": "Write assembly that computes the storage slot of mapping entry m[key], m at slot p.",
+      "answerHint": "assembly { mstore(0x00, key) mstore(0x20, p) let s := keccak256(0x00, 0x40) } — write key then slot to scratch space and hash the 64 bytes; s is the value's slot.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ERC-7201 namespaced storage",
+      "promptText": "What problem does ERC-7201 solve, and how is its base slot derived?",
+      "answerHint": "It prevents storage collisions in upgradeable/modular (diamond) contracts by giving each module a struct at a pseudo-random base slot: keccak256(abi.encode(uint256(keccak256(namespace)) − 1)) & ~0xff. Pitfall: skipping the −1 or the low-byte mask can land in the range reachable by ordinary mapping/array preimages, reintroducing collisions; the namespace string must be unique per module.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-7201 namespaced storage",
+      "promptText": "Write the ERC-7201 base-slot computation for a namespace string.",
+      "answerHint": "bytes32 slot = keccak256(abi.encode(uint256(keccak256(bytes(\"my.namespace\"))) - 1)) & ~bytes32(uint256(0xff)); — hash the namespace, subtract 1, ABI-encode+hash, clear the low byte.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "EIP-1167 minimal-proxy runtime bytecode",
+      "promptText": "What is an EIP-1167 clone's runtime, and why can't it be upgraded or run a constructor?",
+      "answerHint": "A fixed 45-byte runtime that copies calldata, delegatecalls a hard-coded 20-byte implementation forwarding all gas, and returns/reverts with the returndata (55-byte creation code). Pitfall: the implementation address is baked into the bytecode (immutable → no upgrade), and the implementation's constructor never runs against the clone, so you must initialize via a function or anyone can.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-1167 minimal-proxy runtime bytecode",
+      "promptText": "Give the EIP-1167 runtime bytecode template with the implementation placeholder.",
+      "answerHint": "363d3d373d3d3d363d73<20-byte-impl>5af43d82803e903d91602b57fd5bf3 — 45 bytes: calldatacopy, delegatecall to <impl> with all gas, returndatacopy, then RETURN on success or REVERT.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ERC-1967 storage slots & delegatecall dispatch",
+      "promptText": "Where does an ERC-1967 proxy store the implementation address, and why the odd slot?",
+      "answerHint": "At bytes32(uint256(keccak256(\"eip1967.proxy.implementation\")) − 1) = 0x360894…382bbc (with sibling admin/beacon slots); the fallback sloads it and delegatecalls. Pitfall: the −1 makes the slot not a direct keccak preimage an attacker could reach as a mapping/array slot; proxy and implementation layouts must still avoid colliding outside the reserved slots.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-1967 storage slots & delegatecall dispatch",
+      "promptText": "Write the constant for the ERC-1967 implementation slot and how the proxy reads it.",
+      "answerHint": "bytes32 constant SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc; // = keccak256('eip1967.proxy.implementation') - 1; read via sload(SLOT) then delegatecall.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Metamorphic contracts",
+      "promptText": "How did metamorphic contracts work, and how did EIP-6780 stop them?",
+      "answerHint": "Deploy at a fixed CREATE2 address, SELFDESTRUCT, then redeploy different runtime from the same init code (address pinned by init-code hash, but init code sourced runtime externally). EIP-6780 (Cancun) makes SELFDESTRUCT clear code only in the same tx as creation, killing classic metamorphism. Pitfall: 'immutable CREATE2 code' was never safe if the init code fetches runtime from a mutable source — verify the init code, not just the address.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Symbolic execution vs fuzzing",
+      "promptText": "What can symbolic execution prove that fuzzing cannot, and what is its main limit?",
+      "answerHint": "Symbolic execution explores each feasible path with an SMT solver and can prove a property for ALL inputs (or return a counterexample); fuzzing only samples concrete inputs and shows presence, never absence, of bugs. Pitfall: path explosion — loops/large state force bounded unrolling, so 'no counterexample' from a bounded or timed-out run is not a full proof.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Halmos: symbolic testing in Foundry",
+      "promptText": "How does Halmos turn a Foundry test into a proof, and what should you watch?",
+      "answerHint": "It runs the test with symbolic arguments and proves each assertion for every input, or prints a counterexample calldata; it reuses forge-std/setUp with almost no new syntax (svm cheatcodes add symbolic values). Pitfall: it bounds dynamic-array/loop lengths — a property may pass only within that bound, so set and document it.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Certora Prover & CVL",
+      "promptText": "What does a CVL spec contain, and how can a spec falsely 'verify'?",
+      "answerHint": "A .spec has a methods block, rules asserting post-conditions over arbitrary env/args, and invariants that must hold across all functions; the prover returns 'verified' or a counterexample trace. Pitfall: a too-strong `require` in a rule over-constrains the environment, so a false property can 'verify' — the proof only means what your assumptions allow.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Certora Prover & CVL",
+      "promptText": "Study worked CVL specs and rules in the Certora Examples repository.",
+      "answerHint": "Read and run specs in Certora/Examples: pick a contract, inspect its .spec (methods/rule/invariant), and reproduce the prover reporting verified.",
+      "promptKind": "problem",
+      "url": "https://github.com/Certora/Examples",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 120
+    },
+    {
+      "topicTitle": "Kontrol & KEVM",
+      "promptText": "What makes Kontrol's guarantees strong, and what remains your responsibility?",
+      "answerHint": "It proves Foundry property tests against KEVM — a formal K-framework semantics of the EVM — so it reasons about real bytecode behavior rather than a re-implementation. Pitfall: proofs are only as strong as the loop-invariants/lemmas you supply; hard proofs need manual hints, and an unproven branch is 'unproven', not 'safe'.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Writing a verifiable invariant proof",
+      "promptText": "What makes an invariant genuinely proven rather than just tested?",
+      "answerHint": "The prover must explore all inputs from arbitrary (symbolic) state and show the invariant (e.g. totalAssets == sum(deposits)) holds across every function/transition, or return a minimal counterexample. Pitfall: an invariant that holds only because setUp seeded a benign state isn't proven — if the prover starts from a fixed state you've merely tested one trace.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}
