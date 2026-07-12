@@ -1,0 +1,430 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Reentrancy attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The archetypal external-call bug family: a contract calls out to an address that re-enters it before its own state is updated, so a stale balance or flag is trusted twice. Spans single-function, cross-function, cross-contract, read-only, and callback-hook variants; the defense is Checks-Effects-Interactions plus a reentrancy guard. Resources: https://solidity-by-example.org/hacks/re-entrancy/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Access control & authorization attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The largest source of real 2025 losses (OWASP SC01): functions that fail to check WHO is calling, or check it wrongly. Missing modifiers, tx.origin auth, unprotected initializers/selfdestruct, and weak signature checks all let an attacker invoke privileged logic. Resources: https://scs.owasp.org/sctop10/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Arithmetic & precision attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Bugs where the math is the vulnerability: overflow/underflow (pre-0.8 or inside unchecked/casts/assembly), division-before-multiplication truncation, wrong rounding direction, and share-price manipulation in vaults. Small rounding edges compound into drainable value. Resources: https://docs.soliditylang.org/en/latest/security-considerations.html",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Price oracle & flash-loan attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC03/SC04: an attacker distorts the price a protocol reads — a spot AMM reserve, a manipulable TWAP, or a governance snapshot — often funding the distortion with a single-transaction flash loan that needs no capital. Root cause is trusting a manipulable on-chain source as ground truth. Resources: https://docs.chain.link/data-feeds/price-feeds",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+
+    {
+      "title": "Single-function reentrancy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A withdraw() that sends ETH via a low-level call BEFORE zeroing the caller's recorded balance lets the recipient's receive()/fallback re-enter withdraw() and drain the contract, because the balance check still passes on each re-entry. This is the 2016 DAO hack (~$60M, the cause of the ETH/ETC fork). Fix: Checks-Effects-Interactions (update state before the external call) plus a nonReentrant guard. Resources: 📖 https://solidity-by-example.org/hacks/re-entrancy/",
+      "aiContext": "Build: in security/attacks/reentrancy-single/ write a vulnerable Vault (balance decremented AFTER the call), an Attacker that re-enters withdraw() from receive() to drain it, and a Foundry test that proves the drain; then apply CEI + OpenZeppelin ReentrancyGuard. Done when: the exploit test empties the vault on the vulnerable contract and reverts after the fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Reentrancy attacks"
+    },
+    {
+      "title": "Cross-function & cross-contract reentrancy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A per-function nonReentrant guard is not enough when two functions (or two contracts) share the same state: the attacker re-enters a DIFFERENT function that reads the not-yet-updated balance, or bounces through a second contract the guard doesn't cover. The state, not one function, is what must be consistent before any external call. Resources: 📖 https://solidity-by-example.org/hacks/re-entrancy/",
+      "aiContext": "Build: in security/attacks/reentrancy-cross/ write a contract with withdraw() and transfer() sharing a balances mapping, where transfer() has no guard; the Attacker re-enters transfer() mid-withdraw to move a stale balance. Done when: the test double-spends on the vulnerable version and fails once CEI is applied across BOTH functions.",
+      "prerequisiteTitles": ["Single-function reentrancy"],
+      "parentTitle": "Reentrancy attacks"
+    },
+    {
+      "title": "Read-only reentrancy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A view function has no state to guard, yet an attacker can call it MID-manipulation: during a reentrant callback (e.g. Curve's remove_liquidity sending ETH), the pool's internal accounting is temporarily inconsistent, so a `getVirtualPrice()`/`get_dy()` read returns a wrong value that a consumer contract trusts. Several 2022–23 lending protocols were drained this way. Fix: reentrancy-lock even the read path, or read only after the lock clears. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/reentrancy-readonly/ write a Pool whose ETH-refund path is reentrant and a Consumer that prices collateral from the pool's view function; the Attacker re-enters during remove-liquidity and borrows against a corrupted price. Done when: the test over-borrows on the vulnerable consumer and reverts after the read is guarded by the pool's reentrancy lock.",
+      "prerequisiteTitles": ["Single-function reentrancy"],
+      "parentTitle": "Reentrancy attacks"
+    },
+    {
+      "title": "ERC-777 & callback-hook reentrancy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Tokens with transfer hooks — ERC-777 tokensReceived/tokensToSend, ERC-1155 onERC1155Received, ERC-721 onERC721Received — hand control to the recipient DURING a transfer, turning an otherwise safe ERC-20-style flow into a reentrancy vector. The 2020 Uniswap V1 / imBTC and Cream Finance incidents exploited exactly this. Fix: CEI so no state is stale when the hook fires, plus a guard. Resources: 📖 https://eips.ethereum.org/EIPS/eip-777",
+      "aiContext": "Build: in security/attacks/reentrancy-erc777/ write a Vault that credits shares after a token transferFrom of an ERC-777, and an Attacker whose tokensReceived hook re-enters deposit()/withdraw(); prove the drain in Foundry. Done when: the hook-driven exploit succeeds on the vulnerable vault and reverts after CEI ordering is fixed.",
+      "prerequisiteTitles": ["Single-function reentrancy"],
+      "parentTitle": "Reentrancy attacks"
+    },
+
+    {
+      "title": "Missing & incorrect access-control modifiers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The plurality of stolen value (OWASP SC01): a state-changing or fund-moving function is left with default (public/external) visibility and no onlyOwner/role check, or the check is on the wrong role, letting anyone call it. Parity, Poly Network, and countless smaller hacks reduce to one unguarded privileged function. Fix: explicit visibility, a checked modifier on every privileged path, and enumerating privileged functions during review. Resources: 📖 https://scs.owasp.org/sctop10/",
+      "aiContext": "Build: in security/attacks/access-missing/ write a Vault whose setOwner()/sweep() is public with no modifier, and a test where a non-owner EOA seizes ownership and drains it; then add onlyOwner and re-run. Done when: the attacker call succeeds pre-fix and reverts with the access error post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Access control & authorization attacks"
+    },
+    {
+      "title": "tx.origin authentication",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Authenticating with `tx.origin == owner` instead of `msg.sender == owner` is phishable: if the owner is tricked into calling a malicious contract, that contract calls the victim, and tx.origin is still the owner, so the check passes. Always authorize the immediate caller (msg.sender). Resources: 📖 https://solidity-by-example.org/hacks/phishing-with-tx-origin/",
+      "aiContext": "Build: in security/attacks/tx-origin/ write a Wallet gated by tx.origin, a malicious Lure contract, and a test where the owner calling Lure triggers a transfer out of the Wallet; then switch the check to msg.sender. Done when: the phishing test drains the wallet pre-fix and reverts post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Access control & authorization attacks"
+    },
+    {
+      "title": "Uninitialized proxy & unprotected initializer",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Upgradeable contracts replace the constructor with an initialize() function; if it is left callable by anyone (no initializer/one-shot guard) an attacker calls it first and becomes owner, or front-runs the legitimate init. The 2017 Parity multisig freeze (~$300M locked) is the canonical case. Fix: OpenZeppelin `initializer` modifier, initialize in the same tx as deploy, and _disableInitializers() in the implementation's constructor. Resources: 📖 https://blog.openzeppelin.com/parity-wallet-hack-reloaded",
+      "aiContext": "Build: in security/attacks/uninit-proxy/ write an upgradeable Vault whose initialize() sets owner but lacks the initializer guard, and a test where an attacker calls initialize() to claim ownership; then add the guard + _disableInitializers(). Done when: the attacker becomes owner pre-fix and initialize() reverts as already-initialized post-fix.",
+      "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
+      "parentTitle": "Access control & authorization attacks"
+    },
+    {
+      "title": "Unprotected selfdestruct",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A selfdestruct (or delegatecall reaching one) behind an unguarded function lets anyone delete the contract's code and send its ETH away — bricking every contract that depends on it. The second Parity incident froze ~$300M when a library was selfdestructed after an attacker initialized and killed it. Fix: gate selfdestruct behind strict access control, or avoid it entirely (post-Cancun it no longer clears code except in the same tx as creation). Resources: 📖 https://solidity-by-example.org/hacks/self-destruct/",
+      "aiContext": "Build: in security/attacks/selfdestruct/ write a Bank that must hold a running balance-invariant, plus an unguarded kill() with selfdestruct; a test force-destroys it and shows dependents break. Done when: the unguarded kill succeeds pre-fix and reverts (onlyOwner) post-fix.",
+      "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
+      "parentTitle": "Access control & authorization attacks"
+    },
+    {
+      "title": "Signature-based authorization gaps",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "When authorization is proven by an off-chain signature instead of msg.sender, the checks move into the contract: it must verify the signer is authorized, that ecrecover did not return address(0), and that the signed payload is bound to this contract and use. A missing signer-set check or an unvalidated recovered address is a privilege-escalation hole (this leaf is the auth angle; replay and malleability are covered under signature attacks). Resources: 📖 https://scs.owasp.org/sctop10/",
+      "aiContext": "Build: in security/attacks/sig-authz/ write an admin action gated by an ECDSA signature that forgets to check the recovered signer against an allowlist; a test authorizes with an arbitrary key. Done when: the unauthorized signer executes the action pre-fix and is rejected once the signer allowlist check is added.",
+      "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
+      "parentTitle": "Access control & authorization attacks"
+    },
+
+    {
+      "title": "Integer overflow & underflow",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Before Solidity 0.8 arithmetic wrapped silently, so a balance of 0 minus 1 became 2^256-1; the 2018 BEC/BeautyChain hack minted astronomically many tokens via a multiplication overflow (batchTransfer). 0.8+ reverts on overflow BY DEFAULT, but `unchecked` blocks, downcasts (uint256→uint128), and inline assembly still wrap — modern bugs live there. Fix: keep arithmetic checked, validate before downcasting, and use SafeCast. Resources: 📖 https://solidity-by-example.org/hacks/overflow/",
+      "aiContext": "Build: in security/attacks/overflow/ write a token whose transfer subtracts inside an unchecked block (and a uint96 downcast on amount), and a test where an underflow/truncation mints or steals balance; then remove unchecked and add SafeCast. Done when: the exploit inflates a balance pre-fix and reverts post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Arithmetic & precision attacks"
+    },
+    {
+      "title": "Division-before-multiplication & precision loss",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EVM integer division truncates, so `(a / b) * c` loses the remainder that `(a * c) / b` would keep — this division before multiplication, or rounding in the protocol's favor when it should round against the user (or vice versa), lets an attacker accumulate the discarded dust or pay less than owed. Always multiply before dividing and choose rounding direction deliberately (round shares down on deposit, up on withdraw). Resources: 📖 https://docs.soliditylang.org/en/latest/security-considerations.html",
+      "aiContext": "Build: in security/attacks/precision/ write a reward/fee calc that divides before multiplying and rounds the wrong way, and a Foundry test that farms the rounding to extract value or underpay; then reorder to mul-before-div with an explicit rounding choice. Done when: the test shows a non-zero drain pre-fix and zero (or protocol-favorable) residue post-fix.",
+      "prerequisiteTitles": ["Integer overflow & underflow"],
+      "parentTitle": "Arithmetic & precision attacks"
+    },
+    {
+      "title": "ERC-4626 first-depositor share inflation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "In an empty ERC-4626 vault the first depositor mints 1 wei of shares, then DONATES a large amount of the underlying directly to the vault (raising totalAssets without minting shares); this inflates the share price so a later depositor's assets round down to zero shares, and the attacker redeems their 1 share for the victim's deposit. Fix: seed the vault with dead shares, use virtual shares/offset (OZ ERC4626 default), or an internal asset accounting variable instead of balanceOf. Resources: 📖 https://www.rareskills.io/post/erc4626",
+      "aiContext": "Build: in security/attacks/vault-inflation/ write a naive ERC-4626 (assets = token.balanceOf(this)) and a test: attacker deposits 1 wei, donates a large amount, victim deposits and gets 0 shares, attacker redeems the lot; then switch to OZ's virtual-offset vault. Done when: the victim is robbed pre-fix and gets fair shares post-fix.",
+      "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
+      "parentTitle": "Arithmetic & precision attacks"
+    },
+    {
+      "title": "Token decimals mismatch",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Assuming every token has 18 decimals breaks the moment a protocol integrates USDC/USDT (6) or WBTC (8): a price or amount scaled by the wrong factor is off by 10^12, letting an attacker deposit a trivial amount and withdraw a fortune (or vice versa). Fix: read decimals() per token and normalize all cross-token math to a common scale; never hardcode 1e18. Resources: 📖 https://docs.soliditylang.org/en/latest/security-considerations.html",
+      "aiContext": "Build: in security/attacks/decimals/ write a two-token exchange that hardcodes 1e18 scaling and a test that swaps a 6-decimal token to extract 10^12x value; then normalize using each token's decimals(). Done when: the mis-scaled swap over-pays pre-fix and is balanced post-fix.",
+      "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
+      "parentTitle": "Arithmetic & precision attacks"
+    },
+
+    {
+      "title": "Spot-price oracle manipulation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pricing collateral from an AMM's INSTANTANEOUS reserves (`reserveB * 1e18 / reserveA`, or getAmountOut on the current pool) means one large swap moves the price for exactly as long as the attacker needs it. They swap to skew the pool, borrow/mint against the false price, and swap back — the pool is an oracle that anyone with capital can rewrite in the same block. Fix: never price off spot reserves; use a manipulation-resistant oracle (Chainlink, or a long TWAP). Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/oracle-spot/ deploy a constant-product pool and a Lender that prices collateral from spot reserves; a test swaps to move the price, over-borrows, and swaps back. Done when: the attacker extracts more than deposited pre-fix and the borrow is bounded once priced off a TWAP/Chainlink mock.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    },
+    {
+      "title": "TWAP oracle manipulation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A time-weighted average price resists a single-block move, but it is not immune: over a short window, on a low-liquidity pair, or across several blocks an attacker can still drag the average — and a TWAP that samples too infrequently lags real price, which is its own risk. Choosing the window and liquidity floor is the security decision. Mango Markets (2022, ~$115M) manipulated a thin market's price over time. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "aiContext": "Build: in security/attacks/oracle-twap/ implement a Uniswap-V2-style cumulative-price TWAP and a consumer, then a multi-block Foundry test (vm.roll/vm.warp) that walks the average on a thin pool enough to over-borrow. Done when: the test moves the TWAP past the consumer's safety margin on a low-liquidity setup and fails once the window/liquidity floor is raised.",
+      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    },
+    {
+      "title": "Flash-loan price manipulation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A flash loan supplies unbounded capital for one transaction (borrow, act, repay atomically or the whole tx reverts), so spot-oracle manipulation needs NO attacker capital: borrow millions, skew the pool, exploit the false price, repay, keep the profit. bZx (2020) and Harvest Finance (2020, ~$34M) are textbook cases. The flash loan is the amplifier; the real bug is the manipulable price source. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "aiContext": "Build: in security/attacks/flashloan-price/ combine a flash-loan provider, a spot-priced lender, and an Attacker that borrows, manipulates, drains, and repays in one tx; prove profit in Foundry. Done when: the single-tx exploit nets profit against the spot-priced lender and is unprofitable once the lender uses a resistant oracle.",
+      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    },
+    {
+      "title": "Flash-loan governance attacks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "If voting power is read from a token balance or a same-block snapshot, an attacker flash-borrows enough governance tokens to pass a malicious proposal (or reach quorum) within one transaction, then repays. Beanstalk (2022, ~$182M) used a flash loan to pass an emergency proposal that drained the treasury. Fix: snapshot voting power at a past block (checkpointing), enforce timelocks, and disallow same-block propose-and-execute. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "aiContext": "Build: in security/attacks/flashloan-gov/ write a Governor that counts votes by current token balance and a malicious proposal that transfers the treasury; a test flash-borrows tokens, proposes/votes/executes in one tx. Done when: the treasury is drained pre-fix and the attack fails once voting uses past-block checkpoints + a timelock.",
+      "prerequisiteTitles": ["Flash-loan price manipulation"],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    },
+    {
+      "title": "Stale & misconfigured price feeds",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Even a real Chainlink feed is unsafe if consumed carelessly: not checking `updatedAt` (accepting a stale price after a feed halts), ignoring the feed's heartbeat/deviation config, mixing up feed decimals (8 vs 18), or reading a deprecated aggregator. A wrong or frozen price mis-collateralizes the whole protocol. Fix: validate answer > 0 and updatedAt within the heartbeat, scale by the feed's decimals(), and handle the revert path. Resources: 📖 https://docs.chain.link/data-feeds/using-data-feeds",
+      "aiContext": "Build: in security/attacks/oracle-stale/ write a consumer that reads latestRoundData() but ignores updatedAt and decimals; a test freezes the mock feed (old timestamp) and a wrong-decimals feed to mis-price collateral. Done when: the consumer accepts the stale/mis-scaled price pre-fix and reverts once staleness + decimals checks are added.",
+      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    },
+    {
+      "title": "Read-only reentrancy into oracles",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The read-only reentrancy variant aimed specifically at oracle reads: a consumer prices assets from a pool's view function (e.g. Curve's get_virtual_price) while the pool is mid-callback and its accounting is transiently inconsistent, so the price is wrong precisely when trusted. Multiple lending markets integrating Curve LP tokens were drained (2022–23). Fix: call the pool's reentrancy-lock check before reading, or use a source not corrupt during callbacks. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/oracle-readonly-reentrancy/ reuse the reentrant pool, add a Lending market that prices Curve-style LP collateral from the pool's view function, and an Attacker that re-enters during remove_liquidity to borrow at a corrupted price. Done when: the over-borrow succeeds pre-fix and reverts once the consumer checks the pool's reentrancy lock before reading.",
+      "prerequisiteTitles": ["Read-only reentrancy", "Spot-price oracle manipulation"],
+      "parentTitle": "Price oracle & flash-loan attacks"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Single-function reentrancy",
+      "promptText": "Why does a withdraw() that transfers ETH before zeroing the caller's balance let an attacker drain the contract?",
+      "answerHint": "The external call hands control to the attacker's receive()/fallback while their recorded balance is still non-zero, so they re-call withdraw() and pass the same balance check repeatedly before it is ever decremented. Fix: Checks-Effects-Interactions (zero the balance BEFORE the call) plus a nonReentrant mutex. Pitfall: relying on .transfer's 2300-gas stipend to block reentrancy is fragile — gas costs shift across forks; fix the ordering, not the gas.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Single-function reentrancy",
+      "promptText": "Write the Checks-Effects-Interactions fix for a reentrant ETH withdraw().",
+      "answerHint": "function withdraw() external nonReentrant { uint256 bal = balance[msg.sender]; require(bal > 0); balance[msg.sender] = 0; (bool ok, ) = msg.sender.call{value: bal}(\"\"); require(ok); } // effect (zeroing) precedes interaction (call)",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Single-function reentrancy",
+      "promptText": "Ethernaut level 10 (Re-entrancy): drain the target contract's entire balance.",
+      "answerHint": "Deploy an attacker that donates via donate(), calls withdraw() for that amount, and in receive() re-enters withdraw() while the target still credits the stale balance — loop until the target is empty, then collect. The bug is state updated after the send.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Cross-function & cross-contract reentrancy",
+      "promptText": "Why can a per-function nonReentrant guard still leave a contract reentrant?",
+      "answerHint": "The guard only locks ONE function; if a second function (or a sibling contract) reads/writes the same shared state and isn't covered by the same lock, the attacker re-enters THAT one during the external call and acts on stale state. Pitfall: reentrancy is a property of shared state across the whole system, not of a single function — apply CEI everywhere the state is touched and share one lock.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Cross-function & cross-contract reentrancy",
+      "promptText": "Damn Vulnerable DeFi — Side Entrance: drain the pool that lets you deposit inside a flash-loan callback.",
+      "answerHint": "Take a flash loan, and in the callback deposit the borrowed ETH back into the same pool (satisfying the balance check) — the loan is 'repaid' while crediting you a balance; then withdraw() it. It's cross-function reentrancy: flashLoan and deposit/withdraw share one ETH balance with no consistent guard.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Read-only reentrancy",
+      "promptText": "How can a view function with no state to guard still be part of a reentrancy exploit?",
+      "answerHint": "It is read DURING a reentrant callback, while the contract's internal accounting is transiently inconsistent (e.g. Curve mid remove_liquidity that sends ETH): the view returns a wrong price/virtual-price that a consumer trusts as ground truth. Pitfall: adding a nonReentrant guard to state-changing functions doesn't protect external READERS — the pool must expose (or the consumer must check) its reentrancy lock on the read path too.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Read-only reentrancy",
+      "promptText": "Damn Vulnerable DeFi — Curvy Puppet: exploit the read-only reentrancy in the Curve-based price source.",
+      "answerHint": "Trigger a Curve callback (ETH refund) and, while the pool's accounting is mid-update, have the lending contract read the corrupted virtual price to liquidate/borrow on wrong terms. The fix is checking Curve's reentrancy lock before reading the price.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "ERC-777 & callback-hook reentrancy",
+      "promptText": "Why does an ERC-777 (or ERC-1155/721 receiver) token turn a normally-safe transfer into a reentrancy vector?",
+      "answerHint": "These standards invoke a hook on the recipient (tokensReceived / onERC1155Received / onERC721Received) DURING the transfer, handing control to attacker code before the caller has finished updating its own state — so an ERC-20-style flow that assumed transfer was inert becomes reentrant. Pitfall: 'it's just an ERC-20 integration' is wrong if the token has hooks; apply CEI + a guard and be wary of arbitrary/whiteldistable token lists.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-777 & callback-hook reentrancy",
+      "promptText": "Replay the Cream Finance / imBTC-style ERC-777 reentrancy from DeFiHackLabs and reproduce the drain locally.",
+      "answerHint": "Fork or mock an ERC-777 with a tokensReceived hook, deposit into a vault that credits shares after transferFrom, and re-enter deposit/borrow from the hook while the vault's state is stale — DeFiHackLabs has the historical PoC to adapt.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "problemDifficulty": "hard"
+    },
+
+    {
+      "topicTitle": "Missing & incorrect access-control modifiers",
+      "promptText": "What is the access-control failure mode, and why is it OWASP SC01 (the top loss category)?",
+      "answerHint": "A fund-moving or state-changing function ships with default public/external visibility and no (or a wrong-role) modifier, so any address can call it — seize ownership, mint, sweep, upgrade. It tops the list because it needs no clever mechanism, just one unguarded privileged entry point, and it directly moves funds. Pitfall: 'internal-only' intent isn't enforcement — if it's reachable and unguarded, it's public; enumerate every privileged function and prove each has a check.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Missing & incorrect access-control modifiers",
+      "promptText": "Write an onlyOwner modifier and show it applied to a privileged sweep().",
+      "answerHint": "modifier onlyOwner() { require(msg.sender == owner, \"not owner\"); _; } function sweep(address to) external onlyOwner { (bool ok,) = to.call{value: address(this).balance}(\"\"); require(ok); }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "tx.origin authentication",
+      "promptText": "Why is `require(tx.origin == owner)` phishable, and what should replace it?",
+      "answerHint": "tx.origin is the EOA that started the whole tx, not the immediate caller; if the owner is lured into calling a malicious contract, that contract calls the victim and tx.origin is STILL the owner, so the check passes. Replace with `msg.sender == owner`, which authorizes the direct caller. Pitfall: the only legitimate uses of tx.origin are niche (e.g. refund-to-origin, anti-contract heuristics) — never for authorization.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "tx.origin authentication",
+      "promptText": "Ethernaut — Telephone: claim ownership of a contract that checks tx.origin != msg.sender.",
+      "answerHint": "Call the target THROUGH an intermediary contract: your EOA calls your contract (tx.origin = you), which calls changeOwner (msg.sender = your contract), so tx.origin != msg.sender holds and you become owner. Demonstrates why tx.origin is not identity.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Uninitialized proxy & unprotected initializer",
+      "promptText": "Why is an unprotected initialize() dangerous in an upgradeable contract, and how is it fixed?",
+      "answerHint": "Proxies can't run the implementation's constructor, so setup moves to initialize(); if it lacks a one-shot guard, an attacker calls it first (or front-runs deploy) to set themselves as owner. Fix: OpenZeppelin `initializer` modifier (reverts on second call), initialize atomically with deployment, and call _disableInitializers() in the implementation's constructor so the logic contract can't be initialized directly. Pitfall: the IMPLEMENTATION contract itself, if left initializable, is a live takeover target (see Motorbike/Parity).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uninitialized proxy & unprotected initializer",
+      "promptText": "Ethernaut — Puzzle Wallet: exploit the proxy whose storage layout lets you become owner via init/deposit.",
+      "answerHint": "The proxy (PuzzleProxy) and wallet share storage slots, so setting pendingAdmin collides with the wallet's owner; call proposeNewAdmin/init to align slots, use the multicall to double-count a deposit, drain, then take admin — a storage-collision + initialization bug.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "Unprotected selfdestruct",
+      "promptText": "What damage does an unguarded selfdestruct do, and what happened to Parity?",
+      "answerHint": "Anyone can delete the contract's code and forward its ETH, bricking every contract that delegatecalls into it. In the 2017 Parity library incident an attacker initialized the shared library, became owner, and selfdestructed it — permanently freezing ~$300M in wallets that depended on it. Fix: gate it behind strict access control or remove it. Pitfall: post-Cancun (EIP-6780) selfdestruct only clears code in the same tx as creation, but it still forwards the balance and is still an access-control hazard.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature-based authorization gaps",
+      "promptText": "When authorization is proven by an off-chain signature, what must the contract check to avoid privilege escalation?",
+      "answerHint": "That ecrecover returned a NON-zero address that is in the authorized signer set (not just 'a valid signature'), and that the signed message is bound to this contract, chain, function, and a nonce/deadline so it can't be reused or forged. Pitfall: ecrecover returns address(0) for malformed signatures — if address(0) is ever a privileged/uninitialized signer, an attacker submits garbage and passes; always reject the zero address explicitly.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Integer overflow & underflow",
+      "promptText": "Where do overflow/underflow bugs still occur in Solidity 0.8+, given arithmetic reverts by default?",
+      "answerHint": "Inside `unchecked { }` blocks (used for gas), in explicit downcasts (uint256→uint128/uint96 silently truncate), and in inline assembly / Yul (no checks at all) — the default protection doesn't reach any of those. Pitfall: `unchecked` for a loop counter is fine, but wrapping a balance subtraction or a cast on user-controlled amounts reintroduces the classic wrap; validate ranges before casting and prefer SafeCast.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Integer overflow & underflow",
+      "promptText": "Show a downcast that silently truncates a user amount and the SafeCast fix.",
+      "answerHint": "// BUG: uint96 packed = uint96(amount); // amount > 2^96-1 wraps silently\\nuint96 packed = SafeCast.toUint96(amount); // reverts if amount doesn't fit",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Division-before-multiplication & precision loss",
+      "promptText": "Why does `(a / b) * c` lose value that `(a * c) / b` keeps, and how does rounding direction matter?",
+      "answerHint": "EVM integer division truncates the remainder immediately, so dividing first discards precision before the multiply can use it — always multiply before dividing. Rounding direction must favor the protocol: round shares DOWN when minting to a depositor and UP when charging on withdrawal, or the discarded dust becomes an attacker's profit. Pitfall: even correct mul-before-div still truncates — decide, and document, who eats the rounding on every path.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-4626 first-depositor share inflation",
+      "promptText": "Walk through the ERC-4626 first-depositor / donation inflation attack and its standard mitigation.",
+      "answerHint": "On an empty vault the attacker mints 1 wei of shares, then transfers a large amount of the underlying straight to the vault so totalAssets balloons while totalShares stays 1; the next depositor's assets/price rounds DOWN to 0 shares, and the attacker redeems their single share for everyone's deposits. Mitigation: virtual shares/offset (OpenZeppelin ERC4626 default), seeding dead shares at deployment, or tracking assets in an internal variable rather than balanceOf. Pitfall: pricing assets from token.balanceOf(this) is what makes the donation count — use internal accounting.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-4626 first-depositor share inflation",
+      "promptText": "Show the vulnerable share-minting line and the virtual-offset idea that fixes it.",
+      "answerHint": "// BUG: shares = totalSupply == 0 ? assets : assets * totalSupply / token.balanceOf(address(this));\\n// FIX (OZ): use virtual shares+assets offset so an empty vault can't be inflated: convert with (totalSupply + 10**offset) and (totalAssets + 1).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Token decimals mismatch",
+      "promptText": "How does assuming 18 decimals create an exploitable bug when integrating USDC or WBTC?",
+      "answerHint": "USDC/USDT use 6 decimals and WBTC 8, so a hardcoded 1e18 scale mis-values amounts by 10^12 or 10^10 — an attacker deposits a token whose units the contract over-values and withdraws far more of another. Fix: read decimals() per token and normalize all cross-asset math to one internal scale. Pitfall: decimals() is not part of the ERC-20 required interface and some tokens omit or lie about it — verify per integration rather than trusting the call blindly.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Spot-price oracle manipulation",
+      "promptText": "Why is an AMM's spot reserve ratio an unsafe price oracle?",
+      "answerHint": "Spot price = current reserves, and a single swap changes the reserves for exactly as long as the attacker needs; they skew the pool, borrow/mint against the false price in the same block, then swap back and profit. The pool is an oracle anyone with (flash-loaned) capital can rewrite. Fix: price off a manipulation-resistant source — Chainlink, or a sufficiently long TWAP with a liquidity floor. Pitfall: 'we use an on-chain DEX price, so it's decentralized' confuses decentralization with manipulation-resistance.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Spot-price oracle manipulation",
+      "promptText": "Ethernaut — Dex: drain one token from the AMM by exploiting its price formula.",
+      "answerHint": "The Dex prices swaps as (amount * toReserve / fromReserve) with integer truncation; by swapping the full balance back and forth you push the ratio further each time until one side rounds in your favor and you can take the entire reserve of a token. It's on-chain-price manipulation via the pool's own formula.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "TWAP oracle manipulation",
+      "promptText": "A TWAP resists single-block manipulation — so what is still the attacker's angle, and what is the design tradeoff?",
+      "answerHint": "On a thin pool or a short window the attacker can still drag the average over one or several blocks (Mango Markets walked a low-liquidity price up), and JIT-holding a manipulated price across the sampling interval works if the window is short. But lengthening the window makes the oracle LAG real price — the tradeoff is manipulation-resistance vs freshness. Pitfall: a TWAP is only as safe as the pool's liquidity; set a minimum-liquidity guard, not just a window length.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Flash-loan price manipulation",
+      "promptText": "What does a flash loan add to an oracle-manipulation attack, and where is the real bug?",
+      "answerHint": "A flash loan lends unbounded capital for one atomic transaction (repay by tx end or the whole thing reverts), removing the attacker's capital requirement — they borrow millions, skew a spot oracle, exploit the false price, and repay, all in one tx (bZx, Harvest). The real bug is the manipulable price source; the flash loan just makes it free to trigger. Pitfall: 'flash-loan protection' by blocking known lenders is whack-a-mole — fix the oracle so a momentary price move isn't profitable in the first place.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Flash-loan price manipulation",
+      "promptText": "Damn Vulnerable DeFi — Puppet: drain the lending pool that prices collateral from a Uniswap spot pool.",
+      "answerHint": "The pool computes required collateral from the Uniswap V1 (or V2) spot price; dump a large amount of the token into Uniswap to crater its price, then borrow the pool's entire token balance for almost no collateral. Puppet V2/V3 raise the bar (V2 pair, V3 TWAP window) but reduce to the same manipulable-price root.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Flash-loan governance attacks",
+      "promptText": "How does a flash loan defeat token-balance-based governance, and what stops it?",
+      "answerHint": "If voting power is read from a current token balance (or same-block snapshot), the attacker flash-borrows enough tokens to pass a malicious proposal within one transaction and repays after — Beanstalk lost ~$182M this way. Fix: count votes from a PAST-block checkpoint (ERC20Votes), require a timelock between proposal passage and execution, and forbid same-block propose-vote-execute. Pitfall: a snapshot taken at proposal-creation in the SAME block the attacker borrows is no protection — the checkpoint must precede the borrow.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Flash-loan governance attacks",
+      "promptText": "Damn Vulnerable DeFi — Selfie: pass a malicious governance action using a flash-loaned snapshot.",
+      "answerHint": "Flash-borrow the governance token, call snapshot() so your borrowed balance is recorded as voting power, queue a proposal that drains the pool via emergencyExit/drainAllFunds, repay the loan, then after the action delay execute it. The bug is voting power taken from a snapshot the attacker controls within the loan.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Stale & misconfigured price feeds",
+      "promptText": "What must a Chainlink consumer validate on latestRoundData(), and why?",
+      "answerHint": "answer > 0 (reject zero/negative), updatedAt within the feed's heartbeat (reject a stale price after a feed halt), the correct feed decimals() when scaling, and that you're reading the current aggregator — otherwise a frozen or mis-scaled price silently mis-collateralizes the protocol. Pitfall: a healthy-looking read can still be stale if the feed stopped updating; checking only answer > 0 (and not updatedAt) is the common miss.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Read-only reentrancy into oracles",
+      "promptText": "How does read-only reentrancy specifically break an oracle consumer?",
+      "answerHint": "The consumer prices collateral from a pool's VIEW function (e.g. Curve get_virtual_price) that returns an inconsistent value while the pool is mid-callback (an ETH refund during remove_liquidity re-enters the attacker); the price is wrong exactly when it's trusted, so borrows/liquidations execute on bad terms. Fix: check the pool's reentrancy lock before reading (Curve exposes a way to detect this), or use a source that isn't corrupt during callbacks. Pitfall: guarding your own state-changing functions does nothing here — the corrupted value comes from an EXTERNAL view you read mid-reentrancy.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

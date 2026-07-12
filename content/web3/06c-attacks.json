@@ -1,0 +1,511 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "External-call & token-integration attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC06: bugs at the boundary where a contract calls out or integrates a token it doesn't control — unchecked return values, tokens that don't return a bool or take a fee on transfer, ETH force-fed in, and callees that grief the caller's gas. 'It's just an ERC-20' is where these hide. Resources: https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Signature & cryptography attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Bugs in how contracts verify off-chain signatures and proofs: replayable signatures (no nonce, no chainId, no domain separator), ECDSA malleability and zero-address ecrecover, permit front-running, and Merkle proof forgery. The crypto is sound; the misuse around it is the vulnerability. Resources: https://eips.ethereum.org/EIPS/eip-712",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Ordering, timing & MEV attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Everything in the public mempool is visible and reorderable before inclusion, so an attacker (or the proposer) can front-run, back-run, or sandwich a victim's transaction, exploit weak on-chain randomness and timestamp dependence, or stuff blocks. Defense is slippage/deadline limits, commit-reveal, and off-chain ordering (private relays). Resources: https://solidity-by-example.org/hacks/front-running/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Proxy, storage & DoS attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC10 plus denial-of-service: upgradeable-contract hazards (storage-slot collisions, selector clashes, uninitialized implementations, delegatecall to untrusted code that rewrites your storage) and availability attacks (unbounded loops, push-payment reverts, block stuffing). Resources: https://eips.ethereum.org/EIPS/eip-1967",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Business-logic & misc attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC02, the #1 loss category of 2025 and the one tools can't enumerate: the code runs exactly as written but implements the WRONG rule — a broken accounting invariant, a skippable state machine, unvalidated input, a bypassable EXTCODESIZE check, create2 address reuse, or an outright honeypot. Found by understanding intent, then fuzzing invariants. Resources: https://scs.owasp.org/sctop10/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+
+    {
+      "title": "Unchecked low-level call returns",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`address.call`, `send`, and `delegatecall` return a bool on failure rather than reverting; ignoring that bool means a failed transfer or call is treated as success, so the contract updates state as if value moved when it didn't (the 2016 King of the Ether payout bug). Fix: check every low-level return (`(bool ok,) = ...; require(ok)`), or use a wrapper that reverts. Resources: 📖 https://docs.soliditylang.org/en/latest/security-considerations.html",
+      "aiContext": "Build: in security/attacks/unchecked-call/ write a payout function that uses `to.send(amount)` (or .call) and ignores the result, and a test where a reverting recipient makes the contract mark a payment complete without paying; then require the return. Done when: the accounting desyncs pre-fix and reverts post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Missing-return-value tokens & SafeERC20",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "USDT, BNB, and other legacy ERC-20s do NOT return a bool from transfer/approve, so `require(token.transfer(...))` reverts (or, worse, the compiler-decoded bool silently mishandles them). The approve() race — changing a non-zero allowance without zeroing first lets a spender front-run and spend both — is the other classic. Fix: OpenZeppelin SafeERC20 (safeTransfer/forceApprove) which handles non-standard returns and the approve race. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
+      "aiContext": "Build: in security/attacks/missing-return/ write a mock USDT-style token (transfer returns nothing) and a vault that calls `require(token.transfer(...))`, showing it reverts on the legit token; add the approve-race test; then swap to SafeERC20. Done when: the vault works with the non-standard token only after using safeTransfer/forceApprove.",
+      "prerequisiteTitles": ["Unchecked low-level call returns"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Fee-on-transfer & rebasing tokens",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A vault that assumes `received == amount` breaks with fee-on-transfer tokens (the vault receives less than requested, so credited shares exceed real holdings and the last withdrawer is short) and with rebasing/callback tokens whose balance changes out from under stored accounting. Fix: measure balance before/after the transfer and credit the delta; avoid balanceOf-based accounting for elastic-supply and hook (ERC-777) tokens. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/fee-on-transfer/ write a vault that credits the requested amount, plus a mock token that skims a 1% fee on transfer; a test deposits and shows the vault is insolvent by the fee; then switch to before/after balance delta accounting. Done when: totalShares matches real holdings only after the delta fix.",
+      "prerequisiteTitles": ["Missing-return-value tokens & SafeERC20"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Force-feeding ETH",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A contract with no payable function can STILL be sent ETH: via `selfdestruct(target)` (forwards the balance unconditionally), as the block.coinbase recipient, or by funding its address before deployment. Any code that assumes `address(this).balance` equals an internal counter — or uses balance == 0 as a state flag — can be griefed or unlocked by force-feeding. Fix: track deposits in a state variable, never trust raw balance as an invariant. Resources: 📖 https://solidity-by-example.org/hacks/self-destruct/",
+      "aiContext": "Build: in security/attacks/force-feed/ write a game that unlocks when `address(this).balance == target`, and an attacker that selfdestructs ETH into it to skip the intended deposits; then re-implement using an internal deposited-total variable. Done when: the balance-based guard is bypassable pre-fix and the counter-based guard holds post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Gas griefing & return-bomb",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A callee can weaponize gas: consume all forwarded gas so a relayed/sub-call fails while the outer tx succeeds (gas griefing of meta-transactions), or return an enormous bytes payload so the caller's automatic returndata copy (RETURNDATACOPY) blows memory-expansion gas and out-of-gases — the 'return bomb'. Fix: forward bounded gas deliberately, and use an assembly `call` that ignores/limits returndata rather than Solidity's high-level call that copies it. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/return-bomb/ write a router that low-level-calls an untrusted target and uses the returndata, plus a malicious target that returns a huge buffer to OOG the router; then rewrite the call in assembly to cap the copied returndata. Done when: the router OOGs pre-fix and survives the bomb post-fix.",
+      "prerequisiteTitles": ["Unchecked low-level call returns"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+
+    {
+      "title": "Signature replay (missing nonce)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A signed authorization with no per-signer nonce (or a nonce that isn't consumed) can be submitted repeatedly: sign once to withdraw 1 ETH, and anyone replays the same signature to withdraw again and again. Fix: include and mark-used a nonce (or a unique request id) in the signed struct, and check it on-chain before acting. Resources: 📖 https://solidity-by-example.org/hacks/signature-replay/",
+      "aiContext": "Build: in security/attacks/sig-replay/ write a payment channel / meta-tx executor that verifies an EIP-712 signature but forgets to consume a nonce, and a test that replays one signature to drain funds; then add a used-nonce mapping. Done when: the second replay succeeds pre-fix and reverts (nonce used) post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Cross-chain replay & missing domain separator",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A signature valid on one contract/chain replays elsewhere unless the signed data is bound to context. EIP-712's domain separator commits name, version, chainId, and verifyingContract; omitting chainId lets a mainnet signature replay on a fork/L2, and omitting verifyingContract lets it replay across deployments. Fix: build the EIP-712 domain separator correctly and recompute it if chainId changes. Resources: 📖 https://eips.ethereum.org/EIPS/eip-712",
+      "aiContext": "Build: in security/attacks/cross-chain-replay/ write a verifier whose signed digest omits chainId/verifyingContract, deploy two instances (or two chainIds via vm.chainId), and replay one signature on the other; then bind a proper EIP-712 domain separator. Done when: the cross-context replay works pre-fix and is rejected post-fix.",
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Signature malleability & zero-address ecrecover",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ECDSA on secp256k1 is malleable: for a valid (v, r, s) the pair (v', r, n-s) is ALSO valid, so an attacker forges a second distinct signature for the same message — dangerous if the signature bytes (or its hash) are used as a unique id / replay key. Separately, `ecrecover` returns address(0) on a malformed signature, so if address(0) is ever a trusted/uninitialized signer the check is bypassable. Fix: enforce s in the lower half-order (s <= secp256k1n/2) and reject address(0) — OpenZeppelin ECDSA does both. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/utils#ECDSA",
+      "aiContext": "Build: in security/attacks/sig-malleability/ write a contract that keys replay protection on keccak256(signature), and a test that flips s to n-s (and v) to produce a second valid signature that bypasses it; also test a zero-address signer. Done when: the malleable/zero-address bypass works pre-fix and reverts once you use OZ ECDSA (low-s + non-zero) checks.",
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Permit front-running",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-2612 permit() is a public function that consumes the user's off-chain approval signature; an attacker can front-run and submit the victim's permit themselves. It doesn't steal the approval, but it consumes the nonce so the victim's own bundled `permit + action` transaction then reverts ('permit already used') — a griefing/DoS on any flow that assumes it will be the one to call permit. Fix: wrap permit in try/catch (tolerate already-permitted) or check allowance before calling. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2612",
+      "aiContext": "Build: in security/attacks/permit-frontrun/ write a router that calls token.permit(...) then pulls funds, and a test where an attacker submits the same permit first, causing the router's permit call to revert and DoS the user; then wrap permit in try/catch. Done when: the user's tx reverts pre-fix and succeeds (permit-already-set tolerated) post-fix.",
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Merkle proof forgery & second-preimage",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A Merkle airdrop/allowlist is only sound if leaves can't be confused with internal nodes. If leaves and internal nodes are hashed the same way, an attacker submits a 64-byte INTERNAL node as if it were a leaf (a second-preimage) and forges membership; unsorted pairs or reused leaves enable other forgeries and double-claims. Fix: domain-separate leaves (hash leaves as keccak(bytes1(0x00), data) or double-hash), sort sibling pairs, and mark claimed leaves. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: in security/attacks/merkle-forgery/ build a Merkle claim that hashes leaves and nodes identically, and a test that passes an internal node as a leaf to claim without being in the tree; then domain-separate the leaf hashing and add a claimed mapping. Done when: the forged proof / double-claim works pre-fix and is rejected post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+
+    {
+      "title": "Front-running & back-running",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pending transactions sit in a public mempool where anyone reads them before inclusion. Front-running submits a higher-tip copy to execute FIRST (e.g. sniping a profitable arbitrage or a reveal); back-running executes right AFTER a known state change (e.g. arbitraging a large swap). A famous class is the ERC-20 approve() race. Defense: commit-reveal, private orderflow (Flashbots), or designs where ordering doesn't create profit. Resources: 📖 https://solidity-by-example.org/hacks/front-running/",
+      "aiContext": "Build: in security/attacks/frontrun/ write a 'claim the secret for a reward' contract and a test where a second signer with a higher gas price mines first (simulate ordering) to steal the reward; then redesign with commit-reveal. Done when: the naive reveal is front-runnable pre-fix and the commit-reveal version isn't.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Sandwich attacks & missing slippage/deadline",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A swap with no minimum-output (slippage) bound is sandwiched: the attacker front-runs to move the AMM price against the victim, lets the victim's swap execute at the bad price, then back-runs to sell — pocketing the difference. A missing/zero deadline lets a stuck tx execute much later at an even worse price. Fix: always pass a real amountOutMin and a near-term deadline; never send `minOut = 0`. Resources: 📖 https://solidity-by-example.org/hacks/front-running/",
+      "aiContext": "Build: in security/attacks/sandwich/ deploy a constant-product pool and simulate front-run buy → victim swap (minOut=0) → back-run sell, measuring the victim's loss; then re-run with a tight amountOutMin so the victim's tx reverts instead of executing at the sandwiched price. Done when: the sandwich profits pre-fix and the slippage bound prevents the bad fill post-fix.",
+      "prerequisiteTitles": ["Front-running & back-running"],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Weak randomness & timestamp dependence",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "On-chain values are not secret or unpredictable: `block.timestamp`, `blockhash`, `block.prevrandao`, and address/nonce mixes are all known or nudgeable by the proposer, so any lottery/NFT-trait/game that seeds randomness from them is predictable or manipulable (an attacker computes the outcome in the same block and only plays when they win). Timestamp dependence is the same flaw for time-gated logic. Fix: use a VRF (Chainlink VRF) or commit-reveal; never on-chain-derived randomness for value. Resources: 📖 https://solidity-by-example.org/hacks/randomness/",
+      "aiContext": "Build: in security/attacks/bad-randomness/ write a coin-flip/lottery seeded from blockhash/timestamp and an attacker contract that computes the same value and only enters on a win; then integrate a mock VRF. Done when: the attacker wins deterministically pre-fix and cannot predict the VRF-seeded outcome post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Commit-reveal absence & JIT liquidity",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Two timing designs that fail without care. Revealing a value in the same transaction/window it's used (no commit-reveal) exposes it to front-running — auctions, guessing games, and randomness all need a commit phase then a later reveal. JIT liquidity (just-in-time) is an MEV pattern where an LP adds concentrated liquidity in the block a large swap lands to capture its fees, then withdraws — extracting value from passive LPs without bearing risk. Resources: 📖 https://solidity-by-example.org/hacks/front-running/",
+      "aiContext": "Build: in security/attacks/commit-reveal/ implement a sealed-bid auction as (a) naive single-tx bid (front-runnable) and (b) commit(hash) then reveal(value, salt); a test front-runs the naive version. Done when: the naive bid is exploitable pre-fix and the commit-reveal version resists it, and your notes explain the JIT-liquidity analogue.",
+      "prerequisiteTitles": ["Front-running & back-running"],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+
+    {
+      "title": "Storage-slot collision in proxies",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A delegatecall proxy and its implementation share ONE storage layout; if the proxy keeps its own variables (admin, implementation) in low slots that the logic contract also uses for different variables, a write to one silently overwrites the other. Fix: EIP-1967 puts proxy internals at pseudo-random slots (keccak-based) so they can't collide with sequential logic slots; use unstructured storage or a well-ordered inherited base. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1967",
+      "aiContext": "Build: in security/attacks/storage-collision/ write a proxy that stores `owner` in slot 0 and a logic contract whose slot 0 is a different variable, and a test where calling the logic overwrites the proxy's owner; then move proxy state to an EIP-1967 slot. Done when: the collision hijacks control pre-fix and the EIP-1967 layout prevents it post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+    {
+      "title": "Function selector clash",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A proxy forwards unknown 4-byte selectors to its implementation; if a proxy-level function (e.g. admin's `upgradeTo`) shares a selector with an implementation function, calls misroute — the transparent-proxy pattern and diamonds must detect and forbid these clashes. Because selectors are only 4 bytes, collisions are findable by brute force. Fix: transparent proxy (admin vs non-admin routing), or a diamond that rejects duplicate selectors at cut time. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1967",
+      "aiContext": "Build: in security/attacks/selector-clash/ construct two functions with colliding 4-byte selectors (brute-force names), put one in a proxy and one in the implementation, and a test showing a call meant for one hits the other; then apply transparent-proxy routing. Done when: the misroute is demonstrable pre-fix and blocked post-fix.",
+      "prerequisiteTitles": ["Storage-slot collision in proxies"],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+    {
+      "title": "Uninitialized implementation & delegatecall to untrusted",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "delegatecall runs the CALLEE's code in the CALLER's context (its storage, msg.sender, address(this)), so calling untrusted code by delegatecall lets it rewrite your storage — the Ethernaut Delegation/Motorbike pattern. A UUPS implementation left uninitialized is directly callable: an attacker initializes it, becomes owner, and (pre-Cancun) selfdestructs it, bricking every proxy pointing at it (Parity redux). Fix: _disableInitializers() in the implementation constructor; never delegatecall attacker-controlled targets. Resources: 📖 https://solidity-by-example.org/hacks/delegatecall/",
+      "aiContext": "Build: in security/attacks/delegatecall-untrusted/ write a wallet that delegatecalls a user-supplied library address, and an attacker library that overwrites `owner`; then a UUPS impl left initializable that an attacker claims and disables. Done when: both takeovers succeed pre-fix and fail once the target is trust-restricted and _disableInitializers() is added.",
+      "prerequisiteTitles": ["Storage-slot collision in proxies"],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+    {
+      "title": "Unbounded loops & gas-limit DoS",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A function that loops over an array anyone can grow will eventually exceed the block gas limit and revert forever, permanently freezing whatever it gated (distributing to all users, clearing a queue). The attacker just adds cheap entries until the loop is un-runnable. Fix: pull-over-push (users withdraw their own share), pagination/batched processing, and caps on attacker-growable collections. Resources: 📖 https://solidity-by-example.org/hacks/denial-of-service/",
+      "aiContext": "Build: in security/attacks/unbounded-loop/ write a rewards distributor that loops over all participants in one call, and a test where an attacker registers many addresses until distribute() exceeds the block gas limit; then refactor to a pull-based claim. Done when: distribute() is bricked pre-fix and the pull version is unaffected by list size post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+    {
+      "title": "Push-payment reverts & revert griefing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pushing ETH to a recipient inside a critical flow lets a malicious recipient REVERT and block everyone — the King-of-the-Ether / auction-refund bug: if the previous leader is a contract whose receive() always reverts, no new bid (which must refund them) can ever succeed. Fix: the pull pattern — record what each party is owed and let them withdraw() separately, so one reverting party can't stall the rest. Resources: 📖 https://solidity-by-example.org/hacks/denial-of-service/",
+      "aiContext": "Build: in security/attacks/push-pull/ write an auction that refunds the previous bidder by push inside bid(), and an attacker contract that reverts on receive() to freeze the auction; then convert refunds to a pending-withdrawals mapping. Done when: the auction is stuck pre-fix and the pull-based refunds keep it live post-fix.",
+      "prerequisiteTitles": ["Unbounded loops & gas-limit DoS"],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+    {
+      "title": "Block stuffing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An attacker who needs to prevent a specific transaction before a deadline can spam high-gas transactions to fill entire blocks, pricing everyone else out until the window passes — Fomo3D's winner used block stuffing to be the last buyer before the timer expired. It attacks liveness of time-critical logic (liquidations, auctions, deadlines). Fix: avoid designs where blocking a single tx for a few blocks yields a large payoff; add grace periods / keeper redundancy. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "aiContext": "Build: in security/attacks/block-stuffing/ write a time-locked game that pays whoever acts last before a deadline, and describe (with a Foundry vm.roll simulation) how filling blocks near the deadline guarantees the win; then add a mechanism where stuffing isn't profitable (extending timer on each action already exists — analyze its limits). Done when: your notes show the deadline is gameable and quantify the grace-period fix.",
+      "prerequisiteTitles": ["Unbounded loops & gas-limit DoS"],
+      "parentTitle": "Proxy, storage & DoS attacks"
+    },
+
+    {
+      "title": "Accounting & invariant violations",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The core of business-logic bugs: a protocol invariant that SHOULD always hold (sum of user balances == totalSupply; totalDebt <= totalCollateral; shares priced consistently) is quietly broken by some path — a double-count, a forgotten decrement, a fee applied twice. No pattern-matcher flags it because the code is well-formed; only stating the invariant and fuzzing it finds the breaking sequence. Fix: write the invariants down and test them (Foundry invariant tests). Resources: 📖 https://scs.owasp.org/sctop10/",
+      "aiContext": "Build: in security/attacks/accounting/ write a mini lending/vault contract with a deliberate accounting leak (e.g. deposit credits twice on a specific path), state the conservation invariant, and let a Foundry invariant test find the sequence that breaks it. Done when: the invariant test fails on the buggy path and passes after the accounting is corrected.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Business-logic & misc attacks"
+    },
+    {
+      "title": "State-machine & sequencing errors",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Protocols with phases (created → funded → active → settled) break when a function can be called in the wrong phase, twice, or in an order the author didn't intend — claiming before finalize, initializing after use, re-entering a step, or skipping a required transition. Fix: an explicit state enum with a require() gate on every state-changing function, and one-shot flags where a step must run exactly once. Resources: 📖 https://scs.owasp.org/sctop10/",
+      "aiContext": "Build: in security/attacks/state-machine/ write a crowdsale/escrow with phases but missing guards on one function, and a test that calls it out of order (e.g. withdraw before the sale ends) to extract value; then add an enum-based state guard. Done when: the out-of-order call succeeds pre-fix and reverts (wrong state) post-fix.",
+      "prerequisiteTitles": ["Accounting & invariant violations"],
+      "parentTitle": "Business-logic & misc attacks"
+    },
+    {
+      "title": "Insufficient input validation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "OWASP SC05: trusting caller-supplied values without bounds — a zero address that bricks a role, an amount of 0 that mints free shares, an unchecked array-length mismatch, a fee > 100%, or a token/target address not on an allowlist. Each is a small missing require() with outsized impact. Fix: validate every external input at the boundary (non-zero, in-range, allowlisted) before acting on it. Resources: 📖 https://scs.owasp.org/sctop10/",
+      "aiContext": "Build: in security/attacks/input-validation/ write a function that sets a fee and a recipient with no bounds/zero checks, and tests that set fee > 100% or recipient = address(0) to break the protocol; then add the require guards. Done when: the malformed inputs are accepted pre-fix and rejected post-fix.",
+      "prerequisiteTitles": ["Accounting & invariant violations"],
+      "parentTitle": "Business-logic & misc attacks"
+    },
+    {
+      "title": "Contract-size (EXTCODESIZE) checks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Using `extcodesize(addr) == 0` (or address.code.length) to reject contracts is bypassable: during a contract's CONSTRUCTOR its code size is still 0, so an attacker runs the exploit from inside its constructor and passes the 'EOA-only' check. tx.origin == msg.sender has its own problems (breaks with account abstraction / 7702). Fix: don't rely on 'is this an EOA' for security; design so contract callers are simply allowed. Resources: 📖 https://solidity-by-example.org/hacks/contract-size/",
+      "aiContext": "Build: in security/attacks/contract-size/ write a reward gated by extcodesize(msg.sender)==0, and an attacker whose CONSTRUCTOR calls it (codesize 0) to bypass the check; then show why the guard can't be salvaged and remove the assumption. Done when: the constructor-based bypass claims the reward pre-fix and your notes justify dropping the EOA check.",
+      "prerequisiteTitles": ["Insufficient input validation"],
+      "parentTitle": "Business-logic & misc attacks"
+    },
+    {
+      "title": "create2 address reuse & metamorphic contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "create2 deploys to a deterministic address = keccak(0xff, deployer, salt, keccak(initcode)); if a contract at that address selfdestructs (pre-Cancun), the same salt can redeploy DIFFERENT code to the SAME address — a 'metamorphic' contract that rug-pulls anyone who trusted the address by its earlier bytecode. Counterfactual/create2 addresses funded before deployment are another footgun. Fix: don't trust an address's future code; be wary of selfdestructable create2 deployments. Resources: 📖 https://solidity-by-example.org/hacks/deploy-different-contracts-same-address/",
+      "aiContext": "Build: in security/attacks/create2-reuse/ deploy a benign contract via create2, (pre-Cancun semantics permitting) selfdestruct it, and redeploy malicious code to the same address with the same salt; a test shows a consumer that trusted the address is now calling different code. Done when: the address serves different bytecode across deployments and your notes cover the EIP-6780 impact.",
+      "prerequisiteTitles": ["Insufficient input validation"],
+      "parentTitle": "Business-logic & misc attacks"
+    },
+    {
+      "title": "Honeypots & tx.origin phishing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Not every victim is a protocol — some contracts are BAIT. A honeypot looks exploitable (an obvious 'free money' bug) but hides a trap (a fake balance, a hidden owner-only revert, malicious code behind an external call) that keeps whatever you send; recognizing them protects you when replaying 'vulnerable' contracts. tx.origin phishing is the social-engineering companion: lure a privileged user into calling your contract so their tx.origin authorizes a drain. Resources: 📖 https://solidity-by-example.org/hacks/honeypot/",
+      "aiContext": "Build: in security/attacks/honeypot/ implement a classic honeypot (looks drainable, isn't) and write a test that falls for it and loses funds, plus notes on the exact trap; pair it with a tx.origin-phishing lure. Done when: your 'attacker' loses ETH to the honeypot and your notes name the mechanism that reversed the trap.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Business-logic & misc attacks"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Unchecked low-level call returns",
+      "promptText": "Why is ignoring the boolean from `send`/`call`/`delegatecall` dangerous?",
+      "answerHint": "These low-level calls return false on failure instead of reverting, so if you don't check it a failed transfer/call is treated as success and the contract updates state (marks a payout done, credits a balance) though nothing moved. Fix: `(bool ok, ) = to.call{value: x}(\"\"); require(ok);` or a reverting wrapper. Pitfall: `transfer`/`send` also cap gas at 2300, which can fail for contract recipients — prefer checked `call`, guarded against reentrancy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Missing-return-value tokens & SafeERC20",
+      "promptText": "Why does `require(usdt.transfer(...))` break, and what does SafeERC20 do about it plus the approve race?",
+      "answerHint": "USDT/BNB don't return a bool, so the ABI decode of a missing return value makes `require(...)` revert (or misbehave) even on success. SafeERC20's safeTransfer tolerates missing/false returns by checking the call succeeded and any returned data is true; forceApprove handles the non-zero→non-zero approve race (a spender front-running to spend the old + new allowance) by zeroing first. Pitfall: don't assume every ERC-20 is standards-compliant — wrap all token calls.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fee-on-transfer & rebasing tokens",
+      "promptText": "Why does `received == amount` accounting break for fee-on-transfer or rebasing tokens?",
+      "answerHint": "A fee-on-transfer token delivers less than `amount` (fee skimmed), so crediting the requested amount over-credits shares and leaves the vault insolvent; a rebasing/elastic token changes balanceOf out from under stored accounting. Fix: measure balanceOf before and after the transferFrom and credit the actual delta, and avoid balanceOf-based share math for elastic/hook tokens. Pitfall: the same delta-measurement is itself reentrancy-sensitive for ERC-777-style callback tokens — combine with CEI.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Force-feeding ETH",
+      "promptText": "Name three ways to send ETH to a contract with no payable function, and what that breaks.",
+      "answerHint": "selfdestruct(target) forwards the balance unconditionally; being named block.coinbase as a validator/proposer; and pre-funding the address before the contract is deployed. It breaks any logic that assumes `address(this).balance` equals an internal counter or uses balance as a state flag/invariant. Fix: track deposits in a state variable, never trust raw balance. Pitfall: `require(address(this).balance == expected)` is always force-feedable — don't gate logic on exact balance.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Force-feeding ETH",
+      "promptText": "Ethernaut — Force: send ETH to a contract that has no payable function and no receive/fallback.",
+      "answerHint": "Deploy an attacker holding some ETH and call `selfdestruct(payable(target))` — selfdestruct forwards its balance to the target unconditionally, bypassing the absence of any payable entry point, so the target's balance becomes non-zero.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Gas griefing & return-bomb",
+      "promptText": "What is a return-bomb, and how do you defend a router that low-level-calls untrusted targets?",
+      "answerHint": "A malicious callee returns an enormous bytes payload; Solidity's high-level call auto-copies returndata into memory (RETURNDATACOPY), so the caller pays quadratic memory-expansion gas and out-of-gases — a denial-of-service on the caller. Defense: use an assembly `call` that ignores or caps the copied returndata, and forward a bounded gas amount. Pitfall: gas griefing also hits meta-tx relayers — a callee that burns all forwarded gas can make an inner call fail while the outer tx still succeeds.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Signature replay (missing nonce)",
+      "promptText": "Why does a signed authorization without a consumed nonce enable replay?",
+      "answerHint": "Nothing on-chain records that the signature was already used, so the exact same (v,r,s) over the same message verifies again and again — sign once to withdraw, replay to withdraw repeatedly. Fix: include a per-signer nonce (or unique id) in the signed struct and mark it used on execution. Pitfall: incrementing a nonce but not INCLUDING it in the signed digest doesn't help — the nonce must be part of what was signed and checked.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature replay (missing nonce)",
+      "promptText": "DeFiVulnLabs SignatureReplay: reproduce a replayable signed withdrawal and add the nonce fix.",
+      "answerHint": "Port the DeFiVulnLabs SignatureReplay PoC: a function verifies an ECDSA signature over (to, amount) but never consumes a nonce, so the same signature is submitted twice to double-withdraw; fix by signing over and consuming a nonce mapping.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Cross-chain replay & missing domain separator",
+      "promptText": "What does an EIP-712 domain separator bind, and which omission enables cross-chain vs cross-contract replay?",
+      "answerHint": "The domain separator commits name, version, chainId, and verifyingContract into the signed digest. Omitting chainId lets a signature replay on another chain/fork; omitting verifyingContract lets it replay against another deployment of the same code. Fix: build the domain separator correctly (and recompute if chainId changes, e.g. after a fork). Pitfall: caching the domain separator at deploy time without a chainId-change check makes post-fork signatures replayable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature malleability & zero-address ecrecover",
+      "promptText": "Explain ECDSA malleability and the zero-address ecrecover trap, and the single library that fixes both.",
+      "answerHint": "For any valid (v, r, s), the pair (flipped v, r, n-s) is also a valid signature for the same message, so the signature bytes are not unique — dangerous if you key replay protection on the signature/its hash. Separately ecrecover returns address(0) for malformed input, so a zero/uninitialized trusted signer is bypassable. OpenZeppelin's ECDSA library enforces s in the lower half-order and reverts on address(0). Pitfall: don't use raw ecrecover for auth; and don't use a signature as a nonce/id (malleable).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature malleability & zero-address ecrecover",
+      "promptText": "Given (v, r, s), write the malleable counterpart signature.",
+      "answerHint": "uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141; // secp256k1 order\\nbytes32 s2 = bytes32(n - uint256(s)); uint8 v2 = v == 27 ? 28 : 27; // (v2, r, s2) verifies the same message",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Permit front-running",
+      "promptText": "How is EIP-2612 permit() front-run, and why is it a DoS rather than theft?",
+      "answerHint": "permit() is public and consumes the user's off-chain approval signature (and its nonce); an attacker submits the victim's permit first, so the approval is set but the victim's own `permit + action` bundle then reverts because the nonce is already used. No funds are stolen — the approval still goes to the intended spender — but the user's transaction fails (griefing/DoS). Fix: wrap permit in try/catch (tolerate already-permitted) or check allowance before calling permit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Merkle proof forgery & second-preimage",
+      "promptText": "How does a second-preimage attack forge Merkle membership, and how is it prevented?",
+      "answerHint": "If leaves and internal nodes are hashed identically, an attacker submits a 64-byte internal node (a concatenation of two real hashes) as though it were a leaf — it hashes to a node already in the tree, so the proof verifies for data that was never a leaf. Fix: domain-separate leaves (e.g. keccak(0x00, leafData) vs keccak(0x01, node) or double-hash leaves) and sort sibling pairs; mark claimed leaves to stop double-claims. Pitfall: OpenZeppelin's MerkleProof assumes sorted pairs and pre-hashed distinct leaves — feeding it raw same-scheme hashes reintroduces the flaw.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Front-running & back-running",
+      "promptText": "What makes a transaction front-runnable, and what's the difference between front- and back-running?",
+      "answerHint": "It's front-runnable because the pending tx is visible in the public mempool and its profit doesn't depend on being hidden — an observer copies it with a higher tip to execute first (steal a reveal/arbitrage), while back-running executes immediately AFTER a known state change (arbitrage a big swap). Defense: commit-reveal, private orderflow (Flashbots), or mechanisms where ordering yields no edge. Pitfall: raising your own gas price doesn't protect you — a proposer or a higher bidder still orders ahead; the design must remove the profit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Front-running & back-running",
+      "promptText": "solidity-by-example Front Running: steal the reward from a naive commit-the-answer contract.",
+      "answerHint": "The contract pays whoever submits the preimage of a stored hash in plaintext; watch the mempool for the honest solver's reveal tx and submit the same answer with a higher gas price to be ordered first. The fix is commit-reveal so the answer isn't exposed before it's locked in.",
+      "promptKind": "problem",
+      "url": "https://solidity-by-example.org/hacks/front-running/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Sandwich attacks & missing slippage/deadline",
+      "promptText": "Walk through a sandwich attack on an AMM swap and the two parameters that defend against it.",
+      "answerHint": "Attacker front-runs a buy to push the price up, the victim's swap executes at the inflated price (worse fill), then the attacker back-runs a sell to profit the spread. Defenses: a real amountOutMin (slippage bound) so the victim's tx reverts instead of accepting the bad price, and a near-term deadline so a stuck tx can't execute later at an even worse price. Pitfall: `amountOutMin = 0` and `deadline = type(uint).max` (common in naive integrations) disable both protections entirely.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Weak randomness & timestamp dependence",
+      "promptText": "Why is any randomness derived from block variables exploitable, and what's the safe source?",
+      "answerHint": "block.timestamp, blockhash, block.prevrandao, and address/nonce mixes are all readable (and proposer-nudgeable) at execution time, so an attacker computes the outcome in the same transaction and only participates when they win — the lottery/mint/game isn't random to them. block.timestamp for time gates is the same flaw. Safe source: an oracle VRF (Chainlink VRF) or commit-reveal with a future-block seed. Pitfall: prevrandao (post-Merge) is better than blockhash but still not secret and slightly biasable — not safe for high-value randomness.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Weak randomness & timestamp dependence",
+      "promptText": "Ethernaut — Coin Flip: win 10 flips in a row against a blockhash-seeded guess.",
+      "answerHint": "The target derives its 'random' side from blockhash(block.number - 1) / a fixed factor; deploy an attacker that computes the SAME value in the same block and submits the correct guess — since both read the same block data, you win every call. Demonstrates that on-chain randomness is public.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Commit-reveal absence & JIT liquidity",
+      "promptText": "Why does a value revealed in the same window it's used need commit-reveal, and what is JIT liquidity?",
+      "answerHint": "If a bid/answer/seed is submitted in plaintext when it's consumed, the mempool exposes it to front-running/copying before it takes effect — commit a hash first, then reveal the value + salt later so it's locked before it's public. JIT (just-in-time) liquidity is an MEV pattern: an LP adds concentrated liquidity in the exact block a large swap lands to skim its fees, then removes it, extracting value from passive LPs without holding risk. Pitfall: a commit-reveal with too short a reveal window can itself be griefed by censoring the reveal.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Storage-slot collision in proxies",
+      "promptText": "How do proxy and implementation storage collide, and how does EIP-1967 prevent it?",
+      "answerHint": "delegatecall makes the implementation write into the PROXY's storage, so if the proxy keeps admin/implementation in low sequential slots that the logic contract uses for its own variables, one write clobbers the other (e.g. a logic write overwrites the proxy's owner). EIP-1967 stores proxy internals at pseudo-random keccak-derived slots that sequential logic variables will never hit. Pitfall: adding a new variable to a base contract in an upgrade shifts every later slot — storage layout must be append-only across upgrades.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage-slot collision in proxies",
+      "promptText": "Ethernaut — Preservation: hijack the contract via a delegatecall library that writes colliding slots.",
+      "answerHint": "Preservation delegatecalls a 'library' whose setTime writes slot 0; in Preservation slot 0 is the library address, not a timestamp — so the first call overwrites the library pointer to your contract, and a second call runs YOUR code by delegatecall to write slot 2 (owner) to yourself. Classic storage-slot collision.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Function selector clash",
+      "promptText": "What is a proxy function-selector clash, and why are selectors brute-forceable?",
+      "answerHint": "A proxy forwards unknown 4-byte selectors to its implementation; if a proxy-level function (e.g. admin's upgradeTo) shares its selector with an implementation function, a call meant for one silently routes to the other. Selectors are only the first 4 bytes of keccak(signature), so a colliding function name can be brute-forced. Fix: the transparent-proxy pattern routes admin vs non-admin callers separately, and diamonds (EIP-2535) reject duplicate selectors at cut time. Pitfall: a naive minimal proxy that exposes its own admin functions alongside forwarding is the classic clash surface.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uninitialized implementation & delegatecall to untrusted",
+      "promptText": "Why is delegatecall to untrusted code catastrophic, and why must a UUPS implementation disable initializers?",
+      "answerHint": "delegatecall executes the callee's code in the CALLER's context (caller's storage, msg.sender, address(this)), so untrusted code can rewrite the caller's storage — including owner (Delegation/Motorbike). A UUPS implementation left initializable is directly callable: an attacker initializes it to own it and (pre-Cancun) selfdestructs it, bricking every proxy that delegatecalls it. Fix: _disableInitializers() in the implementation constructor and never delegatecall attacker-controlled targets. Pitfall: the proxy being safe doesn't make the bare implementation safe — attack it directly.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uninitialized implementation & delegatecall to untrusted",
+      "promptText": "Ethernaut — Motorbike: take over and brick the UUPS engine implementation.",
+      "answerHint": "The Engine (implementation) behind the Motorbike proxy was never initialized directly, so call initialize() ON THE IMPLEMENTATION to become its upgrader, then upgradeToAndCall to a contract whose function selfdestructs the Engine — permanently bricking the proxy. It's the uninitialized-implementation + delegatecall-to-attacker pattern (Parity redux).",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "Unbounded loops & gas-limit DoS",
+      "promptText": "How does an attacker-growable loop become a permanent denial of service?",
+      "answerHint": "A function that iterates over an array anyone can add to eventually needs more gas than the block gas limit, so it always reverts — freezing whatever it gated (a distribution, a queue clear). The attacker just registers many cheap entries. Fix: pull-over-push (each user withdraws their own share), pagination, and caps on growable collections. Pitfall: even a 'reasonable' loop is a time bomb if an external party controls the iteration count — bound it or make it opt-in per user.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Push-payment reverts & revert griefing",
+      "promptText": "Why does pushing a refund inside bid() let one actor freeze an auction, and what's the fix?",
+      "answerHint": "If bid() refunds the previous leader by a direct ETH send, a leader contract whose receive() always reverts makes every subsequent bid revert too (each must refund it), permanently stalling the auction — the King-of-the-Ether bug. Fix: the pull pattern — record pendingReturns[bidder] and let each withdraw() separately, so one reverting party only blocks itself. Pitfall: the same applies to any batch payout — never let an untrusted recipient's revert gate other users' outcomes.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Block stuffing",
+      "promptText": "What is block stuffing, and what kind of design is vulnerable to it?",
+      "answerHint": "An attacker spams high-gas transactions to fill whole blocks, pricing out everyone else's transactions for several blocks so a specific action can't be included before a deadline — Fomo3D's winner used it to be the last buyer before the timer ended. Vulnerable designs are time-critical ones where blocking a single tx for a few blocks yields a large payoff (last-buyer wins, unliquidated positions). Fix: avoid winner-take-all-at-deadline mechanics; add grace periods and redundant keepers. Pitfall: raising the gas needed to stuff (bigger blocks) only raises the attacker's cost, not the vulnerability's existence.",
+      "promptKind": "concept"
+    },
+
+    {
+      "topicTitle": "Accounting & invariant violations",
+      "promptText": "Why do accounting/invariant bugs evade static analysis, and how are they actually found?",
+      "answerHint": "The code is syntactically clean and matches no bad-pattern signature — the flaw is that some path breaks a property the protocol relies on (sum of balances == totalSupply, debt <= collateral), which a tool has no notion of because it doesn't know the intent. They're found by STATING the invariant and fuzzing call sequences against it (Foundry invariant tests) until one breaks it. Pitfall: a weak invariant that's trivially true regardless of bugs finds nothing — the invariant must be a real conservation/monotonicity property.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "State-machine & sequencing errors",
+      "promptText": "What class of bug comes from missing phase guards, and how do you prevent it?",
+      "answerHint": "Functions callable in the wrong phase/order or more than once — claim before finalize, initialize after use, re-run a one-shot step, skip a required transition — extract value or corrupt state the author assumed couldn't be reached that way. Fix: an explicit state enum with a require() gate on every state-changing function and one-shot flags for steps that must run exactly once. Pitfall: enforcing order in the happy-path UI is not enforcement — the contract must reject out-of-order calls itself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Insufficient input validation",
+      "promptText": "Give examples of missing input validation and why each small omission has outsized impact.",
+      "answerHint": "A zero address that bricks a role or burns funds, an amount of 0 that mints free shares or divides by zero, mismatched array lengths, a fee set > 100%, or an unallowlisted token/target — each is one missing require() at the boundary that a caller controls directly. Fix: validate every external input (non-zero, in-range, allowlisted) before acting. Pitfall: validating in a helper the attacker can bypass by calling a sibling entry point directly is no validation — guard at every reachable boundary.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Contract-size (EXTCODESIZE) checks",
+      "promptText": "Why is `extcodesize(msg.sender) == 0` a broken way to enforce 'EOA only'?",
+      "answerHint": "A contract's code size is 0 while its CONSTRUCTOR runs, so an attacker performs the exploit from inside its constructor and passes the check as if it were an EOA. tx.origin == msg.sender is also breaking now (account abstraction / EIP-7702 blur EOA vs contract). Fix: don't gate security on 'is the caller an EOA' — design so contract callers are simply permitted or the property doesn't depend on caller type. Pitfall: many 'no flash loan' and 'humans only' guards rest on this and are bypassable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Contract-size (EXTCODESIZE) checks",
+      "promptText": "solidity-by-example Contract Size: bypass an extcodesize-based EOA check.",
+      "answerHint": "Put the call to the protected function inside your attacker contract's constructor — during construction address(this).code.length / extcodesize is 0, so the `require(codesize == 0)` guard treats you as an EOA and lets the call through. Demonstrates the check is worthless.",
+      "promptKind": "problem",
+      "url": "https://solidity-by-example.org/hacks/contract-size/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "create2 address reuse & metamorphic contracts",
+      "promptText": "How can the same create2 address serve different bytecode, and why is that dangerous?",
+      "answerHint": "create2's address = keccak(0xff, deployer, salt, keccak(initcode)) is fixed by salt+initcode; if the deployed contract selfdestructs (pre-Cancun) the deployer can reuse the same salt to deploy DIFFERENT code at the SAME address — a metamorphic contract. Anyone who trusted that address by its earlier, audited bytecode is now calling attacker code (rug pull). Fix: never trust an address's FUTURE code; treat selfdestructable create2 deployments as untrusted. Pitfall: EIP-6780 limits selfdestruct so classic metamorphism is largely closed on mainnet — but counterfactual create2 addresses funded before deploy remain a footgun.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Honeypots & tx.origin phishing",
+      "promptText": "What is a honeypot contract, and how does tx.origin phishing complement it?",
+      "answerHint": "A honeypot looks exploitable — an obvious 'free money' bug — but hides a trap (a fake/overstated balance, a hidden owner-only revert, or malicious code behind an external call) so the would-be attacker loses whatever they send; recognizing them protects you when replaying 'vulnerable' contracts. tx.origin phishing is the social-engineering companion: lure a privileged user into calling your contract so their tx.origin passes an auth check and drains their funds. Pitfall: when studying exploits, run untrusted 'vulnerable' contracts only in a fork/sandbox — some are baited to reverse the trap on you.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

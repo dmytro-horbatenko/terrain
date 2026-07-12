@@ -1,0 +1,496 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Ethernaut wargame ladder",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The canonical entry-level wargame: ~41 Solidity levels deployed on Sepolia via a web UI, each a small vulnerable contract you must exploit through the console/Foundry to progress. It is the fastest way to turn the Phase-6 attack taxonomy into muscle memory — most levels map directly onto a bug class already studied. Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Damn Vulnerable DeFi v4 ladder",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Foundry-native, deliberately vulnerable DeFi protocols — 18 challenges as of v4 (migrated to Foundry, adding Curvy Puppet/Shards/Withdrawal and a rewritten Rewarder) — each with a Solidity test file whose validation you make pass by writing an EXPLOIT, not fixing the bug. It is the DeFi-specific complement to Ethernaut: flash loans, AMMs, oracles, governance, and cross-domain messaging. Resources: 🔗 https://www.damnvulnerabledefi.xyz/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Real-exploit replay practice",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Wargames are synthetic; real incidents have real stakes and idiosyncrasies. DeFiHackLabs maintains hundreds of runnable Foundry PoCs that fork mainnet at the pre-exploit block and reproduce historical hacks line-by-line; DeFiVulnLabs catalogs the same incident universe as ~48 reusable vulnerability patterns; rekt.news and the BlockThreat newsletter build the pattern-recognition and incident-response intuition that reading code alone doesn't. Resources: 🔗 https://github.com/SunWeb3Sec/DeFiHackLabs, 🔗 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Judged practice: CodeHawks First Flights",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "First Flights are CodeHawks' beginner-scoped, ~1-week audit contests — small enough codebases to actually finish, judged like a real contest so you learn what makes a finding survive review, not just 'I found a bug'. This is the graduation milestone for Phase 6: submit and get judged, not just solve a wargame. Resources: 🔗 https://codehawks.cyfrin.io/first-flights",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Additional wargame & campaign practice",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Optional extra reps once Ethernaut and DVD are done: ONLYPWNER is an EVM-focused CTF platform with a points/leaderboard model, and Node Guardians runs gamified security campaigns/quests including CTF-style replays of famous hacks on testnet. Neither is required for the milestone, but both keep the muscle warm. Resources: 🔗 https://onlypwner.xyz/, 🔗 https://nodeguardians.io/",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+
+    {
+      "title": "Ethernaut: fundamentals levels",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The first ten Ethernaut levels — Fallback, Fallout, CoinFlip, Telephone, Token, Delegation, Force, Vault, King, and Reentrancy — each isolate ONE bug class from the attack taxonomy: default-function trust, constructor-name typos, weak on-chain randomness, tx.origin auth, unchecked-arithmetic underflow, delegatecall storage collision, force-fed ETH, reading 'private' storage, and revert-based DoS. Solving them on the live Sepolia instance is the first time you exploit through a real console instead of a Foundry test you wrote yourself. Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "aiContext": "Build: solve Fallback, Fallout, CoinFlip, Telephone, Token, Delegation, Force, Vault, King, and Reentrancy on the public Ethernaut Sepolia instance; commit your attack scripts/contracts plus a one-paragraph writeup per level (which bug class, how you exploited it) to security/ethernaut/fundamentals/. Done when: all ten levels show 'You have completed this level!' and every level has a committed writeup.",
+      "prerequisiteTitles": ["Single-function reentrancy", "tx.origin authentication"],
+      "parentTitle": "Ethernaut wargame ladder"
+    },
+    {
+      "title": "Ethernaut: proxy & upgrade levels",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Motorbike, Puzzle Wallet, Preservation, and Double Entry Point drill proxy-specific bug classes: an uninitialized UUPS implementation an attacker can initialize and selfdestruct (bricking the proxy), a proxy admin slot colliding with the wallet's own storage, a delegatecall to a library whose slot-0 write lands on the caller's storage instead, and a legacy-token forwarding relationship a naive sweep function can be tricked by. All four are 'the bug only shows up once you draw the storage layout.' Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "aiContext": "Build: solve Motorbike, Puzzle Wallet, Preservation, and Double Entry Point on Ethernaut; commit solve scripts + a writeup naming the exact storage slot or initialization gap exploited to security/ethernaut/proxy-upgrade/. Done when: all four levels pass and each writeup includes a small storage-layout diagram.",
+      "prerequisiteTitles": [
+        "Uninitialized proxy & unprotected initializer",
+        "Storage-slot collision in proxies"
+      ],
+      "parentTitle": "Ethernaut wargame ladder"
+    },
+    {
+      "title": "Ethernaut: DeFi/DEX levels",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Dex, Dex Two, and Good Samaritan are Ethernaut's DeFi-flavored levels: a constant-ratio swap formula whose integer truncation you can walk in your favor by swapping back and forth, a swap function that never checks the token addresses are actually the pool's own tokens, and a donation wallet whose custom-error-based control flow an attacker can trigger to give away its ENTIRE balance instead of the requested amount. Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "aiContext": "Build: solve Dex, Dex Two, and Good Samaritan on Ethernaut; commit solve scripts + a writeup stating the pricing or control-flow flaw exploited to security/ethernaut/defi-dex/. Done when: all three levels pass and each writeup names the specific missing check.",
+      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "parentTitle": "Ethernaut wargame ladder"
+    },
+    {
+      "title": "Ethernaut: access-control, privacy & interface-trust levels",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Privacy, Elevator, Shop, Higher Order, and Switch drill a subtler family: trusting an interface's function to behave consistently (view-like) when nothing enforces that, trusting that 'private' Solidity state is actually hidden from callers, and trusting that calldata means what the function signature implies. Each level breaks one of those assumptions. Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "aiContext": "Build: solve Privacy, Elevator, Shop, Higher Order, and Switch on Ethernaut; commit solve scripts + a writeup naming the trust assumption broken to security/ethernaut/access-privacy/. Done when: all five levels pass and each writeup states what the level assumed vs what actually held.",
+      "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
+      "parentTitle": "Ethernaut wargame ladder"
+    },
+    {
+      "title": "Ethernaut: gas, calldata & bytecode puzzle levels",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "GatekeeperOne, GatekeeperTwo, Alien Codex, Denial, and Recovery are Ethernaut's low-level puzzle set: gas-based and bitmask 'gates', an EXTCODESIZE self-check a constructor can bypass, a pre-0.8 array-length underflow that turns one array into ALL of storage, a gas-forwarding DoS, and computing a deterministic CREATE address to recover 'lost' funds. These force you to think in raw calldata, gas, and storage slots instead of Solidity syntax. Resources: 🔗 https://ethernaut.openzeppelin.com/",
+      "aiContext": "Build: solve GatekeeperOne, GatekeeperTwo, Alien Codex, Denial, and Recovery on Ethernaut; commit solve scripts + a writeup per level (the exact gas/bitmask/offset trick used) to security/ethernaut/gas-bytecode/. Done when: all five levels pass and each writeup includes the specific numeric condition satisfied.",
+      "prerequisiteTitles": [
+        "Contract-size (EXTCODESIZE) checks",
+        "Push-payment reverts & revert griefing"
+      ],
+      "parentTitle": "Ethernaut wargame ladder"
+    },
+
+    {
+      "title": "DVD v4: flash-loan challenges",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Unstoppable, Naive Receiver, Truster, Side Entrance, and The Rewarder are DVD v4's pure flash-loan mechanics challenges: breaking a vault's own accounting invariant just by donating tokens to it, forcing fee-draining loans onto a receiver that never asked for them, an unrestricted callback that lets you call ANYTHING (including the token's own approve) during the loan, depositing borrowed funds back into the same pool to satisfy its repayment check, and flash-borrowing right before a reward snapshot to over-claim. Resources: 🔗 https://www.damnvulnerabledefi.xyz/",
+      "aiContext": "Build: clone Damn Vulnerable DeFi v4, solve Unstoppable, Naive Receiver, Truster, Side Entrance, and The Rewarder, and commit your exploit contracts/scripts plus a one-paragraph writeup per challenge to security/damn-vulnerable-defi/flash-loans/. Done when: `forge test` shows each challenge's isSolved()/validation assertions passing and every writeup names the accounting or callback gap exploited.",
+      "prerequisiteTitles": ["Cross-function & cross-contract reentrancy"],
+      "parentTitle": "Damn Vulnerable DeFi v4 ladder"
+    },
+    {
+      "title": "DVD v4: oracle/AMM challenges",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Compromised, Puppet, Puppet V2, Puppet V3, and Curvy Puppet drill every flavor of 'the price you're reading is a lie': a leaked oracle signer key posting arbitrary prices, a lending pool pricing collateral off a manipulable Uniswap V1/V2 pair, the same bug raised to a real Uniswap V3 TWAP window, and a Curve-based price source corrupted mid-callback via read-only reentrancy. Resources: 🔗 https://www.damnvulnerabledefi.xyz/",
+      "aiContext": "Build: solve Compromised, Puppet, Puppet V2, Puppet V3, and Curvy Puppet on Damn Vulnerable DeFi v4; commit exploit contracts/scripts plus a writeup per challenge naming the oracle source and how it was corrupted to security/damn-vulnerable-defi/oracle-amm/. Done when: `forge test` shows each challenge's validation assertions passing and every writeup states what a resistant oracle would have done differently.",
+      "prerequisiteTitles": ["Flash-loan price manipulation", "Read-only reentrancy into oracles"],
+      "parentTitle": "Damn Vulnerable DeFi v4 ladder"
+    },
+    {
+      "title": "DVD v4: governance & advanced challenges",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Selfie, Backdoor, Climber, Wallet Mining, ABI Smuggling, Shards, Withdrawal, and Free Rider are DVD v4's grab-bag of governance, access-control, and business-logic bugs beyond flash-loan/oracle mechanics: flash-loaned voting power passing a malicious governance proposal, a wallet-factory reward scheme an attacker can backdoor, a timelock whose own scheduling logic can be gamed, deterministic-deployment reward mining, a permissioned function whose calldata can be 'smuggled' past a selector check, fractional-share accounting rounding, and a cross-domain withdrawal message that can be finalized without valid Merkle-proof verification (a forged, unauthenticated withdrawal). Resources: 🔗 https://www.damnvulnerabledefi.xyz/",
+      "aiContext": "Build: solve Selfie, Backdoor, Climber, Wallet Mining, ABI Smuggling, Shards, Withdrawal, and Free Rider on Damn Vulnerable DeFi v4; commit exploit contracts/scripts plus a writeup per challenge naming the governance/access/logic gap exploited to security/damn-vulnerable-defi/governance-advanced/. Done when: `forge test` shows each challenge's validation assertions passing and every writeup states the single design fix that would close it.",
+      "prerequisiteTitles": ["Flash-loan governance attacks"],
+      "parentTitle": "Damn Vulnerable DeFi v4 ladder"
+    },
+
+    {
+      "title": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "DeFiHackLabs maintains hundreds of Foundry PoCs, one per real incident, each forking mainnet (or the victim's chain) at the block just before the exploit and reproducing the drain against the ACTUAL deployed victim contract — not a toy rewrite. Replaying a handful teaches what wargames can't: real bugs are messier, buried in real integrations, and the fix has to work against the real deployed bytecode. Resources: 🔗 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "aiContext": "Build: pick 3 incidents from DeFiHackLabs spanning different attack families (e.g. one reentrancy, one oracle-manipulation, one access-control), run the existing PoC against a mainnet fork to confirm the reported drain, then write a one-paragraph root-cause + fix for each. Commit your fork tests + writeups to security/replays/defihacklabs/. Done when: all 3 forked PoCs reproduce the reported loss (or a proportional local equivalent) and each writeup states the fix in one sentence.",
+      "prerequisiteTitles": ["Writing a minimal PoC"],
+      "parentTitle": "Real-exploit replay practice"
+    },
+    {
+      "title": "Real-exploit replays: DeFiVulnLabs pattern catalog",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "DeFiVulnLabs distills the same universe of real incidents DeFiHackLabs replays into ~48 reusable, minimal vulnerability patterns — the abstracted bug shape without a specific victim's noise around it. Mapping every pattern to a taxonomy leaf already studied (or flagging one that isn't) is a comprehension check on the whole attack taxonomy, not just practice on any single bug. Resources: 🔗 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "aiContext": "Build: work through DeFiVulnLabs's ~48 patterns, and for each, write which 06b/06c attack-taxonomy leaf it matches (or note it as an uncovered gap); commit the mapping table to security/replays/defivulnlabs-map.md. Done when: all ~48 patterns are mapped to a taxonomy leaf or explicitly flagged as a gap.",
+      "prerequisiteTitles": ["Reading an unfamiliar codebase"],
+      "parentTitle": "Real-exploit replay practice"
+    },
+    {
+      "title": "Real-exploit replays: rekt.news & BlockThreat incident intuition",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Not every incident is worth a full Foundry replay — rekt.news's post-mortems and the BlockThreat weekly newsletter build a faster, broader kind of intuition: skim enough real writeups and you start pattern-matching a new headline to an attack family before reading the technical details. This is the 'read widely, code narrowly' half of wargame practice. Resources: 🔗 https://rekt.news/, 🔗 https://newsletter.blockthreat.io/",
+      "aiContext": "Build: read 10 recent rekt.news post-mortems or BlockThreat weekly digests; for each, write 2-3 sentences classifying the attack family (from the 06b/06c taxonomy) and the single design decision that would have prevented it. Commit to security/replays/incident-notes.md. Done when: 10 incidents are logged, each tagged with a taxonomy family and a one-line 'what would have stopped it.'",
+      "prerequisiteTitles": ["Anatomy of a good finding"],
+      "parentTitle": "Real-exploit replay practice"
+    },
+
+    {
+      "title": "CodeHawks First Flights: beginner audit contests",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "First Flights are CodeHawks' beginner on-ramp: small, deliberately scoped codebases run as ~1-week timed contests with real judging. This is the first time your work is graded by someone else's rubric instead of a green checkmark, which is the whole point — audit findings are judged, not compiled. Resources: 🔗 https://codehawks.cyfrin.io/first-flights",
+      "aiContext": "Build: register as a competitor on at least 2 CodeHawks First Flights contests; review the codebase within the contest window and submit any findings through the platform. Commit your working notes and submitted findings to security/first-flights/<contest-slug>/. Done when: at least one finding has been submitted and judged (accepted or rejected) on the platform.",
+      "prerequisiteTitles": ["Manual review vs. automated tooling"],
+      "parentTitle": "Judged practice: CodeHawks First Flights"
+    },
+    {
+      "title": "CodeHawks First Flights: writing a finding that survives judging",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A correct bug write-up that gets rejected by judging has usually failed on FORM, not substance: missing a working PoC, an unjustified severity, or an impact statement that doesn't follow from the described bug. Rewriting a finding to CodeHawks' Title/Severity/Description/Impact/PoC/Recommendation structure — and getting it actually judged — is where 'I found something' becomes 'I can convince a judge.' Resources: 🔗 https://codehawks.cyfrin.io/first-flights",
+      "aiContext": "Build: take one finding from a First Flight you competed in (or a fresh review pass) and write it to CodeHawks' full report format with a concrete, runnable PoC; submit it and record the judge's verdict. Commit to security/first-flights/finding-<slug>.md. Done when: the finding has all required sections, a PoC that reproduces the bug, and a recorded judgment outcome.",
+      "prerequisiteTitles": [
+        "CodeHawks First Flights: beginner audit contests",
+        "Severity justification in reports"
+      ],
+      "parentTitle": "Judged practice: CodeHawks First Flights"
+    },
+    {
+      "title": "CodeHawks AI First Flights: standalone AI-graded practice",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "AI First Flights are a separate, always-available CodeHawks format: a fixed set of standalone practice audits you can take any time, where an AI grades your submitted findings and gives instant feedback. They COMPLEMENT the scheduled, human-judged First Flights — they don't replace them and aren't a pre-review step for them. Their value is on-demand reps with fast feedback while you build audit instincts between real contests. Resources: 🔗 https://codehawks.cyfrin.io/first-flights",
+      "aiContext": "Build: complete at least one AI First Flight practice audit end-to-end — review the codebase, submit your findings, and read the AI's grading. Record what it flagged in security/first-flights/ai-<slug>.md. Done when: you've finished one AI-graded practice audit and can name one concrete thing its feedback caught that you'd have missed.",
+      "prerequisiteTitles": ["CodeHawks First Flights: writing a finding that survives judging"],
+      "parentTitle": "Judged practice: CodeHawks First Flights"
+    },
+
+    {
+      "title": "Security campaigns: ONLYPWNER & Node Guardians",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Once Ethernaut and DVD are done, ONLYPWNER (an EVM-focused CTF platform with points and a leaderboard) and Node Guardians' security campaigns (gamified quests, including CTF-style replays of famous hacks on testnet) are optional extra reps — more volume on the same muscle, with a competitive framing that keeps motivation up once the 'required' ladders are behind you. Resources: 🔗 https://onlypwner.xyz/, 🔗 https://nodeguardians.io/",
+      "aiContext": "Build: solve at least 3 challenges combined across ONLYPWNER and a Node Guardians security campaign/quest chain; commit solve notes (one line per challenge naming the bug class drilled) to security/campaigns/. Done when: at least 3 challenges are solved with a recorded bug-class note each.",
+      "prerequisiteTitles": ["Ethernaut: fundamentals levels"],
+      "parentTitle": "Additional wargame & campaign practice"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Ethernaut: fundamentals levels",
+      "promptText": "Ethernaut's first ten levels each isolate one bug class — name three and the taxonomy leaf each drills.",
+      "answerHint": "e.g. Telephone → tx.origin authentication; Delegation → delegatecall storage collision; King → revert-based DoS on a push payment. Pitfall: solving the level in the console and then forgetting to write down WHICH bug class it was defeats the point — the ladder's value is pattern-matching back to the taxonomy, not just the flag.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ethernaut: fundamentals levels",
+      "promptText": "Ethernaut — Delegation: become the owner of the Delegation proxy without ever calling an owner-only function directly.",
+      "answerHint": "Delegation delegatecalls into Delegate.sol; call the proxy with calldata for Delegate's pwn() (its 4-byte selector) — delegatecall runs pwn()'s code in the proxy's storage context, so `owner = msg.sender` writes to the PROXY's owner slot.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Ethernaut: fundamentals levels",
+      "promptText": "Ethernaut — King: make yourself un-de-thronable so no one can ever become king again.",
+      "answerHint": "Submit a bid from a contract with no receive()/fallback (or one that reverts); the King contract's plain transfer/send refund to the ex-king fails, and if it doesn't handle that failure, the whole claim-kingship transaction reverts forever — a push-payment DoS.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+
+    {
+      "topicTitle": "Ethernaut: proxy & upgrade levels",
+      "promptText": "Why does Motorbike's fix (removing the UUPS upgrade capability) work, and what made the level exploitable in the first place?",
+      "answerHint": "The Engine implementation contract's own initialize() had no guard, so anyone could call it directly (not through the proxy) and become 'upgrader', then upgradeToAndCall a malicious contract that selfdestructs — since UUPS keeps upgrade logic IN the implementation, destroying it bricks every proxy pointing at it. Pitfall: `_disableInitializers()` in the implementation's constructor is the fix — protecting only the proxy's initializer is not enough, the implementation itself must be non-initializable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ethernaut: proxy & upgrade levels",
+      "promptText": "Ethernaut — Preservation: become the owner via a delegatecall to a library contract with a mismatched storage layout.",
+      "answerHint": "Preservation delegatecalls setFirstTime()/setSecondTime() into library contracts whose own storage layout has `uint storedTime` at slot 0 — but delegatecall writes into the CALLER's slot 0, which is `timeZone1Library`'s address. Overwrite that address with your own malicious library, then call setFirstTime again to run YOUR code, which writes to slot 2 (owner).",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "Ethernaut: proxy & upgrade levels",
+      "promptText": "Ethernaut — Puzzle Wallet: drain and take admin of a proxy whose admin slot collides with the wallet's storage.",
+      "answerHint": "PuzzleProxy and PuzzleWallet share slots — pendingAdmin (proxy) aliases owner (wallet). Call proposeNewAdmin to set yourself as wallet owner, get whitelisted, then use multicall to call deposit() twice in one transaction (bypassing its 'no repeated calls' guard via nested calldata) so your recorded balance exceeds what you actually sent, withdraw it all, then setMaxBalance to overwrite the proxy's admin slot with your address.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+
+    {
+      "topicTitle": "Ethernaut: DeFi/DEX levels",
+      "promptText": "Why does swapping back and forth on Ethernaut's Dex level let you drain one of its tokens, when the swap formula looks 'fair'?",
+      "answerHint": "Dex prices swaps as amountOut = amountIn * toReserve / fromReserve with integer division — each round trip truncates in your favor by a small amount, and because there's no invariant check (unlike a real constant-product AMM) the reserves drift until one side's balance can be fully extracted. Pitfall: this ISN'T the same bug as flash-loan spot manipulation — there's no external price oracle here, the pool's own naive formula is the whole vulnerability.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ethernaut: DeFi/DEX levels",
+      "promptText": "Ethernaut — Dex Two: drain the pool using a token the pool doesn't actually hold.",
+      "answerHint": "swap() never checks that from/to are the pool's real token1/token2 — deploy your own ERC-20, mint yourself an unlimited supply, and swap it in for the pool's real tokens at a favorable self-set rate.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Ethernaut: DeFi/DEX levels",
+      "promptText": "Ethernaut — Good Samaritan: trick the Wallet into giving away its entire balance instead of the small amount you requested.",
+      "answerHint": "Wallet.requestDonation() calls Coin.transfer(), catches a revert, and if the revert selector matches its own 'NotEnoughBalance' custom error it assumes the request was too big and sends the WHOLE remaining balance instead. Deploy a fake requester whose callback throws that exact custom error on a tiny request to trigger the full-balance payout.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "Ethernaut: access-control, privacy & interface-trust levels",
+      "promptText": "Why is Ethernaut's Privacy level solvable even though the password is declared private?",
+      "answerHint": "`private` only blocks OTHER CONTRACTS from reading the variable through Solidity syntax — it does nothing to hide the value on-chain. Storage is public data; read the slot directly with `cast storage <addr> <slot>` (or eth_getStorageAt), accounting for how the compiler packs a bytes32[3] array and a bool/uint8 into slots. Pitfall: 'private' is an access-control keyword for Solidity source, not an encryption primitive — never store real secrets in contract storage.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ethernaut: access-control, privacy & interface-trust levels",
+      "promptText": "Ethernaut — Elevator: make a Building's isLastFloor() return two different answers to the same question in one call sequence.",
+      "answerHint": "Elevator's Building interface doesn't mark isLastFloor() as `view`, so nothing stops your implementation from returning false the first time it's called (letting goUp proceed) and true the second time (setting top=true) — an interface with no purity guarantee is not trustworthy just because its name implies a query.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Ethernaut: access-control, privacy & interface-trust levels",
+      "promptText": "Ethernaut — Switch: flip the switch on when the contract's calldata check should forbid it.",
+      "answerHint": "Switch checks that the first 4 bytes of calldata match turnSwitchOff's selector, but reads the boolean argument's VALUE from an offset determined by a length field YOU also control in the calldata — craft calldata whose selector satisfies the check while the actual decoded argument writes true.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "Ethernaut: gas, calldata & bytecode puzzle levels",
+      "promptText": "Why does calling GatekeeperTwo's gate from your contract's CONSTRUCTOR bypass its extcodesize(caller) == 0 check?",
+      "answerHint": "A contract's code isn't stored on-chain until its constructor finishes running, so extcodesize on an address still mid-construction reads 0 even though the address is (about to be) a contract — the check meant to reject 'must be an EOA' is fooled by timing, not identity. Pitfall: EXTCODESIZE==0 is NOT a reliable 'is this an EOA' test even outside this trick.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Ethernaut: gas, calldata & bytecode puzzle levels",
+      "promptText": "Ethernaut — Alien Codex: overwrite the owner slot by underflowing a dynamic array's length.",
+      "answerHint": "In pre-0.8 Solidity, calling retract() on an empty bytes32[] codex decrements its length below zero, underflowing to 2^256-1 — the array now 'covers' all of storage. Compute the index that maps to slot 0 (owner) via the array's storage-layout formula (keccak256(slot) + index) and write your address there with revise().",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Ethernaut: gas, calldata & bytecode puzzle levels",
+      "promptText": "Ethernaut — Denial: make the contract's owner permanently unable to withdraw, without ever touching an owner-only function.",
+      "answerHint": "withdraw() forwards a large/all remaining gas to a partner address you control via a low-level call with no gas cap and no success check; deploy a partner whose fallback burns all forwarded gas (e.g. an assembly infinite loop), so every withdraw() call runs out of gas before it can pay the real owner — a gas-griefing DoS on a push payment.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "DVD v4: flash-loan challenges",
+      "promptText": "Why does Truster's flash-loan pool let you drain it without ever taking out a real loan?",
+      "answerHint": "flashLoan() lets the borrower supply an ARBITRARY target address + calldata for the callback with no restriction on what it can call — call the pool itself, asking it to approve() your attacker contract for the full token balance, then just transferFrom it out; no repayment logic is ever exercised because a 0-amount 'loan' still runs your arbitrary call. Pitfall: an unrestricted flash-loan callback is equivalent to giving the borrower an arbitrary-call primitive on behalf of the pool — restrict the callback target/calldata, don't just check the loan is repaid.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "DVD v4: flash-loan challenges",
+      "promptText": "Damn Vulnerable DeFi — Unstoppable: halt the flash-loan vault's flashLoan() for everyone, permanently.",
+      "answerHint": "The vault's flashLoan() asserts convertToShares(totalSupply) == balanceBefore as an invariant; directly transfer()-ing extra underlying tokens to the vault (bypassing deposit(), so shares don't mint) breaks that balance/shares invariant forever, reverting every future flash loan.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "DVD v4: flash-loan challenges",
+      "promptText": "Damn Vulnerable DeFi — Side Entrance: drain a pool whose flash-loan callback lets you deposit.",
+      "answerHint": "Take a flash loan, and inside the callback deposit() the borrowed ETH back into the SAME pool — the pool's post-loan balance check passes (the ETH is physically back), but you've credited yourself an internal deposit balance you can withdraw() afterward for free. Cross-function reentrancy: flashLoan and deposit/withdraw share one balance with no unified guard.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "DVD v4: oracle/AMM challenges",
+      "promptText": "What's the common root cause across the Puppet, Puppet V2, and Puppet V3 challenges, despite each using a different AMM version?",
+      "answerHint": "All three price collateral off a swappable pool's CURRENT state (V1/V2 spot reserves, or a too-short/thin V3 TWAP window) — the attacker dumps the borrowed token into the pool to crater its price, borrows far more than the true-value collateral would allow, and (in the flash-loan variants) never needed their own capital. Pitfall: 'we upgraded to Uniswap V3 with a TWAP' is not automatically safe — a short window or a low-liquidity pair TWAP is still manipulable, just more expensive.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "DVD v4: oracle/AMM challenges",
+      "promptText": "Damn Vulnerable DeFi — Puppet: drain a lending pool that prices collateral from a Uniswap spot pair.",
+      "answerHint": "Dump your DVT tokens into the Uniswap pair to crater its spot price, then deposit a small amount of ETH as collateral (now 'worth' far more DVT at the crashed price) and borrow the pool's entire DVT balance.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "DVD v4: oracle/AMM challenges",
+      "promptText": "Damn Vulnerable DeFi — Curvy Puppet: exploit a price source that reads a Curve pool's virtual price during a reentrant callback.",
+      "answerHint": "Trigger a Curve pool operation that sends ETH mid-transaction (e.g. remove_liquidity), and from the receiving callback, call into the consumer that reads get_virtual_price() BEFORE the pool's internal accounting has settled — borrow/liquidate against the transiently wrong price, matching the read-only-reentrancy pattern already studied.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "hard"
+    },
+
+    {
+      "topicTitle": "DVD v4: governance & advanced challenges",
+      "promptText": "How does ABI Smuggling let an attacker bypass a permissioned function's access check without ever forging a valid selector?",
+      "answerHint": "The authorizer validates the FIRST 4 bytes of forwarded calldata (the function selector) against a permission list, but a downstream contract executes the FULL calldata including extra, attacker-crafted bytes appended or nested beyond what the selector-check inspected — the check and the execution disagree about what 'the call' actually is. Pitfall: validating a prefix of calldata (the selector) is not the same as validating the whole call; any encoding step between the check and the execution is an injection point.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "DVD v4: governance & advanced challenges",
+      "promptText": "Damn Vulnerable DeFi — Selfie: pass a malicious governance proposal using flash-loaned voting power.",
+      "answerHint": "Flash-borrow the governance token, call snapshot() so your (borrowed) balance is recorded as voting power for THIS block, queue a proposal calling the pool's emergency-drain function, repay the loan, then after the timelock delay, execute the proposal — the snapshot should have been taken at a block BEFORE the attacker could borrow into it.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "DVD v4: governance & advanced challenges",
+      "promptText": "Damn Vulnerable DeFi — Backdoor: steal the registration reward from wallets created for other beneficiaries.",
+      "answerHint": "The registry pays a token reward to each newly created Safe/Gnosis wallet if it was set up with the expected module; craft a malicious module masquerading as the expected one (or approve yourself during setup) so wallets created for the real beneficiaries end up letting YOU claim or redirect their reward.",
+      "promptKind": "problem",
+      "url": "https://www.damnvulnerabledefi.xyz/",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
+      "promptText": "Why does forking mainnet at the pre-exploit block matter for replaying a real incident, instead of writing a fresh toy contract with 'the same bug'?",
+      "answerHint": "The real victim's bug is often entangled with real integrations (a specific token's quirks, a specific oracle's exact interface, exact storage state) that a simplified rewrite would accidentally fix or hide — forking at the real block against the real deployed bytecode is the only way to prove you found the ACTUAL vulnerability, not a lookalike. Pitfall: 'I reproduced a similar bug in my own toy contract' is not the same evidence as 'I reproduced THIS incident.'",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
+      "promptText": "Replay a real reentrancy incident (e.g. an ERC-777/ERC-1155 hook-driven drain) from DeFiHackLabs against a mainnet fork.",
+      "answerHint": "Find the incident's PoC folder, fork at the block before the exploit tx, and confirm the existing exploit script reproduces the drain; then write the CEI-based fix and show it reverting on the forked state.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiHackLabs"
+    },
+    {
+      "topicTitle": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
+      "promptText": "Replay a real oracle-manipulation incident from DeFiHackLabs (e.g. a spot-price or flash-loan-funded manipulation).",
+      "answerHint": "Fork at the pre-exploit block, confirm the PoC's flash-loan-and-swap sequence moves the on-chain price and drains the victim, then show a TWAP or Chainlink-based consumer would have rejected the borrow/liquidation at the manipulated price.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiHackLabs"
+    },
+
+    {
+      "topicTitle": "Real-exploit replays: DeFiVulnLabs pattern catalog",
+      "promptText": "What's the difference in what DeFiHackLabs and DeFiVulnLabs each teach, given they cover overlapping incidents?",
+      "answerHint": "DeFiHackLabs teaches EXECUTION against a real, messy, specific deployed system (forked PoCs); DeFiVulnLabs teaches RECOGNITION — the minimal abstracted shape of the bug, stripped of one incident's specific noise, so you can spot the same pattern in a codebase that looks nothing like the original victim. Pitfall: doing only one of the two leaves a gap — pattern recognition without execution practice doesn't build the muscle to actually write a working exploit under contest time pressure, and vice versa.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Real-exploit replays: DeFiVulnLabs pattern catalog",
+      "promptText": "Map DeFiVulnLabs's read-only-reentrancy and price-oracle-manipulation patterns to the exact 06b/06c leaves that cover them.",
+      "answerHint": "Read-only reentrancy pattern → 'Read-only reentrancy' and 'Read-only reentrancy into oracles'; price-manipulation patterns → 'Spot-price oracle manipulation', 'TWAP oracle manipulation', 'Flash-loan price manipulation' — note any DeFiVulnLabs pattern (e.g. a specific rebasing-token quirk) that doesn't already have a home leaf.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiVulnLabs"
+    },
+
+    {
+      "topicTitle": "Real-exploit replays: rekt.news & BlockThreat incident intuition",
+      "promptText": "Why is skimming 10 incident writeups a week different in kind from replaying one incident in Foundry, and why do you need both?",
+      "answerHint": "Breadth (rekt/BlockThreat) trains fast classification — recognizing 'this smells like a first-depositor inflation bug' from a headline-level description before digging in; depth (DeFiHackLabs replay) trains the actual exploit-writing muscle. An auditor needs both: breadth to triage what to look at first in a real codebase, depth to actually prove the finding. Pitfall: breadth without ever replaying anything produces false confidence — you recognize the shape but haven't proven you can exploit it under time pressure.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Real-exploit replays: rekt.news & BlockThreat incident intuition",
+      "promptText": "Read this week's BlockThreat digest (or a recent rekt.news post-mortem) and classify the top incident by attack family.",
+      "answerHint": "Identify the root-cause category (reentrancy / access-control / oracle-price / arithmetic / business-logic / etc.), name the matching 06b/06c taxonomy leaf, and state the one design decision (a check, an invariant, a timelock) that would have prevented the loss.",
+      "promptKind": "problem",
+      "url": "https://rekt.news/"
+    },
+
+    {
+      "topicTitle": "CodeHawks First Flights: beginner audit contests",
+      "promptText": "Why does competing in a real First Flight teach something Ethernaut/DVD wargames structurally can't?",
+      "answerHint": "Wargames have ONE known bug and a clear win condition (drain the contract); a First Flight codebase may have zero, one, or several bugs of unknown location and severity, on a fixed clock, judged by a human against a rubric — you must decide what's worth reporting, not just whether you can exploit something. Pitfall: treating a First Flight like a wargame ('find THE bug') under-reports; treating a wargame like an audit ('write up every theoretical issue') over-reports — First Flights calibrate that judgment.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CodeHawks First Flights: beginner audit contests",
+      "promptText": "Enter a CodeHawks First Flight contest and submit at least one finding before the contest closes.",
+      "answerHint": "Scope the codebase during the review window, write findings in CodeHawks' report format as you go (don't wait until the end), and submit before the deadline — late submissions aren't judged regardless of quality.",
+      "promptKind": "problem",
+      "url": "https://codehawks.cyfrin.io/first-flights",
+      "problemDifficulty": "easy"
+    },
+
+    {
+      "topicTitle": "CodeHawks First Flights: writing a finding that survives judging",
+      "promptText": "What are the most common reasons a technically-correct finding gets downgraded or rejected in CodeHawks judging?",
+      "answerHint": "No runnable PoC (a claim without proof), severity asserted without justification against the actual impact + likelihood, an impact statement broader than what the PoC actually demonstrates, or duplicate/near-duplicate of an already-submitted finding. Pitfall: 'this could theoretically lead to X' without a PoC reads as speculation to a judge — always show the concrete path from bug to loss, even if the PoC is minimal.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CodeHawks First Flights: writing a finding that survives judging",
+      "promptText": "Rewrite a First Flight finding you submitted informally into the full CodeHawks report format and resubmit/record its verdict.",
+      "answerHint": "Title (one-line bug summary) → Severity (High/Medium/Low with justification) → Description (root cause) → Impact (concrete consequence) → Proof of Concept (runnable Foundry test) → Recommendation (specific fix) — every section grounded in the same PoC.",
+      "promptKind": "problem",
+      "url": "https://codehawks.cyfrin.io/first-flights",
+      "problemDifficulty": "medium"
+    },
+
+    {
+      "topicTitle": "CodeHawks AI First Flights: standalone AI-graded practice",
+      "promptText": "How do CodeHawks AI First Flights differ from the scheduled human-judged First Flights, and how should you use them?",
+      "answerHint": "AI First Flights are a standalone, always-available practice format graded by AI for instant feedback — a fixed set of practice audits you take on your own clock — whereas the classic First Flights are scheduled ~1-week contests judged by humans. Use AI First Flights for on-demand reps and fast iteration between real contests; they complement, not replace, human judging. Pitfall: treating the AI grade as a substitute for real human-judged reps — it builds instincts but doesn't teach how findings fare against a human rubric, duplication, and scope calls.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CodeHawks AI First Flights: standalone AI-graded practice",
+      "promptText": "Complete one standalone CodeHawks AI First Flight practice audit end-to-end and act on the AI's grading.",
+      "answerHint": "Pick an AI First Flight, review its codebase, submit your findings, and read the AI's instant grading; note every gap it flags (missing PoC, unjustified severity, vague impact) and record one concrete lesson to carry into your next real contest.",
+      "promptKind": "problem",
+      "url": "https://codehawks.cyfrin.io/first-flights"
+    },
+
+    {
+      "topicTitle": "Security campaigns: ONLYPWNER & Node Guardians",
+      "promptText": "Why keep doing wargame-style practice after finishing Ethernaut and DVD, instead of moving straight to real audits?",
+      "answerHint": "Pattern-recognition speed and exploit-writing fluency both degrade without repetition, and a fixed, exhaustive ladder (Ethernaut/DVD) eventually runs out — ongoing platforms with a growing challenge set (ONLYPWNER, Node Guardians) keep the reps coming without waiting for a new CTF season. Pitfall: novelty-seeking across platforms without ever writing up WHAT was learned (unlike the taxonomy-mapping discipline in the required ladders) turns practice into pure entertainment — keep the one-line bug-class note per challenge.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Security campaigns: ONLYPWNER & Node Guardians",
+      "promptText": "Solve at least one ONLYPWNER challenge and record which bug class it drilled.",
+      "answerHint": "Pick a challenge near your current level on the leaderboard's difficulty signal, solve it, and note the bug class (it will usually map to a 06b/06c taxonomy leaf) in security/campaigns/.",
+      "promptKind": "problem",
+      "url": "https://onlypwner.xyz/"
+    },
+    {
+      "topicTitle": "Security campaigns: ONLYPWNER & Node Guardians",
+      "promptText": "Complete a Node Guardians security-themed quest or campaign chapter.",
+      "answerHint": "Node Guardians' CTF-on-testnet mode replays famous hacks in a gamified quest chain — pick a security campaign, complete its chapters, and log the bug class(es) drilled in security/campaigns/.",
+      "promptKind": "problem",
+      "url": "https://nodeguardians.io/"
+    }
+  ],
+  "noteSummaries": []
+}
