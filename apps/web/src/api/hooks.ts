@@ -21,6 +21,7 @@ export const qk = {
   streak: ['streak'] as const,
   settings: ['settings'] as const,
   topicTypes: ['topic-types'] as const,
+  courses: ['courses'] as const,
 };
 
 // ---- queries ----
@@ -204,6 +205,18 @@ export function useImportApply() {
   return useMutation({
     mutationFn: (raw: string) => api.importApply(raw),
     onSuccess: () => invalidate(),
+  });
+}
+
+export function useCourses() {
+  return useQuery({ queryKey: qk.courses, queryFn: api.getCourses });
+}
+
+export function useImportCourse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.importCourse(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
   });
 }
 

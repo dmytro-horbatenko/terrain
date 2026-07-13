@@ -7,6 +7,7 @@ const NAV = [
   { to: '/roadmap', label: 'Roadmap', icon: '⊹', exact: false },
   { to: '/export', label: 'Export', icon: '↗', exact: false },
   { to: '/import', label: 'Import', icon: '↘', exact: false },
+  { to: '/courses', label: 'Courses', icon: '⬒', exact: false },
   { to: '/settings', label: 'Settings', icon: '⚙', exact: false },
 ] as const;
 

@@ -1,6 +1,8 @@
 import type {
   AppEvent,
   AuthedUser,
+  Course,
+  CourseImportSummary,
   CreateAppEventInput,
   Dashboard,
   ExportResult,
@@ -131,6 +133,11 @@ export const api = {
     }),
   importApply: (raw: string) =>
     req<ImportResult>('/sessions/import', { method: 'POST', ...json({ raw }) }),
+
+  // prepared courses
+  getCourses: () => req<Course[]>('/courses'),
+  importCourse: (id: string) =>
+    req<CourseImportSummary>(`/courses/${id}/import`, { method: 'POST' }),
 
   // auth
   me: () => req<AuthedUser>('/auth/me'),

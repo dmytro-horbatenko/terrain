@@ -361,6 +361,23 @@ export interface ImportResult {
   topicsActivated: number;
 }
 
+// ---- Prepared courses ----
+
+export interface Course {
+  id: string;
+  domain: string;
+  title: string;
+  description: string;
+  topicCount: number;
+  imported: boolean;
+}
+
+export interface CourseImportSummary {
+  topicsCreated: number;
+  promptsCreated: number;
+  topicsActivated: number;
+}
+
 // ---- Auth ----
 
 export interface AuthedUser {

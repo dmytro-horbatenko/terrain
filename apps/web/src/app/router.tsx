@@ -5,6 +5,7 @@ import Topics from '../screens/Topics';
 import Roadmap from '../screens/Roadmap';
 import ExportScreen from '../screens/Export';
 import ImportScreen from '../screens/Import';
+import CoursesScreen from '../screens/Courses';
 import Settings from '../screens/Settings';
 import SessionWizard from '../screens/Session';
 
@@ -35,6 +36,11 @@ const importRoute = createRoute({
   path: '/import',
   component: ImportScreen,
 });
+const coursesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/courses',
+  component: CoursesScreen,
+});
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -52,6 +58,7 @@ const routeTree = rootRoute.addChildren([
   roadmapRoute,
   exportRoute,
   importRoute,
+  coursesRoute,
   settingsRoute,
   sessionRoute,
 ]);
