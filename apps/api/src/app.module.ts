@@ -14,6 +14,7 @@ import { ImportModule } from './import/import.module';
 import { TopicTypesModule } from './topic-types/topic-types.module';
 import { SettingsModule } from './settings/settings.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TelegramModule } from './telegram/telegram.module';
     TopicTypesModule,
     SettingsModule,
     TelegramModule,
+    CoursesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
