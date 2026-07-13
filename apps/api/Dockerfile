@@ -41,6 +41,7 @@ COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
 COPY --from=build /workspace/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=build /workspace/apps/api/dist ./apps/api/dist
 COPY --from=build /workspace/apps/api/prisma ./apps/api/prisma
+COPY --from=build /workspace/content ./content
 
 # Base image ships an unprivileged `node` user (uid 1000) — drop root before
 # the process starts (OWASP Docker Security Cheat Sheet).
