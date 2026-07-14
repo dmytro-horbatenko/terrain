@@ -12,9 +12,14 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:up": "docker compose up -d",
+    "dev:api": "yarn workspace @terrain/api start",
+    "dev:web": "yarn workspace @terrain/web dev",
+    "dev": "yarn db:up && concurrently -n api,web -c blue,green \"yarn dev:api\" \"yarn dev:web\""
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "husky": "9.1.7",
     "lint-staged": "17.0.8",
     "oxfmt": "0.56.0",
