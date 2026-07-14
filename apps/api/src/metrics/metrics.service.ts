@@ -25,6 +25,22 @@ function localDateKey(d: Date): string {
 export class MetricsService {
   constructor(private prisma: PrismaService) {}
 
+  private async disabledDomains(userId: string): Promise<string[]> {
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { disabledDomains: true },
+    });
+    return settings?.disabledDomains ?? [];
+  }
+
+  private domainFilter(
+    domain: string | undefined,
+    disabledDomains: string[],
+  ): { domain?: string | { notIn: string[] } } {
+    if (domain) return { domain };
+    return disabledDomains.length ? { domain: { notIn: disabledDomains } } : {};
+  }
+
   topicLabels(input: {
     status: string;
     cards: { reps: number }[];
@@ -103,6 +119,7 @@ export class MetricsService {
     now: Date,
     domain?: string,
   ): Promise<{ overdue: Topic[]; dueToday: Topic[] }> {
+    const disabled = await this.disabledDomains(userId);
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
@@ -111,7 +128,7 @@ export class MetricsService {
         userId,
         status: 'active',
         nextReviewAt: { not: null, lt: endOfToday },
-        ...(domain ? { domain } : {}),
+        ...this.domainFilter(domain, disabled),
       },
       orderBy: { nextReviewAt: 'asc' },
     });
@@ -126,6 +143,7 @@ export class MetricsService {
    * are excluded (mastered topics still keep reviewing under FSRS).
    */
   async dueCards(userId: string, now: Date, domain?: string): Promise<Prompt[]> {
+    const disabled = await this.disabledDomains(userId);
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
@@ -133,7 +151,7 @@ export class MetricsService {
       where: {
         suspended: false,
         nextReviewAt: { not: null, lt: endOfToday },
-        topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+        topic: { userId, status: { not: 'archived' }, ...this.domainFilter(domain, disabled) },
       },
       orderBy: { nextReviewAt: 'asc' },
     });
@@ -150,6 +168,7 @@ export class MetricsService {
     now: Date,
     domain?: string,
   ): Promise<{ items: SessionQueueItem[]; estimatedMinutes: number }> {
+    const disabled = await this.disabledDomains(userId);
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
@@ -166,7 +185,7 @@ export class MetricsService {
         where: {
           suspended: false,
           nextReviewAt: { not: null, lt: endOfToday },
-          topic: { userId, status: { not: 'archived' }, ...(domain ? { domain } : {}) },
+          topic: { userId, status: { not: 'archived' }, ...this.domainFilter(domain, disabled) },
         },
         orderBy: { nextReviewAt: 'asc' },
         include: { topic: topicJoin },
@@ -175,7 +194,7 @@ export class MetricsService {
         where: {
           suspended: false,
           state: 'new',
-          topic: { userId, status: 'active', ...(domain ? { domain } : {}) },
+          topic: { userId, status: 'active', ...this.domainFilter(domain, disabled) },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: NEW_CARDS_PER_SESSION,
@@ -211,9 +230,13 @@ export class MetricsService {
    * reviewable units — they're excluded so a category can't outrank its own
    * leaves just for being created first.
    */
-  private async startablePlannedIds(userId: string, domain?: string): Promise<string[]> {
+  private async startablePlannedIds(
+    userId: string,
+    domain: string | undefined,
+    disabledDomains: string[],
+  ): Promise<string[]> {
     const planned = await this.prisma.topic.findMany({
-      where: { userId, status: 'planned', ...(domain ? { domain } : {}) },
+      where: { userId, status: 'planned', ...this.domainFilter(domain, disabledDomains) },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
@@ -237,12 +260,13 @@ export class MetricsService {
    * cards are excluded — they'd inflate "New: N" with cards you can't reach.
    */
   async newCardsCount(userId: string, domain?: string): Promise<number> {
-    const startableIds = await this.startablePlannedIds(userId, domain);
+    const disabled = await this.disabledDomains(userId);
+    const startableIds = await this.startablePlannedIds(userId, domain, disabled);
     return this.prisma.prompt.count({
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId, ...(domain ? { domain } : {}) },
+        topic: { userId, ...this.domainFilter(domain, disabled) },
         OR: [
           { topic: { status: { in: ['active', 'mastered'] } } },
           { topicId: { in: startableIds } },
@@ -257,7 +281,8 @@ export class MetricsService {
    * topics are candidates — starting one commits it (web-side).
    */
   async nextUp(userId: string, domain?: string): Promise<NextUp | null> {
-    const [firstId] = await this.startablePlannedIds(userId, domain);
+    const disabled = await this.disabledDomains(userId);
+    const [firstId] = await this.startablePlannedIds(userId, domain, disabled);
     if (!firstId) return null;
     const topic = await this.prisma.topic.findFirst({ where: { id: firstId, userId } });
     if (!topic) return null;

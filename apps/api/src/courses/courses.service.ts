@@ -13,6 +13,7 @@ export interface CourseSummary {
   description: string;
   topicCount: number;
   imported: boolean;
+  disabled: boolean;
 }
 
 export interface CourseImportSummary {
@@ -49,19 +50,56 @@ export class CoursesService {
     return total;
   }
 
+  private async disabledDomains(userId: string): Promise<Set<string>> {
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { disabledDomains: true },
+    });
+    return new Set(settings?.disabledDomains ?? []);
+  }
+
+  /** `imported` is derived from actual Topic rows for the course's domain, not
+   *  the CourseImport tracking table — topics seeded outside the Courses UI
+   *  import flow (e.g. via a script) would otherwise show as not-imported. */
+  private async toSummary(
+    userId: string,
+    entry: CourseManifestEntry,
+    disabledDomains: Set<string>,
+  ): Promise<CourseSummary> {
+    const [topicCount, importedCount] = await Promise.all([
+      this.topicCount(entry),
+      this.prisma.topic.count({ where: { userId, domain: entry.domain } }),
+    ]);
+    return {
+      id: entry.id,
+      domain: entry.domain,
+      title: entry.title,
+      description: entry.description,
+      topicCount,
+      imported: importedCount > 0,
+      disabled: disabledDomains.has(entry.domain),
+    };
+  }
+
   async list(userId: string): Promise<CourseSummary[]> {
-    const imports = await this.prisma.courseImport.findMany({ where: { userId } });
-    const importedIds = new Set(imports.map((i) => i.courseId));
+    const disabledDomains = await this.disabledDomains(userId);
     return Promise.all(
-      COURSE_MANIFEST.map(async (entry) => ({
-        id: entry.id,
-        domain: entry.domain,
-        title: entry.title,
-        description: entry.description,
-        topicCount: await this.topicCount(entry),
-        imported: importedIds.has(entry.id),
-      })),
+      COURSE_MANIFEST.map((entry) => this.toSummary(userId, entry, disabledDomains)),
     );
+  }
+
+  async setDisabled(userId: string, courseId: string, disabled: boolean): Promise<CourseSummary> {
+    const entry = this.findEntry(courseId);
+    const domains = await this.disabledDomains(userId);
+    if (disabled) domains.add(entry.domain);
+    else domains.delete(entry.domain);
+    const disabledDomains = [...domains];
+    await this.prisma.settings.upsert({
+      where: { userId },
+      create: { userId, disabledDomains },
+      update: { disabledDomains },
+    });
+    return this.toSummary(userId, entry, domains);
   }
 
   async importCourse(userId: string, courseId: string): Promise<CourseImportSummary> {

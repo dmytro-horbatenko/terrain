@@ -19,6 +19,7 @@ describe('MetricsService', () => {
         count: jest.fn().mockResolvedValue(0),
       },
       sessionExport: { findFirst: jest.fn().mockResolvedValue(null) },
+      settings: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     const mod = await Test.createTestingModule({
       providers: [MetricsService, { provide: PrismaService, useValue: prisma }],
@@ -187,6 +188,26 @@ describe('MetricsService', () => {
     );
   });
 
+  it('dueTopics excludes disabled domains when no explicit domain is given', async () => {
+    prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
+    await service.dueTopics('userA', new Date('2026-01-08T00:00:00Z'));
+    expect(prisma.topic.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ domain: { notIn: ['DSA'] } }),
+      }),
+    );
+  });
+
+  it('dueTopics ignores disabledDomains when an explicit domain is given', async () => {
+    prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
+    await service.dueTopics('userA', new Date('2026-01-08T00:00:00Z'), 'DSA');
+    expect(prisma.topic.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ domain: 'DSA' }),
+      }),
+    );
+  });
+
   it('topicLabels: planned with an active prerequisite is NOT blocked (started gate)', () => {
     expect(
       service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['active'] }),
@@ -263,6 +284,18 @@ describe('MetricsService', () => {
     );
   });
 
+  it('dueCards excludes disabled domains when no explicit domain is given', async () => {
+    prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['Web3'] });
+    await service.dueCards('userA', new Date('2026-01-08T12:00:00Z'));
+    expect(prisma.prompt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          topic: { userId: 'userA', status: { not: 'archived' }, domain: { notIn: ['Web3'] } },
+        }),
+      }),
+    );
+  });
+
   it('newCardsCount includes startable planned topics and excludes blocked ones', async () => {
     prisma.topic.findMany.mockImplementation(({ where }: any) =>
       Promise.resolve(
@@ -313,6 +346,23 @@ describe('MetricsService', () => {
     const result = await service.newCardsCount('userA');
     expect(result).toBe(4);
     expect(prisma.prompt.findMany).not.toHaveBeenCalled();
+  });
+
+  it('newCardsCount excludes disabled domains from both the startable-planned query and the count query', async () => {
+    prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
+    prisma.prompt.count.mockResolvedValue(2);
+    const result = await service.newCardsCount('userA');
+    expect(result).toBe(2);
+    expect(prisma.topic.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'userA', status: 'planned', domain: { notIn: ['DSA'] } },
+      }),
+    );
+    expect(prisma.prompt.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ topic: { userId: 'userA', domain: { notIn: ['DSA'] } } }),
+      }),
+    );
   });
 
   it('dashboard composes counts from groupBy and due lengths, and includes newCards', async () => {
@@ -466,6 +516,17 @@ describe('MetricsService', () => {
         expect.objectContaining({ where: { userId: 'userA', status: 'planned', domain: 'DSA' } }),
       );
     });
+
+    it('excludes disabled domains from the candidate query', async () => {
+      prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
+      prisma.topic.findMany.mockResolvedValue([]);
+      await service.nextUp('userA');
+      expect(prisma.topic.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'userA', status: 'planned', domain: { notIn: ['DSA'] } },
+        }),
+      );
+    });
   });
 
   it('dashboard includes nextUp (null when nothing is startable)', async () => {
@@ -553,6 +614,18 @@ describe('MetricsService', () => {
       await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'), 'DSA');
       expect(prisma.prompt.findMany.mock.calls[0][0].where.topic).toMatchObject({ domain: 'DSA' });
       expect(prisma.prompt.findMany.mock.calls[1][0].where.topic).toMatchObject({ domain: 'DSA' });
+    });
+
+    it('excludes disabled domains from both the due and new-card queries', async () => {
+      prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
+      prisma.prompt.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'));
+      expect(prisma.prompt.findMany.mock.calls[0][0].where.topic).toMatchObject({
+        domain: { notIn: ['DSA'] },
+      });
+      expect(prisma.prompt.findMany.mock.calls[1][0].where.topic).toMatchObject({
+        domain: { notIn: ['DSA'] },
+      });
     });
 
     it('returns estimatedMinutes from explicit values with kind fallbacks', async () => {
