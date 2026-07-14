@@ -255,6 +255,7 @@ model Settings {
   nudgeHour                  Int?      @default(20)
   telegramLinkToken          String?   @unique
   telegramLinkTokenExpiresAt DateTime?
+  disabledDomains            String[]  @default([])
 }
 
 model CourseImport {
