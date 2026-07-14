@@ -370,6 +370,7 @@ export interface Course {
   description: string;
   topicCount: number;
   imported: boolean;
+  disabled: boolean;
 }
 
 export interface CourseImportSummary {

@@ -138,6 +138,8 @@ export const api = {
   getCourses: () => req<Course[]>('/courses'),
   importCourse: (id: string) =>
     req<CourseImportSummary>(`/courses/${id}/import`, { method: 'POST' }),
+  setCourseDisabled: (id: string, disabled: boolean) =>
+    req<Course>(`/courses/${id}/disabled`, { method: 'PATCH', ...json({ disabled }) }),
 
   // auth
   me: () => req<AuthedUser>('/auth/me'),

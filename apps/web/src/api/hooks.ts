@@ -220,6 +220,19 @@ export function useImportCourse() {
   });
 }
 
+export function useSetCourseDisabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, disabled }: { id: string; disabled: boolean }) =>
+      api.setCourseDisabled(id, disabled),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.courses });
+      // disabling/enabling a course changes what's due/next-up/queued
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 // ---- auth ----
 
 export const meKey = ['me'] as const;
