@@ -1,5 +1,114 @@
 import { describe, it, expect } from 'vitest';
-import { parseLearningOs, LearningOsParseError, learningOsV2Schema } from './index';
+import {
+  parseLearningOs,
+  LearningOsParseError,
+  learningOsV2Schema,
+  sourcePlanSchema,
+} from './index';
+
+const option = {
+  id: 'ethereum-accounts',
+  title: 'Ethereum accounts',
+  url: 'https://ethereum.org/developers/docs/accounts/',
+  format: 'documentation' as const,
+  scope: 'Externally-owned accounts',
+  estimatedMinutes: 12,
+  why: 'Canonical account semantics',
+  verifiedAt: '2026-07-10',
+  recheckAfterDays: 180,
+};
+
+describe('source plans', () => {
+  it('accepts required and none source plans', () => {
+    expect(
+      sourcePlanSchema.parse({
+        policy: 'required',
+        requirements: [
+          {
+            id: 'canonical-account-model',
+            purpose: 'Verify exact account semantics',
+            requiredWhen: 'first_exposure',
+            options: [option],
+          },
+        ],
+      }).policy,
+    ).toBe('required');
+    expect(sourcePlanSchema.parse({ policy: 'none', rationale: 'Pure drill' }).policy).toBe('none');
+  });
+
+  it('rejects duplicate ids and half-specified freshness', () => {
+    const requirement = {
+      id: 'canonical',
+      purpose: 'Precision',
+      requiredWhen: 'first_exposure' as const,
+      options: [option, { ...option }],
+    };
+    expect(
+      sourcePlanSchema.safeParse({ policy: 'required', requirements: [requirement] }).success,
+    ).toBe(false);
+    expect(
+      sourcePlanSchema.safeParse({
+        policy: 'required',
+        requirements: [{ ...requirement, options: [{ ...option, recheckAfterDays: undefined }] }],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('source evidence', () => {
+  const base = {
+    version: 2 as const,
+    reviews: [],
+    proposedTopics: [],
+    proposedPrompts: [],
+    noteSummaries: [],
+    applicationEvents: [],
+  };
+
+  it('defaults sourceEvidence and accepts curated evidence', () => {
+    expect(learningOsV2Schema.parse(base).sourceEvidence).toEqual([]);
+    const parsed = learningOsV2Schema.parse({
+      ...base,
+      sourceEvidence: [
+        {
+          topicTitle: 'Public-key cryptography & wallets',
+          requirementId: 'canonical-account-model',
+          sourceId: 'ethereum-accounts',
+          sourceTitle: 'Ethereum accounts',
+          sourceUrl: 'https://ethereum.org/developers/docs/accounts/',
+          mainClaim: 'An EOA is controlled by its private key.',
+          supportingMechanism: 'A transaction signature lets peers recover the public key.',
+          openQuestion: null,
+          substitutionReason: null,
+          verifiedLiveAt: null,
+          verificationNote: null,
+        },
+      ],
+    });
+    expect(parsed.sourceEvidence).toHaveLength(1);
+  });
+
+  it('requires a rationale for an unlisted substitute', () => {
+    const result = learningOsV2Schema.safeParse({
+      ...base,
+      sourceEvidence: [
+        {
+          topicTitle: 'T',
+          requirementId: 'r',
+          sourceTitle: 'Replacement',
+          sourceUrl: 'https://example.com/replacement',
+          mainClaim: 'Claim',
+          supportingMechanism: 'Mechanism',
+          openQuestion: null,
+          substitutionReason: null,
+          verifiedLiveAt: null,
+          verificationNote: null,
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 const minimalV2 = `\`\`\`learning-os
 {
