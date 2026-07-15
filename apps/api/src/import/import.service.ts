@@ -5,7 +5,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { LearningOsParseError, parseLearningOs, type LearningOsV2 } from '@terrain/types';
+import {
+  LearningOsParseError,
+  parseLearningOs,
+  type LearningOsV2,
+  type SourcePlan,
+} from '@terrain/types';
 import { applyGrade, type CardSrState, type Grade } from '@terrain/sr-engine';
 import type { Prompt, ReviewMode, SessionExport, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +20,11 @@ import {
   recomputeTopicDue,
 } from '../reviews/sr-apply';
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
+import {
+  applicableRequirements,
+  isSourceExpired,
+  parseStoredSourcePlan,
+} from '../sources/source-plan';
 
 const norm = (s: string) => s.trim().toLowerCase();
 const DAY = 86_400_000;
@@ -79,7 +89,26 @@ export interface NewTopicPlan {
   prerequisiteTitles: string[];
   parentTitle: string | null;
   aiContext?: string;
+  sourcePlan?: SourcePlan;
   alreadyExists: boolean;
+}
+export type SourceEvidencePlan = LearningOsV2['sourceEvidence'][number] & {
+  resolvedTopicId: string | null;
+  substituted: boolean;
+};
+export interface SourceIssue {
+  topicTitle: string;
+  requirementId?: string;
+  sourceId?: string;
+  reason:
+    | 'missing-plan'
+    | 'missing-evidence'
+    | 'unknown-requirement'
+    | 'unknown-source'
+    | 'duplicate'
+    | 'verification-required';
+  blocking: boolean;
+  message: string;
 }
 export interface NoteSummaryPlan {
   topicTitle: string;
@@ -154,6 +183,8 @@ export interface ImportPlan {
   noteSummaries: NoteSummaryPlan[];
   applicationEvents: ApplicationEventPlan[];
   activations: ActivationPlan[];
+  sourceEvidence: SourceEvidencePlan[];
+  sourceIssues: SourceIssue[];
   nextSession?: LearningOsV2['nextSession'];
   unresolved: Unresolved[];
   applicable: boolean;
@@ -166,6 +197,7 @@ export interface ImportResult {
   noteSummariesApplied: number;
   appEventsApplied: number;
   topicsActivated: number;
+  sourceEvidenceApplied: number;
   nextSessionStored: boolean;
 }
 
@@ -258,10 +290,12 @@ export class ImportService {
     const plan = this.buildPlan(parsed, sessionExport, existing, promptsById);
     if (plan.alreadyImported)
       throw new ConflictException('This session export was already imported.');
-    if (plan.unresolved.length > 0) {
+    const blockingSourceIssues = plan.sourceIssues.filter((issue) => issue.blocking);
+    if (plan.unresolved.length > 0 || blockingSourceIssues.length > 0) {
       throw new UnprocessableEntityException({
-        message: 'Unresolved references block import.',
+        message: 'Unresolved references or source requirements block import.',
         unresolved: plan.unresolved,
+        sourceIssues: blockingSourceIssues,
       });
     }
 
@@ -296,6 +330,7 @@ export class ImportService {
             userId,
             aiProposed: true,
             aiContext: nt.aiContext,
+            sourcePlan: nt.sourcePlan,
             status: 'planned',
           },
         });
@@ -319,6 +354,32 @@ export class ImportService {
           seenPre.add(preId);
           await tx.prerequisite.create({ data: { topicId: selfId, prerequisiteId: preId } });
         }
+      }
+
+      let sourceEvidenceApplied = 0;
+      for (const evidence of plan.sourceEvidence) {
+        const topicId = evidence.resolvedTopicId ?? idByNorm.get(norm(evidence.topicTitle));
+        if (!topicId) continue;
+        const {
+          resolvedTopicId: _resolvedTopicId,
+          substituted: _substituted,
+          topicTitle: _topicTitle,
+          ...data
+        } = evidence;
+        await tx.sourceEvidence.create({
+          data: {
+            ...data,
+            sourceId: data.sourceId ?? null,
+            openQuestion: data.openQuestion ?? null,
+            substitutionReason: data.substitutionReason ?? null,
+            verifiedLiveAt: data.verifiedLiveAt ? new Date(data.verifiedLiveAt) : null,
+            verificationNote: data.verificationNote ?? null,
+            userId,
+            topicId,
+            sessionExportId: sessionExport.id,
+          },
+        });
+        sourceEvidenceApplied++;
       }
 
       // b2. activate studied topics — explicit studiedTopics contract field.
@@ -486,6 +547,7 @@ export class ImportService {
         noteSummariesApplied,
         appEventsApplied,
         topicsActivated,
+        sourceEvidenceApplied,
         nextSessionStored: nextFocusTitle != null,
       };
     });
@@ -559,6 +621,7 @@ export class ImportService {
         prerequisiteTitles: p.prerequisiteTitles,
         parentTitle: p.parentTitle ?? null,
         aiContext: p.aiContext,
+        sourcePlan: p.sourcePlan,
         alreadyExists: ex.id != null,
       });
     }
@@ -753,6 +816,110 @@ export class ImportService {
       });
     }
 
+    const sourceIssues: SourceIssue[] = [];
+    const sourceEvidence: SourceEvidencePlan[] = [];
+    const accepted = new Set<string>();
+    const seenEvidence = new Set<string>();
+    const batchByNorm = new Map(newTopics.map((topic) => [norm(topic.title), topic]));
+    const planFor = (title: string): SourcePlan | null => {
+      const matches = byNorm.get(norm(title)) ?? [];
+      if (matches.length === 1) return parseStoredSourcePlan(matches[0].sourcePlan);
+      const batch = batchByNorm.get(norm(title));
+      if (batch) return batch.sourcePlan ?? null;
+      return null;
+    };
+
+    for (const evidence of parsed.sourceEvidence) {
+      const key = `${norm(evidence.topicTitle)}|${evidence.requirementId}`;
+      if (seenEvidence.has(key)) {
+        sourceIssues.push({
+          ...(evidence.sourceId && { sourceId: evidence.sourceId }),
+          topicTitle: evidence.topicTitle,
+          requirementId: evidence.requirementId,
+          reason: 'duplicate',
+          blocking: true,
+          message: 'Only one source may satisfy a requirement.',
+        });
+        continue;
+      }
+      seenEvidence.add(key);
+      const plan = planFor(evidence.topicTitle);
+      const requirement =
+        plan?.policy === 'required'
+          ? plan.requirements.find((item) => item.id === evidence.requirementId)
+          : undefined;
+      if (!requirement) {
+        sourceIssues.push({
+          topicTitle: evidence.topicTitle,
+          requirementId: evidence.requirementId,
+          reason: 'unknown-requirement',
+          blocking: true,
+          message: 'The source requirement does not exist.',
+        });
+        continue;
+      }
+      const source = evidence.sourceId
+        ? requirement.options.find((option) => option.id === evidence.sourceId)
+        : undefined;
+      if (evidence.sourceId && !source) {
+        sourceIssues.push({
+          topicTitle: evidence.topicTitle,
+          requirementId: evidence.requirementId,
+          sourceId: evidence.sourceId,
+          reason: 'unknown-source',
+          blocking: true,
+          message: 'The curated source does not exist.',
+        });
+        continue;
+      }
+      if (source && isSourceExpired(source, now) && evidence.verifiedLiveAt == null) {
+        sourceIssues.push({
+          topicTitle: evidence.topicTitle,
+          requirementId: evidence.requirementId,
+          sourceId: evidence.sourceId,
+          reason: 'verification-required',
+          blocking: true,
+          message: 'This curated source requires live verification.',
+        });
+        continue;
+      }
+      const resolved = resolveExisting(evidence.topicTitle);
+      sourceEvidence.push({
+        ...evidence,
+        resolvedTopicId: resolved.id,
+        substituted: evidence.sourceId == null,
+      });
+      accepted.add(key);
+    }
+
+    for (const activation of activations) {
+      const plan = planFor(activation.topicTitle);
+      if (!plan) {
+        sourceIssues.push({
+          topicTitle: activation.topicTitle,
+          reason: 'missing-plan',
+          blocking: false,
+          message: 'Legacy topic has no source plan.',
+        });
+        continue;
+      }
+      const status = activation.currentStatus ?? 'planned';
+      for (const requirement of applicableRequirements(
+        plan,
+        status as 'planned' | 'active' | 'mastered' | 'archived',
+      )) {
+        if (!accepted.has(`${norm(activation.topicTitle)}|${requirement.id}`)) {
+          sourceIssues.push({
+            topicTitle: activation.topicTitle,
+            requirementId: requirement.id,
+            reason: 'missing-evidence',
+            blocking: true,
+            message: 'Required source evidence is missing.',
+          });
+        }
+      }
+    }
+
     const alreadyImported = sessionExport.importedAt != null;
     return {
       sessionExportId: sessionExport.id,
@@ -763,9 +930,14 @@ export class ImportService {
       noteSummaries,
       applicationEvents,
       activations,
+      sourceEvidence,
+      sourceIssues,
       nextSession: parsed.nextSession,
       unresolved,
-      applicable: unresolved.length === 0 && !alreadyImported,
+      applicable:
+        unresolved.length === 0 &&
+        !sourceIssues.some((issue) => issue.blocking) &&
+        !alreadyImported,
     };
   }
 }

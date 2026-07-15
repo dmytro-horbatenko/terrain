@@ -59,6 +59,7 @@ describe('ExportGeneratorService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
       user: makeUserMock(),
+      settings: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     metrics = makeMetrics(prisma);
     const mod = await Test.createTestingModule({
@@ -730,9 +731,154 @@ describe('ExportGeneratorService', () => {
           { prerequisite: { title: 'Arrays 101', status: 'mastered', summary: null } },
         ],
         prompts: [{ id: 'c1', promptKind: 'concept', promptText: 'Define a prefix-sum array.' }],
+        sourcePlan: null,
+        sourceEvidence: [],
         ...overrides,
       };
     }
+
+    it('renders the applicable source plan before the learning goal with preferences and history', async () => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(
+        focusTopic({
+          sourcePlan: {
+            policy: 'required',
+            requirements: [
+              {
+                id: 'account-model',
+                purpose: 'Understand Ethereum accounts',
+                requiredWhen: 'first_exposure',
+                options: [
+                  {
+                    id: 'canonical-account-model',
+                    title: 'Ethereum accounts',
+                    url: 'https://ethereum.org/accounts',
+                    format: 'documentation',
+                    scope: 'Externally-owned accounts',
+                    estimatedMinutes: 12,
+                    why: 'Canonical account model',
+                    paid: false,
+                    language: 'en',
+                  },
+                ],
+              },
+              {
+                id: 'execution',
+                purpose: 'See transaction execution',
+                requiredWhen: 'always',
+                options: [
+                  {
+                    id: 'execution-video',
+                    title: 'Transaction execution',
+                    url: 'https://example.com/execution',
+                    format: 'video',
+                    scope: 'Lifecycle walkthrough',
+                    estimatedMinutes: 15,
+                    why: 'Visual sequence',
+                  },
+                ],
+              },
+            ],
+          },
+          sourceEvidence: [{ sourceTitle: 'Earlier account overview' }],
+        }),
+      );
+      prisma.settings.findUnique.mockResolvedValue({
+        preferredSourceFormats: ['documentation', 'video'],
+        sourceTimeBudgetMinutes: 30,
+        sourceLanguage: 'en',
+        allowPaidSources: false,
+      });
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+
+      expect(md.indexOf('## SOURCE PLAN')).toBeLessThan(md.indexOf('## LEARNING GOAL'));
+      expect(md).toContain('canonical-account-model');
+      expect(md).toContain('Ethereum accounts');
+      expect(md).toContain('Scope: Externally-owned accounts');
+      expect(md).toContain('Estimated required intake: 2 sources · 27 min');
+      expect(md).toContain('Preferred formats: documentation, video');
+      expect(md).toContain('Earlier account overview');
+    });
+
+    it.each([
+      [{ policy: 'none', rationale: 'Practice only' }, 'No required sources: Practice only'],
+      [null, 'WARNING: no source plan is stored for this legacy topic'],
+    ])('renders source-plan policy %p', async (sourcePlan, expected) => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ sourcePlan }));
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+      expect(md).toContain(expected);
+    });
+
+    it('marks expired options and omits first-exposure requirements for active topics', async () => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(
+        focusTopic({
+          status: 'active',
+          sourcePlan: {
+            policy: 'required',
+            requirements: [
+              {
+                id: 'intro',
+                purpose: 'First pass',
+                requiredWhen: 'first_exposure',
+                options: [
+                  {
+                    id: 'omit-me',
+                    title: 'Intro',
+                    url: 'https://example.com/intro',
+                    format: 'article',
+                    scope: 'Intro',
+                    estimatedMinutes: 5,
+                    why: 'Basics',
+                  },
+                ],
+              },
+              {
+                id: 'always',
+                purpose: 'Current reference',
+                requiredWhen: 'always',
+                options: [
+                  {
+                    id: 'expired-source',
+                    title: 'Old docs',
+                    url: 'https://example.com/old',
+                    format: 'documentation',
+                    scope: 'API',
+                    estimatedMinutes: 10,
+                    why: 'Reference',
+                    verifiedAt: '2026-01-01',
+                    recheckAfterDays: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+      expect(md).not.toContain('omit-me');
+      expect(md).toContain('expired-source');
+      expect(md).toContain('EXPIRED');
+      expect(md).toContain('Verified at: 2026-01-01');
+      expect(md).toContain('Recheck after: 1 days');
+    });
 
     it('renders learning goal, prereq summaries, existing cards, conduct, and chapter context siblings', async () => {
       prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });

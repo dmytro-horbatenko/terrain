@@ -21,6 +21,13 @@ describe('OUTPUT_CONTRACT', () => {
     expect(OUTPUT_CONTRACT).toContain('problem_solved');
   });
 
+  it('documents curated, substitute, and expired source evidence', () => {
+    expect(OUTPUT_CONTRACT).toContain('"sourceEvidence"');
+    expect(OUTPUT_CONTRACT).toContain('substitutionReason');
+    expect(OUTPUT_CONTRACT).toContain('verifiedLiveAt');
+    expect(OUTPUT_CONTRACT).toContain('reconstructed');
+  });
+
   it('keeps the grade-is-the-users-verdict rule', () => {
     expect(OUTPUT_CONTRACT).toContain('never yours');
   });

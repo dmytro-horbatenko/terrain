@@ -5,6 +5,11 @@ import { MetricsService } from '../metrics/metrics.service';
 import { OUTPUT_CONTRACT } from './output-contract';
 import { estimateMinutes } from '../telegram/telegram.messages';
 import { LEARN_CONDUCT, REPEAT_CONDUCT } from './session-conduct';
+import {
+  applicableRequirements,
+  isSourceExpired,
+  parseStoredSourcePlan,
+} from '../sources/source-plan';
 
 type TopicWithPrereqs = Prisma.TopicGetPayload<{
   include: {
@@ -134,7 +139,7 @@ Note system: ${user?.noteSystem ?? ''}`;
   private async generateLearn(userId: string, now: Date, focusTopicId?: string): Promise<string> {
     let focusId = focusTopicId;
     if (!focusId) {
-      const next = await this.metrics.nextUp(userId);
+      const next = await this.metrics.nextUp(userId, undefined, now);
       if (!next) {
         throw new UnprocessableEntityException(
           'No startable topic — pass focusTopicId or start something from the roadmap.',
@@ -160,6 +165,7 @@ Note system: ${user?.noteSystem ?? ''}`;
           orderBy: { createdAt: 'asc' },
           select: { id: true, promptKind: true, promptText: true, reps: true },
         },
+        sourceEvidence: { orderBy: { createdAt: 'desc' }, select: { sourceTitle: true }, take: 5 },
       },
     });
     if (!focus || focus.status === 'archived') {
@@ -203,8 +209,74 @@ Note system: ${user?.noteSystem ?? ''}`;
       sections.push(this.chapterContext(focus.parent.title, siblings, prereqChapters));
     }
 
-    sections.push(goal.join('\n'), LEARN_CONDUCT, OUTPUT_CONTRACT);
+    const settings = await this.prisma.settings.findUnique({ where: { userId } });
+    sections.push(
+      this.sourcePlan(focus, settings, now),
+      goal.join('\n'),
+      LEARN_CONDUCT,
+      OUTPUT_CONTRACT,
+    );
     return sections.join('\n\n');
+  }
+
+  private sourcePlan(
+    focus: {
+      status: 'planned' | 'active' | 'mastered' | 'archived';
+      sourcePlan: unknown;
+      sourceEvidence: { sourceTitle: string }[];
+    },
+    settings: {
+      preferredSourceFormats: string[];
+      sourceTimeBudgetMinutes: number | null;
+      sourceLanguage: string | null;
+      allowPaidSources: boolean;
+    } | null,
+    now: Date,
+  ): string {
+    const plan = parseStoredSourcePlan(focus.sourcePlan);
+    const lines = ['## SOURCE PLAN'];
+    if (!plan) lines.push('WARNING: no source plan is stored for this legacy topic.');
+    else if (plan.policy === 'none') lines.push(`No required sources: ${plan.rationale}`);
+    else {
+      const requirements = applicableRequirements(plan, focus.status);
+      const minutes = requirements.reduce(
+        (sum, requirement) =>
+          sum + Math.min(...requirement.options.map((option) => option.estimatedMinutes)),
+        0,
+      );
+      lines.push(`Estimated required intake: ${requirements.length} sources · ${minutes} min`);
+      for (const requirement of requirements) {
+        lines.push(
+          `Requirement ${requirement.id} (${requirement.requiredWhen}): ${requirement.purpose}`,
+        );
+        for (const option of requirement.options) {
+          const expired = isSourceExpired(option, now) ? ' [EXPIRED — verify live before use]' : '';
+          lines.push(
+            `- ${option.id}${expired}: ${option.title} [${option.format}]\n` +
+              `  URL: ${option.url}\n` +
+              `  Scope: ${option.scope}\n` +
+              `  Time: ${option.estimatedMinutes} min\n` +
+              `  Why: ${option.why}\n` +
+              `  Paid: ${option.paid ?? false}; Language: ${option.language ?? 'unspecified'}` +
+              (option.verifiedAt
+                ? `\n  Verified at: ${option.verifiedAt}\n  Recheck after: ${option.recheckAfterDays} days`
+                : ''),
+          );
+        }
+      }
+    }
+    lines.push(
+      `Preferred formats: ${settings?.preferredSourceFormats.join(', ') || 'none specified'}`,
+      `Source time budget: ${settings?.sourceTimeBudgetMinutes ?? 'none specified'} min`,
+      `Preferred language: ${settings?.sourceLanguage ?? 'none specified'}`,
+      `Paid sources allowed: ${settings?.allowPaidSources ?? false}`,
+    );
+    if (focus.sourceEvidence.length) {
+      lines.push(
+        `Prior source evidence: ${focus.sourceEvidence.map((e) => e.sourceTitle).join(', ')}`,
+      );
+    }
+    return lines.join('\n');
   }
 
   private prereqStatuses(t: TopicWithPrereqs): string[] {

@@ -59,6 +59,44 @@ const PROMPT = (over: any = {}) => ({
   ...over,
 });
 
+const OPTION = (over: any = {}) => ({
+  id: 'src-intro',
+  title: 'Intro source',
+  url: 'https://example.com/intro',
+  format: 'article',
+  scope: 'Whole article',
+  estimatedMinutes: 10,
+  why: 'Clear introduction',
+  ...over,
+});
+const SOURCE_PLAN = (over: any = {}) => ({
+  policy: 'required',
+  requirements: [
+    { id: 'intro', purpose: 'Introduction', requiredWhen: 'first_exposure', options: [OPTION()] },
+    {
+      id: 'reference',
+      purpose: 'Reference',
+      requiredWhen: 'always',
+      options: [OPTION({ id: 'src-reference', title: 'Reference source' })],
+    },
+  ],
+  ...over,
+});
+const EVIDENCE = (over: any = {}) => ({
+  topicTitle: 'New topic',
+  requirementId: 'intro',
+  sourceId: 'src-intro',
+  sourceTitle: 'Intro source',
+  sourceUrl: 'https://example.com/intro',
+  mainClaim: 'The main claim',
+  supportingMechanism: 'The mechanism',
+  openQuestion: null,
+  substitutionReason: null,
+  verifiedLiveAt: null,
+  verificationNote: null,
+  ...over,
+});
+
 function build(prismaOver: any = {}) {
   const prisma: any = {
     sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
@@ -77,6 +115,163 @@ async function svc(prisma: any): Promise<ImportService> {
 }
 
 describe('ImportService.preview', () => {
+  it('plans valid curated evidence for every requirement of a studied planned topic', async () => {
+    const { prisma } = build({ topic: { findMany: jest.fn().mockResolvedValue([]) } });
+    const service = await svc(prisma);
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'New topic',
+              type: 'concept',
+              domain: 'D',
+              prerequisiteTitles: [],
+              sourcePlan: SOURCE_PLAN(),
+            },
+          ],
+          studiedTopics: ['New topic'],
+          sourceEvidence: [
+            EVIDENCE(),
+            EVIDENCE({ requirementId: 'reference', sourceId: 'src-reference' }),
+          ],
+        }),
+      ),
+    );
+    expect(plan.sourceIssues).toEqual([]);
+    expect(plan.sourceEvidence).toHaveLength(2);
+    expect(plan.applicable).toBe(true);
+  });
+
+  it.each([
+    [
+      'missing-evidence',
+      [],
+      { requirementId: 'intro', reason: 'missing-evidence', blocking: true },
+    ],
+    [
+      'unknown-requirement',
+      [EVIDENCE({ requirementId: 'nope' })],
+      { reason: 'unknown-requirement' },
+    ],
+    ['unknown-source', [EVIDENCE({ sourceId: 'nope' })], { reason: 'unknown-source' }],
+    ['duplicate', [EVIDENCE(), EVIDENCE()], { reason: 'duplicate' }],
+  ])('reports %s source issues', async (_name, sourceEvidence, expected) => {
+    const { prisma } = build({ topic: { findMany: jest.fn().mockResolvedValue([]) } });
+    const service = await svc(prisma);
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'New topic',
+              type: 'concept',
+              domain: 'D',
+              prerequisiteTitles: [],
+              sourcePlan: SOURCE_PLAN(),
+            },
+          ],
+          studiedTopics: ['New topic'],
+          sourceEvidence,
+        }),
+      ),
+    );
+    expect(plan.sourceIssues).toContainEqual(expect.objectContaining(expected));
+    expect(plan.applicable).toBe(false);
+  });
+
+  it('active studied topics require always evidence only; policy none passes; legacy null warns', async () => {
+    const service = await svc(
+      build({
+        topic: {
+          findMany: jest.fn().mockResolvedValue([
+            TOPIC({ id: 'active', title: 'Active', status: 'active', sourcePlan: SOURCE_PLAN() }),
+            TOPIC({
+              id: 'none',
+              title: 'None',
+              status: 'planned',
+              sourcePlan: { policy: 'none', rationale: 'No sources' },
+            }),
+            TOPIC({ id: 'legacy', title: 'Legacy', status: 'active', sourcePlan: null }),
+          ]),
+        },
+      }).prisma,
+    );
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          studiedTopics: ['Active', 'None', 'Legacy'],
+          sourceEvidence: [
+            EVIDENCE({
+              topicTitle: 'Active',
+              requirementId: 'reference',
+              sourceId: 'src-reference',
+            }),
+          ],
+        }),
+      ),
+    );
+    expect(plan.sourceIssues).toEqual([
+      expect.objectContaining({ topicTitle: 'Legacy', reason: 'missing-plan', blocking: false }),
+    ]);
+    expect(plan.applicable).toBe(true);
+  });
+
+  it('requires live verification for expired curated evidence but accepts a rationalized substitute', async () => {
+    const expired = SOURCE_PLAN({
+      requirements: [
+        {
+          id: 'intro',
+          purpose: 'Intro',
+          requiredWhen: 'always',
+          options: [OPTION({ verifiedAt: '2020-01-01', recheckAfterDays: 1 })],
+        },
+      ],
+    });
+    const service = await svc(
+      build({ topic: { findMany: jest.fn().mockResolvedValue([]) } }).prisma,
+    );
+    const base = {
+      proposedTopics: [
+        {
+          title: 'New topic',
+          type: 'concept',
+          domain: 'D',
+          prerequisiteTitles: [],
+          sourcePlan: expired,
+        },
+      ],
+      studiedTopics: ['New topic'],
+    };
+    const blocked = await service.preview(
+      'userA',
+      fence(v2({ ...base, sourceEvidence: [EVIDENCE()] })),
+    );
+    expect(blocked.sourceIssues).toContainEqual(
+      expect.objectContaining({ reason: 'verification-required', blocking: true }),
+    );
+    const substitute = await service.preview(
+      'userA',
+      fence(
+        v2({
+          ...base,
+          sourceEvidence: [
+            EVIDENCE({
+              sourceId: undefined,
+              sourceTitle: 'Replacement',
+              sourceUrl: 'https://other.example/x',
+              substitutionReason: 'Original unavailable',
+            }),
+          ],
+        }),
+      ),
+    );
+    expect(substitute.sourceIssues).toEqual([]);
+    expect(substitute.sourceEvidence[0].substituted).toBe(true);
+  });
   it('resolves an evidence review by title (no promptId, no preview)', async () => {
     const { prisma } = build();
     const service = await svc(prisma);
@@ -481,6 +676,7 @@ describe('ImportService.apply (transaction)', () => {
         aggregate: jest.fn().mockResolvedValue({ _min: { nextReviewAt: null } }),
       },
       applicationEvent: { create: jest.fn().mockResolvedValue({ id: 'ae-1' }) },
+      sourceEvidence: { create: jest.fn().mockResolvedValue({ id: 'se-1' }) },
     };
   }
   async function svcWithTx(prisma: any): Promise<ImportService> {
@@ -1209,6 +1405,101 @@ describe('ImportService.apply guards (no writes on reject)', () => {
     const raw = fence(v2({ reviews: [{ topicTitle: 'Ghost', grade: 'hard' }] }));
     await expect(service.apply('userA', raw)).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(tx).not.toHaveBeenCalled();
+  });
+
+  it('persists source plans and evidence in the import transaction', async () => {
+    const tx: any = {
+      sessionExport: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      topicType: { upsert: jest.fn().mockResolvedValue({}) },
+      topic: {
+        create: jest.fn(({ data }: any) => Promise.resolve({ id: `new-${data.title}`, ...data })),
+        update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      prerequisite: { create: jest.fn().mockResolvedValue({}) },
+      prompt: { create: jest.fn().mockResolvedValue({}) },
+      sourceEvidence: { create: jest.fn().mockResolvedValue({ id: 'se-1' }) },
+    };
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: { findMany: jest.fn().mockResolvedValue([]) },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    };
+    const service = await svc(prisma);
+    const plan = SOURCE_PLAN({
+      requirements: [
+        { id: 'intro', purpose: 'Intro', requiredWhen: 'always', options: [OPTION()] },
+      ],
+    });
+    const res = await service.apply(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'New topic',
+              type: 'concept',
+              domain: 'D',
+              prerequisiteTitles: [],
+              sourcePlan: plan,
+            },
+          ],
+          studiedTopics: ['New topic'],
+          sourceEvidence: [EVIDENCE()],
+        }),
+      ),
+    );
+    expect(tx.topic.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sourcePlan: plan }) }),
+    );
+    expect(tx.sourceEvidence.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'userA',
+        topicId: 'new-New topic',
+        sessionExportId: 'sess-1',
+        requirementId: 'intro',
+        sourceId: 'src-intro',
+      }),
+    });
+    expect(res.sourceEvidenceApplied).toBe(1);
+  });
+
+  it('does not start any writes when source evidence is missing', async () => {
+    const transaction = jest.fn();
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([TOPIC({ status: 'planned', sourcePlan: SOURCE_PLAN() })]),
+      },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: transaction,
+    };
+    const service = await svc(prisma);
+    await expect(
+      service.apply(
+        'userA',
+        fence(
+          v2({
+            studiedTopics: ['Stacks'],
+            noteSummaries: [{ topicTitle: 'Stacks', keyInsight: 'Would otherwise write' }],
+            applicationEvents: [
+              {
+                topicTitle: 'Stacks',
+                kind: 'problem_solved',
+                description: 'Would otherwise write',
+              },
+            ],
+          }),
+        ),
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(transaction).not.toHaveBeenCalled();
   });
 });
 

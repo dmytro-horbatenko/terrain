@@ -34,6 +34,13 @@ When the session ends, output ONE fenced code block tagged \`learning-os\` conta
       "description": "what I actually did/solved",
       "url": "https://leetcode.com/problems/... (optional)" }
   ],
+  "sourceEvidence": [
+    { "topicTitle": "<exact title>", "requirementId": "<SOURCE PLAN requirement id>",
+      "sourceId": "<curated option id>", "sourceTitle": "...", "sourceUrl": "https://...",
+      "mainClaim": "what I reconstructed", "supportingMechanism": "what I reconstructed",
+      "openQuestion": null, "substitutionReason": null, "verifiedLiveAt": null,
+      "verificationNote": null }
+  ],
   "studiedTopics": ["<exact title of a topic genuinely studied this session>"],
   "nextSession": { "focusTitle": "...", "coldChallenge": "..." }
 }
@@ -45,6 +52,10 @@ Prefer promptId reviews; use topicTitle-only reviews only for work outside any l
 applicationEvents: record only things the user genuinely did this session (solved a novel
 problem, used it in a project) — one such event satisfies the topic's mastery application
 condition, so do not fabricate them.
+sourceEvidence: entries describe what the learner actually reconstructed, not the assistant's
+summary. Curated sources include sourceId and have substitutionReason null. Replacements omit
+sourceId and require a non-null substitutionReason. Expired curated sources require both
+verifiedLiveAt and verificationNote after live verification; otherwise both fields are null.
 noteSummaries: keep each entry BRIEF — Terrain is an index, not a note store. Put the full
 conspect in the Obsidian note (write it as chat prose); keyInsight is a short pointer and
 suggestedNoteRef names where the depth lives. Name any secondary artifact (a OneNote drawing)
