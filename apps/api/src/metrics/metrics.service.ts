@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prompt, Topic } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { parseStoredSourcePlan, sourcePlanStats } from '../sources/source-plan';
 import { estimateMinutes } from '../telegram/telegram.messages';
 import { interleaveQueue, type SessionQueueItem } from './interleave';
 
@@ -11,6 +12,7 @@ export interface NextUp {
   topic: Topic;
   chapterTitle: string | null;
   chapterProgress: { started: number; total: number } | null;
+  sourcePlanStats: { requiredCount: number; estimatedMinutes: number; hasExpired: boolean };
 }
 
 /** Local-time YYYY-MM-DD key (matches the streak engine's local day bounds). */
@@ -280,18 +282,21 @@ export class MetricsService {
    * order (preserves authored curriculum order). Tentative (aiProposed)
    * topics are candidates — starting one commits it (web-side).
    */
-  async nextUp(userId: string, domain?: string): Promise<NextUp | null> {
+  async nextUp(userId: string, domain?: string, now = new Date()): Promise<NextUp | null> {
     const disabled = await this.disabledDomains(userId);
     const [firstId] = await this.startablePlannedIds(userId, domain, disabled);
     if (!firstId) return null;
     const topic = await this.prisma.topic.findFirst({ where: { id: firstId, userId } });
     if (!topic) return null;
-    if (!topic.parentId) return { topic, chapterTitle: null, chapterProgress: null };
+    const stats = sourcePlanStats(parseStoredSourcePlan(topic.sourcePlan), topic.status, now);
+    if (!topic.parentId)
+      return { topic, chapterTitle: null, chapterProgress: null, sourcePlanStats: stats };
     const parent = await this.prisma.topic.findFirst({
       where: { id: topic.parentId, userId },
       select: { title: true, children: { select: { status: true } } },
     });
-    if (!parent) return { topic, chapterTitle: null, chapterProgress: null };
+    if (!parent)
+      return { topic, chapterTitle: null, chapterProgress: null, sourcePlanStats: stats };
     const started = parent.children.filter(
       (c) => c.status === 'active' || c.status === 'mastered',
     ).length;
@@ -299,6 +304,7 @@ export class MetricsService {
       topic,
       chapterTitle: parent.title,
       chapterProgress: { started, total: parent.children.length },
+      sourcePlanStats: stats,
     };
   }
 
@@ -340,7 +346,7 @@ export class MetricsService {
           where: { userId, ...(domain ? { domain } : {}) },
         }),
         this.newCardsCount(userId, domain),
-        this.nextUp(userId, domain),
+        this.nextUp(userId, domain, now),
         this.sessionQueue(userId, now, domain),
         this.pendingSessions(userId, now),
       ]);

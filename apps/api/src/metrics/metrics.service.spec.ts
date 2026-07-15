@@ -402,6 +402,124 @@ describe('MetricsService', () => {
   });
 
   describe('nextUp', () => {
+    it.each([
+      [null, { requiredCount: 0, estimatedMinutes: 0, hasExpired: false }],
+      [
+        { policy: 'none', rationale: 'Practice-only topic' },
+        { requiredCount: 0, estimatedMinutes: 0, hasExpired: false },
+      ],
+    ])('returns zero source timing for plan %p', async (sourcePlan, expected) => {
+      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      prisma.topic.findFirst.mockResolvedValue({
+        id: 't1',
+        title: 'Stack',
+        status: 'planned',
+        parentId: null,
+        sourcePlan,
+      });
+
+      expect((await service.nextUp('userA'))?.sourcePlanStats).toEqual(expected);
+    });
+
+    it('returns minimum required source count and intake time', async () => {
+      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      prisma.topic.findFirst.mockResolvedValue({
+        id: 't1',
+        title: 'Stack',
+        status: 'planned',
+        parentId: null,
+        sourcePlan: {
+          policy: 'required',
+          requirements: [
+            {
+              id: 'concept',
+              purpose: 'Learn the concept',
+              requiredWhen: 'always',
+              options: [
+                {
+                  id: 'course',
+                  title: 'Course',
+                  url: 'https://example.com/course',
+                  format: 'course',
+                  scope: 'Module',
+                  estimatedMinutes: 25,
+                  why: 'Complete',
+                },
+                {
+                  id: 'notes',
+                  title: 'Notes',
+                  url: 'https://example.com/notes',
+                  format: 'article',
+                  scope: 'Article',
+                  estimatedMinutes: 10,
+                  why: 'Concise',
+                },
+              ],
+            },
+            {
+              id: 'implementation',
+              purpose: 'See an implementation',
+              requiredWhen: 'first_exposure',
+              options: [
+                {
+                  id: 'repo',
+                  title: 'Repository',
+                  url: 'https://example.com/repo',
+                  format: 'documentation',
+                  scope: 'Example',
+                  estimatedMinutes: 15,
+                  why: 'Concrete',
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      expect((await service.nextUp('userA'))?.sourcePlanStats).toEqual({
+        requiredCount: 2,
+        estimatedMinutes: 25,
+        hasExpired: false,
+      });
+    });
+
+    it('uses the request clock for source expiry', async () => {
+      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      prisma.topic.findFirst.mockResolvedValue({
+        id: 't1',
+        title: 'Stack',
+        status: 'planned',
+        parentId: null,
+        sourcePlan: {
+          policy: 'required',
+          requirements: [
+            {
+              id: 'current',
+              purpose: 'Read current documentation',
+              requiredWhen: 'always',
+              options: [
+                {
+                  id: 'docs',
+                  title: 'Documentation',
+                  url: 'https://example.com/docs',
+                  format: 'documentation',
+                  scope: 'Guide',
+                  estimatedMinutes: 10,
+                  why: 'Authoritative',
+                  verifiedAt: '2026-06-01',
+                  recheckAfterDays: 30,
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await service.nextUp('userA', undefined, new Date('2026-06-15T00:00:00Z'));
+
+      expect(result?.sourcePlanStats.hasExpired).toBe(false);
+    });
+
     it('returns the first startable planned topic in creation order, skipping blocked ones', async () => {
       prisma.topic.findMany.mockImplementation(({ where }: any) =>
         Promise.resolve(
@@ -431,6 +549,7 @@ describe('MetricsService', () => {
         topic: { id: 't-startable', title: 'Stack', parentId: null },
         chapterTitle: null,
         chapterProgress: null,
+        sourcePlanStats: { requiredCount: 0, estimatedMinutes: 0, hasExpired: false },
       });
       // ordering is delegated to SQL — assert it, and that aiProposed is NOT filtered
       expect(prisma.topic.findMany).toHaveBeenCalledWith(

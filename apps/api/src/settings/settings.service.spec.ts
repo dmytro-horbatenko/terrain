@@ -10,6 +10,10 @@ const row = (over: Record<string, unknown> = {}) => ({
   timezone: 'UTC',
   digestHour: 9,
   nudgeHour: 20,
+  preferredSourceFormats: [],
+  sourceTimeBudgetMinutes: null,
+  sourceLanguage: null,
+  allowPaidSources: false,
   telegramLinkToken: null,
   telegramLinkTokenExpiresAt: null,
   ...over,
@@ -41,6 +45,10 @@ describe('SettingsService', () => {
       timezone: 'UTC',
       digestHour: 9,
       nudgeHour: 20,
+      preferredSourceFormats: [],
+      sourceTimeBudgetMinutes: null,
+      sourceLanguage: null,
+      allowPaidSources: false,
       telegramLinked: false,
     });
     expect(prisma.settings.upsert).not.toHaveBeenCalled();
@@ -79,6 +87,38 @@ describe('SettingsService', () => {
       where: { userId: 'u1' },
       create: { userId: 'u1', digestHour: 7 },
       update: { digestHour: 7 },
+    });
+  });
+
+  it('update allowlists learning source preferences', async () => {
+    prisma.settings.upsert.mockResolvedValue(
+      row({
+        preferredSourceFormats: ['documentation', 'video'],
+        sourceTimeBudgetMinutes: 45,
+        sourceLanguage: 'en',
+      }),
+    );
+    await service.update('u1', {
+      preferredSourceFormats: ['documentation', 'video'],
+      sourceTimeBudgetMinutes: 45,
+      sourceLanguage: 'en',
+      allowPaidSources: false,
+    });
+    expect(prisma.settings.upsert).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      create: {
+        userId: 'u1',
+        preferredSourceFormats: ['documentation', 'video'],
+        sourceTimeBudgetMinutes: 45,
+        sourceLanguage: 'en',
+        allowPaidSources: false,
+      },
+      update: {
+        preferredSourceFormats: ['documentation', 'video'],
+        sourceTimeBudgetMinutes: 45,
+        sourceLanguage: 'en',
+        allowPaidSources: false,
+      },
     });
   });
 

@@ -10,10 +10,23 @@ export interface SettingsView {
   timezone: string;
   digestHour: number | null;
   nudgeHour: number | null;
+  preferredSourceFormats: string[];
+  sourceTimeBudgetMinutes: number | null;
+  sourceLanguage: string | null;
+  allowPaidSources: boolean;
   telegramLinked: boolean;
 }
 
-const DEFAULTS = { obsidianVault: null, timezone: 'UTC', digestHour: 9, nudgeHour: 20 };
+const DEFAULTS = {
+  obsidianVault: null,
+  timezone: 'UTC',
+  digestHour: 9,
+  nudgeHour: 20,
+  preferredSourceFormats: [],
+  sourceTimeBudgetMinutes: null,
+  sourceLanguage: null,
+  allowPaidSources: false,
+};
 
 function toView(userId: string, row: Settings | null): SettingsView {
   return {
@@ -22,6 +35,10 @@ function toView(userId: string, row: Settings | null): SettingsView {
     timezone: row?.timezone ?? DEFAULTS.timezone,
     digestHour: row ? row.digestHour : DEFAULTS.digestHour,
     nudgeHour: row ? row.nudgeHour : DEFAULTS.nudgeHour,
+    preferredSourceFormats: row?.preferredSourceFormats ?? DEFAULTS.preferredSourceFormats,
+    sourceTimeBudgetMinutes: row?.sourceTimeBudgetMinutes ?? DEFAULTS.sourceTimeBudgetMinutes,
+    sourceLanguage: row?.sourceLanguage ?? DEFAULTS.sourceLanguage,
+    allowPaidSources: row?.allowPaidSources ?? DEFAULTS.allowPaidSources,
     telegramLinked: row?.telegramChatId != null,
   };
 }
@@ -52,6 +69,12 @@ export class SettingsService {
     if (dto.timezone !== undefined) data.timezone = dto.timezone;
     if (dto.digestHour !== undefined) data.digestHour = dto.digestHour;
     if (dto.nudgeHour !== undefined) data.nudgeHour = dto.nudgeHour;
+    if (dto.preferredSourceFormats !== undefined)
+      data.preferredSourceFormats = dto.preferredSourceFormats;
+    if (dto.sourceTimeBudgetMinutes !== undefined)
+      data.sourceTimeBudgetMinutes = dto.sourceTimeBudgetMinutes;
+    if (dto.sourceLanguage !== undefined) data.sourceLanguage = dto.sourceLanguage;
+    if (dto.allowPaidSources !== undefined) data.allowPaidSources = dto.allowPaidSources;
     const row = await this.prisma.settings.upsert({
       where: { userId },
       create: { userId, ...data },

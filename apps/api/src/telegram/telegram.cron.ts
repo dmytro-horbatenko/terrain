@@ -50,7 +50,7 @@ export class TelegramCron {
       this.metrics.dueCards(s.userId, now),
       this.metrics.dueTopics(s.userId, now),
       this.streak.getState(s.userId),
-      this.metrics.nextUp(s.userId),
+      this.metrics.nextUp(s.userId, undefined, now),
     ]);
     const byKind = (k: string) => cards.filter((c) => c.promptKind === k).length;
     const html = composeDigest({
