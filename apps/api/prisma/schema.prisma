@@ -89,36 +89,39 @@ model User {
   dailyLogs      DailyLog[]
   topicTypes     TopicType[]
   courseImports  CourseImport[]
+  sourceEvidence SourceEvidence[]
 }
 
 // Case-insensitive title identity per user is enforced by a raw unique
 // index (`Topic_userId_title_ci_key` on (userId, lower(title))) added by
 // hand to the migration SQL — not expressible in schema.prisma.
 model Topic {
-  id            String             @id @default(uuid())
-  userId        String
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title         String
-  domain        String
-  topicType     String
-  status        TopicStatus        @default(planned)
-  description   String?
-  summary       String?
-  noteRef       String?
-  parentId      String?
-  parent        Topic?             @relation("SubTopics", fields: [parentId], references: [id])
-  children      Topic[]            @relation("SubTopics")
-  prerequisites Prerequisite[]     @relation("Dependent")
-  dependents    Prerequisite[]     @relation("Prereq")
-  nextReviewAt  DateTime?
-  learnedAt     DateTime?
-  aiProposed    Boolean            @default(false)
-  aiContext     String?
-  reviews       Review[]
-  prompts       Prompt[]
-  appEvents     ApplicationEvent[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id             String             @id @default(uuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  domain         String
+  topicType      String
+  status         TopicStatus        @default(planned)
+  description    String?
+  summary        String?
+  noteRef        String?
+  parentId       String?
+  parent         Topic?             @relation("SubTopics", fields: [parentId], references: [id])
+  children       Topic[]            @relation("SubTopics")
+  prerequisites  Prerequisite[]     @relation("Dependent")
+  dependents     Prerequisite[]     @relation("Prereq")
+  nextReviewAt   DateTime?
+  learnedAt      DateTime?
+  aiProposed     Boolean            @default(false)
+  aiContext      String?
+  reviews        Review[]
+  prompts        Prompt[]
+  appEvents      ApplicationEvent[]
+  sourcePlan     Json?
+  sourceEvidence SourceEvidence[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([userId, status, nextReviewAt])
   @@index([parentId])
@@ -199,10 +202,10 @@ model ApplicationEvent {
 }
 
 model SessionExport {
-  id                String     @id @default(uuid())
+  id                String           @id @default(uuid())
   userId            String
-  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generatedAt       DateTime   @default(now())
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedAt       DateTime         @default(now())
   mode              ExportMode
   domain            String?
   focusTopicId      String?
@@ -212,6 +215,7 @@ model SessionExport {
   newTopicsCreated  String[]
   nextFocusTitle    String?
   nextColdChallenge String?
+  sourceEvidence    SourceEvidence[]
 
   @@index([userId, generatedAt])
 }
@@ -256,6 +260,34 @@ model Settings {
   telegramLinkToken          String?   @unique
   telegramLinkTokenExpiresAt DateTime?
   disabledDomains            String[]  @default([])
+  preferredSourceFormats     String[]  @default([])
+  sourceTimeBudgetMinutes    Int?
+  sourceLanguage             String?
+  allowPaidSources           Boolean   @default(false)
+}
+
+model SourceEvidence {
+  id                  String        @id @default(uuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId             String
+  topic               Topic         @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  sessionExportId     String
+  sessionExport       SessionExport @relation(fields: [sessionExportId], references: [id], onDelete: Cascade)
+  requirementId       String
+  sourceId            String?
+  sourceTitle         String
+  sourceUrl           String
+  mainClaim           String
+  supportingMechanism String
+  openQuestion        String?
+  substitutionReason  String?
+  verifiedLiveAt      DateTime?
+  verificationNote    String?
+  createdAt           DateTime      @default(now())
+
+  @@unique([sessionExportId, topicId, requirementId])
+  @@index([topicId, createdAt])
 }
 
 model CourseImport {
