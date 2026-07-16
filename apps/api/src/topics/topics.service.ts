@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { sourcePlanSchema } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
@@ -17,6 +19,16 @@ export class TopicsService {
     private metrics: MetricsService,
   ) {}
 
+  private parseSourcePlan(
+    value: unknown,
+  ): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return Prisma.DbNull;
+    const parsed = sourcePlanSchema.safeParse(value);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    return parsed.data as Prisma.InputJsonValue;
+  }
+
   private async registerType(userId: string, topicType: string) {
     const label = topicType.trim();
     const key = label.toLowerCase();
@@ -28,12 +40,25 @@ export class TopicsService {
   }
 
   async create(userId: string, dto: CreateTopicDto) {
+    const sourcePlan = this.parseSourcePlan(dto.sourcePlan);
     if (dto.parentId) await this.findOne(userId, dto.parentId); // 404 if missing or not owned
     await this.registerType(userId, dto.topicType);
     const title = dto.title.trim();
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const topic = await tx.topic.create({ data: { ...dto, title, userId } });
+        const topic = await tx.topic.create({
+          data: {
+            title,
+            domain: dto.domain,
+            topicType: dto.topicType,
+            status: dto.status,
+            description: dto.description,
+            noteRef: dto.noteRef,
+            parentId: dto.parentId,
+            sourcePlan,
+            userId,
+          },
+        });
         await tx.prompt.create({
           data: { topicId: topic.id, ...STARTER_CARD_DATA(title) },
         });
@@ -87,6 +112,7 @@ export class TopicsService {
         reviews: { orderBy: { reviewedAt: 'desc' } },
         appEvents: { orderBy: { appliedAt: 'desc' } },
         prompts: { orderBy: { createdAt: 'asc' } },
+        sourceEvidence: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!topic) throw new NotFoundException(`Topic ${id} not found`);
@@ -170,6 +196,7 @@ export class TopicsService {
 
   async update(userId: string, id: string, dto: UpdateTopicDto) {
     const existing = await this.findOne(userId, id);
+    const sourcePlan = this.parseSourcePlan(dto.sourcePlan);
     if (
       typeof dto.parentId === 'string' &&
       dto.parentId.length > 0 &&
@@ -178,15 +205,23 @@ export class TopicsService {
       await this.assertNoParentCycle(userId, id, dto.parentId);
     }
     if (dto.topicType) await this.registerType(userId, dto.topicType);
-    const { nextReviewAt, title, ...rest } = dto;
+    const data: Prisma.TopicUpdateInput = {
+      ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+      ...(dto.domain !== undefined ? { domain: dto.domain } : {}),
+      ...(dto.topicType !== undefined ? { topicType: dto.topicType } : {}),
+      ...(dto.status !== undefined ? { status: dto.status } : {}),
+      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.noteRef !== undefined ? { noteRef: dto.noteRef } : {}),
+      ...(dto.parentId !== undefined ? { parentId: dto.parentId } : {}),
+      ...(dto.summary !== undefined ? { summary: dto.summary } : {}),
+      ...(dto.nextReviewAt ? { nextReviewAt: new Date(dto.nextReviewAt) } : {}),
+      ...(dto.aiProposed !== undefined ? { aiProposed: dto.aiProposed } : {}),
+      ...(sourcePlan !== undefined ? { sourcePlan } : {}),
+    };
     try {
       return await this.prisma.topic.update({
         where: { id },
-        data: {
-          ...rest,
-          ...(title !== undefined ? { title: title.trim() } : {}),
-          ...(nextReviewAt ? { nextReviewAt: new Date(nextReviewAt) } : {}),
-        },
+        data,
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

@@ -1,5 +1,10 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
@@ -13,6 +18,29 @@ const metricsMock: any = {
 
 const p2002 = () =>
   new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'x' });
+
+const validPlan = {
+  policy: 'required' as const,
+  requirements: [
+    {
+      id: 'official-docs',
+      purpose: 'Learn the supported API',
+      requiredWhen: 'first_exposure' as const,
+      options: [
+        {
+          id: 'docs',
+          title: 'Official docs',
+          url: 'https://example.com/docs',
+          format: 'documentation' as const,
+          scope: 'Topic guide',
+          estimatedMinutes: 20,
+          why: 'Canonical reference',
+          paid: false,
+        },
+      ],
+    },
+  ],
+};
 
 describe('TopicsService', () => {
   let service: TopicsService;
@@ -117,6 +145,18 @@ describe('TopicsService', () => {
         topicId: topic.id,
         promptText: starterCardText('Monotonic stack'),
       }),
+    });
+  });
+
+  it('create writes a validated source plan', async () => {
+    await service.create('userA', {
+      title: 'Sources',
+      domain: 'DSA',
+      topicType: 'Pattern',
+      sourcePlan: validPlan,
+    });
+    expect(prisma.topic.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ sourcePlan: validPlan }),
     });
   });
 
@@ -234,6 +274,73 @@ describe('TopicsService', () => {
   it('getDetail throws 404 when the topic is missing', async () => {
     prisma.topic.findFirst.mockResolvedValue(null);
     await expect(service.getDetail('userA', 'nope')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('getDetail requests source evidence newest-first and returns it unchanged', async () => {
+    const sourceEvidence = [{ id: 'new' }, { id: 'old' }];
+    prisma.topic.findFirst.mockResolvedValue({
+      id: 't1',
+      status: 'active',
+      noteRef: null,
+      summary: null,
+      parent: null,
+      children: [],
+      prerequisites: [],
+      dependents: [],
+      reviews: [],
+      appEvents: [],
+      prompts: [],
+      sourceEvidence,
+    });
+    const result = await service.getDetail('userA', 't1');
+    expect(prisma.topic.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          sourceEvidence: { orderBy: { createdAt: 'desc' } },
+        }),
+      }),
+    );
+    expect(result.sourceEvidence).toBe(sourceEvidence);
+  });
+
+  it('update writes a validated source plan and null clears it with database NULL', async () => {
+    prisma.topic.findFirst.mockResolvedValue({ id: 't1', parentId: null });
+    prisma.topic.update = jest.fn().mockResolvedValue({ id: 't1' });
+    await service.update('userA', 't1', { sourcePlan: validPlan });
+    expect(prisma.topic.update).toHaveBeenLastCalledWith({
+      where: { id: 't1' },
+      data: { sourcePlan: validPlan },
+    });
+
+    await service.update('userA', 't1', { sourcePlan: null });
+    expect(prisma.topic.update).toHaveBeenLastCalledWith({
+      where: { id: 't1' },
+      data: { sourcePlan: Prisma.DbNull },
+    });
+  });
+
+  it('update rejects an invalid source plan with 400', async () => {
+    prisma.topic.findFirst.mockResolvedValue({ id: 't1', parentId: null });
+    prisma.topic.update = jest.fn();
+    await expect(
+      service.update('userA', 't1', {
+        sourcePlan: { policy: 'required', requirements: [] },
+      } as never),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.topic.update).not.toHaveBeenCalled();
+  });
+
+  it('update validates an invalid source plan before registering a new topic type', async () => {
+    prisma.topic.findFirst.mockResolvedValue({ id: 't1', parentId: null });
+    prisma.topic.update = jest.fn();
+    await expect(
+      service.update('userA', 't1', {
+        topicType: 'New type',
+        sourcePlan: { policy: 'required', requirements: [] },
+      } as never),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.topicType.upsert).not.toHaveBeenCalled();
+    expect(prisma.topic.update).not.toHaveBeenCalled();
   });
 
   it('update forwards aiProposed (keep) through to prisma.topic.update', async () => {

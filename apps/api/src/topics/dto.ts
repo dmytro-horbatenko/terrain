@@ -17,6 +17,7 @@ export class CreateTopicDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() noteRef?: string;
   @IsOptional() @IsString() parentId?: string;
+  @IsOptional() sourcePlan?: unknown | null;
 }
 
 export class UpdateTopicDto {
@@ -30,6 +31,7 @@ export class UpdateTopicDto {
   @IsOptional() @IsString() summary?: string;
   @IsOptional() @IsString() nextReviewAt?: string;
   @IsOptional() @IsBoolean() aiProposed?: boolean;
+  @IsOptional() sourcePlan?: unknown | null;
 }
 
 export class CreateAppEventDto {
