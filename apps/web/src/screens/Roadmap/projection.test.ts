@@ -15,6 +15,7 @@ function topic(over: Partial<TopicWithMeta> & { id: string; title: string }): To
     learnedAt: null,
     aiProposed: false,
     aiContext: null,
+    sourcePlan: null,
     createdAt: '2026-07-02T00:00:00Z',
     updatedAt: '2026-07-02T00:00:00Z',
     prerequisiteIds: [],
