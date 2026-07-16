@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { SourcePlan } from '@terrain/types';
 import { useSettings, useTopic, useUpdateTopic } from '../api/hooks';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
@@ -7,9 +8,15 @@ import { AppEventsPanel } from './AppEventsPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { TypeAutocomplete } from './TypeAutocomplete';
 import { Loading, ErrorBox } from './Feedback';
-import { TOPIC_STATUSES, type TopicRef, type TopicStatus } from '../api/types';
+import {
+  TOPIC_STATUSES,
+  type SourceEvidenceRecord,
+  type TopicRef,
+  type TopicStatus,
+} from '../api/types';
 import { STATUS_META, tint, topicColor } from './status';
 import { dueLabel, formatDate, noteRefHref } from '../lib/format';
+import { isSourceOptionExpired, safeHttpUrl } from '../screens/Import/sourceProjection';
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
@@ -44,6 +51,133 @@ function RefChips({ refs, empty }: { refs: TopicRef[]; empty: string }) {
           </span>
         );
       })}
+    </div>
+  );
+}
+
+function LearningSources({
+  plan,
+  evidence,
+}: {
+  plan: SourcePlan | null | undefined;
+  evidence: SourceEvidenceRecord[];
+}) {
+  const history = [...evidence].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+  return (
+    <div className="col gap-2">
+      <div className="card-title" style={{ margin: 0 }}>
+        Learning sources
+      </div>
+      {!plan ? (
+        <span className="faint">Source plan missing</span>
+      ) : plan.policy === 'none' ? (
+        <span className="faint">No intake source — {plan.rationale}</span>
+      ) : (
+        <div className="col gap-3">
+          {plan.requirements.map((requirement) => (
+            <div key={requirement.id} className="list-row col gap-1">
+              <div className="row wrap gap-2">
+                <b>{requirement.purpose}</b>
+                <span className="badge">{requirement.requiredWhen.replace('_', ' ')}</span>
+              </div>
+              {requirement.options.map((option) => (
+                <div key={option.id} className="col gap-1" style={{ paddingTop: 6 }}>
+                  <div className="row wrap gap-2">
+                    {safeHttpUrl(option.url) ? (
+                      <a href={option.url} target="_blank" rel="noreferrer">
+                        {option.title}
+                      </a>
+                    ) : (
+                      <span>{option.title}</span>
+                    )}
+                    <span className="pill">
+                      {option.format} · ~{option.estimatedMinutes}m
+                    </span>
+                    {isSourceOptionExpired(option) && <span className="badge">expired</span>}
+                  </div>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    Exact scope: {option.scope}
+                  </span>
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    Why: {option.why}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+          {plan.optional?.map((option) => (
+            <div key={option.id} className="list-row col gap-1">
+              <div className="row wrap gap-2">
+                {safeHttpUrl(option.url) ? (
+                  <a href={option.url} target="_blank" rel="noreferrer">
+                    {option.title}
+                  </a>
+                ) : (
+                  <span>{option.title}</span>
+                )}
+                <span className="badge">optional</span>
+                {isSourceOptionExpired(option) && <span className="badge">expired</span>}
+              </div>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Exact scope: {option.scope}
+              </span>
+              <span className="faint" style={{ fontSize: 12 }}>
+                Why: {option.why}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="card-title" style={{ margin: '8px 0 0' }}>
+        Source evidence history ({history.length})
+      </div>
+      {history.length === 0 ? (
+        <span className="faint">No source evidence stored.</span>
+      ) : (
+        <div className="col gap-2">
+          {history.map((entry, index) => {
+            const date = formatDate(entry.createdAt);
+            const showDate = index === 0 || date !== formatDate(history[index - 1].createdAt);
+            return (
+              <div key={entry.id} className="col gap-1">
+                {showDate && <b>{date}</b>}
+                <div className="list-row col gap-1">
+                  <div className="row wrap gap-2">
+                    {safeHttpUrl(entry.sourceUrl) ? (
+                      <a href={entry.sourceUrl} target="_blank" rel="noreferrer">
+                        {entry.sourceTitle}
+                      </a>
+                    ) : (
+                      <span>{entry.sourceTitle}</span>
+                    )}
+                    <span className="pill">requirement {entry.requirementId}</span>
+                    {entry.substitutionReason && <span className="badge">substitution</span>}
+                  </div>
+                  <span style={{ fontSize: 13 }}>{entry.mainClaim}</span>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    Mechanism: {entry.supportingMechanism}
+                  </span>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    Open question: {entry.openQuestion ?? 'none'}
+                  </span>
+                  {entry.substitutionReason && (
+                    <span className="faint" style={{ fontSize: 12 }}>
+                      Substitution rationale: {entry.substitutionReason}
+                    </span>
+                  )}
+                  {entry.verifiedLiveAt && entry.verificationNote && (
+                    <span className="faint" style={{ fontSize: 12 }}>
+                      Live verified {formatDate(entry.verifiedLiveAt)} — {entry.verificationNote}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -274,6 +408,8 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
 
       {/* application events */}
       <AppEventsPanel topicId={t.id} events={t.appEvents} />
+
+      <LearningSources plan={t.sourcePlan} evidence={t.sourceEvidence ?? []} />
 
       {/* prompts */}
       <PromptsPanel topicId={t.id} prompts={t.prompts} />

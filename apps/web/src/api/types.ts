@@ -1,3 +1,5 @@
+import type { SourceEvidence, SourcePlan } from '@terrain/types';
+
 // Mirrors of the NestJS API response shapes. Kept in sync by hand with
 // apps/api (see docs/superpowers/specs/2026-06-30-terrain-design.md §3, §6, §7).
 
@@ -28,6 +30,7 @@ export interface Topic {
   learnedAt: string | null;
   aiProposed: boolean;
   aiContext: string | null;
+  sourcePlan: SourcePlan | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +87,16 @@ export interface TopicDetail extends TopicWithMeta {
   appEventCount: number;
   prompts: Prompt[];
   mastery: Mastery;
+  sourceEvidence?: SourceEvidenceRecord[];
+}
+
+export interface SourceEvidenceRecord extends Omit<SourceEvidence, 'topicTitle' | 'sourceId'> {
+  id: string;
+  topicId: string;
+  sessionExportId: string;
+  sourceId: string | null;
+  verifiedLiveAt: string | null;
+  createdAt: string;
 }
 
 export interface CreateAppEventInput {
@@ -98,6 +111,10 @@ export interface Settings {
   timezone: string;
   digestHour: number | null;
   nudgeHour: number | null;
+  preferredSourceFormats: string[];
+  sourceTimeBudgetMinutes: number | null;
+  sourceLanguage: string | null;
+  allowPaidSources: boolean;
   telegramLinked: boolean;
 }
 
@@ -106,6 +123,10 @@ export interface UpdateSettingsInput {
   timezone?: string;
   digestHour?: number | null;
   nudgeHour?: number | null;
+  preferredSourceFormats?: string[];
+  sourceTimeBudgetMinutes?: number | null;
+  sourceLanguage?: string | null;
+  allowPaidSources?: boolean;
 }
 
 export interface HeatmapCell {
@@ -121,6 +142,7 @@ export interface CreateTopicInput {
   description?: string;
   noteRef?: string;
   parentId?: string;
+  sourcePlan?: SourcePlan | null;
 }
 
 export interface UpdateTopicInput {
@@ -134,6 +156,7 @@ export interface UpdateTopicInput {
   summary?: string;
   nextReviewAt?: string;
   aiProposed?: boolean;
+  sourcePlan?: SourcePlan | null;
 }
 
 export type PromptKind = 'concept' | 'code' | 'problem';
@@ -207,6 +230,7 @@ export interface NextUp {
   topic: Topic;
   chapterTitle: string | null;
   chapterProgress: { started: number; total: number } | null;
+  sourcePlanStats: { requiredCount: number; estimatedMinutes: number; hasExpired: boolean };
 }
 
 export interface PendingSession {
@@ -284,6 +308,7 @@ export interface NewTopicPlan {
   prerequisiteTitles: string[];
   parentTitle: string | null;
   aiContext?: string;
+  sourcePlan?: SourcePlan;
   alreadyExists: boolean;
 }
 
@@ -348,6 +373,28 @@ export interface ImportPlan {
   applicable: boolean;
   activations: ActivationPlan[];
   applicationEvents?: ApplicationEventPlan[];
+  sourceEvidence?: SourceEvidencePlan[];
+  sourceIssues?: SourceIssue[];
+}
+
+export type SourceEvidencePlan = SourceEvidence & {
+  resolvedTopicId: string | null;
+  substituted: boolean;
+};
+
+export interface SourceIssue {
+  topicTitle: string;
+  requirementId?: string;
+  sourceId?: string;
+  reason:
+    | 'missing-plan'
+    | 'missing-evidence'
+    | 'unknown-requirement'
+    | 'unknown-source'
+    | 'duplicate'
+    | 'verification-required';
+  blocking: boolean;
+  message: string;
 }
 
 export interface ImportResult {
@@ -359,6 +406,7 @@ export interface ImportResult {
   appEventsApplied: number;
   nextSessionStored: boolean;
   topicsActivated: number;
+  sourceEvidenceApplied: number;
 }
 
 // ---- Prepared courses ----
