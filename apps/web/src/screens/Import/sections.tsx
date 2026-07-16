@@ -9,8 +9,11 @@ import type {
   NewTopicPlan,
   NoteSummaryPlan,
   ResolvedReview,
+  SourceEvidencePlan,
+  SourceIssue,
   Unresolved,
 } from '../../api/types';
+import { safeHttpUrl, sourceIssueSummary } from './sourceProjection';
 
 /** Grade chip in the app's GradePicker colors (again/hard/good/easy). */
 function GradeBadge({ grade }: { grade: Grade }) {
@@ -186,7 +189,98 @@ export function NewTopicsSection({ topics }: { topics: NewTopicPlan[] }) {
   );
 }
 
-// ---- b1) Activations (studied topics moving planned → active) ----
+// ---- b1) Source evidence ----
+
+export function SourceEvidenceSection({ evidence }: { evidence: SourceEvidencePlan[] }) {
+  return (
+    <SectionShell title="Source reconstructions" count={evidence.length}>
+      {evidence.length === 0 ? (
+        <div className="muted">No source evidence reconstructed.</div>
+      ) : (
+        <div className="col gap-2">
+          {evidence.map((entry, index) => (
+            <div
+              key={`${entry.topicTitle}-${entry.requirementId}-${index}`}
+              className="list-row col gap-1"
+            >
+              <div className="row wrap gap-2">
+                <span className="grow" style={{ fontWeight: 600 }}>
+                  {entry.topicTitle}
+                </span>
+                <Chip>requirement {entry.requirementId}</Chip>
+                {entry.substituted && <span className="badge">substitution</span>}
+              </div>
+              {safeHttpUrl(entry.sourceUrl) ? (
+                <a href={entry.sourceUrl} target="_blank" rel="noreferrer">
+                  {entry.sourceTitle}
+                </a>
+              ) : (
+                <span>{entry.sourceTitle}</span>
+              )}
+              <div style={{ fontSize: 13 }}>
+                <b>Main claim:</b> {entry.mainClaim}
+              </div>
+              <div className="muted" style={{ fontSize: 13 }}>
+                <b>Mechanism:</b> {entry.supportingMechanism}
+              </div>
+              <div className="muted" style={{ fontSize: 13 }}>
+                <b>Open question:</b> {entry.openQuestion ?? 'none'}
+              </div>
+              {entry.substitutionReason && (
+                <div className="muted" style={{ fontSize: 13 }}>
+                  <b>Substitution rationale:</b> {entry.substitutionReason}
+                </div>
+              )}
+              {entry.verifiedLiveAt && entry.verificationNote && (
+                <div className="faint" style={{ fontSize: 12 }}>
+                  Live verified {formatDate(entry.verifiedLiveAt)} — {entry.verificationNote}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
+export function SourceIssuesPanel({ issues }: { issues: SourceIssue[] }) {
+  const { blocking, warnings } = sourceIssueSummary(issues);
+  if (issues.length === 0) return null;
+
+  const render = (issue: SourceIssue, index: number) => (
+    <div
+      key={`${issue.topicTitle}-${issue.requirementId}-${issue.sourceId}-${issue.reason}-${index}`}
+    >
+      <b>{issue.topicTitle}</b>
+      {issue.requirementId ? ` · requirement ${issue.requirementId}` : ''} — {issue.message}
+    </div>
+  );
+
+  return (
+    <Card title={`Source issues (${issues.length})`}>
+      <div className="col gap-3">
+        {blocking.length > 0 && (
+          <div
+            className="col gap-1"
+            style={{ borderLeft: '3px solid var(--st-blocked)', paddingLeft: 12 }}
+          >
+            <b style={{ color: 'var(--st-blocked)' }}>Blocking ({blocking.length})</b>
+            {blocking.map(render)}
+          </div>
+        )}
+        {warnings.length > 0 && (
+          <div className="col gap-1">
+            <b>Warnings ({warnings.length})</b>
+            {warnings.map(render)}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ---- b2) Activations (studied topics moving planned → active) ----
 
 function ActivationRow({ a }: { a: ActivationPlan }) {
   return (

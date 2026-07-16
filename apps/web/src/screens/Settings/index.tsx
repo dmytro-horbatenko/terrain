@@ -10,6 +10,8 @@ import {
 } from '../../api/hooks';
 import { Card, Loading, useToast } from '../../components';
 
+const SOURCE_FORMATS = ['article', 'book', 'video', 'course', 'documentation', 'exercise'];
+
 export default function Settings() {
   const me = useMe();
   const update = useUpdateProfile();
@@ -44,6 +46,12 @@ export default function Settings() {
     nudgeHour: '20',
     obsidianVault: '',
   });
+  const [sources, setSources] = useState({
+    preferredSourceFormats: [] as string[],
+    sourceTimeBudgetMinutes: '',
+    sourceLanguage: '',
+    allowPaidSources: false,
+  });
 
   useEffect(() => {
     if (settings.data)
@@ -54,6 +62,28 @@ export default function Settings() {
         obsidianVault: settings.data.obsidianVault ?? '',
       });
   }, [settings.data]);
+
+  useEffect(() => {
+    if (settings.data)
+      setSources({
+        preferredSourceFormats: settings.data.preferredSourceFormats,
+        sourceTimeBudgetMinutes:
+          settings.data.sourceTimeBudgetMinutes === null
+            ? ''
+            : String(settings.data.sourceTimeBudgetMinutes),
+        sourceLanguage: settings.data.sourceLanguage ?? '',
+        allowPaidSources: settings.data.allowPaidSources,
+      });
+  }, [settings.data]);
+
+  const moveFormat = (format: string, direction: -1 | 1) => {
+    const formats = [...sources.preferredSourceFormats];
+    const from = formats.indexOf(format);
+    const to = from + direction;
+    if (to < 0 || to >= formats.length) return;
+    [formats[from], formats[to]] = [formats[to], formats[from]];
+    setSources({ ...sources, preferredSourceFormats: formats });
+  };
 
   if (me.isLoading) return <Loading label="Loading…" />;
   const field = (k: keyof typeof form, label: string) => (
@@ -187,6 +217,114 @@ export default function Settings() {
               }
             >
               Save notifications
+            </button>
+          </div>
+        </Card>
+        <Card title="Learning sources">
+          <div className="col gap-3">
+            <div className="col gap-2">
+              <span className="field-label">Preferred formats (in priority order)</span>
+              {[
+                ...sources.preferredSourceFormats,
+                ...SOURCE_FORMATS.filter(
+                  (format) => !sources.preferredSourceFormats.includes(format),
+                ),
+              ].map((format) => {
+                const selected = sources.preferredSourceFormats.includes(format);
+                const index = sources.preferredSourceFormats.indexOf(format);
+                return (
+                  <div className="row gap-2" key={format} style={{ alignItems: 'center' }}>
+                    <label className="row gap-2" style={{ alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() =>
+                          setSources({
+                            ...sources,
+                            preferredSourceFormats: selected
+                              ? sources.preferredSourceFormats.filter((value) => value !== format)
+                              : [...sources.preferredSourceFormats, format],
+                          })
+                        }
+                      />
+                      {format}
+                    </label>
+                    {selected && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={index === 0}
+                          onClick={() => moveFormat(format, -1)}
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={index === sources.preferredSourceFormats.length - 1}
+                          onClick={() => moveFormat(format, 1)}
+                        >
+                          Down
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <label className="col gap-1">
+              <span className="field-label">Time budget (minutes)</span>
+              <input
+                className="input"
+                type="number"
+                min={5}
+                max={600}
+                value={sources.sourceTimeBudgetMinutes}
+                onChange={(e) =>
+                  setSources({ ...sources, sourceTimeBudgetMinutes: e.target.value })
+                }
+              />
+            </label>
+            <label className="col gap-1">
+              <span className="field-label">Language</span>
+              <input
+                className="input"
+                maxLength={50}
+                value={sources.sourceLanguage}
+                onChange={(e) => setSources({ ...sources, sourceLanguage: e.target.value })}
+              />
+            </label>
+            <label className="row gap-2" style={{ alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={sources.allowPaidSources}
+                onChange={(e) => setSources({ ...sources, allowPaidSources: e.target.checked })}
+              />
+              Allow paid sources
+            </label>
+            <button
+              className="btn btn-primary"
+              disabled={updateSettings.isPending}
+              onClick={() =>
+                updateSettings.mutate(
+                  {
+                    preferredSourceFormats: sources.preferredSourceFormats,
+                    sourceTimeBudgetMinutes:
+                      sources.sourceTimeBudgetMinutes === ''
+                        ? null
+                        : Number(sources.sourceTimeBudgetMinutes),
+                    sourceLanguage: sources.sourceLanguage === '' ? null : sources.sourceLanguage,
+                    allowPaidSources: sources.allowPaidSources,
+                  },
+                  {
+                    onSuccess: () => toast('Learning source settings saved', 'success'),
+                    onError: (e) => toast(e instanceof Error ? e.message : 'Save failed', 'error'),
+                  },
+                )
+              }
+            >
+              Save learning sources
             </button>
           </div>
         </Card>
