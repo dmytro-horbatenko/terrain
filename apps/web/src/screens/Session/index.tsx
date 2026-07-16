@@ -141,6 +141,14 @@ export default function SessionWizard() {
               quiz you, ask for an implementation, and have you solve problems. When you&apos;re
               done, come back and paste Claude&apos;s final message.
             </p>
+            {mode === 'learn' && dash?.nextUp && dash.nextUp.sourcePlanStats.requiredCount > 0 && (
+              <div className="faint" style={{ fontSize: 12.5 }}>
+                {dash.nextUp.sourcePlanStats.requiredCount} required source
+                {dash.nextUp.sourcePlanStats.requiredCount === 1 ? '' : 's'} · ~
+                {dash.nextUp.sourcePlanStats.estimatedMinutes} min intake
+                {dash.nextUp.sourcePlanStats.hasExpired ? ' · verification needed' : ''}
+              </div>
+            )}
             {gen.isPending && !exportMd ? (
               <Loading label="Building your context…" />
             ) : (

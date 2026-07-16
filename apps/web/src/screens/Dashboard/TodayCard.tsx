@@ -63,6 +63,14 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
                     ` · ${nextUp.chapterProgress.started} of ${nextUp.chapterProgress.total} started`}
                 </div>
               )}
+              {nextUp.sourcePlanStats.requiredCount > 0 && (
+                <div className="faint" style={{ fontSize: 12.5 }}>
+                  {nextUp.sourcePlanStats.requiredCount} required source
+                  {nextUp.sourcePlanStats.requiredCount === 1 ? '' : 's'} · ~
+                  {nextUp.sourcePlanStats.estimatedMinutes} min intake
+                  {nextUp.sourcePlanStats.hasExpired ? ' · verification needed' : ''}
+                </div>
+              )}
               <div className="row gap-2" style={{ alignItems: 'center' }}>
                 <span style={{ fontWeight: 650, fontSize: 16 }}>{nextUp.topic.title}</span>
                 <span className="pill">{nextUp.topic.topicType}</span>
