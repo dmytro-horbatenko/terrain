@@ -12,6 +12,8 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "web3:content:test": "node --test scripts/lib/web3-content.test.mjs",
+    "web3:content:validate": "node scripts/validate-web3-content.mjs --check-coverage",
     "prepare": "husky",
     "db:up": "docker compose up -d",
     "dev:api": "yarn workspace @terrain/api start",
