@@ -22,6 +22,11 @@ describe('session conduct scripts', () => {
     );
   });
 
+  it('LEARN stops a blocked legacy first-exposure session', () => {
+    expect(LEARN_CONDUCT).toContain('LEGACY FIRST EXPOSURE BLOCKED');
+    expect(LEARN_CONDUCT).toContain('STOP');
+  });
+
   it('REPEAT keeps self-grading and forces elaboration on misses', () => {
     expect(REPEAT_CONDUCT).toContain('grade my own recall');
     expect(REPEAT_CONDUCT.toLowerCase()).toContain('again');

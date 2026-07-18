@@ -235,8 +235,21 @@ Note system: ${user?.noteSystem ?? ''}`;
   ): string {
     const plan = parseStoredSourcePlan(focus.sourcePlan);
     const lines = ['## SOURCE PLAN'];
-    if (!plan) lines.push('WARNING: no source plan is stored for this legacy topic.');
-    else if (plan.policy === 'none') lines.push(`No required sources: ${plan.rationale}`);
+    if (!plan) {
+      if (focus.status === 'planned') {
+        lines.push(
+          'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.',
+          'STOP: this topic must be curated before strict source-grounded learning can proceed.',
+          'Do not invent requirementId or sourceId.',
+          'Emit no sourceEvidence for this topic and do not add it to studiedTopics.',
+        );
+      } else {
+        lines.push(
+          'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
+          'Do not invent requirementId or sourceId, and emit no sourceEvidence for this topic.',
+        );
+      }
+    } else if (plan.policy === 'none') lines.push(`No required sources: ${plan.rationale}`);
     else {
       const requirements = applicableRequirements(plan, focus.status);
       const minutes = requirements.reduce(

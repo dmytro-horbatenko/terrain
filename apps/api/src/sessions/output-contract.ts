@@ -53,8 +53,10 @@ applicationEvents: record only things the user genuinely did this session (solve
 problem, used it in a project) — one such event satisfies the topic's mastery application
 condition, so do not fabricate them.
 sourceEvidence: entries describe what the learner actually reconstructed, not the assistant's
-summary. Curated sources include sourceId and have substitutionReason null. Replacements omit
-sourceId and require a non-null substitutionReason. Expired curated sources require both
+summary. Copy requirementId and sourceId exactly from stored SOURCE PLAN entries. If no stored
+requirement exists, emit no sourceEvidence entry for it. Curated sources include sourceId and
+have substitutionReason null. Replacements omit sourceId and require a non-null
+substitutionReason. Expired curated sources require both
 verifiedLiveAt and verificationNote after live verification; otherwise both fields are null.
 noteSummaries: keep each entry BRIEF — Terrain is an index, not a note store. Put the full
 conspect in the Obsidian note (write it as chat prose); keyInsight is a short pointer and

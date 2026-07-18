@@ -28,6 +28,13 @@ describe('OUTPUT_CONTRACT', () => {
     expect(OUTPUT_CONTRACT).toContain('reconstructed');
   });
 
+  it('prohibits invented source evidence identifiers', () => {
+    expect(OUTPUT_CONTRACT).toContain('Copy requirementId and sourceId exactly');
+    expect(OUTPUT_CONTRACT.replace(/\s+/g, ' ')).toContain(
+      'If no stored requirement exists, emit no sourceEvidence',
+    );
+  });
+
   it('keeps the grade-is-the-users-verdict rule', () => {
     expect(OUTPUT_CONTRACT).toContain('never yours');
   });

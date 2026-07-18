@@ -21,6 +21,7 @@ Work through TODAY'S REVIEW QUEUE in the listed order, one card at a time.
 Reference every review by promptId from the queue above.`;
 
 export const LEARN_CONDUCT = `## SESSION CONDUCT — learning
+If SOURCE PLAN says LEGACY FIRST EXPOSURE BLOCKED, STOP the session.
 Follow this nine-stage ritual in order. Do not teach the topic before required source reconstruction.
 Do not teach the topic before every required source has been selected, consumed,
 and reconstructed by me. Pause while I leave the chat to consume it; your own

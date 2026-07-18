@@ -895,11 +895,14 @@ export class ImportService {
     for (const activation of activations) {
       const plan = planFor(activation.topicTitle);
       if (!plan) {
+        const blocking = activation.currentStatus == null || activation.currentStatus === 'planned';
         sourceIssues.push({
           topicTitle: activation.topicTitle,
           reason: 'missing-plan',
-          blocking: false,
-          message: 'Legacy topic has no source plan.',
+          blocking,
+          message: blocking
+            ? 'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.'
+            : 'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
         });
         continue;
       }

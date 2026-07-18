@@ -806,10 +806,8 @@ describe('ExportGeneratorService', () => {
       expect(md).toContain('Earlier account overview');
     });
 
-    it.each([
-      [{ policy: 'none', rationale: 'Practice only' }, 'No required sources: Practice only'],
-      [null, 'WARNING: no source plan is stored for this legacy topic'],
-    ])('renders source-plan policy %p', async (sourcePlan, expected) => {
+    it('renders a source-plan policy with no required sources', async () => {
+      const sourcePlan = { policy: 'none', rationale: 'Practice only' };
       prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ sourcePlan }));
       prisma.topic.findMany = jest.fn().mockResolvedValue([]);
       const md = await service.generate({
@@ -818,7 +816,50 @@ describe('ExportGeneratorService', () => {
         now: NOW,
         userId: 'u1',
       });
-      expect(md).toContain(expected);
+      expect(md).toContain('No required sources: Practice only');
+    });
+
+    it('blocks a planned legacy first-exposure session', async () => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+
+      expect(md).toContain(
+        [
+          'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.',
+          'STOP: this topic must be curated before strict source-grounded learning can proceed.',
+          'Do not invent requirementId or sourceId.',
+          'Emit no sourceEvidence for this topic and do not add it to studiedTopics.',
+        ].join('\n'),
+      );
+    });
+
+    it('labels an active legacy topic as compatibility mode', async () => {
+      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ status: 'active' }));
+      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+
+      const md = await service.generate({
+        mode: 'learn',
+        focusTopicId: 'focus-1',
+        now: NOW,
+        userId: 'u1',
+      });
+
+      expect(md).toContain(
+        [
+          'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
+          'Do not invent requirementId or sourceId, and emit no sourceEvidence for this topic.',
+        ].join('\n'),
+      );
+      expect(md.slice(md.indexOf('## SOURCE PLAN'), md.indexOf('## LEARNING GOAL'))).not.toContain(
+        'LEGACY FIRST EXPOSURE BLOCKED',
+      );
     });
 
     it('marks expired options and omits first-exposure requirements for active topics', async () => {

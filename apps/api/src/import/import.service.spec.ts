@@ -220,6 +220,116 @@ describe('ImportService.preview', () => {
     expect(plan.applicable).toBe(true);
   });
 
+  it('blocks activation of a planned existing legacy topic', async () => {
+    const service = await svc(
+      build({
+        topic: {
+          findMany: jest.fn().mockResolvedValue([TOPIC({ status: 'planned', sourcePlan: null })]),
+        },
+      }).prisma,
+    );
+
+    const plan = await service.preview('userA', fence(v2({ studiedTopics: ['Stacks'] })));
+
+    expect(plan.sourceIssues).toContainEqual(
+      expect.objectContaining({
+        topicTitle: 'Stacks',
+        reason: 'missing-plan',
+        blocking: true,
+      }),
+    );
+    expect(plan.applicable).toBe(false);
+  });
+
+  it('blocks activation of an in-batch legacy topic', async () => {
+    const service = await svc(
+      build({ topic: { findMany: jest.fn().mockResolvedValue([]) } }).prisma,
+    );
+
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'New topic',
+              type: 'concept',
+              domain: 'D',
+              prerequisiteTitles: [],
+            },
+          ],
+          studiedTopics: ['New topic'],
+        }),
+      ),
+    );
+
+    expect(plan.sourceIssues).toContainEqual(
+      expect.objectContaining({
+        topicTitle: 'New topic',
+        reason: 'missing-plan',
+        blocking: true,
+      }),
+    );
+    expect(plan.applicable).toBe(false);
+  });
+
+  it.each(['active', 'mastered'])(
+    'keeps a %s legacy topic in compatibility mode',
+    async (status) => {
+      const service = await svc(
+        build({
+          topic: {
+            findMany: jest.fn().mockResolvedValue([TOPIC({ status, sourcePlan: null })]),
+          },
+        }).prisma,
+      );
+
+      const plan = await service.preview('userA', fence(v2({ studiedTopics: ['Stacks'] })));
+
+      expect(plan.sourceIssues).toContainEqual(
+        expect.objectContaining({
+          topicTitle: 'Stacks',
+          reason: 'missing-plan',
+          blocking: false,
+          message: expect.stringContaining('LEGACY COMPATIBILITY MODE'),
+        }),
+      );
+      expect(plan.sourceEvidence).toEqual([]);
+      expect(plan.applicable).toBe(true);
+    },
+  );
+
+  it('rejects an invented requirement id for a legacy topic', async () => {
+    const service = await svc(
+      build({
+        topic: {
+          findMany: jest.fn().mockResolvedValue([TOPIC({ sourcePlan: null })]),
+        },
+      }).prisma,
+    );
+
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          sourceEvidence: [
+            EVIDENCE({ topicTitle: 'Stacks', requirementId: 'invented-requirement' }),
+          ],
+        }),
+      ),
+    );
+
+    expect(plan.sourceIssues).toContainEqual(
+      expect.objectContaining({
+        topicTitle: 'Stacks',
+        requirementId: 'invented-requirement',
+        reason: 'unknown-requirement',
+        blocking: true,
+      }),
+    );
+    expect(plan.applicable).toBe(false);
+  });
+
   it('requires live verification for expired curated evidence but accepts a rationalized substitute', async () => {
     const expired = SOURCE_PLAN({
       requirements: [
@@ -1130,9 +1240,14 @@ describe('ImportService.apply (transaction)', () => {
     it('plans activation for a planned topic (willActivate true)', async () => {
       const { prisma } = build({
         topic: {
-          findMany: jest
-            .fn()
-            .mockResolvedValue([TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' })]),
+          findMany: jest.fn().mockResolvedValue([
+            TOPIC({
+              id: 't1',
+              title: 'Prefix sums',
+              status: 'planned',
+              sourcePlan: { policy: 'none', rationale: 'Practice only' },
+            }),
+          ]),
         },
       });
       const service = await svc(prisma);
@@ -1224,6 +1339,7 @@ describe('ImportService.apply (transaction)', () => {
               domain: 'DSA',
               prerequisiteTitles: [],
               parentTitle: null,
+              sourcePlan: { policy: 'none', rationale: 'Practice only' },
             },
           ],
           studiedTopics: ['Fresh topic'],
@@ -1244,9 +1360,14 @@ describe('ImportService.apply (transaction)', () => {
     it('deduplicates repeated studiedTopics titles', async () => {
       const { prisma } = build({
         topic: {
-          findMany: jest
-            .fn()
-            .mockResolvedValue([TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' })]),
+          findMany: jest.fn().mockResolvedValue([
+            TOPIC({
+              id: 't1',
+              title: 'Prefix sums',
+              status: 'planned',
+              sourcePlan: { policy: 'none', rationale: 'Practice only' },
+            }),
+          ]),
         },
       });
       const service = await svc(prisma);
@@ -1262,12 +1383,15 @@ describe('ImportService.apply (transaction)', () => {
           findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }),
         },
         topic: {
-          findMany: jest
-            .fn()
-            .mockResolvedValue([
-              TOPIC({ id: 't1', title: 'Prefix sums', status: 'planned' }),
-              TOPIC({ id: 't2', title: 'Stacks', status: 'active' }),
-            ]),
+          findMany: jest.fn().mockResolvedValue([
+            TOPIC({
+              id: 't1',
+              title: 'Prefix sums',
+              status: 'planned',
+              sourcePlan: { policy: 'none', rationale: 'Practice only' },
+            }),
+            TOPIC({ id: 't2', title: 'Stacks', status: 'active' }),
+          ]),
         },
         prompt: { findMany: jest.fn().mockResolvedValue([]) },
         $transaction: jest.fn((cb: any) => cb(tx)),
@@ -1498,6 +1622,24 @@ describe('ImportService.apply guards (no writes on reject)', () => {
           }),
         ),
       ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('does not start a transaction for a blocked planned legacy activation', async () => {
+    const transaction = jest.fn();
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: {
+        findMany: jest.fn().mockResolvedValue([TOPIC({ status: 'planned', sourcePlan: null })]),
+      },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: transaction,
+    };
+    const service = await svc(prisma);
+
+    await expect(
+      service.apply('userA', fence(v2({ studiedTopics: ['Stacks'] }))),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(transaction).not.toHaveBeenCalled();
   });
