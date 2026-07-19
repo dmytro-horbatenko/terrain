@@ -128,6 +128,14 @@ docker compose -f docker-compose.prod.yml exec db \
 Never run `docker compose down -v` on this file — it deletes the volume (and
 your only copy of your learning history) along with the containers.
 
+## One-user Web3 source-plan rollout
+
+The legacy Web3 reset is a deployment-ordered, one-user operation with stricter
+backup, count, cross-domain, and human-commit gates. Use
+[`web3-source-plan-production-rollout.md`](web3-source-plan-production-rollout.md);
+its build-before-migrate-before-API-start order supersedes steps 3–4 above for
+that rollout. Do not adapt the general update commands into an ad hoc reset.
+
 ## What this deliberately does not cover
 
 - Multi-factor auth, password reset / email verification — not built into
