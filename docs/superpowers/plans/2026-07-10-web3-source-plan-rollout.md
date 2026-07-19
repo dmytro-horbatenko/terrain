@@ -2,25 +2,30 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Curate explicit, bounded, complementary source plans for every reviewable Web3 leaf and safely backfill them onto already-imported topics.
+**Goal:** Prevent invented legacy source evidence, curate explicit bounded source plans for every reviewable Web3 leaf, deploy that content, then safely reset and re-import one production user's Web3 course.
 
-**Architecture:** Prepared content remains the source of truth. The existing Web3 loader validates the shared source-plan schema and adds course-specific structural rules. Content is curated phase-by-phase, then an idempotent API script copies only `sourcePlan` onto matching existing Web3 topics.
+**Architecture:** Prepared content remains the source of truth. A strict legacy guard stops first-exposure sessions and imports when the stored topic has no source plan. The existing Web3 loader validates the shared source-plan schema plus course-specific quality rules. Content is curated phase-by-phase and deployed before one production user's Web3 topics are transactionally deleted and re-imported from the prepared course; there is no reusable backfill subsystem.
 
 **Tech Stack:** JSON learning-os v2 content, Node.js 24 standard library, `@terrain/types` Zod schemas, existing Nest Topics API.
 
 ## Global Constraints
 
-- Execute this plan only after `2026-07-10-source-grounded-learning-core.md` passes its repository gate.
+- Core Tasks 1–8 are complete. Finish the legacy guard before curation, then close the strict local fail/pass/apply/rollback smoke left in Core Task 9 before deployment.
 - Every `type: 'pattern'` Web3 topic has `sourcePlan.policy = 'required'` or an explicit `policy = 'none'` rationale.
 - Curated candidates must be compared; requirement options are alternatives for the same purpose, while separate requirements are complementary.
 - Every source uses an exact bounded scope and explains its distinct contribution.
 - Prefer primary/canonical technical sources; use pedagogical sources for explanation and worked examples.
 - Verify fast-changing Web3 material against current official sources during curation.
 - A freshness-sensitive option includes both `verifiedAt` and `recheckAfterDays`; stable sources include neither.
-- Remove `Resources:` URLs from leaf descriptions after their plans are authored; keep concept prose in `description` and Build/Done-when in `aiContext`.
+- Remove legacy `Resources:` prose from every Web3 description after the leaf plans are authored; keep concept prose in `description` and Build/Done-when in `aiContext`.
 - Split files rather than weakening the existing 40-topic/90KB limits.
 - Add no dependencies.
-- Preserve user edits during backfill: update only `sourcePlan` on `domain = 'Web3'` topics matched by normalized title.
+- The current corpus has 360 reviewable Web3 leaves across 16 content files; every leaf is researched individually, not mechanically converted from its legacy URL.
+- Each curation task records a phase report under `.superpowers/sdd/source-grounded/` listing every leaf, candidates compared, selected sources/roles, substitutions, rejected stale/dead/duplicated candidates, URL-check evidence, and review result.
+- After Task 1A, each curation subagent owns exactly one content file plus its uniquely named report; up to three independent files may be researched/edited in parallel. Every file receives its own spec-and-quality review before acceptance, and curation agents never edit the shared manifest.
+- Do not reset production until the curated content and legacy guard are deployed and the deployed course payload is verified.
+- The production mutation is deliberately one-user/one-course: delete only the exact user's Web3 data and Web3 `CourseImport` marker in one guarded SQL transaction, preserving DSA, other domains, and every other user.
+- Never execute production deletion from this local session. Produce exact commands for the operator, stop on unexpected counts, and leave COMMIT as an explicit human action.
 - Do not execute a commit step unless the user explicitly authorizes commits.
 
 ---
@@ -50,6 +55,84 @@ For each leaf topic:
    documentation/text before video for precision, free before paid, and a total
    normal intake budget near 45 minutes.
 10. Run structural and live URL validation for the edited phase before review.
+11. Record the candidate comparison and rejection trail in the phase report; a URL appearing in the final JSON is not by itself evidence that alternatives were researched.
+
+---
+
+### Task 0: Stop legacy first-exposure sessions and prohibit invented evidence
+
+**Files:**
+- Modify: `apps/api/src/sessions/export-generator.service.ts`
+- Test: `apps/api/src/sessions/export-generator.service.spec.ts`
+- Modify: `apps/api/src/sessions/session-conduct.ts`
+- Test: `apps/api/src/sessions/session-conduct.spec.ts`
+- Modify: `apps/api/src/sessions/output-contract.ts`
+- Test: `apps/api/src/sessions/output-contract.spec.ts`
+- Modify: `apps/api/src/import/import.service.ts`
+- Test: `apps/api/src/import/import.service.spec.ts`
+
+**Interfaces:**
+- Produces an explicit `LEGACY FIRST EXPOSURE BLOCKED` export state for planned topics with `sourcePlan = null`.
+- Keeps active/mastered legacy topics in labelled compatibility mode without formal source tracking.
+- Makes Import Preview block activation of a planned legacy topic and reject any invented requirement/source IDs.
+
+- [ ] **Step 1: Write exact failing export and conduct tests**
+
+For a planned focus with `sourcePlan = null`, assert the export contains all of:
+
+```text
+LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.
+STOP: this topic must be curated before strict source-grounded learning can proceed.
+Do not invent requirementId or sourceId.
+Emit no sourceEvidence for this topic and do not add it to studiedTopics.
+```
+
+For an active focus with `sourcePlan = null`, assert it instead contains:
+
+```text
+LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.
+Do not invent requirementId or sourceId, and emit no sourceEvidence for this topic.
+```
+
+Assert `LEARN_CONDUCT` tells the model to stop on `LEGACY FIRST EXPOSURE BLOCKED`, and `OUTPUT_CONTRACT` says IDs must be copied exactly from stored SOURCE PLAN entries and that no stored requirement means no evidence entry.
+
+- [ ] **Step 2: Write failing Import Preview regression tests**
+
+Add separate cases proving:
+
+- a planned existing legacy topic in `studiedTopics` yields `reason: 'missing-plan'`, `blocking: true`, and `applicable: false`;
+- an in-batch studied topic without `sourcePlan` is blocked the same way;
+- an active/mastered legacy topic with no source evidence yields labelled non-blocking compatibility warning and remains applicable;
+- any evidence naming an unstored legacy `requirementId` is `unknown-requirement` and blocking;
+- no apply transaction begins for the blocked planned-legacy case.
+
+- [ ] **Step 3: Run the focused tests and confirm RED**
+
+```bash
+yarn workspace @terrain/api test --runInBand src/sessions/export-generator.service.spec.ts src/sessions/session-conduct.spec.ts src/sessions/output-contract.spec.ts src/import/import.service.spec.ts
+```
+
+Expected: the planned-legacy export and Import Preview assertions fail under the current warning-only behavior.
+
+- [ ] **Step 4: Implement the minimum shared-state distinction**
+
+In `sourcePlan()`, branch null plans by topic status. Planned means the exact blocking copy above; active/mastered means compatibility copy. In the import activation walk, make `missing-plan` blocking when `currentStatus` is `planned` or null (an in-batch topic), and non-blocking only for already-studied active/mastered topics.
+
+Keep unknown requirement/source handling unchanged: it already rejects invented IDs. Add only the conduct/output prohibitions needed to prevent the prescribed session from producing them.
+
+- [ ] **Step 5: Run focused tests and builds**
+
+```bash
+yarn workspace @terrain/api test --runInBand src/sessions/export-generator.service.spec.ts src/sessions/session-conduct.spec.ts src/sessions/output-contract.spec.ts src/import/import.service.spec.ts
+yarn workspace @terrain/api build
+yarn workspace @terrain/web build
+```
+
+Expected: all pass; Import Preview cannot accept a prescribed first-exposure legacy session.
+
+- [ ] **Step 6: Per-task review**
+
+Review the scoped diff for both spec compliance and quality. In particular, confirm the guard lives at the shared export/import seams, compatibility mode never emits formal evidence, and existing curated topics are unchanged.
 
 ---
 
@@ -82,7 +165,7 @@ const valid = {
     policy: 'required',
     requirements: [{
       id: 'canonical',
-      purpose: 'Exact semantics',
+      purpose: 'Verify the exact protocol semantics',
       requiredWhen: 'first_exposure',
       options: [{
         id: 'official',
@@ -91,7 +174,7 @@ const valid = {
         format: 'documentation',
         scope: 'Section 2',
         estimatedMinutes: 10,
-        why: 'Canonical behavior',
+        why: 'Defines the normative behavior and edge cases',
       }],
     }],
   },
@@ -103,7 +186,17 @@ test('requires explicit source policy on Web3 leaves', () => {
 });
 ```
 
-Also assert that `policy: none` needs a meaningful rationale through the shared schema and that `allUrls()` returns option and optional-source URLs.
+Also assert:
+
+- `policy: none` needs a concrete rationale of at least 30 characters;
+- requirement and option IDs are unique;
+- every required group has at least one option;
+- every option URL uses HTTP(S);
+- `scope` is accepted only when it names a section/chapter/lesson/page range/timestamp range or an explicitly short entire page/article;
+- a homepage-like or generic `scope` such as `Docs`, `Homepage`, or `Entire site` fails;
+- `purpose` and `why` are specific (at least 20 and 30 characters respectively, not generic labels such as `Canonical reference`);
+- freshness fields appear as a pair;
+- `allUrls()` returns required-option and optional-source URLs.
 
 - [ ] **Step 2: Run the Node test and confirm RED**
 
@@ -113,17 +206,21 @@ Expected: FAIL because `sourcePlanErrors` is not exported.
 
 - [ ] **Step 3: Replace the old leaf Resources rule**
 
-Remove `URL_RE` and the `description has no Resources: URL` check. Export:
+Remove `URL_RE` and the old `description has no Resources: URL` rule. Export a course-specific validator that supplements the shared Zod schema:
 
 ```js
 export function sourcePlanErrors(topic, file) {
   if (topic.type !== 'pattern') return [];
   if (!topic.sourcePlan) return [`${file}: leaf "${topic.title}" has no sourcePlan`];
-  if (/resources:/i.test(topic.description ?? ''))
-    return [`${file}: leaf "${topic.title}" still embeds Resources: in description`];
-  return [];
+  // Validate concrete rationale/purpose/why, HTTP(S), and bounded scope here.
+  // The shared Zod schema remains the canonical shape/ID/freshness validator.
+  return sourceQualityErrors(topic.sourcePlan, file, topic.title);
 }
 ```
+
+Independently reject `/resources:/i` in every topic description, including non-reviewable concept/chapter nodes. Apply this migration rule to the same files selected by `sourcePrefixes` during phased rollout, and to every file when no prefix is supplied. Those structural descriptions are context, not a second untracked source channel.
+
+Use one small bounded-scope predicate shared by validator and tests. Accept named sections, chapters, lessons, parts, page ranges, `§` references, timestamp ranges, and `Entire article/page/README/EIP/ERC (<N> min)`. Reject bare homepages/sites and vague whole-document labels without an explicit short active-consumption bound. Do not add a heuristic scoring system.
 
 The shared Zod schema handles plan structure. Extend
 `structuralErrors(files, { sourcePrefixes = [] } = {})`: enforce
@@ -134,7 +231,7 @@ for every file regardless of this filter.
 
 - [ ] **Step 4: Enumerate every source-plan URL**
 
-Extend `allUrls()` to walk every required option and optional source:
+Extend `allUrls()` to walk every required option and optional source. Continue enumerating problem-card URLs; stop scraping URLs from descriptions once all legacy `Resources:` prose is removed:
 
 ```js
 const plan = t.sourcePlan;
@@ -175,12 +272,66 @@ git commit -m "test: enforce Web3 source plans"
 
 ---
 
-### Task 2: Curate Phase 1 fundamentals
+### Task 1A: Partition oversized/research-heavy files and lock manifest parity
 
 **Files:**
 - Modify: `content/web3/01-fundamentals.json`
-- Modify if size requires: split into additional `content/web3/01[a-z]-*.json` files
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
+- Modify: `content/web3/03-tooling.json`
+- Modify: `content/web3/05-gas.json`
+- Modify: `content/web3/06c-attacks.json`
+- Modify: `content/web3/06d-wargames.json`
+- Modify: `content/web3/08-evm-internals.json`
+- Modify: `content/web3/09-frontier.json`
+- Create: ordered split files described below
+- Modify: `apps/api/src/courses/course-manifest.ts`
+- Create: `apps/api/src/courses/course-manifest.spec.ts`
+
+**Interfaces:**
+- Produces file-sized, independently researchable ownership units before parallel curation.
+- Guarantees the Courses UI manifest exactly matches the loader's ordered Web3 files.
+
+- [ ] **Step 1: Add a manifest-parity characterization test**
+
+In `course-manifest.spec.ts`, read `content/web3`, select the same `NN[a-z]?-*.json` names as `loadContentFiles()`, prefix them with `web3/`, and assert exact ordered equality with the `web3` manifest entry. Run it once on the current tree to prove the characterization is green.
+
+- [ ] **Step 2: Split at existing coherent chapter boundaries**
+
+Create these ownership units, preserving topic order and moving every prompt with its target topic:
+
+- `01a-core-ethereum` (15 leaves), `01b-consensus-scaling-aa` (15);
+- `03a-foundry-core-testing` (11), `03b-foundry-ops-config` (10), `03c-hardhat` (8);
+- `05a-storage-calldata-control-flow` (19), `05b-types-assembly-architecture` (14);
+- retain `06a` and `06b`; split current `06c` into `06c-external-crypto-mev` (14) and `06d-proxy-dos-business` (12); rename current wargames file to `06e-wargames` (15);
+- `08a-opcodes-yul-huff` (14), `08b-dispatch-storage-proxies-verification` (15); place `Huff jump tables & when Huff pays off` in `08b` so its selector prerequisite is earlier while `Metamorphic contracts` can still depend on `CREATE & CREATE2 opcodes` from `08a`;
+- `09a-mev-intents-hooks` (13), `09b-restaking-rwa-zk-l2` (15).
+
+Keep existing `02a`, `02b`, `04a`, `04b`, `07a`, `07b`, and `10-fullstack` as their own ownership units. Do not rewrite topic prose or source URLs in this mechanical task.
+
+- [ ] **Step 3: Confirm manifest test RED, then reconcile once**
+
+Run the manifest test after the filesystem split but before editing `COURSE_MANIFEST`; it must fail with the old filenames. Update the Web3 manifest once to the exact sorted dependency order, then rerun it green. Parallel curation agents do not edit the manifest.
+
+- [ ] **Step 4: Validate the partition**
+
+```bash
+yarn workspace @terrain/api test --runInBand src/courses/course-manifest.spec.ts
+node scripts/validate-web3-content.mjs --source-prefix 99 --check-coverage
+```
+
+Expected: manifest parity passes; all 457 topics/514 cards remain present; prompt targeting and earlier-file parent/prerequisite resolution remain valid; every file stays under 40 topics and 90KB. The deliberately unmatched prefix `99` suppresses only the new source-migration rules during this pre-curation partition; all older structural rules still run across the whole corpus. Full validation without a prefix remains the mandatory final gate.
+
+- [ ] **Step 5: Per-task review**
+
+Review exact topic/card conservation, same-file prompt targeting, cross-file dependency order, filenames, and manifest parity. No curation judgments belong in this task.
+
+---
+
+### Task 2: Curate Phase 1 fundamentals
+
+**Files:**
+- Modify: `content/web3/00-root.json` (remove the ten untracked phase-level `Resources:` fragments; no source plans on structural concepts)
+- Modify: `content/web3/01a-core-ethereum.json`
+- Modify: `content/web3/01b-consensus-scaling-aa.json`
 
 **Interfaces:**
 - Produces complete source plans for Phase 1 pattern topics.
@@ -188,11 +339,7 @@ git commit -m "test: enforce Web3 source plans"
 
 - [ ] **Step 1: Inventory Phase 1 leaves**
 
-Run:
-
-```bash
-node -e "const d=require('./content/web3/01-fundamentals.json'); for(const t of d.proposedTopics) if(t.type==='pattern') console.log(t.title)"
-```
+Run a Node one-liner over both `01*.json` ownership units.
 
 Expected: one title per reviewable Phase 1 leaf.
 
@@ -211,22 +358,16 @@ all current-state claims as of the execution date. Add source plans and remove
 
 - [ ] **Step 3: Check file size and split without changing import order**
 
-Run:
-
-```bash
-node -e "const fs=require('node:fs'); const p='content/web3/01-fundamentals.json'; console.log(fs.statSync(p).size)"
-```
-
-Expected: below 90,000 bytes. If it exceeds the limit, split topics and their same-file prompts into ordered `01a-...`, `01b-...` files, keep cross-file prerequisites resolvable from earlier files, and replace the manifest entry with the new ordered filenames.
+Run the validator and confirm both ownership units remain below 90,000 fenced bytes. If research still makes one too large, report the needed coherent split to the controller; do not edit the shared manifest from a parallel curation task.
 
 - [ ] **Step 4: Validate Phase 1 structure and URLs**
 
 ```bash
 yarn web3:content:test
-node scripts/validate-web3-content.mjs --source-prefix 01 --check-urls 01
+node scripts/validate-web3-content.mjs --source-prefix 00 --source-prefix 01 --check-urls 01
 ```
 
-Expected: zero structural errors and zero URL failures for Phase 1. Missing
+Expected: zero structural errors and zero URL failures for the root/Phase 1. Missing
 source plans in later phases are intentionally not enforced by this scoped run;
 all their pre-existing structural rules still run.
 
@@ -237,7 +378,7 @@ For each leaf, confirm options in one requirement are interchangeable, separate 
 - [ ] **Step 6: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/01* apps/api/src/courses/course-manifest.ts
+git add content/web3/00-root.json content/web3/01*
 git commit -m "content: ground Web3 fundamentals in curated sources"
 ```
 
@@ -249,7 +390,6 @@ git commit -m "content: ground Web3 fundamentals in curated sources"
 - Modify: `content/web3/02a-solidity.json`
 - Modify: `content/web3/02b-solidity.json`
 - Create if needed: additional ordered `content/web3/02[c-z]-*.json`
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
 
 **Interfaces:**
 - Produces source plans for every Solidity language leaf.
@@ -274,9 +414,9 @@ except to fix a source-dependent factual error discovered during curation.
 
 - [ ] **Step 4: Split oversized payloads**
 
-Run the validator. Split at coherent subchapter boundaries until every fenced
-payload is below 90KB and every file has at most 40 topics. Update manifest
-ordering and keep each prompt in the same file as its target topic.
+Run the validator. If an ownership unit still exceeds 90KB, report a coherent
+subchapter split to the controller. Keep each prompt in the same file as its
+target topic; the controller updates the shared manifest once.
 
 - [ ] **Step 5: Validate Phase 2**
 
@@ -290,7 +430,7 @@ Expected: all Phase 2 structural and URL checks pass.
 - [ ] **Step 6: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/02* apps/api/src/courses/course-manifest.ts
+git add content/web3/02*
 git commit -m "content: add source plans for Solidity language"
 ```
 
@@ -299,9 +439,9 @@ git commit -m "content: add source plans for Solidity language"
 ### Task 4: Curate Phase 3 tooling
 
 **Files:**
-- Modify: `content/web3/03-tooling.json`
-- Create if needed: ordered `content/web3/03[a-z]-*.json`
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
+- Modify: `content/web3/03a-foundry-core-testing.json`
+- Modify: `content/web3/03b-foundry-ops-config.json`
+- Modify: `content/web3/03c-hardhat.json`
 
 **Interfaces:**
 - Produces current Foundry/Hardhat source plans with freshness metadata.
@@ -331,7 +471,7 @@ Expected: size/topic limits and all URLs pass.
 - [ ] **Step 4: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/03* apps/api/src/courses/course-manifest.ts
+git add content/web3/03*
 git commit -m "content: ground Web3 tooling in current docs"
 ```
 
@@ -342,9 +482,8 @@ git commit -m "content: ground Web3 tooling in current docs"
 **Files:**
 - Modify: `content/web3/04a-standards.json`
 - Modify: `content/web3/04b-standards.json`
-- Modify: `content/web3/05-gas.json`
-- Create if needed: ordered `04[c-z]-*.json` / `05[a-z]-*.json`
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
+- Modify: `content/web3/05a-storage-calldata-control-flow.json`
+- Modify: `content/web3/05b-types-assembly-architecture.json`
 
 **Interfaces:**
 - Produces source plans for standards, patterns, upgradeability, and gas.
@@ -381,7 +520,7 @@ Expected: zero structural/URL failures for both phases.
 - [ ] **Step 5: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/04* content/web3/05* apps/api/src/courses/course-manifest.ts
+git add content/web3/04* content/web3/05*
 git commit -m "content: curate standards patterns and gas sources"
 ```
 
@@ -392,10 +531,9 @@ git commit -m "content: curate standards patterns and gas sources"
 **Files:**
 - Modify: `content/web3/06a-security-methodology.json`
 - Modify: `content/web3/06b-attacks.json`
-- Modify: `content/web3/06c-attacks.json`
-- Modify: `content/web3/06d-wargames.json`
-- Create if needed: ordered `06[e-z]-*.json`
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
+- Modify: `content/web3/06c-external-crypto-mev.json`
+- Modify: `content/web3/06d-proxy-dos-business.json`
+- Modify: `content/web3/06e-wargames.json`
 
 **Interfaces:**
 - Produces source plans for the highest-stakes curriculum phase.
@@ -437,7 +575,7 @@ explicitly excluded from sampling-only QA.
 - [ ] **Step 5: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/06* apps/api/src/courses/course-manifest.ts
+git add content/web3/06*
 git commit -m "content: curate smart contract security sources"
 ```
 
@@ -448,11 +586,11 @@ git commit -m "content: curate smart contract security sources"
 **Files:**
 - Modify: `content/web3/07a-defi.json`
 - Modify: `content/web3/07b-defi.json`
-- Modify: `content/web3/08-evm-internals.json`
-- Modify: `content/web3/09-frontier.json`
+- Modify: `content/web3/08a-opcodes-yul-huff.json`
+- Modify: `content/web3/08b-dispatch-storage-proxies-verification.json`
+- Modify: `content/web3/09a-mev-intents-hooks.json`
+- Modify: `content/web3/09b-restaking-rwa-zk-l2.json`
 - Modify: `content/web3/10-fullstack.json`
-- Create if needed: ordered split files for the same numeric phase
-- Modify if split: `apps/api/src/courses/course-manifest.ts`
 
 **Interfaces:**
 - Completes source-plan coverage for all remaining Web3 leaves.
@@ -498,115 +636,20 @@ Expected: zero structural/URL failures.
 - [ ] **Step 6: Commit checkpoint (only with explicit approval)**
 
 ```bash
-git add content/web3/07* content/web3/08* content/web3/09* content/web3/10* apps/api/src/courses/course-manifest.ts
+git add content/web3/07* content/web3/08* content/web3/09* content/web3/10*
 git commit -m "content: complete Web3 source-plan curation"
 ```
 
 ---
 
-### Task 8: Idempotent existing-topic backfill
+### Task 8: Full curriculum, repository, and local session verification
 
 **Files:**
-- Create: `scripts/backfill-web3-source-plans.mjs`
-- Modify: `scripts/lib/web3-content.mjs`
-- Create: `scripts/backfill-web3-source-plans.test.mjs`
-- Modify: `package.json`
+- Modify only if verification exposes a defect in files already covered by this plan.
+- Record evidence in: `.superpowers/sdd/source-grounded/rollout-verification.md`
 
 **Interfaces:**
-- Consumes: all curated content files and authenticated Topics API.
-- Produces: dry-run/apply/verify modes that update only `sourcePlan`.
-
-- [ ] **Step 1: Extract and test a pure backfill plan**
-
-Export:
-
-```js
-export function buildSourcePlanBackfill(contentTopics, apiTopics) {
-  const byTitle = new Map(apiTopics.filter((topic) => topic.domain === 'Web3')
-    .map((topic) => [norm(topic.title), topic]));
-  return contentTopics
-    .filter((topic) => topic.type === 'pattern')
-    .map((topic) => ({
-      topicId: byTitle.get(norm(topic.title))?.id ?? null,
-      title: topic.title,
-      sourcePlan: topic.sourcePlan,
-    }));
-}
-```
-
-Test exact-title normalization, missing API topics, non-Web3 exclusion, and
-that returned patches contain no field except id/title/sourcePlan.
-
-- [ ] **Step 2: Run the Node test and confirm RED**
-
-Run: `node --test scripts/backfill-web3-source-plans.test.mjs`
-
-Expected: FAIL because the script/helper does not exist.
-
-- [ ] **Step 3: Implement authenticated dry-run/apply/verify**
-
-Reuse the login and cookie pattern from `scripts/import-web3.mjs`. CLI behavior:
-
-```text
-node scripts/backfill-web3-source-plans.mjs --dry-run
-node scripts/backfill-web3-source-plans.mjs --apply
-node scripts/backfill-web3-source-plans.mjs --verify
-```
-
-Rules:
-
-- load and structurally validate all content first;
-- GET `/topics`, reject duplicate normalized Web3 titles;
-- report missing/extra titles and stop before writes;
-- `--dry-run` print one planned PATCH per leaf;
-- `--apply` PATCH `/topics/:id` with exactly `{ sourcePlan }`;
-- `--verify` GET every leaf detail and deep-compare its plan to content;
-- apply twice successfully with the second run reporting zero differences.
-
-- [ ] **Step 4: Add scripts**
-
-```json
-"web3:sources:backfill": "node scripts/backfill-web3-source-plans.mjs --apply",
-"web3:sources:verify": "node scripts/backfill-web3-source-plans.mjs --verify"
-```
-
-- [ ] **Step 5: Run unit test and dry-run**
-
-```bash
-node --test scripts/backfill-web3-source-plans.test.mjs
-node scripts/backfill-web3-source-plans.mjs --dry-run
-```
-
-Expected: test passes; dry-run reports exactly one patch per existing Web3 pattern topic and performs no writes.
-
-- [ ] **Step 6: Apply twice and verify**
-
-With the local API/database running and credentials set:
-
-```bash
-node scripts/backfill-web3-source-plans.mjs --apply
-node scripts/backfill-web3-source-plans.mjs --apply
-node scripts/backfill-web3-source-plans.mjs --verify
-```
-
-Expected: first run updates plans; second run changes zero topics; verify reports no mismatches. Inspect one non-source user edit before and after to confirm it is unchanged.
-
-- [ ] **Step 7: Commit checkpoint (only with explicit approval)**
-
-```bash
-git add scripts/backfill-web3-source-plans.mjs scripts/backfill-web3-source-plans.test.mjs scripts/lib/web3-content.mjs package.json
-git commit -m "feat: backfill Web3 source plans safely"
-```
-
----
-
-### Task 9: Full curriculum and session verification
-
-**Files:**
-- Modify only if verification exposes defects in files already covered by this plan.
-
-**Interfaces:**
-- Produces a fully curated, validated, and usable Web3 learning path.
+- Produces a deployable curated course and a complete local proof of the strict source gate.
 
 - [ ] **Step 1: Run complete content validation**
 
@@ -616,47 +659,141 @@ yarn web3:content:validate
 node scripts/validate-web3-content.mjs --check-urls
 ```
 
-Expected: all content parses, coverage has zero gaps, every leaf has an explicit source policy, and every unique URL responds successfully.
+Expected: 360/360 reviewable leaves have explicit policies; coverage has zero gaps; all IDs, groups, HTTP(S) URLs, scopes, estimates, reasons, freshness pairs, Build/Done-when clauses, prerequisites, prompt targets, topic counts, and payload sizes pass. Investigate every URL failure; do not delete a source merely to make the command green.
 
-- [ ] **Step 2: Run repository gates**
+- [ ] **Step 2: Audit every phase for learning quality**
+
+Review every leaf against its concept, prerequisites, Build, Done-when, and cards. Confirm each requirement has a distinct role, alternatives are truly interchangeable, security leaves include adversarial material when useful, and no source is stale, duplicated, homepage-only, or broader than its declared scope. Phase reviews from Tasks 2–7 are the primary evidence; this step checks cross-phase consistency and substitutions/rejections.
+
+- [ ] **Step 3: Run focused and repository gates**
 
 ```bash
+yarn workspace @terrain/types test
+yarn workspace @terrain/api test --runInBand src/sources src/import src/sessions src/courses
+yarn workspace @terrain/web test
 yarn build
 yarn test
 yarn lint
 yarn format:check
+yarn workspace @terrain/api exec prisma migrate status
 ```
 
-Expected: all exit 0.
+Expected: every command exits 0 and Prisma reports the schema up to date.
 
-- [ ] **Step 3: Sample every phase for quality**
+- [ ] **Step 4: Run the strict local fail/pass/apply/rollback matrix**
 
-Select at least three leaves per phase: one theory-heavy, one implementation,
-and one edge/security-heavy topic where available. Confirm requirement roles,
-alternatives, scopes, estimates, reasons, and freshness metadata manually.
-Phase 6 remains fully reviewed from Task 6 rather than sampled.
+Use `Public-key cryptography & wallets` or `Transaction anatomy` and a fresh local test user. Verify all eight scenarios:
 
-- [ ] **Step 4: Run the original wallet topic end-to-end**
+1. a first-exposure curated export carries real stored requirement/source IDs;
+2. omitting one required reconstruction makes Preview inapplicable;
+3. complete curated evidence makes Preview applicable;
+4. Apply stores evidence and activates the topic atomically;
+5. a rejected import writes neither notes nor application events;
+6. a review session does not reopen first-exposure-only sources;
+7. an `always` or expired source requires current verification;
+8. the model-facing conduct forbids performing the learner's Build task.
 
-Generate the first-exposure session for `Public-key cryptography & wallets`.
-Confirm it selects the curated sources before teaching, pauses for intake,
-requires separate reconstruction and cross-source synthesis, refuses to perform
-the README task, and blocks import when either source evidence entry is missing.
-Complete the learner-authored task, import, and confirm topic activation plus
-stored evidence.
+Also run a planned legacy topic through export and Preview: export stops, `sourceEvidence` remains empty, and a hand-invented requirement ID is rejected.
 
-- [ ] **Step 5: Run a review-mode regression**
+- [ ] **Step 5: Review the deploy payload**
 
-Generate a later session for an active topic with no `always` requirements.
-Confirm it starts retrieval without forcing the original sources. Repeat with
-an expired or `always` source and confirm verification is required.
+Confirm `COURSE_MANIFEST` contains every split file in dependency order and `scripts/import-web3.mjs` validates the final corpus before login. Record exact source counts, substitutions, rejected stale/dead candidates, URL results, test totals, and local smoke evidence in the verification report.
 
-- [ ] **Step 6: Commit checkpoint (only with explicit approval)**
+- [ ] **Step 6: Per-task and whole-rollout review**
+
+Review the complete rollout diff for spec compliance, technical/content quality, and cross-file consistency. Fix all Critical/Important findings and re-run the covering gates before deployment.
+
+---
+
+### Task 9: Deployment-ordered production reset and re-import runbook
+
+**Files:**
+- Create: `docs/ops/web3-source-plan-production-rollout.md`
+- Modify if required: `docs/ops/deploy.md`
+- Modify: `scripts/import-web3.mjs`
+- Test: `scripts/import-web3.test.mjs`
+
+**Interfaces:**
+- Produces exact operator commands for backup, count verification, one-user Web3 deletion, prepared-course re-import, and post-import proof.
+- Does not execute production deletion.
+
+- [ ] **Step 1: Write a failing import-verification test**
+
+Extract the smallest pure projection needed to verify imported content and assert that every expected Web3 `pattern` topic has a non-null source plan equal to prepared content. Also pin that verification ignores DSA/other domains and reports missing/extra/duplicate normalized Web3 titles.
+
+- [ ] **Step 2: Run the test and confirm RED**
 
 ```bash
-git status --short
-git add content/web3 scripts apps/api/src/courses/course-manifest.ts docs/superpowers/plans/2026-07-10-web3-source-plan-rollout.md
-git commit -m "feat: roll out source-grounded Web3 curriculum"
+node --test scripts/import-web3.test.mjs
 ```
 
-Expected: only files belonging to this rollout are staged; unrelated user changes remain unstaged.
+Expected: FAIL until the verification projection exists.
+
+- [ ] **Step 3: Strengthen `scripts/import-web3.mjs` verification**
+
+Keep the existing ordered preview/apply flow. During its detail sweep, deep-compare every pattern topic's `sourcePlan` with prepared content and fail on null/mismatch. Do not add a backfill or PATCH mode.
+
+- [ ] **Step 4: Write the exact operator runbook**
+
+The runbook must enforce this order:
+
+1. deploy the reviewed code, migration, and curated `content/web3` payload;
+2. verify the deployed revision and run a read-only course-content validation;
+3. take a timestamped PostgreSQL custom-format backup and prove it can be listed with `pg_restore --list`;
+4. resolve exactly one user by exact email and abort unless one row matches;
+5. print before counts for that user's Web3 topics, reviews, application events, source evidence, prompts, note summaries, prerequisite edges, session references, and Web3 `CourseImport` markers;
+6. open one SQL transaction, lock the target user, recompute/compare expected counts, delete only that user's Web3-dependent rows/topics and Web3 marker in FK-safe order, show preserved DSA/other-domain counts, then leave `COMMIT` as a separate operator action after review (`ROLLBACK` on any mismatch);
+7. re-import Web3 through Courses UI (preferred) or the authenticated import script against the deployed API;
+8. verify all expected topics/cards/edges and every Web3 pattern topic's non-null, content-equal `sourcePlan`;
+9. generate the first production learning export before any session work.
+
+Use actual Prisma table/column names and shell-safe commands. Scope every destructive predicate through the exact target user and `domain = 'Web3'`; never use a title-only delete.
+
+- [ ] **Step 5: Verify the runbook against a disposable local user**
+
+Run the backup/list, before-count, transaction-rollback, re-import, and source-plan verification flow locally against a throwaway user. Prove another user's rows and the same user's DSA rows are unchanged. Do not execute the production transaction.
+
+- [ ] **Step 6: Run tests and review**
+
+```bash
+node --test scripts/import-web3.test.mjs
+yarn lint
+yarn format:check
+```
+
+Review the runbook specifically for SQL scoping, FK order, backup restoreability, count guards, and the explicit deploy-before-reset gate.
+
+---
+
+### Task 10: Operator-run production completion gate
+
+**Files:**
+- Record results in: `docs/ops/web3-source-plan-production-rollout.md`
+
+**Interfaces:**
+- Consumes the deployed reviewed revision and the Task 9 runbook.
+- Produces the final production proof; this task requires human production access and confirmation.
+
+- [ ] **Step 1: Deploy before reset**
+
+The operator deploys the reviewed revision using `docs/ops/deploy.md`, records the immutable revision/image, and confirms the live API serves a curated first-exposure `SOURCE PLAN`. If deployment is not confirmed, stop; do not run deletion commands.
+
+- [ ] **Step 2: Human-reviewed backup and counts**
+
+The operator runs the backup and read-only count commands, pastes the outputs into the runbook record, and explicitly confirms the target email and expected Web3 counts.
+
+- [ ] **Step 3: Human-run transaction**
+
+The operator runs the generated SQL through the count/check phase. On any unexpected count, run `ROLLBACK` and investigate. Only the operator enters `COMMIT` after verifying that other users and non-Web3 rows remain unchanged.
+
+- [ ] **Step 4: Re-import and verify production content**
+
+Re-import Web3 through the Courses UI, then run the read-only verifier. Every prepared Web3 pattern topic must exist with non-null content-equal `sourcePlan`; DSA and other domains must retain their pre-reset counts.
+
+- [ ] **Step 5: Complete one production learning session**
+
+Run the first topic through `SELECT → CONSUME → RECONSTRUCT → SYNTHESIZE → CLOSED-SOURCE TEACH-BACK → ELABORATE → learner-authored DO → CONSPECT → RECORD`. Confirm incomplete evidence blocks activation, complete evidence imports, the learner's application event is the only one stored, and a later review does not reopen first-exposure-only sources.
+
+- [ ] **Step 6: Final report**
+
+Record the deployed revision, backup path/check, before/after counts, import totals, production session evidence, commands run, final test totals, all sources reviewed, substitutions made, stale/dead sources rejected, and any remaining limitations. Do not mark the rollout complete until this evidence exists.
