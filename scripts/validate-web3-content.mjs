@@ -1,6 +1,7 @@
 // CLI: structural validation of content/web3 (always) + optional live URL check
 // + optional coverage-checklist check.
-//   node scripts/validate-web3-content.mjs [--dir <path>] [--check-urls [NN]] [--check-coverage]
+//   node scripts/validate-web3-content.mjs [--dir <path>] [--source-prefix NN]...
+//     [--check-urls [NN]] [--check-coverage]
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadContentFiles, structuralErrors, allUrls, CONTENT_DIR } from './lib/web3-content.mjs';
@@ -17,13 +18,23 @@ const flag = (name) => {
 const dir = typeof flag('--dir') === 'string' ? flag('--dir') : CONTENT_DIR;
 const checkUrls = flag('--check-urls'); // true | 'NN' | undefined
 const checkCoverage = flag('--check-coverage') !== undefined;
+const sourcePrefixes = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] !== '--source-prefix') continue;
+  const prefix = args[i + 1];
+  if (!prefix || prefix.startsWith('--')) {
+    console.error('--source-prefix requires a value');
+    process.exit(2);
+  }
+  sourcePrefixes.push(prefix);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const files = await loadContentFiles(dir).catch((e) => {
   console.error(`LOAD FAIL: ${e.message}`);
   process.exit(1);
 });
-const errors = structuralErrors(files);
+const errors = structuralErrors(files, { sourcePrefixes });
 for (const e of errors) console.error(`STRUCTURAL: ${e}`);
 console.log(
   `${files.length} files, ${files.reduce((n, f) => n + f.doc.proposedTopics.length, 0)} topics, ` +
