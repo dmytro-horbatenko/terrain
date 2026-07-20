@@ -58,11 +58,11 @@
     "custom errors",
     "immutable",
     "bitmap",
-    "minimal proxy",
+    "minimal-proxy",
     "transient storage"
   ],
   "defi_builds": [
-    "constant product",
+    "constant-product",
     "stableswap",
     "uniswap v2",
     "uniswap v3",
