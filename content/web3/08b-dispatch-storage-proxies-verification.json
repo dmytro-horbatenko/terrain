@@ -1,0 +1,819 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Function Selectors & Dispatch",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How an external call finds its function: the 4-byte selector, the compiler-generated dispatcher, calldata layout, and fallback/receive routing at the bytecode level.",
+      "prerequisiteTitles": ["abi.decode & function selectors"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Storage Layout at the Bytecode Level",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Exactly where state lives: sequential slot assignment and packing, the keccak256 derivation for mappings and dynamic arrays, and ERC-7201 namespaced storage for modular or upgradeable contracts.",
+      "prerequisiteTitles": ["Reading storage slots"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Proxies at the Bytecode Level",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proxies as delegatecall forwarders: the ERC-1167 minimal-proxy runtime, ERC-1967 storage slots and dispatch, and why EIP-6780 prevents the classic multi-transaction metamorphic-contract cycle.",
+      "prerequisiteTitles": ["Minimal-proxy clones (EIP-1167)", "delegatecall & storage context"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Formal Verification",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proving properties instead of only sampling them: symbolic execution vs fuzzing, Halmos for Foundry-style symbolic tests, the Certora Prover with CVL, Kontrol/KEVM, and an inductive invariant proof.",
+      "prerequisiteTitles": ["Foundry invariant testing"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Huff jump tables & when Huff pays off",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Huff builds function dispatch by hand: read the selector with `0x00 calldataload 0xe0 shr`, compare `dup1 __FUNC_SIG(f) eq`, and `jumpi` to each terminating handler. An unmatched selector needs an explicit fallback or revert; otherwise execution falls through into the next label. Manual bytecode can optimize a known interface, but the author owns every control-flow and stack-safety decision.",
+      "aiContext": "Build: write contracts/phase08/SelectorDispatch.huff implementing a hand-rolled 2-function dispatcher (e.g. get()/set(uint256)). Done when: forge test in test/phase08/SelectorDispatch.t.sol calls both selectors successfully and a call with an unknown selector reverts (proving the fallback revert is in place).",
+      "prerequisiteTitles": [
+        "Huff macros & manual stack management",
+        "The 4-byte function selector"
+      ],
+      "parentTitle": "Huff & Hand-Written Bytecode",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-huff-dispatch-control-flow",
+            "purpose": "Hand-write selector extraction, comparisons, terminating handlers, and the unmatched-call path in Huff",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-huff-dispatch-docs",
+                "title": "Huff Function Dispatching (official archive)",
+                "url": "https://github.com/huff-language/huff-docs/blob/main/src/tutorial/function-dispatching/README.md",
+                "format": "documentation",
+                "scope": "Sections What is the problem? and Fallback functions, including the fall-through examples",
+                "estimatedMinutes": 16,
+                "why": "The Huff organization's archived documentation source shows the exact __FUNC_SIG comparison sequence, explicit unmatched-selector revert, and dangerous label fall-through exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "The 4-byte function selector",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A function selector is the first 4 bytes of keccak256 of the canonical signature string — `bytes4(keccak256(\"transfer(address,uint256)\")) == 0xa9059cbb` — using canonical types (`uint256`, not `uint`), no argument names, and no spaces. External-call calldata is this selector followed by ABI-encoded arguments. The 32-bit selector space permits collisions, which matters especially when proxy and implementation interfaces overlap.",
+      "aiContext": "Build: in contracts/phase08/Selector.sol compute a selector in Solidity and cross-check with `cast sig \"transfer(address,uint256)\"`; record three signatures and their selectors in test/phase08/Selector.t.sol. Done when: forge test asserts your computed bytes4 equals the expected value and you can explain why `uint` vs `uint256` in the string breaks it.",
+      "prerequisiteTitles": ["abi.decode & function selectors", "keccak256 hashing"],
+      "parentTitle": "Function Selectors & Dispatch",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-selector-canonical-kernel",
+            "purpose": "Compute selectors from canonical signatures and distinguish them from encoded arguments",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-selector-abi-spec",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Sections Function Selector, Types through the uint/int canonicalization note, and Function Selector and Argument Encoding",
+                "estimatedMinutes": 12,
+                "why": "The canonical Solidity ABI specification defines the four-byte hash input, canonical type spelling, and selector-plus-arguments call encoding.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "The dispatcher jump table",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Compiler-generated runtime code first rejects calldata shorter than 4 bytes, then can extract a selector with `shr(0xe0, calldataload(0))`, compare it with function selectors, and jump to the matching body. The exact comparison tree and opcodes are compiler-version, pipeline, optimizer, and interface dependent, so they must be read from the actual deployed-bytecode output rather than assumed.",
+      "aiContext": "Build: in contracts/phase08/Dispatch.md compile and disassemble a 3-function contract with the repository's pinned solc settings, then annotate the short-calldata guard, selector extraction, comparisons, jump destinations, and unmatched-call path. Done when: the annotations map all three selectors and explicitly record the compiler version and optimizer settings instead of generalizing the observed dispatcher shape.",
+      "prerequisiteTitles": ["The 4-byte function selector"],
+      "parentTitle": "Function Selectors & Dispatch",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-solc-dispatch-observation",
+            "purpose": "Recognize selector extraction and jump routing in the actual compiler output without assuming an undocumented dispatch heuristic",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-solc-assembly-output-docs",
+                "title": "Solidity: Analysing the Compiler Output",
+                "url": "https://docs.soliditylang.org/en/latest/analysing-compilation-output.html",
+                "format": "documentation",
+                "scope": "Section Analysing the Compiler Output, from the --asm example through the runtime subassembly selector dispatch",
+                "estimatedMinutes": 14,
+                "why": "The official compiler guide exposes the short-calldata guard, shr(calldataload) selector extraction, comparison, jump, and revert path in generated runtime assembly.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Calldata layout, fallback & receive at bytecode level",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Function-call calldata is a 4-byte selector followed by ABI head/tail encoding: static values are encoded in place, while a dynamic head word points to its tail. Empty calldata routes to `receive()` when present; otherwise a matching payable `fallback()` may handle it. Any calldata with no matching function selector routes to `fallback()` when present. Proxies use that unmatched-call path to delegate.",
+      "aiContext": "Build: in contracts/phase08/Fallback.sol implement receive() and a fallback() that logs msg.data, then in test/phase08/Fallback.t.sol send (a) empty calldata, (b) 3 bytes, (c) an unknown 4-byte selector. Done when: forge test proves which handler each case hits and you can explain why <4-byte data never matches a selector.",
+      "prerequisiteTitles": ["The dispatcher jump table", "receive & fallback"],
+      "parentTitle": "Function Selectors & Dispatch",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-calldata-head-tail",
+            "purpose": "Decode selector-prefixed ABI head and tail regions for static and dynamic arguments",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-calldata-abi-spec",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Sections Formal Specification of the Encoding and Function Selector and Argument Encoding",
+                "estimatedMinutes": 14,
+                "why": "The canonical ABI specification defines static in-place values, dynamic offsets and tails, and the four-byte prefix used by the build's test calls.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08b-fallback-receive-routing",
+            "purpose": "Distinguish empty-calldata receive routing from unmatched-signature fallback routing",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-solidity-special-functions-docs",
+                "title": "Solidity Contracts: Special Functions",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html#special-functions",
+                "format": "documentation",
+                "scope": "Sections Receive Ether Function and Fallback Function",
+                "estimatedMinutes": 10,
+                "why": "The official language reference states the exact receive/fallback selection rules, including empty calldata when receive is absent.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Sequential slot assignment & struct packing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "With the default layout base, Solidity assigns statically sized state variables from slot 0 in C3-linearized inheritance order. Value types use only their needed bytes and pack into a slot from the lower-order bytes when they fit; structs and arrays start a new slot, and their members or elements then follow packing rules. Constants and immutables do not occupy storage slots. Upgrade implementations must preserve the existing layout.",
+      "aiContext": "Build: in contracts/phase08/Layout.sol declare a mix of uint256, uint64, address, and bool, deploy on anvil, then read raw slots with `cast storage <addr> <n>` and map each variable in test notes. Done when: you can predict which variables share a slot and explain why reordering them is fatal to a delegatecall/upgradeable contract.",
+      "prerequisiteTitles": ["Reading storage slots", "Packing variables into slots"],
+      "parentTitle": "Storage Layout at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-storage-packing-rules",
+            "purpose": "Predict default slot allocation, lower-order packing, aggregate boundaries, inheritance order, and no-slot declarations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-solidity-storage-layout-docs",
+                "title": "Solidity Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections Layout of State Variables in Storage and Transient Storage and the packing examples before Mappings and Dynamic Arrays",
+                "estimatedMinutes": 18,
+                "why": "The official compiler contract defines slot order, lower-order alignment, packing boundaries, inheritance layout, and constant/immutable behavior used in the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08b-upgrade-layout-compatibility",
+            "purpose": "Apply storage-layout rules as a compatibility constraint across proxy implementation upgrades",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-oz-upgrade-storage-docs",
+                "title": "OpenZeppelin Writing Upgradeable Contracts",
+                "url": "https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable",
+                "format": "documentation",
+                "scope": "Section Modifying Your Contracts through the storage-layout compatibility rules",
+                "estimatedMinutes": 8,
+                "why": "The current OpenZeppelin guidance connects the raw slot rules to the learner's requirement to preserve existing variable order and types across upgrades.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Mapping & dynamic-array slot derivation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "For a mapping based at slot `p`, key `k` starts at `keccak256(h(k) . p)`: `h` pads value-type keys to 32 bytes but uses unpadded data for `bytes` and `string` keys. Nested mappings apply the rule recursively. A dynamic array normally stores its length at `p`, with data from `keccak256(p)`; 32-byte elements use `keccak256(p) + i`, while smaller elements can pack. Short `bytes` and `string` values are a separate in-slot encoding.",
+      "aiContext": "Build: in contracts/phase08/MapSlot.sol compute a mapping entry's slot in assembly (mstore key, mstore p, keccak256) and read it back with sload; assert equality against the Solidity mapping in test/phase08/MapSlot.t.sol. Done when: forge test passes and you can explain why a short `string`/`bytes` (≤31 bytes) is the exception that packs into slot p itself.",
+      "prerequisiteTitles": ["Reading storage slots", "Cheap hashing in assembly"],
+      "parentTitle": "Storage Layout at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-hashed-storage-kernels",
+            "purpose": "Derive mapping, nested-mapping, dynamic-array, packed-element, and short-bytes storage locations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-solidity-hashed-storage-docs",
+                "title": "Solidity Mappings and Dynamic Arrays",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays",
+                "format": "documentation",
+                "scope": "Sections Mappings and Dynamic Arrays and bytes and string",
+                "estimatedMinutes": 18,
+                "why": "The official storage contract specifies h(k) by key type, recursive hashes, packed array elements, and the short-bytes/string exception needed for every kernel in the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "ERC-7201 namespaced storage",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-7201 documents a storage namespace as an annotated struct rooted at `keccak256(abi.encode(uint256(keccak256(bytes(id))) - 1)) & ~bytes32(uint256(0xff))`. The subtract-one location is outside Solidity's ordinary tree, the second hash keeps a multi-slot namespace disjoint under the stated assumptions, and the mask aligns the root to 256 slots. The annotation is not compiler-enforced, so code must use the claimed root correctly and namespace IDs must not collide.",
+      "aiContext": "Build: in contracts/phase08/Erc7201.sol define a namespaced storage struct with the standard base-slot formula and a getter that sloads it; test in test/phase08/Erc7201.t.sol. Done when: forge test asserts the computed base slot matches the ERC-7201 formula (cross-check with a known reference value) and reads/writes round-trip.",
+      "prerequisiteTitles": [
+        "Direct storage slots in assembly",
+        "Sequential slot assignment & struct packing"
+      ],
+      "parentTitle": "Storage Layout at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-erc7201-root-and-safety",
+            "purpose": "Implement the ERC-7201 annotation and root formula with its actual collision and alignment rationale",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-erc7201-spec",
+                "title": "ERC-7201: Namespaced Storage Layout",
+                "url": "https://eips.ethereum.org/EIPS/eip-7201",
+                "format": "documentation",
+                "scope": "Sections @custom:storage-location, Formula, Rationale, Reference Implementation, and Security Considerations",
+                "estimatedMinutes": 16,
+                "why": "The final ERC defines the exact formula, annotation, reference constant, second-hash rationale, 256-slot alignment, and non-enforcement caveat.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "EIP-1167 minimal-proxy runtime bytecode",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-1167 specifies a 45-byte deployed runtime that copies calldata, delegatecalls a fixed 20-byte implementation with all gas, copies returndata, and returns or reverts with it. The ERC explicitly does not standardize deployment bytecode. Because a clone runs the implementation in the clone's storage context, the implementation constructor does not initialize clone state; initialization must be performed explicitly and atomically enough to prevent takeover.",
+      "aiContext": "Build: in contracts/phase08/Clone1167.sol deploy the exact 45-byte ERC-1167 runtime with the implementation address spliced into bytes 10–29, using a documented init-code wrapper or OpenZeppelin `Clones`; initialize it in the factory transaction. Done when: test/phase08/Clone1167.t.sol checks the exact deployed runtime, success and revert-data forwarding, initialized state, and rejection of a second or unauthorized initializer call.",
+      "prerequisiteTitles": ["Minimal-proxy clones (EIP-1167)"],
+      "parentTitle": "Proxies at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-erc1167-runtime",
+            "purpose": "Recognize and test the exact standardized deployed runtime and its delegatecall return/revert behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-erc1167-spec",
+                "title": "ERC-1167: Minimal Proxy Contract",
+                "url": "https://eips.ethereum.org/EIPS/eip-1167",
+                "format": "documentation",
+                "scope": "Sections Specification, Rationale, Test Cases, and Implementation through Standard Proxy",
+                "estimatedMinutes": 18,
+                "why": "The final ERC supplies the exact 45-byte runtime and explicitly says deployment bytecode is outside the specification, correcting the original 55-byte claim.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "08b-clone-deployment-initialization",
+            "purpose": "Deploy and initialize a clone without leaving an uninitialized takeover window",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-oz-clones-reference",
+                "title": "OpenZeppelin Contracts Clones",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#Clones",
+                "format": "documentation",
+                "scope": "Sections Clones through cloneDeterministic and Initializable through the initializer modifier",
+                "estimatedMinutes": 14,
+                "why": "The current library reference provides a maintained clone deployment mechanism, warns that delayed initialization enables takeover, and defines the one-use initializer guard required by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "ERC-1967 storage slots & delegatecall dispatch",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-1967 fixes the implementation slot at `bytes32(uint256(keccak256(\"eip1967.proxy.implementation\")) - 1)`, equal to `0x360894…382bbc`, and defines sibling beacon and optional admin slots plus change events. A proxy can load the implementation from that slot and delegate calls so code runs against proxy storage. The standard slot avoids compiler-allocated state, but safe upgrade authorization and implementation-layout compatibility remain separate obligations.",
+      "aiContext": "Build: in contracts/phase08/Proxy1967.sol write a minimal teaching proxy whose fallback loads the ERC-1967 implementation slot and forwards calldata/returndata with delegatecall; gate implementation changes with explicit admin authorization and emit `Upgraded`. Done when: test/phase08/Proxy1967.t.sol proves routing, returndata/revert bubbling, an authorized upgrade, rejection of an unauthorized upgrade, and storage-layout preservation across versions.",
+      "prerequisiteTitles": [
+        "delegatecall & storage context",
+        "EIP-1167 minimal-proxy runtime bytecode"
+      ],
+      "parentTitle": "Proxies at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-erc1967-slots-events",
+            "purpose": "Derive the implementation, beacon, and admin slots and emit the standard change events",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-erc1967-spec",
+                "title": "ERC-1967: Proxy Storage Slots",
+                "url": "https://eips.ethereum.org/EIPS/eip-1967",
+                "format": "documentation",
+                "scope": "Sections Specification and Rationale",
+                "estimatedMinutes": 18,
+                "why": "The final ERC defines all three slots, notification events, delegatecall context, selector-clash rationale, and the compiler-allocation argument.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "08b-proxy-upgrade-safety",
+            "purpose": "Keep implementation changes authorized and storage-compatible rather than treating a standard slot as complete upgrade safety",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-oz-proxy-reference",
+                "title": "OpenZeppelin Contracts Proxy",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+                "format": "documentation",
+                "scope": "Sections Proxy overview, Transparent vs UUPS Proxies, and ERC1967Proxy",
+                "estimatedMinutes": 12,
+                "why": "The maintained reference separates bare ERC1967Proxy forwarding from authorized UUPS or transparent upgrade mechanisms and warns about proxy complexity.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Metamorphic contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "CREATE2 derives an address from the deployer, salt, and init-code hash, not directly from the runtime returned by that init code. Before EIP-6780, a multi-transaction pattern could delete code with `SELFDESTRUCT` and reuse the same CREATE2 inputs while mutable init-code dependencies returned different runtime. Under EIP-6780, `SELFDESTRUCT` outside the creation transaction transfers balance but does not delete code or storage, so that classic redeployment cycle no longer works.",
+      "aiContext": "Build: in contracts/phase08/Metamorphic.md derive the CREATE2 address formula, diagram the pre-EIP-6780 multi-transaction delete/redeploy cycle, then test on a chain with EIP-6780 semantics that a later-transaction `SELFDESTRUCT` leaves code and storage intact and redeployment collides. Done when: the artifact distinguishes init code from runtime code and states the same-creation-transaction exception without claiming same-transaction destroy-and-recreate is possible.",
+      "prerequisiteTitles": ["CREATE & CREATE2 opcodes"],
+      "parentTitle": "Proxies at the Bytecode Level",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-create2-address-kernel",
+            "purpose": "Derive the CREATE2 address from deployer, salt, and init-code hash while distinguishing init code from runtime",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-eip1014-spec",
+                "title": "EIP-1014: Skinny CREATE2",
+                "url": "https://eips.ethereum.org/EIPS/eip-1014",
+                "format": "documentation",
+                "scope": "Sections Specification and Clarifications",
+                "estimatedMinutes": 10,
+                "why": "The core EIP defines the 85-byte address preimage, distinguishes init code from returned runtime, and explains creation collisions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "08b-selfdestruct-post-6780",
+            "purpose": "Explain and test why later-transaction SELFDESTRUCT no longer enables code deletion and CREATE2 redeployment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-eip6780-spec",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, Backwards Compatibility, and Security Considerations",
+                "estimatedMinutes": 12,
+                "why": "The core EIP states the precise same-creation-transaction exception and explicitly identifies CREATE2 same-address redeployment as broken otherwise.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Symbolic execution vs fuzzing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Fuzzing runs sampled concrete inputs and can demonstrate a counterexample but not exhaust the input domain. Symbolic execution represents inputs symbolically, forks on path conditions, and asks a solver whether an assertion can fail; a completed, sound run can establish the property for the modeled domain. Path explosion, timeouts, unsupported behavior, abstractions, and explicit bounds can leave paths unproven, so `no counterexample` is not by itself a proof result.",
+      "aiContext": "Build: in contracts/phase08/SymVsFuzz.md take one property of a contracts/phase08 contract, test it with a Foundry fuzz test and then with a symbolic tool, and record where each stops. Done when: you can state one property fuzzing can only sample but symbolic execution can prove, and why 'no counterexample' from a bounded symbolic run is not a full proof.",
+      "prerequisiteTitles": ["Fuzz testing", "Foundry invariant testing"],
+      "parentTitle": "Formal Verification",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-fuzz-sampling-boundary",
+            "purpose": "Characterize Foundry fuzzing as sampled concrete property checks with configurable runs and assumptions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-foundry-fuzz-docs",
+                "title": "Foundry Forge Testing",
+                "url": "https://www.getfoundry.sh/forge/testing",
+                "format": "documentation",
+                "scope": "Section Fuzz testing, from parameterized tests through assumptions and bound",
+                "estimatedMinutes": 10,
+                "why": "The current Foundry guide defines the concrete randomized side of the comparison and the domain restrictions used by fuzz properties.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08b-symbolic-proof-boundary",
+            "purpose": "Distinguish exhaustive symbolic proof results from bounded, timed-out, unsupported, or otherwise inconclusive runs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-solidity-smtchecker-docs",
+                "title": "Solidity SMTChecker and Formal Verification",
+                "url": "https://docs.soliditylang.org/en/latest/smtchecker.html",
+                "format": "documentation",
+                "scope": "Sections SMTChecker introduction, Model Checking Engines, Bounded Model Checker, and Constrained Horn Clauses",
+                "estimatedMinutes": 18,
+                "why": "The official compiler documentation distinguishes proof, counterexample, unknown results, bounded analysis, and whole-contract CHC reasoning without equating no counterexample with proof.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Halmos: symbolic testing in Foundry",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Halmos symbolically executes Solidity tests: `check_` parameters range over their Solidity types, `setUp()` establishes the tested state, and `svm` cheatcodes can create additional symbolic values. Assertions can be checked across the explored symbolic domain or produce counterexamples. Dynamic arrays require a fixed chosen length, assumptions restrict the domain, and non-assertion reverts are ignored by default, so those boundaries belong in the proof claim.",
+      "aiContext": "Build: write test/phase08/HalmosInvariant.t.sol with a `check_` property over contracts/phase08/<C>.sol, use `vm.assume` only for real preconditions, and run `halmos`. Done when: Halmos reports PASS or a reproducible counterexample, and the artifact records setUp state, fixed dynamic-array lengths, assumptions, timeouts, and any paths or revert classes outside the claim.",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-halmos-symbolic-test-contract",
+            "purpose": "Write a Halmos check with explicit symbolic inputs, setup, assumptions, fixed dynamic lengths, and assertion semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-halmos-getting-started",
+                "title": "Halmos: How to write symbolic tests",
+                "url": "https://github.com/a16z/halmos/blob/main/docs/getting-started.md",
+                "format": "documentation",
+                "scope": "Sections Write setUp() and Write symbolic tests through Check output states",
+                "estimatedMinutes": 22,
+                "why": "The current official guide defines check_ parameters, symbolic setup, fixed dynamic-array lengths, assumptions, counterexamples, and the default treatment of non-assertion reverts.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Certora Prover & CVL",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A CVL specification can declare rules over symbolic environments and arguments and invariants over contract state. Rules assume their `require` clauses and check assertions; invariants require a constructor base case and preservation by every included state-changing method. The Certora Prover reports verified properties or counterexample traces, but over-strong assumptions, filters, reverting invariant expressions, and unresolved-call modeling can weaken or make an invariant proof unsound.",
+      "aiContext": "Build: write specs/phase08/<C>.spec with a directly computable state invariant for contracts/phase08/<C>.sol and run the Certora Prover. Done when: the prover reports the rule/invariant verified, or you fix the contract after its counterexample — and your rule's `require` assumptions are documented (not over-constraining the environment).",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-cvl-rule-semantics",
+            "purpose": "Write CVL rules whose symbolic variables, assumptions, calls, and assertions match the intended property",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-certora-rules-docs",
+                "title": "Certora CVL Rules",
+                "url": "https://docs.certora.com/en/latest/docs/cvl/rules.html",
+                "format": "documentation",
+                "scope": "Sections Overview, Parametric rules, Filters, and How rules are verified",
+                "estimatedMinutes": 16,
+                "why": "The official CVL reference defines rule execution over symbolic values and makes the effect of requires, filters, and assertions reviewable.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08b-cvl-invariant-semantics",
+            "purpose": "Check constructor establishment and preservation while auditing known invariant-unsoundness traps",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-certora-invariants-docs",
+                "title": "Certora CVL Invariants",
+                "url": "https://docs.certora.com/en/latest/docs/cvl/invariants.html",
+                "format": "documentation",
+                "scope": "Sections Overview, Invariants that revert, Preserved blocks, Filters, and Invariants and induction",
+                "estimatedMinutes": 24,
+                "why": "The official invariant reference defines base and preservation checks and explicitly catalogs filters, reverting expressions, and preserved assumptions that can make a proof unsound.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Kontrol & KEVM",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Kontrol compiles a Foundry project into KEVM helper modules and symbolically executes selected Solidity property tests against KEVM's K semantics of EVM bytecode. `kontrol build`, `kontrol prove`, `kontrol list`, and the KCFG viewer cover compilation, proof execution, status, and inspection. Some proofs require explicit storage abstraction, lemmas, loop invariants, bounds, or manual KCFG work; an open or stuck branch is unproven, not safe.",
+      "aiContext": "Build: in contracts/phase08/kontrol/ add a small Foundry property test, run `kontrol build`, prove only that test with `kontrol prove --match-test <Contract.test>`, and inspect status with `kontrol list`. Done when: every proof branch is discharged or a failing/open node is documented; any symbolic-storage cheatcode, bound, lemma, or manual proof step is part of the stated claim.",
+      "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
+      "parentTitle": "Formal Verification",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-kontrol-foundry-proof-workflow",
+            "purpose": "Build, run, scope, and inspect a Kontrol proof for one Foundry property test",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-kontrol-property-guide",
+                "title": "Kontrol Property Verification",
+                "url": "https://docs.runtimeverification.com/kontrol/guides/kontrol-example/property-verification-using-kontrol",
+                "format": "documentation",
+                "scope": "Sections Building the project with Kontrol, proving the selected test, listing proofs, and Using a Cheatcode",
+                "estimatedMinutes": 20,
+                "why": "The official guide demonstrates the exact build/prove/list workflow, test selection, proof versions, and symbolic-storage boundary used in the learner artifact.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08b-kontrol-proof-status",
+            "purpose": "Distinguish a completed proof from open nodes and know when lemmas or manual KCFG inspection are required",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-kontrol-commands-docs",
+                "title": "Kontrol Cheatsheet",
+                "url": "https://docs.runtimeverification.com/kontrol/cheatsheets/kontrol-cheatsheet",
+                "format": "documentation",
+                "scope": "Sections kontrol commands, kontrol build, kontrol prove, and Recommended Workflow",
+                "estimatedMinutes": 12,
+                "why": "The current command contract covers build, prove, list, show, and KCFG inspection plus flags for lemmas and reinitializing symbolic execution.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Writing a verifiable invariant proof",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A contract invariant is a precise state predicate expected in every reachable state. An inductive proof establishes it after construction, assumes it before an arbitrary included state-changing method, and proves the method preserves it. The claim is only as broad as the methods, external-call model, and assumptions included; filtering a transition or adding unjustified preserved assumptions can make a reported result unsound.",
+      "aiContext": "Build: (FV) choose a finite, computable invariant for contracts/phase08/Vault.sol, encode it as a CVL invariant, and prove both constructor establishment and preservation across every public or external state-changing method. Done when: the Certora report verifies the full method set or provides a reproduced counterexample, and specs/phase08/Vault.md audits filters, preserved assumptions, reverting expressions, and unresolved external calls.",
+      "prerequisiteTitles": ["Halmos: symbolic testing in Foundry", "Writing good invariants"],
+      "parentTitle": "Formal Verification",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08b-inductive-invariant-proof",
+            "purpose": "Prove constructor establishment and transition preservation for every reachable state represented by the complete method set",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08b-certora-invariant-induction",
+                "title": "Certora CVL Invariants",
+                "url": "https://docs.certora.com/en/latest/docs/cvl/invariants.html",
+                "format": "documentation",
+                "scope": "Sections Overview, Writing an invariant as a rule, and Invariants and induction, plus the cautions on filters and preserved blocks",
+                "estimatedMinutes": 24,
+                "why": "The official proof model gives the capstone its correct reachable-state induction: constructor base case plus preservation by arbitrary included method calls.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Huff jump tables & when Huff pays off",
+      "promptText": "How does a hand-written Huff dispatcher route a call, and what must not be forgotten?",
+      "answerHint": "Load the selector (calldataload(0), shr 0xe0), then for each function `dup1 __FUNC_SIG(f) eq <label> jumpi`, else fall through to a revert. Pitfall: omit the final fallback revert and an unknown selector falls into the first function's body — the manual control that makes Huff cheap also makes this your responsibility.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff jump tables & when Huff pays off",
+      "promptText": "Practice hand-writing Huff macros and dispatch on the RareSkills Huff puzzles.",
+      "answerHint": "Work the huff-puzzles ladder: implement each macro so its test passes, managing the stack and selector dispatch by hand.",
+      "promptKind": "problem",
+      "url": "https://github.com/RareSkills/huff-puzzles",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 180
+    },
+    {
+      "topicTitle": "The 4-byte function selector",
+      "promptText": "How is a function selector computed, and what breaks it?",
+      "answerHint": "bytes4(keccak256(canonicalSignature)) — first 4 bytes of the keccak of e.g. \"transfer(address,uint256)\" (= 0xa9059cbb), using canonical types, no names, no spaces. Pitfall: writing \"uint\" instead of \"uint256\", adding spaces, or including argument names hashes to the wrong selector; 4 bytes also means collisions exist.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The 4-byte function selector",
+      "promptText": "Write the Solidity expression for the selector of transfer(address,uint256).",
+      "answerHint": "bytes4(keccak256(\"transfer(address,uint256)\")) == 0xa9059cbb — canonical signature string, first 4 bytes of the keccak256.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "The dispatcher jump table",
+      "promptText": "How does the compiled dispatcher extract and route the selector?",
+      "answerHint": "A generated dispatcher can guard calldatasize < 4, use shr(0xe0, calldataload(0)) to right-align the selector, compare selectors, and jump to a matching body; no match follows the generated fallback/receive/revert path. Pitfall: the exact comparison tree depends on compiler version, pipeline, optimizer, and interface, so infer it from the pinned build's disassembly, not a universal heuristic.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The dispatcher jump table",
+      "promptText": "Write the two-op sequence that extracts the selector from calldata.",
+      "answerHint": "shr(0xe0, calldataload(0)) — load the first 32 bytes of calldata and shift right by 224 bits to leave the 4-byte selector right-aligned.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Calldata layout, fallback & receive at bytecode level",
+      "promptText": "Which of receive/fallback runs for empty vs unmatched calldata?",
+      "answerHint": "Empty calldata with receive() present → receive(); if receive is absent, a payable fallback may handle it. Any calldata whose selector matches no function (including non-empty data shorter than 4 bytes) → fallback() when present. Pitfall: fallback must be payable to accept value; proxies deliberately use the unmatched-call path to delegate.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sequential slot assignment & struct packing",
+      "promptText": "How does solc assign storage slots, and what is fatal for an upgradeable contract?",
+      "answerHint": "With the default base, variables follow C3-linearized order from slot 0; value types pack into lower-order bytes when they fit, while structs and arrays start a new slot and pack internally. Constants and immutables use no storage slot. Pitfall: an upgrade must preserve existing layout; reordering, changing types, or inserting before existing fields can reinterpret proxy state.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mapping & dynamic-array slot derivation",
+      "promptText": "Where does mapping value m[k] (m at slot p) and dynamic-array element i live?",
+      "answerHint": "m[k] starts at keccak256(h(k) . p): h pads value-type keys to 32 bytes but uses raw unpadded data for bytes/string keys; nested mappings hash recursively. A dynamic array normally stores length at p and data from keccak256(p); 32-byte element i is at base+i, while smaller elements can pack. Short bytes/string (≤31 bytes) store data and length in p itself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mapping & dynamic-array slot derivation",
+      "promptText": "Write assembly that computes the storage slot of mapping entry m[key], m at slot p.",
+      "answerHint": "For a `mapping(uint256 => ...)`: assembly { mstore(0x00, key) mstore(0x20, p) let s := keccak256(0x00, 0x40) } — the two mstores produce padded key ‖ slot. For bytes/string keys, h(k) is the raw unpadded key data, so this fixed 64-byte kernel does not apply unchanged.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ERC-7201 namespaced storage",
+      "promptText": "What problem does ERC-7201 solve, and how is its base slot derived?",
+      "answerHint": "It roots an annotated module struct at keccak256(abi.encode(uint256(keccak256(bytes(id))) − 1)) & ~bytes32(uint256(0xff)). The subtract-one seed is outside the ordinary tree, the second hash keeps the multi-slot namespace disjoint under the ERC's assumptions, and the mask aligns to 256 slots. Pitfall: the annotation is not enforced; unique IDs and correct assembly slot assignment remain the author's job.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-7201 namespaced storage",
+      "promptText": "Write the ERC-7201 base-slot computation for a namespace string.",
+      "answerHint": "bytes32 slot = keccak256(abi.encode(uint256(keccak256(bytes(\"my.namespace\"))) - 1)) & ~bytes32(uint256(0xff)); — hash the namespace, subtract 1, ABI-encode+hash, clear the low byte.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "EIP-1167 minimal-proxy runtime bytecode",
+      "promptText": "What is an EIP-1167 clone's runtime, and why can't it be upgraded or run a constructor?",
+      "answerHint": "ERC-1167 standardizes a fixed 45-byte deployed runtime that copies calldata, delegatecalls a fixed 20-byte implementation with all gas, and returns or reverts with returndata; deployment bytecode is explicitly outside the ERC. Pitfall: the implementation constructor never initializes clone storage, so deploy and initialize safely—an uninitialized clone may be taken over.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-1167 minimal-proxy runtime bytecode",
+      "promptText": "Give the EIP-1167 runtime bytecode template with the implementation placeholder.",
+      "answerHint": "363d3d373d3d3d363d73<20-byte-impl>5af43d82803e903d91602b57fd5bf3 — 45 bytes: calldatacopy, delegatecall to <impl> with all gas, returndatacopy, then RETURN on success or REVERT.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ERC-1967 storage slots & delegatecall dispatch",
+      "promptText": "Where does an ERC-1967 proxy store the implementation address, and why the odd slot?",
+      "answerHint": "At bytes32(uint256(keccak256(\"eip1967.proxy.implementation\")) − 1) = 0x360894…382bbc, with sibling beacon and optional admin slots; the fallback can sload it and delegatecall. The label hash and −1 convention avoid compiler-allocated state. Pitfall: the slot does not provide upgrade authorization or implementation-layout compatibility—both must be enforced separately.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-1967 storage slots & delegatecall dispatch",
+      "promptText": "Write the constant for the ERC-1967 implementation slot and how the proxy reads it.",
+      "answerHint": "bytes32 constant SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc; // = keccak256('eip1967.proxy.implementation') - 1; read via sload(SLOT) then delegatecall.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Metamorphic contracts",
+      "promptText": "How did metamorphic contracts work, and how did EIP-6780 stop them?",
+      "answerHint": "CREATE2 pins an address to deployer, salt, and init-code hash, while init code may return runtime obtained from mutable dependencies. Pre-6780, code could be deleted in one transaction and different runtime redeployed later with the same CREATE2 inputs. EIP-6780 leaves code/storage intact for later-transaction SELFDESTRUCT. The same-creation-transaction exception still cannot destroy and recreate at that address within one transaction because creation collision rules apply.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Symbolic execution vs fuzzing",
+      "promptText": "What can symbolic execution prove that fuzzing cannot, and what is its main limit?",
+      "answerHint": "Fuzzing samples concrete inputs and can find a counterexample but does not exhaust the domain. Symbolic execution forks on symbolic path conditions and can prove an assertion for the modeled domain when every relevant path is discharged, or produce a counterexample. Pitfall: bounds, abstractions, unsupported behavior, path explosion, and timeouts may yield an incomplete run—'no counterexample' alone is not proof.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Halmos: symbolic testing in Foundry",
+      "promptText": "How does Halmos turn a Foundry test into a proof, and what should you watch?",
+      "answerHint": "Halmos symbolically executes check_ parameters over their types after setUp and can report assertion counterexamples; svm cheatcodes add symbolic values. Pitfall: dynamic arrays need fixed chosen lengths, vm.assume narrows the domain, and non-assertion reverts are ignored by default. A PASS must be stated with those setup, domain, timeout, and supported-semantics boundaries.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Certora Prover & CVL",
+      "promptText": "What does a CVL spec contain, and how can a spec falsely 'verify'?",
+      "answerHint": "A .spec can declare method summaries, rules over symbolic env/args, and invariants. Rules check assertions under their requires; invariants prove a constructor base case and preservation by included state-changing methods. Pitfall: over-strong requires, filtered methods, reverting invariant expressions, preserved assumptions, or unresolved-call modeling can exclude real behavior or make an invariant result unsound.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Certora Prover & CVL",
+      "promptText": "Study worked CVL specs and rules in the Certora Examples repository.",
+      "answerHint": "Read and run specs in Certora/Examples: pick a contract, inspect its .spec (methods/rule/invariant), and reproduce the prover reporting verified.",
+      "promptKind": "problem",
+      "url": "https://github.com/Certora/Examples",
+      "problemDifficulty": "medium",
+      "estimatedMinutes": 120
+    },
+    {
+      "topicTitle": "Kontrol & KEVM",
+      "promptText": "What makes Kontrol's guarantees strong, and what remains your responsibility?",
+      "answerHint": "Kontrol compiles Foundry artifacts into KEVM helper modules and symbolically executes selected Solidity tests against KEVM's K semantics. `build`, `prove`, `list`, and KCFG inspection expose the workflow and proof state. Pitfall: storage abstractions, bounds, lemmas, loop invariants, or manual steps become part of the claim; any open or stuck branch remains unproven, not safe.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Writing a verifiable invariant proof",
+      "promptText": "What makes an invariant genuinely proven rather than just tested?",
+      "answerHint": "Use induction over reachable states: prove the constructor establishes the invariant, then assume it before an arbitrary included state-changing method and prove that method preserves it. Repeat for the complete transition set. Pitfall: filtering a method, adding an unjustified preserved require, allowing the invariant expression to revert, or under-modeling external calls can make a reported result unsound.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

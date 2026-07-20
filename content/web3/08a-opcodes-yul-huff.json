@@ -1,0 +1,896 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Opcodes Deep Dive",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The EVM at the raw opcode level: gas per opcode, stack/memory/storage/transient ops, the CALL and CREATE families, external-code and halting opcodes — deeper than the Phase-1 interpreter sketch.",
+      "prerequisiteTitles": ["Opcodes & the interpreter loop"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Yul & Inline Assembly",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Yul as Solidity's low-level dialect: syntax, the solc memory model (free memory pointer, scratch space), calldata decoding, reverting with data, and standalone Yul objects.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Huff & Hand-Written Bytecode",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Huff — opcodes plus macros and manual stack manipulation — for hand-built dispatchers and gas-critical primitives: macros, stack effects, scoped labels, and when the effort pays off. The current huff2 compiler does not yet implement jump tables.",
+      "prerequisiteTitles": ["Yul & Inline Assembly"],
+      "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
+    },
+    {
+      "title": "Opcode gas accounting",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Opcode charges combine schedule groups with operation-specific dynamic components: account and storage access can be cold or warm (EIP-2929), memory growth charges the increase in the memory-cost function, and SSTORE depends on original, current, and new values. EIP-150 caps ordinary CALL-family forwarded gas at all but one sixty-fourth of the available gas after call costs. If a frame cannot pay a charge, it halts exceptionally: that frame's state changes are discarded and it returns no remaining gas.",
+      "aiContext": "Build: in contracts/phase08/gas-trace.md take a short, compiler-emitted opcode trace, record the pre-op stack/memory/access state, and hand-compute each charge from the Yellow Paper plus current EIPs; keep the trace and arithmetic beside test/phase08/GasTrace.t.sol. Done when: the sum matches the trace interval you defined and you can isolate every cold-access or memory-expansion component without counting test-harness overhead.",
+      "prerequisiteTitles": ["Opcodes & the interpreter loop", "Warm vs cold access (EIP-2929)"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-gas-formal-schedule",
+            "purpose": "Recompute base, dynamic, memory-expansion, and exceptional-halt gas from the formal execution model",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-gas",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Sections 9.2-9.4 and Appendix H",
+                "estimatedMinutes": 16,
+                "why": "The protocol paper defines just-in-time memory charges, exceptional halts, opcode cost groups, and the formal call-gas function used by the hand calculation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-gas-modern-access-rules",
+            "purpose": "Apply the post-Berlin cold/warm access schedule before the EIP-150 forwarding cap",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-2929-gas",
+                "title": "EIP-2929: Gas cost increases for state access opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2929",
+                "format": "article",
+                "scope": "Sections Specification: Parameters, Storage read changes, and SSTORE changes",
+                "estimatedMinutes": 12,
+                "why": "The accepted EIP specifies exact cold and warm prices and states that CALL-family access cost is charged before the 63/64 calculation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Stack, arithmetic & bitwise opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The stack holds at most 1024 256-bit words. PUSH0 pushes zero; PUSH1–PUSH32 push 1–32 immediate bytes; DUP1–DUP16 copy and SWAP1–SWAP16 reorder accessible stack items. Arithmetic includes ADD/MUL/SUB/DIV/SDIV/MOD/SMOD/EXP/ADDMOD/MULMOD; comparisons include LT/GT/SLT/SGT/EQ/ISZERO; AND/OR/XOR/NOT/BYTE/SHL/SHR/SAR operate on bits. Signed opcodes interpret the same 256 bits as two's-complement values.",
+      "aiContext": "Build: on evm.codes' playground assemble PUSH1 0x03 PUSH1 0x02 ADD and one signed vs unsigned case (e.g. SDIV of a negative), recording each in contracts/phase08/stack-ops.md. Done when: you can predict the stack after each opcode and explain why DIV by zero yields 0 rather than reverting.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-stack-word-semantics",
+            "purpose": "Trace stack limits, 256-bit arithmetic, signed interpretation, and opcode stack effects from the formal machine",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-stack-opcodes",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Section 9.1 and Appendix H opcode tables",
+                "estimatedMinutes": 16,
+                "why": "The protocol paper defines the 1024-item, 256-bit stack and exact arithmetic, comparison, bitwise, PUSH, DUP, and SWAP stack transitions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-stack-push-zero",
+            "purpose": "Distinguish PUSH0 from immediate-bearing PUSH1 through PUSH32",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-3855-push0",
+                "title": "EIP-3855: PUSH0 instruction",
+                "url": "https://eips.ethereum.org/EIPS/eip-3855",
+                "format": "article",
+                "scope": "Section Specification",
+                "estimatedMinutes": 5,
+                "why": "The accepted EIP assigns opcode 0x5f, a two-gas charge, and a zero stack item without immediate bytes.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Memory opcodes & expansion",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Memory is a volatile, zero-initialized byte array. MLOAD reads 32 bytes, MSTORE writes 32 bytes, MSTORE8 writes one byte, and MSIZE reports the active-memory size in bytes. The active range rounds up to 32-byte words; expanding from a to b words charges Cmem(b)−Cmem(a), where Cmem(x)=3x+⌊x²/512⌋. A high offset therefore pays for the entire newly activated range.",
+      "aiContext": "Build: in contracts/phase08/Mem.sol write an assembly function that MSTOREs a value at 0x80 and MLOADs it back, plus one that MSTORE8s a single byte; test in test/phase08/Mem.t.sol. Done when: forge test passes and you can explain, from gas, why writing at offset 0x2000 costs far more than at 0x80.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata", "Avoiding memory expansion"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-memory-expansion-kernel",
+            "purpose": "Derive active-memory rounding and the incremental linear-plus-quadratic expansion charge",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-memory",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Sections 9.1-9.2, equations 324-328, and Appendix H",
+                "estimatedMinutes": 16,
+                "why": "The formal specification defines active-memory words, Cmem(a)=3a+floor(a²/512), incremental charging, and MLOAD/MSTORE/MSTORE8/MSIZE effects.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Storage & transient opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "SLOAD costs 2100 gas for a cold slot and 100 once warm. SSTORE metering depends on the slot's original, current, and new values under EIP-2200, with a 2100 first-touch surcharge under EIP-2929 and transaction refunds capped to one fifth of gas used under EIP-3529. TLOAD and TSTORE each cost 100 gas, share contract-owned transient state across its frames, journal writes across reverts, and discard all transient state at transaction end; TSTORE is forbidden in a static context.",
+      "aiContext": "Build: in contracts/phase08/Transient08.sol implement a reentrancy lock with tstore/tload and tests in test/phase08/Transient08.t.sol that reenter and that call the guarded entry twice sequentially in one transaction. Done when: forge test proves reentrancy reverts, the same-transaction second call succeeds after the first returns, and a fresh transaction succeeds.",
+      "prerequisiteTitles": ["Reading storage slots", "Transient storage (EIP-1153)"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-persistent-storage-metering",
+            "purpose": "Compute SSTORE cost and refund from original, current, and new slot values under the current cold/warm rules",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-2200-storage",
+                "title": "EIP-2200: Structured Definitions for Net Gas Metering",
+                "url": "https://eips.ethereum.org/EIPS/eip-2200",
+                "format": "article",
+                "scope": "Sections Specification and Examples",
+                "estimatedMinutes": 12,
+                "why": "EIP-2200 supplies the original/current/new decision tree and dirty-slot refund adjustments that replace misleading fixed SSTORE prices.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "08a-persistent-storage-cold-surcharge",
+            "purpose": "Add the first-touch storage surcharge and warm-read constants to EIP-2200 metering",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-2929-storage",
+                "title": "EIP-2929: Gas cost increases for state access opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2929",
+                "format": "article",
+                "scope": "Sections Parameters, Storage read changes, and SSTORE changes",
+                "estimatedMinutes": 7,
+                "why": "The accepted EIP defines the 2100 cold-slot charge, 100 warm read, and exact parameter substitutions applied to EIP-2200.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "08a-persistent-storage-refund-cap",
+            "purpose": "Apply the reduced clear refund and transaction-level refund quotient",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-3529-storage-refunds",
+                "title": "EIP-3529: Reduction in refunds",
+                "url": "https://eips.ethereum.org/EIPS/eip-3529",
+                "format": "article",
+                "scope": "Sections Specification and Rationale",
+                "estimatedMinutes": 7,
+                "why": "The accepted EIP replaces the clear-refund constant and lowers the maximum transaction refund to one fifth of gas used.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "08a-transient-storage-semantics",
+            "purpose": "Apply TLOAD/TSTORE ownership, lifetime, revert, static-context, and gas rules",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-1153-transient",
+                "title": "EIP-1153: Transient storage opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-1153",
+                "format": "article",
+                "scope": "Sections Specification and Security Considerations",
+                "estimatedMinutes": 12,
+                "why": "The accepted EIP defines 100-gas TLOAD/TSTORE, contract ownership across call kinds, transaction lifetime, journaling on revert, and the STATICCALL restriction.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "The CALL family opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "CALL executes target code with the target's state context, msg.sender set to the current account, and an explicit value. DELEGATECALL executes target code in the caller's state context while preserving the current frame's sender and value. STATICCALL enters a static context in which state-changing operations fail. CALLCODE is the legacy call variant that keeps the caller's state context but replaces sender/value semantics differently. EIP-150 caps requested forwarded gas after call costs; value-bearing CALL also receives the specified stipend.",
+      "aiContext": "Build: in contracts/phase08/CallFamily.sol implement one function per opcode (call/delegatecall/staticcall) and prove in test/phase08/CallFamily.t.sol how each sees storage and msg.sender. Done when: forge test passes and you can state why a delegatecall to attacker code is a full takeover of your storage.",
+      "prerequisiteTitles": [
+        "delegatecall & storage context",
+        "staticcall & read-only enforcement"
+      ],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-call-context-kernel",
+            "purpose": "Trace CALL, CALLCODE, DELEGATECALL, and STATICCALL inputs, context, success, returndata, and exceptional behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-call-family",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Section 9.4.2 and Appendix H entries F1, F2, F4, and FA",
+                "estimatedMinutes": 20,
+                "why": "The formal call transition makes account context, sender, value, return status, memory slices, stipend, and nested state rollback explicit for each opcode.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-call-forwarding-cap",
+            "purpose": "Apply the EIP-150 forwarding cap after call base and memory costs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-150-calls",
+                "title": "EIP-150: Gas cost changes for IO-heavy operations",
+                "url": "https://eips.ethereum.org/EIPS/eip-150",
+                "format": "article",
+                "scope": "Section Specification: all but one 64th gas cap",
+                "estimatedMinutes": 8,
+                "why": "The accepted EIP defines the all-but-one-sixty-fourth cap on requested child gas that the build must apply after call costs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "CREATE & CREATE2 opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Both instructions execute init code whose successful output becomes the account's runtime code. CREATE derives the address from keccak256(RLP(sender, sender_nonce))[12:] and is precomputable when that nonce is known. CREATE2 derives it from keccak256(0xff ‖ sender ‖ salt ‖ keccak256(init_code))[12:], binding the address to the sender, salt, and complete init-code bytes, including encoded constructor arguments.",
+      "aiContext": "Build: in contracts/phase08/Create2Addr.sol implement the CREATE2 address formula and a factory, and in test/phase08/Create2Addr.t.sol assert the predicted address equals the deployed one. Done when: forge test passes and you can explain why changing a constructor argument changes the CREATE2 address.",
+      "prerequisiteTitles": ["CREATE2 deterministic deployment"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-create-init-runtime-addresses",
+            "purpose": "Derive CREATE and CREATE2 addresses and separate init-code execution from deposited runtime code",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-create",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Section 7, equations 81-87; Section 9.4.3; Appendix H CREATE and CREATE2",
+                "estimatedMinutes": 18,
+                "why": "The protocol paper defines nonce-based CREATE addressing, init-code execution, returned runtime code, collision handling, and creation state transitions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-create2-salt-formula",
+            "purpose": "Recompute the CREATE2 preimage and account for init-code hashing",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-1014-create2",
+                "title": "EIP-1014: Skinny CREATE2",
+                "url": "https://eips.ethereum.org/EIPS/eip-1014",
+                "format": "article",
+                "scope": "Sections Specification, Clarifications, and Examples",
+                "estimatedMinutes": 10,
+                "why": "The accepted EIP specifies the exact 0xff preimage, stack operands, hashcost, and collision behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Context, external-code & halting opcodes",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EXTCODESIZE/EXTCODECOPY inspect another account's code. EXTCODEHASH returns zero for a nonexistent or EIP-161-empty account, and keccak256(empty bytes) for an existing account without code. RETURNDATASIZE/RETURNDATACOPY expose the previous subcall's output buffer. LOG0–LOG4 charge 375 base, 375 per topic, and 8 per data byte, plus memory expansion. RETURN and REVERT both return a memory range; REVERT rolls back the frame without consuming all remaining gas, while an invalid instruction halts exceptionally and leaves no gas in that frame.",
+      "aiContext": "Build: in contracts/phase08/CodeProbe.sol write assembly using extcodesize and extcodehash on a target address, plus a function that emits a LOG with two topics; test in test/phase08/CodeProbe.t.sol. Done when: forge test passes and you can explain why extcodesize == 0 inside a contract's own constructor makes 'is-EOA' checks bypassable.",
+      "prerequisiteTitles": ["Low-level call"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-return-revert-log-kernel",
+            "purpose": "Trace returndata, logs, normal halts, REVERT, and exceptional halts including memory and gas effects",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-context-halts",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Sections 9.4.1-9.4.4 and Appendix H LOG0-LOG4, RETURN, REVERT, and invalid instruction handling",
+                "estimatedMinutes": 20,
+                "why": "The formal machine distinguishes normal output, REVERT output with remaining gas, and exceptional failure with zero gas, and gives complete LOG dynamic charges.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-external-code-returndata",
+            "purpose": "Distinguish account existence/code-hash cases and bound access to the last subcall's return buffer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-1052-extcodehash",
+                "title": "EIP-1052: EXTCODEHASH opcode",
+                "url": "https://eips.ethereum.org/EIPS/eip-1052",
+                "format": "article",
+                "scope": "Sections Specification and Test Cases",
+                "estimatedMinutes": 8,
+                "why": "The accepted EIP precisely distinguishes nonexistent/EIP-161-empty accounts from existing accounts with empty code.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "08a-returndata-buffer",
+            "purpose": "Bound access to the previous subcall's replaced return-data buffer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-211-returndata",
+                "title": "EIP-211: New opcodes: RETURNDATASIZE and RETURNDATACOPY",
+                "url": "https://eips.ethereum.org/EIPS/eip-211",
+                "format": "article",
+                "scope": "Section Specification",
+                "estimatedMinutes": 8,
+                "why": "The accepted EIP defines return-data buffer replacement and the exceptional bounds rule for RETURNDATACOPY.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Building an EVM interpreter from scratch",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Implementing a bounded interpreter makes the execution model concrete: fetch/decode/execute over bytecode with a program counter, 256-bit stack words, byte-addressed memory, storage, returndata, and gas accounting. Exceptional halts cover invalid instructions, stack faults, invalid jumps, and out-of-gas. Legacy JUMP/JUMPI destinations must be a JUMPDEST instruction in the current code, never a byte inside PUSH immediate data. w1nt3r's evm-from-scratch supplies a test-driven opcode ladder.",
+      "aiContext": "Build: fork evm-from-scratch into contracts/phase08/evm-from-scratch (any language) and implement through the arithmetic, PUSH/DUP/SWAP, and JUMP/JUMPI groups. Done when: the repo's test suite passes for those groups and your interpreter rejects a JUMP to an offset that is not a JUMPDEST.",
+      "prerequisiteTitles": ["The EVM as a state machine", "Stack, arithmetic & bitwise opcodes"],
+      "parentTitle": "Opcodes Deep Dive",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-interpreter-formal-state",
+            "purpose": "Implement the frame state, instruction cycle, stack/memory rules, and exceptional-halt predicates from the formal EVM",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-yellow-paper-interpreter",
+                "title": "Ethereum Yellow Paper (Shanghai version)",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Sections 9.1 and 9.3-9.4, especially equations 137-143 and 147-153",
+                "estimatedMinutes": 24,
+                "why": "The protocol paper defines machine/environment state, the instruction-cycle function, valid jump destinations excluding PUSH data, and exceptional conditions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-interpreter-test-ladder",
+            "purpose": "Implement the selected opcode groups against an executable conformance ladder rather than prose alone",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-evm-from-scratch-repo",
+                "title": "w1nt3r-eth/evm-from-scratch",
+                "url": "https://github.com/w1nt3r-eth/evm-from-scratch",
+                "format": "exercise",
+                "scope": "Sections README and exercises/tests through JUMP and JUMPI",
+                "estimatedMinutes": 15,
+                "why": "The project repository is the authoritative source for the build's own test sequence and acceptance boundary.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Yul syntax & the assembly block",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Yul is an intermediate language with functions, `let` variables, `if`/`switch`/`for`, literals, and dialect-provided builtins. Solidity's `assembly { ... }` uses the EVM dialect of Yul and can access selected surrounding Solidity identifiers. Inline assembly bypasses Solidity safety checks; raw arithmetic, calldata access, and memory management are the author's responsibility, though the Yul optimizer and compiler still transform and validate the language.",
+      "aiContext": "Build: in contracts/phase08/YulLoop.sol write an assembly `for` loop that sums an array passed in calldata, and compare correctness and gas to an equivalent Solidity loop in test/phase08/YulLoop.t.sol. Done when: forge test passes on empty, ordinary, and overflow-boundary cases; a saved IR/opcode inspection identifies which checks differ, and the snapshot records the measured result without assuming assembly must be cheaper.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Yul & Inline Assembly",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-yul-language-control-flow",
+            "purpose": "Write Yul declarations, expressions, functions, and structured control flow with the EVM dialect's builtin semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-yul-language",
+                "title": "Solidity documentation: Yul",
+                "url": "https://docs.soliditylang.org/en/latest/yul.html",
+                "format": "documentation",
+                "scope": "Sections Syntax through Function Declarations, plus EVM Dialect builtin table entries used by the build",
+                "estimatedMinutes": 22,
+                "why": "The compiler documentation is authoritative for Yul grammar, scoping, evaluation order, control flow, functions, and EVM-dialect builtins.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-inline-assembly-boundary",
+            "purpose": "Apply the documented interface and safety constraints between a Yul assembly block and surrounding Solidity",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-inline-assembly",
+                "title": "Solidity documentation: Inline Assembly",
+                "url": "https://docs.soliditylang.org/en/latest/assembly.html",
+                "format": "documentation",
+                "scope": "Sections Introduction, Access to External Variables, Functions and Libraries, and Things to Avoid",
+                "estimatedMinutes": 15,
+                "why": "The compiler documentation specifies what assembly blocks can access and warns which Solidity checks, type cleanup, and memory invariants become the author's responsibility.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Solidity memory layout & the free memory pointer",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Solidity reserves 0x00–0x3f as scratch space, stores the free-memory pointer at 0x40 (initially 0x80), and reserves 0x60–0x7f as a zero slot that must not be written. Manual allocation reads 0x40, uses an appropriately aligned region, and advances the pointer. Some compiler temporaries larger than scratch space may use memory at the free pointer without advancing it, so unallocated memory is not guaranteed to remain zero.",
+      "aiContext": "Build: in contracts/phase08/FreeMem.sol write assembly that allocates one aligned word by reading and advancing the 0x40 pointer, captures that post-allocation pointer, stores a sentinel there, then performs abi.encode; test in test/phase08/FreeMem.t.sol. Done when: forge test proves the captured pointer is exactly the initial pointer plus 0x20, abi.encode does not overwrite the allocated sentinel, and the zero slot at 0x60 remains zero.",
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Yul & Inline Assembly",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-solidity-memory-conventions",
+            "purpose": "Allocate without corrupting Solidity scratch space, free-memory metadata, or the zero slot",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-memory-layout",
+                "title": "Solidity documentation: Layout in Memory",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_memory.html",
+                "format": "documentation",
+                "scope": "Sections Layout in Memory through Differences to Layout in Storage",
+                "estimatedMinutes": 10,
+                "why": "The compiler documentation assigns 0x00-0x3f, 0x40, and 0x60-0x7f and records the temporary-memory caveat needed for a safe manual allocator.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Decoding calldata in Yul",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM dialect exposes calldataload, calldatacopy, and calldatasize. For a standard external ABI function call, bytes 0–3 hold the selector and the encoded argument tuple starts at byte 4. Static values occupy 32-byte head words; a dynamic head word is an offset relative to the start of that tuple, pointing to length and data in the tail. Opcode reads beyond calldata are zero-padded, so manual decoders must enforce the ABI bounds and canonical-shape checks they rely on.",
+      "aiContext": "Build: in contracts/phase08/CalldataYul.sol decode a (uint256,address) pair by hand with calldataload at offsets 4 and 0x24, and a dynamic bytes arg via its tuple-relative offset; test valid encoding plus truncated heads and out-of-bounds dynamic tails in test/phase08/CalldataYul.t.sol. Done when: forge test matches abi.encode on valid input, rejects each malformed low-level call, and you can explain why calldataload itself zero-pads rather than reverting.",
+      "prerequisiteTitles": ["Yul syntax & the assembly block", "ABI encoding & decoding"],
+      "parentTitle": "Yul & Inline Assembly",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-calldata-opcode-semantics",
+            "purpose": "Use calldataload, calldatacopy, and calldatasize with correct zero-padding and memory effects",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-yul-calldata-builtins",
+                "title": "Solidity documentation: Yul",
+                "url": "https://docs.soliditylang.org/en/latest/yul.html",
+                "format": "documentation",
+                "scope": "Section EVM Dialect: calldataload, calldatasize, and calldatacopy builtin table entries",
+                "estimatedMinutes": 7,
+                "why": "The compiler's EVM-dialect reference defines operand order and the zero-padding behavior of calldata reads and copies.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-calldata-abi-head-tail",
+            "purpose": "Decode selector-prefixed static and dynamic arguments with offsets relative to the encoded tuple",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-abi-spec-calldata",
+                "title": "Solidity documentation: Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "article",
+                "scope": "Sections Function Selector and Argument Encoding; Formal Specification of the Encoding",
+                "estimatedMinutes": 18,
+                "why": "The language specification defines the four-byte selector, 32-byte head words, relative dynamic offsets, lengths, and tail layout used by the manual decoder.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Reverting with data in assembly",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`revert(offset, size)` returns a memory slice as failure data, rolls back the current frame's changes, and preserves unused gas. A selector-only custom error can be left-aligned in a word and reverted over four bytes; arguments must follow standard ABI encoding. After a failed subcall, copying `returndatasize()` bytes with RETURNDATACOPY and reverting over that exact slice bubbles the failure payload.",
+      "aiContext": "Build: in contracts/phase08/AsmRevert.sol write assembly that reverts with a custom-error selector, and another that re-reverts a child call's returndata; test in test/phase08/AsmRevert.t.sol with expectRevert. Done when: forge test passes catching the right selector and the forwarded child reason (not an opaque revert(0,0)).",
+      "prerequisiteTitles": ["Custom errors", "Yul syntax & the assembly block"],
+      "parentTitle": "Yul & Inline Assembly",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-revert-payload-semantics",
+            "purpose": "Construct and bubble failure payloads while preserving REVERT's rollback and remaining-gas behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-140-revert",
+                "title": "EIP-140: REVERT instruction",
+                "url": "https://eips.ethereum.org/EIPS/eip-140",
+                "format": "article",
+                "scope": "Section Specification",
+                "estimatedMinutes": 7,
+                "why": "The accepted EIP defines memory parameters, rollback, failure status, output data, and the distinction from an out-of-gas exceptional halt.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "08a-revert-returndata-bubbling",
+            "purpose": "Copy and re-emit the previous failed subcall's complete return-data buffer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-eip-211-bubbling",
+                "title": "EIP-211: New opcodes: RETURNDATASIZE and RETURNDATACOPY",
+                "url": "https://eips.ethereum.org/EIPS/eip-211",
+                "format": "article",
+                "scope": "Sections Specification and Motivation",
+                "estimatedMinutes": 8,
+                "why": "The accepted EIP defines the exact return-data buffer copied when bubbling a failed subcall.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Yul objects & the deploy/runtime split",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A Yul object contains one `code` section and zero or more named data or nested object sections. A deployable pattern uses the outer code as init code and a nested object as runtime code; the init code obtains the nested object's bytes with dataoffset/datasize, copies them with datacopy, and returns them. `solc --strict-assembly` compiles standalone Yul object notation.",
+      "aiContext": "Build: in contracts/phase08/Object.yul write a minimal Yul object whose runtime returns a constant, compile with solc --strict-assembly, and deploy it in test/phase08/Object.t.sol. Done when: the deployed address has nonzero code and a call returns the constant — and removing the RETURN of the runtime deploys empty code (you can explain why).",
+      "prerequisiteTitles": ["Yul syntax & the assembly block"],
+      "parentTitle": "Yul & Inline Assembly",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-yul-object-deployment",
+            "purpose": "Compile a Yul object whose init code locates, copies, and returns a nested runtime object",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-solidity-yul-objects",
+                "title": "Solidity documentation: Yul Objects",
+                "url": "https://docs.soliditylang.org/en/latest/yul.html#specification-of-yul-object",
+                "format": "documentation",
+                "scope": "Sections Specification of Yul Object and dataoffset, datasize, datacopy builtins",
+                "estimatedMinutes": 14,
+                "why": "The compiler documentation specifies object grammar, nested object/data sections, and the builtins that turn a nested object's bytes into deployed runtime code.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Huff macros & manual stack management",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Huff exposes EVM opcodes directly and inlines `#define macro` bodies. `takes(n)` and `returns(m)` annotate a macro's intended stack effect, while the programmer still reasons about concrete stack order and DUP/SWAP use. The current huff2 compiler adds checks for duplicate definitions, duplicate labels, and macro argument counts, but stack correctness and termination still require opcode-level review. Huff is appropriate when measured bytecode or gas constraints justify that responsibility.",
+      "aiContext": "Build: in contracts/phase08/AddOne.huff write `ADD_ONE` with `takes(1) returns(1)` and a `MAIN` that loads one calldata word, invokes it, and returns the result. Compile `MAIN` with the current huff2 CLI's positional macro and default-constructor mode, deploy the emitted bytecode in test/phase08/AddOne.t.sol, and test ordinary and max-word wraparound inputs. Done when: forge test passes and a hand-written stack trace accounts for every item at macro entry and exit.",
+      "prerequisiteTitles": ["Stack, arithmetic & bitwise opcodes"],
+      "parentTitle": "Huff & Hand-Written Bytecode",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "08a-huff-current-language",
+            "purpose": "Define and trace an inlined macro using the current Huff compiler's syntax and validation model",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-huff2-language",
+                "title": "huff-language/huff2",
+                "url": "https://github.com/huff-language/huff2",
+                "format": "documentation",
+                "scope": "Sections Huff 2, Missing Features / TODOs, and examples/crates for macro parsing and opcode expansion",
+                "estimatedMinutes": 16,
+                "why": "The language team's current compiler repository defines the supported macro syntax and exposes the parser, assembler, examples, and known feature limits used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-huff2-validation-labels",
+            "purpose": "Distinguish compiler-checked macro/label structure from stack properties that still need manual tracing",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-huff2-validation",
+                "title": "huff-language/huff2",
+                "url": "https://github.com/huff-language/huff2",
+                "format": "documentation",
+                "scope": "Sections Differences vs. huff-rs, Stricter Code Validation, and New Label & Jump Table Semantics",
+                "estimatedMinutes": 12,
+                "why": "The current compiler README names the structural errors it now rejects and the scoped label rules it enforces, preventing an outdated no-safety claim.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "08a-huff2-cli-output",
+            "purpose": "Compile the selected MAIN macro and wrap its runtime with the current compiler's explicit constructor mode",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "08a-huff2-cli",
+                "title": "huff-language/huff2",
+                "url": "https://github.com/huff-language/huff2",
+                "format": "documentation",
+                "scope": "Section Differences vs. huff-rs: CLI Changes",
+                "estimatedMinutes": 10,
+                "why": "The current compiler README documents the required positional macro and optional default-constructor flag used to produce deployable bytecode for the test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Opcode gas accounting",
+      "promptText": "What happens, to state and to gas, when a call frame runs out of gas mid-execution?",
+      "answerHint": "The frame halts exceptionally: its state changes are discarded, it produces no output, and its remaining gas becomes zero. Pitfall: EIP-150 caps requested CALL-family gas to all but one sixty-fourth of the gas available after call costs; a value-bearing CALL also adds a 2300-gas stipend, so forwarding is not simply `gasleft()*63/64`.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack, arithmetic & bitwise opcodes",
+      "promptText": "How do signed and unsigned opcodes differ, and what does DIV by zero do?",
+      "answerHint": "Unsigned (DIV/LT/GT/MOD) treat words as 0..2²⁵⁶−1; signed (SDIV/SLT/SGT/SMOD) treat them as two's-complement. DIV/SDIV/MOD by zero return 0 — no revert at the opcode level. Pitfall: a raw uint8/address on the stack can carry dirty high bits; compare/mask before trusting it, since opcodes operate on full 256-bit words.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack, arithmetic & bitwise opcodes",
+      "promptText": "Give the raw opcodes that push 3 and 2 and add them.",
+      "answerHint": "PUSH1 0x03 PUSH1 0x02 ADD → leaves 0x05 on the stack (ADD pops the two operands, pushes the sum).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Memory opcodes & expansion",
+      "promptText": "Why can writing to a high memory offset cost far more than writing near 0x80?",
+      "answerHint": "The active range rounds up to 32-byte words, and expansion from a to b words costs Cmem(b)−Cmem(a), where Cmem(x)=3x+⌊x²/512⌋. Pitfall: MSTORE writes 32 bytes, so a write at offset+1 overlaps the preceding word; use MSTORE8 for one byte.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Memory opcodes & expansion",
+      "promptText": "Write assembly that stores a value at 0x80 and reads it back.",
+      "answerHint": "assembly { mstore(0x80, v) let x := mload(0x80) } — MSTORE writes the 32-byte word at 0x80, MLOAD reads it. Pitfall: 0x80 is the first free byte; don't write into 0x00–0x7f (scratch + free-pointer + zero-slot) without care.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Storage & transient opcodes",
+      "promptText": "How do TSTORE/TLOAD differ from SSTORE/SLOAD in cost and lifetime?",
+      "answerHint": "TLOAD and TSTORE each cost 100 gas, have no refund, share contract-owned state across that contract's frames, and are discarded at transaction end; TSTORE is forbidden under STATICCALL. Persistent SLOAD is 2100 cold/100 warm, while SSTORE depends on original/current/new values plus a possible cold surcharge and capped refund. Pitfall: transient writes made by a reverting frame are also reverted.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage & transient opcodes",
+      "promptText": "Write a transient-storage reentrancy guard in assembly.",
+      "answerHint": "assembly { if tload(0) { revert(0,0) } tstore(0,1) } _; assembly { tstore(0,0) } — sets a transient lock, runs the body, then clears it. TLOAD/TSTORE each cost 100 gas. Transaction-end cleanup is not a substitute for clearing: a stale lock blocks later calls in the same transaction.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "The CALL family opcodes",
+      "promptText": "Contrast CALL, DELEGATECALL, and STATICCALL by storage, msg.sender, and value.",
+      "answerHint": "CALL: target's own storage, msg.sender = caller, can pass value. DELEGATECALL: caller's storage, msg.sender & msg.value preserved from the outer call, no value arg. STATICCALL: like CALL but any state change (SSTORE/LOG/CREATE/value) reverts. Pitfall: a call to a codeless address returns success=true with empty returndata — EXTCODESIZE-check when you need real code; delegatecall to untrusted code hands over your storage.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CREATE & CREATE2 opcodes",
+      "promptText": "Give the address formulas for CREATE and CREATE2 and the practical difference.",
+      "answerHint": "CREATE: keccak256(RLP(deployer, deployer_nonce))[12:], precomputable when the nonce is known. CREATE2: keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:]. Pitfall: init_code includes encoded constructor arguments, so changing one changes the CREATE2 address; successful init code's returned bytes become runtime code.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "CREATE & CREATE2 opcodes",
+      "promptText": "Write the Solidity that computes a CREATE2 address for known salt and init code.",
+      "answerHint": "address a = address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(initCode)))))); — take the last 20 bytes of the keccak of 0xff‖deployer‖salt‖keccak256(initCode).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Context, external-code & halting opcodes",
+      "promptText": "How do RETURN and REVERT differ, and what does EXTCODESIZE return during a constructor?",
+      "answerHint": "Both return a memory range, but REVERT rolls back the frame and preserves unused gas while RETURN completes normally; STOP returns empty output, and an invalid instruction is an exceptional halt that leaves the frame no gas. Pitfall: EXTCODESIZE is zero while an account's init code is running, so contract-rejection checks based on code size are bypassable from a constructor.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building an EVM interpreter from scratch",
+      "promptText": "What state does a minimal EVM interpreter track per call frame, and what must JUMP validate?",
+      "answerHint": "A program counter, a 1024-deep stack of 256-bit words, byte-addressed memory, gas remaining, and the last returndata — plus references to storage and world state. JUMP/JUMPI must land on a JUMPDEST (0x5b) that is a real instruction, not a byte inside PUSH data. Pitfall: failing to exclude PUSH-immediate bytes from valid jump destinations lets crafted bytecode jump into data.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building an EVM interpreter from scratch",
+      "promptText": "Pass the w1nt3r evm-from-scratch test ladder through the JUMP group.",
+      "answerHint": "Fork the repo, implement STOP/PUSH/arithmetic/DUP/SWAP, then JUMP/JUMPI with JUMPDEST validation; run the provided tests per opcode group.",
+      "promptKind": "problem",
+      "url": "https://github.com/w1nt3r-eth/evm-from-scratch",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 240
+    },
+    {
+      "topicTitle": "Yul syntax & the assembly block",
+      "promptText": "What safety does an assembly block give up compared to Solidity?",
+      "answerHint": "No overflow/underflow checks, no array bounds checks, no automatic memory management, and no type checking on values written back to Solidity variables. Pitfall: writing a value with dirty high bits into an address/bool variable from assembly can break later comparisons — mask to the type width yourself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Solidity memory layout & the free memory pointer",
+      "promptText": "What lives at 0x00–0x3f, 0x40, and 0x60 in Solidity's memory model?",
+      "answerHint": "0x00–0x3f is scratch space; 0x40 stores the free-memory pointer, initially 0x80; 0x60–0x7f is a zero slot that must not be written. Pitfall: compiler temporaries can use space at the free pointer without advancing it, so unallocated memory is not guaranteed zero and manual allocations must update 0x40.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Solidity memory layout & the free memory pointer",
+      "promptText": "Write assembly that allocates 32 bytes using the free memory pointer.",
+      "answerHint": "assembly { let p := mload(0x40) mstore(0x40, add(p, 0x20)) mstore(p, v) } — read the pointer at 0x40, bump it by the size, then use the region.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Decoding calldata in Yul",
+      "promptText": "Where do a function's arguments start in calldata, and what does an out-of-range calldataload return?",
+      "answerHint": "Arguments start at offset 4 (after the 4-byte selector); each static arg is a 32-byte word, dynamic args store a 32-byte offset in the head with length+data in the tail. Pitfall: calldataload past calldatasize returns zero-padded bytes (not a revert), so hand-decoding short calldata can read attacker-friendly zeros as valid args — solc's ABI decoder adds the bounds checks you lose.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Decoding calldata in Yul",
+      "promptText": "Write Yul that loads the first uint256 argument from calldata.",
+      "answerHint": "let a := calldataload(4) — the selector occupies bytes 0–3, so the first 32-byte argument word begins at offset 4 (the second is at 0x24).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Reverting with data in assembly",
+      "promptText": "How do you bubble a child call's exact revert reason back up in assembly?",
+      "answerHint": "returndatacopy(0, 0, returndatasize()) then revert(0, returndatasize()) — copy the callee's returndata into memory and revert over it. Pitfall: revert(0,0) discards all error data (opaque failure); to raise your own custom error, store shl(224, selector) plus encoded args and revert over that range.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Reverting with data in assembly",
+      "promptText": "Write assembly that reverts with a 4-byte custom-error selector.",
+      "answerHint": "assembly { mstore(0x00, shl(224, 0x12345678)) revert(0x00, 0x04) } — put the selector in the top 4 bytes of the word at 0x00 and revert over those 4 bytes.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Yul objects & the deploy/runtime split",
+      "promptText": "How is a standalone Yul object structured, and what does its init code do?",
+      "answerHint": "An outer object = creation/init code with a `code{}` and a nested sub-object (\"runtime\") whose `code{}` is the deployed code; the init code datacopy's the runtime and RETURNs it. Pitfall: forgetting to RETURN the runtime from the constructor deploys empty code, and dataoffset(\"runtime\") must match the sub-object's name.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff macros & manual stack management",
+      "promptText": "What do takes/returns mean in a Huff macro, and what enforces them?",
+      "answerHint": "They annotate the macro's intended number of consumed and produced stack items. You still manage actual item order and DUP/SWAP behavior against the inlined opcodes. Pitfall: treating the annotation as a substitute for tracing all control-flow paths can leave a caller with the wrong stack shape.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Huff macros & manual stack management",
+      "promptText": "Write a Huff macro that adds one to the top stack item.",
+      "answerHint": "#define macro ADD_ONE() = takes(1) returns(1) { 0x01 add } — pushes 1 and ADDs it to the existing top-of-stack value.",
+      "promptKind": "code"
+    }
+  ],
+  "noteSummaries": []
+}

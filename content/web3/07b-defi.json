@@ -7,7 +7,7 @@
       "title": "Lending Protocols",
       "type": "concept",
       "domain": "Web3",
-      "description": "Overcollateralized on-chain money markets: suppliers earn interest, borrowers post collateral and draw debt, and a health-factor plus liquidation mechanism keeps the system solvent. Aave V3 and Compound V3 are the reference designs. Resources: https://aave.com/docs",
+      "description": "Overcollateralized on-chain money markets: suppliers earn interest, borrowers post collateral and draw debt, and a health-factor plus liquidation mechanism keeps the system solvent. Aave V3 and Compound V3 are the reference designs.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -15,7 +15,7 @@
       "title": "Stablecoins",
       "type": "concept",
       "domain": "Web3",
-      "description": "Assets engineered to hold a peg: overcollateralized CDPs (DAI/USDS), algorithmic/seigniorage designs (and why they fail), and the mechanics of minting, burning, and liquidating against a price feed. Resources: https://updraft.cyfrin.io/courses/advanced-foundry",
+      "description": "Assets engineered to hold a peg: overcollateralized CDPs (DAI/USDS), algorithmic/seigniorage designs (and why they fail), and the mechanics of minting, burning, and liquidating against a price feed.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -23,7 +23,7 @@
       "title": "Staking, LSTs & Restaking",
       "type": "concept",
       "domain": "Web3",
-      "description": "Turning staked ETH into a liquid, composable asset: Lido's rebasing stETH and wrapped wstETH, and EigenLayer's restaking that reuses that stake to secure additional services for extra yield and extra slashing risk. Resources: https://docs.lido.fi/",
+      "description": "Turning staked ETH into a liquid, composable asset: Lido's rebasing stETH and wrapped wstETH, and EigenLayer's restaking that reuses that stake to secure additional services for extra yield and extra slashing risk.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -31,7 +31,7 @@
       "title": "Perpetual Futures",
       "type": "concept",
       "domain": "Web3",
-      "description": "Leveraged derivatives with no expiry, kept near spot by a funding rate exchanged between longs and shorts. Covers mark vs index price, funding, and the GMX pooled-liquidity and Hyperliquid orderbook models. Resources: https://finematics.com/",
+      "description": "Leveraged derivatives with no expiry, kept near spot by a funding rate exchanged between longs and shorts. Covers mark vs index price, funding, and the GMX pooled-liquidity and Hyperliquid orderbook models.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -39,7 +39,7 @@
       "title": "Yield Vaults (ERC-4626)",
       "type": "concept",
       "domain": "Web3",
-      "description": "The tokenized-vault standard that turned yield strategies into composable share tokens: deposit an asset, mint shares whose price grows as yield accrues, redeem for more of the asset — with the rounding and inflation-defense rules that make it safe. Resources: https://eips.ethereum.org/EIPS/eip-4626",
+      "description": "The tokenized-vault standard that turned yield strategies into composable share tokens: deposit an asset, mint shares whose price grows as yield accrues, redeem for more of the asset — with the rounding and inflation-defense rules that make it safe.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -47,7 +47,7 @@
       "title": "Flash Loans",
       "type": "concept",
       "domain": "Web3",
-      "description": "Uncollateralized loans that are safe because they are atomic: borrow, act, and repay plus a fee within a single transaction, or the whole thing reverts. The primitive behind arbitrage, liquidations, collateral swaps — and many exploits. Resources: https://docs.aave.com/developers/guides/flash-loans",
+      "description": "Uncollateralized loans that are safe because they are atomic: borrow, act, and repay plus a fee within a single transaction, or the whole thing reverts. The primitive behind arbitrage, liquidations, collateral swaps — and many exploits.",
       "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
@@ -56,8 +56,49 @@
       "title": "Aave V3 aTokens & interest accrual",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Supplying an asset to Aave mints an aToken (e.g. aUSDC) 1:1 that REBASES: your balanceOf grows continuously as interest accrues, because the balance is a scaled amount multiplied by an ever-increasing liquidity index. Debt is tracked symmetrically by a variableDebtToken scaled by a borrow index, and interest rates float with pool utilization. aTokens are transferable and composable, so they double as receipts you can use elsewhere. Resources: 📖 https://aave.com/docs/developers/smart-contracts/tokenization",
+      "description": "Supplying an asset to Aave mints an aToken (e.g. aUSDC) that represents supplied principal plus accrued interest: balanceOf is a scaled balance multiplied by the reserve's normalized-income index. Variable debt uses the same scaled-balance pattern with a variable-borrow index, and rates respond to utilization. aTokens remain transferable receipts, but integer ray math means mint, burn, and transfer paths must preserve the scaled accounting.",
       "aiContext": "Build: in defi/lending/ScaledToken.sol implement a scaled-balance token whose balanceOf = scaledBalance * index / RAY and an index that grows with a per-second rate; test/defi/ScaledToken.t.sol. Done when: two suppliers who deposit at different indices each redeem principal + their correct share of accrued interest, and balanceOf increases with time without any transfer.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-atoken-scaled-accounting",
+            "purpose": "Trace the exact protocol-favorable rounding used to convert between aToken assets and scaled balances",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-origin-token-math-source",
+                "title": "Aave V3 Origin TokenMath",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/helpers/TokenMath.sol",
+                "format": "documentation",
+                "scope": "Sections getATokenMintScaledAmount, getATokenBurnScaledAmount, getATokenTransferScaledAmount, and getATokenBalance",
+                "estimatedMinutes": 14,
+                "why": "The maintained protocol source defines the exact floor/ceil conversions between assets and scaled aToken balances instead of leaving rounding implicit.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "07b-atoken-normalized-balance",
+            "purpose": "Map the stored scaled amount to the public aToken balance through reserve normalized income",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-origin-atoken-source",
+                "title": "Aave V3 Origin AToken",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/tokenization/AToken.sol",
+                "format": "documentation",
+                "scope": "Sections mint, burn, balanceOf, and totalSupply",
+                "estimatedMinutes": 12,
+                "why": "The maintained aToken implementation shows the callback into TokenMath and the exact normalized-income lookup used by public balances.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ERC-20 fungible token standard"],
       "parentTitle": "Lending Protocols"
     },
@@ -65,8 +106,49 @@
       "title": "Health factor & liquidation",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Aave gates solvency with the health factor: HF = sum(collateral_i * liquidationThreshold_i) / totalDebt, all in a common base currency. You may borrow only up to the (lower) max-LTV, but you are liquidatable the instant HF < 1. A liquidator repays up to the close factor of the debt and seizes the equivalent collateral PLUS a liquidation bonus, which is the incentive that keeps bad debt from accumulating. The threshold sits above LTV to leave a safety buffer. Resources: 📖 https://docs.aave.com/faq/liquidations",
+      "description": "Aave gates solvency with the health factor: HF = sum(collateral_i * liquidationThreshold_i) / totalDebt, all in a common base currency. Borrow capacity uses max LTV, while liquidation eligibility uses the higher liquidation threshold: HF below 1 permits liquidation. A liquidator repays an allowed portion of debt and receives corresponding collateral plus a configured liquidation bonus; current V3 close-factor behavior depends on health and dust conditions.",
       "aiContext": "Build: in defi/lending/HealthFactor.sol implement computeHealthFactor over multiple collaterals/debts using per-asset liquidation thresholds and a price oracle, plus a liquidate() paying a bonus; test/defi/HealthFactor.t.sol. Done when: a position with HF >= 1 cannot be liquidated, an oracle price drop pushes HF < 1 and enables liquidation, and the liquidator receives collateral + bonus.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-aave-health-factor-formula",
+            "purpose": "Derive health factor from weighted liquidation thresholds and distinguish liquidation eligibility from borrowing capacity",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-liquidations-guide",
+                "title": "Aave Health Factor & Liquidations",
+                "url": "https://aave.com/help/borrowing/liquidations",
+                "format": "article",
+                "scope": "Sections Health Factor and Liquidation Process",
+                "estimatedMinutes": 12,
+                "why": "Aave's current protocol guide states the weighted health-factor formula, HF-below-one trigger, bonus, and health/dust-dependent liquidation sizing.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "07b-aave-liquidation-code-path",
+            "purpose": "Map the formula to current close-factor, collateral seizure, and bad-debt behavior in protocol code",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-origin-liquidation-logic",
+                "title": "Aave V3 Origin LiquidationLogic",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/LiquidationLogic.sol",
+                "format": "documentation",
+                "scope": "Sections executeLiquidationCall, _calculateAvailableCollateralToLiquidate, and _burnBadDebt",
+                "estimatedMinutes": 22,
+                "why": "The maintained implementation supplies the exact state transition and prevents teaching a permanently fixed close factor.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Aave V3 aTokens & interest accrual", "Chainlink push price feeds"],
       "parentTitle": "Lending Protocols"
     },
@@ -74,8 +156,31 @@
       "title": "Aave e-mode & isolation mode",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Aave V3 tunes risk per asset. E-mode groups correlated assets (all ETH-pegged, or all stablecoins) and grants a much higher max-LTV and liquidation threshold (e.g. ~93%/95%) because price correlation means collateral and debt move together, so leverage on a pegged pair is safer. Isolation mode does the opposite for risky new listings: such collateral can only borrow whitelisted stablecoins up to a debt ceiling and can't be mixed with other collateral, capping contagion. Resources: 📖 https://docs.aave.com/developers/whats-new/efficiency-mode-emode",
-      "aiContext": "Build: in defi/lending/RiskModes.sol add an e-mode category (higher LTV for a correlated set) and an isolation flag (borrow only listed assets, up to a ceiling) on top of your HealthFactor pool; test/defi/RiskModes.t.sol. Done when: e-mode lets a correlated position borrow more than standard mode, and an isolated collateral is blocked from borrowing a non-whitelisted asset or exceeding its debt ceiling.",
+      "description": "Aave V3 e-mode applies category-specific LTV, liquidation, and borrowing permissions. V3.7 adds an isolated flag to e-mode categories: only listed category collateral contributes borrowing power, users with other collateral enabled cannot enter, and users inside cannot enable outside collateral. V3.7 removes the legacy isolated-collateral mode that used one collateral, approved debt assets, and a debt ceiling; rollout remains market-specific.",
+      "aiContext": "Build: in defi/lending/RiskModes.sol add a configurable e-mode category and an isolated flag on top of your HealthFactor pool; test/defi/RiskModes.t.sol. Done when: category collateral receives its configured borrowing parameters, isolated e-mode rejects entry with outside collateral enabled, outside collateral contributes zero borrowing power, and a user inside cannot enable it as collateral.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-aave-risk-mode-contrast",
+            "purpose": "Trace current category-specific e-mode parameters, v3.7 isolated e-mode restrictions, and removal of legacy isolated collateral and debt ceilings",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-v37-risk-modes",
+                "title": "Aave v3.7 Proposal",
+                "url": "https://governance.aave.com/t/arfc-bgd-aave-v3-7/24075",
+                "format": "article",
+                "scope": "Sections 1. eMode isolated configuration and Removal of deprecated features",
+                "estimatedMinutes": 16,
+                "why": "The primary v3.7 proposal defines isolated e-mode entry and collateral rules and explicitly removes the legacy isolated-collateral, borrowable-in-isolation, and debt-ceiling mechanism.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Health factor & liquidation"],
       "parentTitle": "Lending Protocols"
     },
@@ -83,8 +188,42 @@
       "title": "Compound V3 (Comet)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Compound III (Comet) abandons the pooled multi-asset model for a SINGLE borrowable base asset per deployment (e.g. a USDC market): you earn/borrow only the base asset, while other supported assets serve strictly as collateral — they back your borrow, don't earn supply interest, and can't themselves be borrowed. This isolates each market's risk to its base asset and its curated collateral set, simplifying the solvency reasoning versus Aave's shared pool. Resources: 📖 https://docs.compound.finance/",
+      "description": "Compound III (Comet) has one borrowable base asset per deployment: a positive base balance earns supply interest and a negative base balance represents debt. Other supported assets are collateral only—they increase borrowing capacity, do not earn protocol interest, and cannot themselves be borrowed from that deployment. Each market therefore has a single base asset and a curated collateral set.",
       "aiContext": "Build: in defi/lending/Comet.sol implement a single-base-asset market where collateral assets back a base-asset borrow but earn nothing and are non-borrowable; test/defi/Comet.t.sol. Done when: a user can borrow only the base asset, collateral supplied earns no interest, and attempting to borrow a collateral asset reverts.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-comet-base-collateral-model",
+            "purpose": "Confirm that signed base balances accrue supply or borrow interest while collateral assets only back borrowing and earn no protocol interest",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-compound-collateral-borrowing-docs",
+                "title": "Compound III Collateral & Borrowing",
+                "url": "https://docs.compound.finance/collateral-and-borrowing/",
+                "format": "article",
+                "scope": "Sections Collateral & Borrowing, Supply, and Withdraw or Borrow",
+                "estimatedMinutes": 18,
+                "why": "Compound's protocol docs define signed single-base balances, collateral-only accounting, factors, indices, and supply/withdraw state transitions required by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              },
+              {
+                "id": "07b-compound-interest-rates-docs",
+                "title": "Compound III Interest Rates",
+                "url": "https://docs.compound.finance/interest-rates/",
+                "format": "article",
+                "scope": "Sections Interest Rates and Get Utilization",
+                "estimatedMinutes": 8,
+                "why": "The interest-rate page confirms that only positive and negative base balances accrue protocol interest and collateral assets do not.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Health factor & liquidation"],
       "parentTitle": "Lending Protocols"
     },
@@ -93,8 +232,49 @@
       "title": "Overcollateralized CDP stablecoin",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A collateralized debt position mints a stablecoin against locked collateral worth MORE than the debt: deposit ETH, mint up to a max debt set by a minimum collateralization ratio (e.g. 150% -> at most ~66% of collateral value as debt), and burn the stablecoin to unlock. The peg is defended by arbitrage plus overcollateralization: if the coin trades below $1 it is cheap to buy and repay debt at par. A stability fee (interest) accrues on the debt. This is the DAI/USDS model. Resources: 📖 https://updraft.cyfrin.io/courses/advanced-foundry/develop-defi-protocol/defi-introduction",
+      "description": "A collateralized debt position mints a stablecoin against collateral worth more than its debt: with a 150% minimum collateralization ratio, debt cannot exceed two-thirds of collateral value. Burning stablecoin reduces debt and permits collateral withdrawal subject to safety checks. In Maker's design, collateral-specific rates accumulate stability fees and price data determines the safe debt limit; market arbitrage and protocol conversion facilities support the peg.",
       "aiContext": "Build: implement defi/stablecoin/ — an overcollateralized CDP with a Chainlink price feed: depositCollateral, mint (bounded by the collateralization ratio), burn, and liquidate; Foundry tests in test/defi/. Done when: forge test proves you cannot mint past the ratio, that an undercollateralized position (after a price drop) is liquidatable, and that burning debt correctly frees collateral.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-maker-cdp-core-accounting",
+            "purpose": "Ground collateral-backed debt, price-dependent safety, adapters, and stablecoin issuance in a primary deployed-system design",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-sky-dss-readme",
+                "title": "Sky DSS: Multi-Collateral Dai",
+                "url": "https://github.com/sky-ecosystem/dss",
+                "format": "documentation",
+                "scope": "Sections Collateral, Adapters and Wrappers; The Dai Token; Price Feeds; and Liquidation and Auctions",
+                "estimatedMinutes": 20,
+                "why": "The canonical core repository explains the accounting and trust boundaries behind collateral-backed issuance instead of substituting a tutorial implementation for protocol behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "07b-maker-stability-fee-accrual",
+            "purpose": "Trace collateral-specific stability-fee accumulation into the debt rate used by a CDP",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-maker-jug-docs",
+                "title": "Maker Jug Detailed Documentation",
+                "url": "https://docs.makerdao.com/smart-contract-modules/rates-module/jug-detailed-documentation",
+                "format": "article",
+                "scope": "Sections 1. Introduction and 3. Key Mechanisms & Concepts",
+                "estimatedMinutes": 14,
+                "why": "The official module reference defines how drip updates a collateral type's cumulative rate and credits stability fees.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ERC-20 fungible token standard", "Chainlink push price feeds"],
       "parentTitle": "Stablecoins"
     },
@@ -102,8 +282,31 @@
       "title": "CDP liquidation & collateral ratio",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The collateralization ratio = collateralValueUSD / debtValueUSD is the CDP's health metric; below the protocol's liquidation ratio the position is unsafe and a keeper liquidates it — repaying the debt from the collateral and taking a penalty/bonus as incentive. Because collateral is priced by an oracle, a stale or manipulated feed can either trigger unfair liquidations or hide insolvent positions, so the price source is the CDP's single most safety-critical dependency. Resources: 📖 https://updraft.cyfrin.io/courses/advanced-foundry/develop-defi-protocol/defi-liquidation",
+      "description": "The collateralization ratio = collateralValue / debtValue. Below the collateral type's liquidation ratio, the position is unsafe and can be seized for liquidation. Maker's Liquidation 2.0 sells seized collateral in an auction to raise debt plus stability fees and a liquidation penalty, rather than paying a fixed bonus directly. Since oracle-derived collateral value controls eligibility, stale or manipulated pricing can trigger wrongful liquidation or conceal insolvency.",
       "aiContext": "Build: in defi/stablecoin/ add a liquidate() that a keeper calls when ratio < liquidationRatio, paying a bonus, and a healthFactor view; test/defi/Liquidation.t.sol drops the mock feed. Done when: a healthy vault resists liquidation, an oracle price drop makes it liquidatable, and the liquidator profits by the configured bonus while the protocol's debt is repaid.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-maker-liquidation-auction",
+            "purpose": "Trace unsafe-vault seizure and auction settlement of debt, fees, and liquidation penalty",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-maker-dog-clipper-docs",
+                "title": "Maker Liquidation 2.0 Module",
+                "url": "https://docs.makerdao.com/smart-contract-modules/dog-and-clipper-detailed-documentation",
+                "format": "article",
+                "scope": "Sections 1. Introduction, Vault Liquidation, Auction Initiation, and Bidding (Purchasing)",
+                "estimatedMinutes": 24,
+                "why": "The official module documentation distinguishes auction proceeds and penalties from the simpler fixed-bonus liquidation model used in the learner's reduced Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Overcollateralized CDP stablecoin", "Health factor & liquidation"],
       "parentTitle": "Stablecoins"
     },
@@ -111,8 +314,49 @@
       "title": "Algorithmic stablecoins & the UST collapse",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Algorithmic stablecoins try to hold a peg with little or no collateral, using a mint/burn arbitrage against a volatile sister token (seigniorage): e.g. always allow swapping $1 of the coin for $1 of the token and vice versa. This is reflexive — it relies on the token's market cap staying large. Terra's UST/LUNA (May 2022, ~$40B wiped) death-spiraled when a UST depeg forced hyperinflationary LUNA minting, which crashed LUNA, which broke the arbitrage entirely. Undercollateralized pegs are structurally fragile. Resources: 📖 https://finematics.com/",
+      "description": "Terra Classic's market module implemented native stablecoin/Luna swaps by burning the offered coin and minting the requested coin at oracle exchange rates. That makes redemption capacity reflexive: absorbing stablecoin exits expands Luna supply, so falling demand and price can require still more issuance. After the May 2022 collapse, the original chain was renamed Terra Classic and market-module mint/burn swaps were disabled; the new Terra chain launched without native stablecoins or the market module.",
       "aiContext": "Build: in defi/stablecoin/Algorithmic.sol model a mint/burn arbitrage between a stable and a share token, then test/defi/DeathSpiral.t.sol simulating a depeg that hyperinflates the share token. Done when: the simulation reproduces the reflexive spiral — a demand shock forces share-token supply to explode and the peg to break, illustrating why the model is fragile.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-terra-market-mint-burn",
+            "purpose": "Trace the original market module's burn-offer and mint-ask state transition rather than relying on a secondary collapse narrative",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-terra-classic-market-source",
+                "title": "Terra Classic Market Message Server",
+                "url": "https://github.com/terra-money/classic-core/blob/main/x/market/keeper/msg_server.go",
+                "format": "documentation",
+                "scope": "Section handleSwapRequest, from ComputeSwap through BurnCoins and MintCoins",
+                "estimatedMinutes": 16,
+                "why": "The maintained historical protocol source shows exactly which coin is burned, which is minted, and where oracle exchange rates enter the swap.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "07b-terra-post-collapse-change",
+            "purpose": "Verify the protocol-level aftermath: chain rename, disabled market swaps, and omission of native stablecoins from the new chain",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-terra-exchange-migration",
+                "title": "Terra Exchange Migration Guide",
+                "url": "https://docs.terra.money/migration/exchange-migration/",
+                "format": "article",
+                "scope": "Sections General info and Branding",
+                "estimatedMinutes": 10,
+                "why": "Terra's official migration record directly documents the disabled mint/burn swaps and the new chain's removal of native stablecoins and market/oracle modules.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Overcollateralized CDP stablecoin"],
       "parentTitle": "Stablecoins"
     },
@@ -120,8 +364,31 @@
       "title": "Sky / USDS (MakerDAO evolution)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "MakerDAO rebranded to Sky (2024): the new stablecoin USDS is upgradeable 1:1 from DAI (DAI still works), and MKR converts to SKY. USDS remains CDP-collateralized like DAI but adds features such as the Sky Savings Rate and, controversially, an admin freeze capability. Understanding the DAI -> USDS relationship matters for integrations: they trade at parity but are distinct ERC-20s with different governance and feature surfaces. Resources: 📖 https://docs.sky.money/",
-      "aiContext": "Build: in defi/stablecoin/UsdsMigration.sol implement a 1:1 DAI<->USDS upgrade converter (lock DAI, mint USDS and back) and note the added freeze hook; test/defi/UsdsMigration.t.sol. Done when: converting DAI to USDS and back preserves the exact amount, and the (guarded) freeze prevents transfers for a flagged account.",
+      "description": "Sky's USDS is a distinct upgradeable ERC-20 connected to Maker/Sky's internal accounting through UsdsJoin. The permissionless DaiUsds convenience contract converts DAI and USDS in either direction at 1:1 by routing through DaiJoin and UsdsJoin; it does not establish that the two token addresses or implementation surfaces are interchangeable. The canonical USDS token repository documents permit, EIP-1271 signatures, and UUPS upgradeability, but no account-freeze function.",
+      "aiContext": "Build: in defi/stablecoin/UsdsMigration.sol implement a permissionless 1:1 DAI<->USDS converter that burns the input representation and mints the output through mock join adapters; test/defi/UsdsMigration.t.sol. Done when: both directions preserve the exact amount, the converter retains no user funds, and each conversion emits the input/output token pair and amount.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-usds-token-converter",
+            "purpose": "Verify USDS token capabilities, join accounting, and the exact bidirectional 1:1 DaiUsds conversion mechanism",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-sky-usds-repository",
+                "title": "Sky USDS Token and Contracts",
+                "url": "https://github.com/sky-ecosystem/usds",
+                "format": "documentation",
+                "scope": "Sections USDS token, UsdsJoin, and DaiUsds",
+                "estimatedMinutes": 14,
+                "why": "The canonical repository defines the real token surface and converter, and disproves the legacy freeze-hook exercise.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Overcollateralized CDP stablecoin"],
       "parentTitle": "Stablecoins"
     },
@@ -130,8 +397,31 @@
       "title": "Lido stETH & wstETH",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Lido issues stETH when you stake ETH: a REBASING token whose balanceOf grows daily as staking rewards accrue, always ~1:1 with staked ETH. wstETH is the non-rebasing wrapper — its balance is fixed while the stETH-per-wstETH exchange rate rises, so value accrues in the rate, not the balance. DeFi protocols overwhelmingly integrate wstETH because a rebasing balance silently breaks AMM reserves, lending accounting, and any contract that caches a balance. Resources: 📖 https://docs.lido.fi/guides/lido-tokens-integration-guide/",
+      "description": "Lido's stETH is share-accounted and normally rebases when oracle reports update pooled ether; balances can increase or decrease with rewards and penalties. wstETH is the non-rebasing wrapper: its token balance changes only on transfer, mint, or burn, while its stETH-denominated value follows the stETH-per-wstETH rate. Integrations that cannot safely account for rebases use wstETH or operate directly in stETH shares.",
       "aiContext": "Build: in defi/staking/WstEth.sol implement a wrap/unwrap around a mock rebasing stETH, where wstETH balance is constant and value grows via the exchange rate; test/defi/WstEth.t.sol rebases the underlying. Done when: after a rebase the wstETH holder's balance is unchanged but unwrapping returns more stETH, matching the new rate.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-lido-share-wrapper-accounting",
+            "purpose": "Trace stETH share accounting, positive or negative rebases, and wstETH wrap/unwrap conversion",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-lido-token-integration-guide",
+                "title": "Lido Tokens Integration Guide",
+                "url": "https://docs.lido.fi/guides/lido-tokens-integration-guide/",
+                "format": "article",
+                "scope": "Sections stETH vs. wstETH, stETH internals: share mechanics, What is wstETH, Wrap & Unwrap, and Rewards accounting",
+                "estimatedMinutes": 24,
+                "why": "Lido's integration guide supplies both the internal share formulas and the external non-rebasing wrapper behavior tested by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Fee-on-transfer & rebasing tokens"],
       "parentTitle": "Staking, LSTs & Restaking"
     },
@@ -139,8 +429,31 @@
       "title": "EigenLayer restaking",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EigenLayer lets stakers RESTAKE — reuse native ETH or LSTs to opt into securing additional services (AVSs, Actively Validated Services) beyond Ethereum. Stakers delegate to operators who run the AVS software; each AVS defines its own slashing conditions, so restakers earn extra rewards while taking on extra, AVS-specific slashing risk. It extends Ethereum's pooled crypto-economic security to oracles, bridges, and DA layers without each bootstrapping its own validator set. Resources: 📖 https://docs.eigenlayer.xyz/",
+      "description": "EigenLayer restaking lets native ETH or supported tokens be delegated to operators that opt into additional validation services. Delegated stake can earn service rewards, but stake allocated to an operator's service obligations can be slashed for attributable faults under those obligations. The delegation relationship therefore adds operator and service-specific risk beyond ordinary Ethereum staking.",
       "aiContext": "Build: in defi/staking/Restaking.sol model a strategy where a staker delegates to an operator, an AVS registers a slashing condition, and a proven fault slashes the operator's delegated stake; test/defi/Restaking.t.sol. Done when: delegated stake earns AVS rewards, a proven fault slashes the correct amount from the operator's restakers, and an undelegated staker is unaffected.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-eigenlayer-delegation-slashing",
+            "purpose": "Connect restaker delegation to operator service obligations, rewards, and the delegated stake exposed to slashing",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-eigenlayer-whitepaper-delegation",
+                "title": "EigenLayer Whitepaper",
+                "url": "https://docs.eigenlayer.xyz/assets/files/EigenLayer_WhitePaper-88c47923ca0319870c611decd6e562ad.pdf",
+                "format": "article",
+                "scope": "Pages 4-7",
+                "estimatedMinutes": 20,
+                "why": "The protocol paper directly defines native/LST restaking, operator delegation, fee sharing, and why delegators share an operator's slashing exposure.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Lido stETH & wstETH", "Slashing & the beacon chain"],
       "parentTitle": "Staking, LSTs & Restaking"
     },
@@ -149,8 +462,31 @@
       "title": "Perpetual funding rate (mark vs index)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A perpetual future never expires, so a periodic FUNDING payment tethers its mark price (the perp's own trading price) to the index price (external spot). When mark > index (perp trades at a premium) funding is positive and LONGS pay SHORTS, discouraging longs and pulling the price down; when mark < index, shorts pay longs. Funding is a peer-to-peer transfer proportional to position size, not a fee to the protocol, and it is the mechanism that keeps a no-expiry contract anchored to reality. Resources: 📖 https://gmx-docs.io/docs/trading/v2/#funding-fees",
-      "aiContext": "Build: in defi/perps/Funding.sol compute a funding rate from the mark-index premium and settle payments between long and short open interest each interval; test/defi/Funding.t.sol. Done when: with mark above index, longs' balances decrease and shorts' increase by the funding amount (proportional to size), and the sign flips when mark falls below index.",
+      "description": "A perpetual future has no expiry, so periodic peer-to-peer funding helps keep its traded price near an external spot index. Hyperliquid normalizes an impact-bid/ask premium by its spot oracle, averages samples, adds a clamped interest adjustment, caps the hourly rate, and settles against oracle-priced position notional. Positive funding makes longs pay shorts; negative funding reverses the direction.",
+      "aiContext": "Build: in defi/perps/Funding.sol implement Hyperliquid's averaged premium-index formula, clamped interest adjustment, hourly cap, and oracle-notional settlement; test/defi/Funding.t.sol. Done when: an impact bid above the oracle produces positive funding and longs pay shorts, an impact ask below the oracle reverses the direction, the clamp and cap bind at their boundaries, and payment uses size * oraclePrice rather than mark price.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-perp-funding-formula",
+            "purpose": "Derive Hyperliquid's normalized impact premium, averaged and clamped funding rate, direction, cap, and oracle-notional payment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-hyperliquid-funding-docs",
+                "title": "Hyperliquid Funding",
+                "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/funding",
+                "format": "article",
+                "scope": "Sections Overview, Technical details, and Numerical Example",
+                "estimatedMinutes": 20,
+                "why": "The venue's primary specification gives the impact-price premium, interest clamp, averaging, hourly cap, sign, and oracle-notional settlement needed by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Oracle manipulation resistance"],
       "parentTitle": "Perpetual Futures"
     },
@@ -158,8 +494,31 @@
       "title": "GMX GM pools",
       "type": "pattern",
       "domain": "Web3",
-      "description": "GMX V2 backs each market with a GM (GMX Market) pool holding a long-collateral token, a short-collateral token, and an index token; liquidity providers deposit to earn trading and borrowing fees but take the OPPOSITE side of traders' aggregate PnL — LPs profit when traders lose and vice versa. Trades execute at oracle prices (Chainlink low-latency feeds + keepers) with no AMM slippage, via a two-step request/execute flow that mitigates front-running. Resources: 📖 https://gmx-docs.io/docs/providing-liquidity/v2",
+      "description": "A GMX GM market has an index price feed plus long and short backing tokens; the index token need not be held by the pool. GM liquidity providers earn protocol fees and are exposed as the counterparty to trader PnL. Orders use oracle mark prices rather than a reserve curve, but GMX separately applies configured price impact based on market imbalance. Two-phase execution commits orders before oracle prices are supplied, reducing front-running risk.",
       "aiContext": "Build: in defi/perps/GmPool.sol model a GM pool where LP value moves inversely to net trader PnL and trades price off an injected oracle (not an AMM curve); test/defi/GmPool.t.sol. Done when: a profitable trader's gain reduces LP pool value by the same amount, and trade execution uses the oracle price rather than pool reserves.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-gmx-market-pool-accounting",
+            "purpose": "Trace GM pool composition, oracle-indexed execution, trader-PnL counterparty exposure, token pricing, and separate price impact",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-gmx-providing-liquidity",
+                "title": "GMX Providing Liquidity",
+                "url": "https://docs.gmx.io/docs/providing-liquidity/",
+                "format": "article",
+                "scope": "Sections GM pools, Market types, Token pricing, Protocol protections, and Risks",
+                "estimatedMinutes": 26,
+                "why": "GMX's current primary guide defines the index feed versus backing tokens, pool token valuation, PnL exposure, price impact, and two-phase oracle execution in one bounded source.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Perpetual funding rate (mark vs index)"],
       "parentTitle": "Perpetual Futures"
     },
@@ -167,8 +526,49 @@
       "title": "Hyperliquid on-chain orderbook",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Hyperliquid is a purpose-built L1 running a fully ON-CHAIN central limit order book (CLOB) for perps, rather than an AMM or pooled model — orders match like a centralized exchange but settle transparently on-chain via a custom BFT consensus (HyperBFT). The HLP (Hyperliquidity Provider) vault acts as a market maker and backstop liquidator. It shows a different liquidity paradigm: matched orders and price-time priority instead of a bonding curve. Resources: 📖 https://hyperliquid.gitbook.io/hyperliquid-docs",
-      "aiContext": "Build: in defi/perps/OrderBook.sol implement a minimal on-chain CLOB with limit orders, price-time-priority matching, and market orders; test/defi/OrderBook.t.sol. Done when: a market order fills against resting limit orders best-price-first, partial fills leave the remainder resting, and matching respects time priority at equal price.",
+      "description": "Hyperliquid is a purpose-built L1 whose HyperCore runs fully on-chain perpetual and spot order books under HyperBFT consensus. Resting orders match by price-time priority instead of a bonding curve. Liquidatable positions are first sent as market orders to the book; sufficiently distressed residual positions can be transferred to a liquidator vault that is a component strategy of HLP.",
+      "aiContext": "Build: in defi/perps/OrderBook.sol implement a minimal on-chain CLOB with limit orders, price-time-priority matching, and market orders; test/defi/OrderBook.t.sol. Done when: a market order consumes resting limits best-price-first, a partially filled limit order leaves its remainder resting, and matching respects time priority at equal price.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-hyperliquid-order-matching",
+            "purpose": "Implement the documented price-time-priority matching contract for resting and immediately executing orders",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-hyperliquid-orderbook-docs",
+                "title": "Hyperliquid Order Book",
+                "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/order-book",
+                "format": "article",
+                "scope": "Entire page (6 min)",
+                "estimatedMinutes": 6,
+                "why": "The official venue documentation states the fully on-chain order-book model, tick/lot constraints, and exact price-time-priority rule used by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "07b-hyperliquid-liquidation-backstop",
+            "purpose": "Distinguish ordinary order-book liquidation from transfer to the community liquidator-vault backstop",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-hyperliquid-liquidations-docs",
+                "title": "Hyperliquid Liquidations",
+                "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/liquidations",
+                "format": "article",
+                "scope": "Sections Overview, Motivation, Partial Liquidations, and Liquidator Vault",
+                "estimatedMinutes": 14,
+                "why": "The official page corrects the broad HLP claim by separating public market-order liquidations from deeply distressed backstop transfers.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Perpetual funding rate (mark vs index)"],
       "parentTitle": "Perpetual Futures"
     },
@@ -177,8 +577,49 @@
       "title": "ERC-4626 yield vault mechanics",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-4626 standardizes a tokenized vault over one ERC-20: deposit assets to mint shares, redeem shares for assets, with convertToShares(assets) = assets*totalSupply/totalAssets and convertToAssets the inverse. Share price = totalAssets/totalSupply rises as yield accrues, so shares appreciate rather than rebase. Rounding MUST favor the vault — deposit rounds shares down, withdraw rounds shares up — and an empty vault needs virtual-shares/offset defense against the first-depositor inflation attack (see Phase 4/6). Resources: 📖 https://eips.ethereum.org/EIPS/eip-4626",
+      "description": "ERC-4626 standardizes shares over one ERC-20 asset. convertToShares and convertToAssets must round down; state-changing preview paths use opposing vault-favorable directions—deposit/redeem output rounds down, while mint/withdraw required input rounds up. Yield can raise assets per share without rebasing shares. A virtual-asset/share offset can make first-depositor donation attacks unprofitable, but it is an implementation defense rather than a requirement of EIP-4626 itself.",
       "aiContext": "Build: implement defi/vault/YieldVault4626.sol from scratch (deposit/mint/withdraw/redeem + convertTo* with vault-favorable rounding and a virtual-offset), simulating yield by donating asset over time; test/defi/YieldVault4626.t.sol. Done when: a fuzz test proves totalAssets/totalSupply never lets a redeemer extract more than deposited-plus-yield, rounding always favors the vault, and the first-depositor inflation attack fails.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-erc4626-standard-rounding",
+            "purpose": "Map deposit, mint, withdraw, redeem, convert, and preview methods to their normative rounding directions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-eip4626-specification",
+                "title": "ERC-4626 Tokenized Vaults",
+                "url": "https://eips.ethereum.org/EIPS/eip-4626",
+                "format": "article",
+                "scope": "Sections Specification and Security Considerations",
+                "estimatedMinutes": 24,
+                "why": "The normative EIP is the primary source for method semantics and the distinct round-down versus round-up requirements.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 3650
+              }
+            ]
+          },
+          {
+            "id": "07b-erc4626-inflation-defense",
+            "purpose": "Derive the virtual-asset and virtual-share offset defense and its donation-loss economics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-openzeppelin-erc4626-guide",
+                "title": "OpenZeppelin ERC-4626 Guide",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/erc4626",
+                "format": "article",
+                "scope": "Sections Security concern: Inflation attack and Defending with a virtual offset",
+                "estimatedMinutes": 18,
+                "why": "OpenZeppelin's maintained implementation guide supplies the exact virtual offset construction used in the code card and adversarial test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [
         "ERC-4626 tokenized vaults",
         "ERC-4626 inflation attack & virtual shares"
@@ -190,8 +631,31 @@
       "title": "Aave flash loans",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Aave's flashLoan / flashLoanSimple lend any amount up to available liquidity with NO collateral: the pool transfers the funds, calls executeOperation() on your contract, and after your callback returns requires that amount + premium (0.05% on V3) has been approved for pull-back — otherwise the entire transaction reverts. Atomicity is what makes an uncollateralized loan safe: the protocol either ends the tx whole plus a fee, or the tx never happened. Resources: 📖 https://aave.com/docs/developers/smart-contracts/pool",
-      "aiContext": "Build: implement defi/flashloan/FlashBorrower.sol with an executeOperation that receives funds and approves amount+premium repayment; test/defi/AaveFlash.t.sol against a mock pool. Done when: a callback that repays amount+0.05% succeeds and one that under-repays reverts the whole transaction, leaving the pool balance unchanged.",
+      "description": "Aave flashLoan and flashLoanSimple transfer liquidity and invoke executeOperation on a receiver inside one transaction. For the simple path, the receiver must approve the pool to pull principal plus the pool's configured premium after the callback; failure reverts the transaction. The premium is governance-configurable and must be read from the pool rather than hard-coded. The multi-asset path has additional modes, including opening debt when authorized.",
+      "aiContext": "Build: implement defi/flashloan/FlashBorrower.sol with an executeOperation that receives funds and approves principal plus the premium supplied by a configurable mock pool; test/defi/AaveFlash.t.sol. Done when: exact configured repayment succeeds, under-repayment reverts the entire transaction with pool and receiver balances restored, and changing the mock premium requires no borrower code change.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-aave-flashloan-state-machine",
+            "purpose": "Trace transfer, receiver callback, configured premium, approval-based repayment, and atomic failure for the simple path",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-origin-flashloan-logic",
+                "title": "Aave V3 Origin FlashLoanLogic",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/FlashLoanLogic.sol",
+                "format": "documentation",
+                "scope": "Sections executeFlashLoanSimple and _handleFlashLoanRepayment",
+                "estimatedMinutes": 24,
+                "why": "The maintained protocol code is the exact source for callback ordering, dynamic premium calculation, repayment pull, and full-transaction revert behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Uniswap V2 flash swaps"],
       "parentTitle": "Flash Loans"
     },
@@ -199,8 +663,31 @@
       "title": "Flash-loan use cases (arb, liquidation, collateral swap)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Because a flash loan supplies unbounded capital for one atomic transaction, it enables capital-free strategies that MUST net a profit within the tx or revert: cross-DEX arbitrage (borrow, buy cheap, sell dear, repay), liquidations (borrow to repay a victim's debt, seize discounted collateral, sell, repay the loan, keep the bonus), and collateral swaps / debt refinancing (flash-repay one debt, move collateral, re-borrow). The same primitive amplifies oracle-manipulation exploits, but the legitimate uses are the backbone of DeFi keeping. Resources: 📖 https://docs.aave.com/developers/guides/flash-loans",
-      "aiContext": "Build: in defi/flashloan/FlashLiquidator.sol use a flash loan to liquidate an undercollateralized position (repay debt, seize collateral, swap to repay the loan, keep the bonus); test/defi/FlashLiquidate.t.sol wires your CDP + a DEX. Done when: the liquidation nets a profit atomically with zero starting capital, and if the seized collateral can't cover loan+premium the whole transaction reverts.",
+      "description": "A flash loan supplies capital for one atomic transaction, enabling cross-venue arbitrage, liquidations, and collateral or debt swaps without pre-funding the borrowed principal. It is bounded by available pool liquidity, not unbounded. Every path must leave enough of the repayment asset for principal plus premium before the callback ends or revert. The same composability can amplify oracle-manipulation attacks, so consumers must secure pricing rather than assume flash liquidity can be blocked.",
+      "aiContext": "Build: in defi/flashloan/FlashLiquidator.sol use a flash loan to liquidate an undercollateralized position (repay debt, seize collateral, swap to repay the loan, keep the bonus); test/defi/FlashLiquidate.t.sol wires your CDP + a DEX. Done when: the liquidation nets a profit atomically without pre-funding the borrowed principal, and if the seized collateral can't cover loan+premium the whole transaction reverts.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "07b-flash-liquidation-composition",
+            "purpose": "Compose flash liquidity with liquidation and exchange steps while preserving the callback repayment invariant",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "07b-aave-flashloan-composition-source",
+                "title": "Aave V3 Origin FlashLoanLogic",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/protocol/libraries/logic/FlashLoanLogic.sol",
+                "format": "documentation",
+                "scope": "Section executeFlashLoanSimple, from callback invocation through repayment handling",
+                "estimatedMinutes": 14,
+                "why": "The protocol source bounds the composable work to the receiver callback and proves why any unprofitable liquidation path rolls back atomically.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Aave flash loans", "CDP liquidation & collateral ratio"],
       "parentTitle": "Flash Loans"
     }
@@ -221,13 +708,13 @@
     {
       "topicTitle": "Health factor & liquidation",
       "promptText": "Implement computeHealthFactor for a single collateral/debt pair (18-decimal base).",
-      "answerHint": "function healthFactor(uint collUsd, uint liqThresholdBps, uint debtUsd) pure returns (uint) { if (debtUsd == 0) return type(uint).max; return (collUsd * liqThresholdBps / 10_000) * 1e18 / debtUsd; } // HF < 1e18 means liquidatable",
+      "answerHint": "function healthFactor(uint collUsd, uint liqThresholdBps, uint debtUsd) pure returns (uint) { if (debtUsd == 0) return type(uint).max; uint weighted = Math.mulDiv(collUsd, liqThresholdBps, 10_000); return Math.mulDiv(weighted, 1e18, debtUsd); } // HF < 1e18 means liquidatable",
       "promptKind": "code"
     },
     {
       "topicTitle": "Aave e-mode & isolation mode",
-      "promptText": "Contrast Aave V3 e-mode and isolation mode — what does each change and why?",
-      "answerHint": "E-mode groups correlated assets and grants a higher max-LTV/liquidation threshold (e.g. ~93/95%) because collateral and debt move together, making pegged-pair leverage safer. Isolation mode restricts a risky new collateral to borrowing only whitelisted stablecoins up to a debt ceiling and forbids mixing it with other collateral, containing contagion. Pitfall: e-mode's high LTV is only safe while the assets stay correlated — a depeg inside an e-mode category can cascade liquidations exactly because leverage was allowed to run high.",
+      "promptText": "How did Aave v3.7 replace legacy isolation mode with isolated e-mode?",
+      "answerHint": "E-mode applies governance-configured category LTV, liquidation, and borrowing permissions. In v3.7 an isolated e-mode lets only category collateral contribute LTV, blocks entry while outside collateral is enabled, and prevents enabling outside collateral after entry. It replaces the legacy isolated-collateral mechanism with approved debt assets and a debt ceiling, which v3.7 removes. Pitfall: rollout and category parameters are market configuration, and correlation assumptions can fail.",
       "promptKind": "concept"
     },
     {
@@ -259,19 +746,19 @@
     {
       "topicTitle": "Algorithmic stablecoins & the UST collapse",
       "promptText": "Why are seigniorage-style algorithmic stablecoins structurally fragile, using UST/LUNA as the example?",
-      "answerHint": "They hold the peg via a mint/burn arbitrage against a volatile sister token (swap $1 of coin for $1 of token), which is REFLEXIVE — it only works while the token's market cap stays large. When UST depegged, the arbitrage minted enormous amounts of LUNA to absorb redemptions, crashing LUNA's price, which required minting even more, breaking the peg entirely (~$40B lost, May 2022). Pitfall: undercollateralized pegs assume confidence never breaks; the failure mode is a self-reinforcing death spiral, not a gradual drift.",
+      "answerHint": "Terra Classic's market module burned the offered native coin and minted the requested coin at oracle exchange rates. When stablecoin exits require minting a volatile sister asset, falling sister-asset price means each redemption requires more issuance, which can further weaken price and redemption capacity. After the May 2022 collapse, market-module swaps were disabled on Terra Classic and the new Terra chain launched without native stablecoins or that module. Pitfall: mint/burn convertibility is not collateral; it depends on demand for the asset being issued.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Sky / USDS (MakerDAO evolution)",
       "promptText": "What is the relationship between DAI and USDS after MakerDAO's rebrand to Sky?",
-      "answerHint": "Sky introduced USDS, a new stablecoin upgradeable 1:1 from DAI (DAI still functions), with MKR converting to SKY; USDS stays CDP-collateralized like DAI but adds features (Sky Savings Rate) and a controversial admin freeze capability. They trade at parity but are DISTINCT ERC-20s with different governance and feature surfaces. Pitfall: 'DAI and USDS are interchangeable' is only true at the value level — an integration must treat them as separate token addresses with different admin powers.",
+      "answerHint": "USDS is a distinct upgradeable ERC-20. The permissionless DaiUsds convenience contract converts DAI and USDS both ways at 1:1 by using DaiJoin and UsdsJoin; it does not make their token addresses or implementation surfaces identical. The canonical USDS repository documents permit, EIP-1271 signatures, and UUPS upgradeability, but no account-freeze function. Pitfall: parity through a converter is not ERC-20 identity—integrations must configure each address and its actual contract behavior.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Lido stETH & wstETH",
       "promptText": "Why does DeFi prefer wstETH over stETH, given they represent the same staked ETH?",
-      "answerHint": "stETH REBASES — its balanceOf grows daily with staking rewards — which silently breaks contracts that cache balances or use balanceOf in reserve/accounting math (AMMs, lending). wstETH is the non-rebasing wrapper: balance stays fixed while the stETH-per-wstETH rate rises, so value accrues in the exchange rate and integrations stay correct. Pitfall: pricing wstETH as if 1 wstETH = 1 ETH ignores the exchange rate — you must multiply by the current rate, and rebasing stETH must never be treated as a static ERC-20.",
+      "answerHint": "stETH is share-accounted and normally rebases when Lido's oracle report changes pooled ether; balances can rise with rewards or fall with penalties. wstETH represents those shares with a non-rebasing ERC-20 balance, while stETH-per-wstETH changes. That is safer for systems that cannot account for balance changes without transfers. Pitfall: neither token is mechanically fixed at 1 ETH—use the current share/wrapper rate and account for rounding.",
       "promptKind": "concept"
     },
     {
@@ -283,55 +770,55 @@
     {
       "topicTitle": "Aave V3 aTokens & interest accrual",
       "promptText": "Write a scaled-balance balanceOf so an aToken accrues interest without transfers.",
-      "answerHint": "uint constant RAY = 1e27; function balanceOf(address u) public view returns (uint) { return scaledBalance[u] * liquidityIndex() / RAY; } // scaledBalance fixed at deposit; liquidityIndex() grows with accrued interest, so balanceOf rises over time",
+      "answerHint": "function balanceOf(address u) public view returns (uint) { return scaledBalance[u].rayMulFloor(liquidityIndex()); } // mint stores amount.rayDivFloor(index); burn/transfer convert assets to scaled balances with ceil rounding",
       "promptKind": "code"
     },
     {
       "topicTitle": "Perpetual funding rate (mark vs index)",
-      "promptText": "Write the per-interval funding settlement direction from the mark-index premium.",
-      "answerHint": "int premium = int(markPrice) - int(indexPrice); int funding = premium * int(fundingCoefficient) / 1e18; // funding > 0 (mark above index): longs PAY shorts -> debit longs, credit shorts, proportional to position size; funding < 0 flips the direction",
+      "promptText": "Write Hyperliquid's funding-rate and payment kernel from an averaged premium index.",
+      "answerHint": "int adjustment = clamp(interestRate8hWad - averagePremiumWad, -5e14, 5e14); int rate8hWad = averagePremiumWad + adjustment; int hourlyRateWad = clamp(rate8hWad / 8, -4e16, 4e16); int payment = int(positionSize) * int(oraclePrice) / 1e18 * hourlyRateWad / 1e18; // positive: long pays short; use oracle notional",
       "promptKind": "code"
     },
     {
       "topicTitle": "Perpetual funding rate (mark vs index)",
       "promptText": "What is the funding rate on a perpetual future, and which direction does it push?",
-      "answerHint": "A periodic peer-to-peer payment between longs and shorts (proportional to position size) that tethers the perp's mark price to the external index/spot price. When mark > index (premium), funding is positive and LONGS pay SHORTS, discouraging longs and pulling the price toward index; when mark < index, shorts pay longs. Pitfall: funding is NOT a protocol fee — it flows between traders; and a manipulated index or thin mark can distort funding, so the price sources must be robust.",
+      "answerHint": "A periodic peer-to-peer payment between longs and shorts that helps tether the perp to spot. On Hyperliquid, impact bid/ask prices form a premium normalized by the spot oracle; sampled premiums are averaged, adjusted by a clamped interest term, and capped. Positive funding makes LONGS pay SHORTS; negative funding reverses it. Payment uses position size * oracle price * funding rate, not mark-price notional. Pitfall: funding is not a protocol fee, and weak oracle or impact-price inputs can distort it.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "GMX GM pools",
       "promptText": "In a GMX V2 GM pool, what side do liquidity providers take, and how are trades priced?",
-      "answerHint": "LPs deposit long-collateral, short-collateral, and index exposure and take the OPPOSITE side of traders' aggregate PnL — they profit when traders lose and lose when traders win, while earning trading/borrowing fees. Trades execute at oracle prices (Chainlink low-latency + keepers) with no AMM slippage, via a two-step request/execute flow that reduces front-running. Pitfall: GM LPs are effectively the house counterparty; a sustained skew of winning traders draws down pool value, so it is not a passive risk-free yield.",
+      "answerHint": "A GM market holds long and short backing tokens and references an index price feed; it need not hold the index token. LPs earn fees and are counterparty to aggregate trader PnL, so trader profit reduces pool value. Orders use oracle mark prices instead of a reserve curve, but configured price impact is applied separately from slippage based on imbalance. Two-phase execution commits the order before oracle prices arrive. Pitfall: GM liquidity is market-specific counterparty and token exposure, not risk-free yield.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Hyperliquid on-chain orderbook",
       "promptText": "How does Hyperliquid's liquidity model differ from an AMM, and what backstops it?",
-      "answerHint": "It runs a fully on-chain central limit order book (CLOB) on a purpose-built L1 with custom BFT consensus — orders match by price-time priority like a centralized exchange, not along a bonding curve, giving tight spreads without AMM slippage/impermanent loss. The HLP vault market-makes and acts as backstop liquidator. Pitfall: an on-chain CLOB demands very high throughput and low latency, which is why it needs a bespoke L1 rather than running on a general-purpose EVM chain.",
+      "answerHint": "HyperCore runs fully on-chain order books on Hyperliquid's purpose-built L1; resting orders match by price-time priority rather than a bonding curve. Liquidations first submit market orders to that book. If a position remains deeply below maintenance margin, it can be transferred to the liquidator vault, a component strategy of HLP. Pitfall: HLP is not the matching rule or sole source of ordinary liquidity—the public order book matches all resting orders.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-4626 yield vault mechanics",
       "promptText": "State the ERC-4626 share/asset conversion and the two rounding rules that keep the vault solvent.",
-      "answerHint": "convertToShares(assets) = assets * totalSupply / totalAssets and convertToAssets(shares) = shares * totalAssets / totalSupply; share price = totalAssets/totalSupply grows as yield accrues (shares appreciate, no rebase). Rounding must favor the vault: minting shares on deposit rounds DOWN, and computing shares to burn on withdraw rounds UP. Pitfall: an empty vault is inflatable by the first-depositor donation attack — defend with virtual shares/offset (OZ default) or seeded dead shares, and never price totalAssets off raw balanceOf.",
+      "answerHint": "Ignoring virtual terms, convertToShares = assets*totalSupply/totalAssets and convertToAssets is the inverse; both convert functions must round down. For state-changing previews, deposit/redeem outputs round down while mint/withdraw required inputs round up. A virtual asset plus virtual shares (optionally with a decimal offset) can make donation attacks unprofitable. Pitfall: that defense is implementation-specific, and totalAssets semantics come from the vault—not an assumption that raw balanceOf is always correct.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-4626 yield vault mechanics",
       "promptText": "Write ERC-4626 convertToShares with vault-favorable (round-down) behavior and virtual offset.",
-      "answerHint": "function convertToShares(uint assets) view returns (uint) { return assets * (totalSupply() + 1) / (totalAssets() + 1); } // +1 virtual offset blocks first-depositor inflation; integer division rounds shares DOWN in the vault's favor on deposit",
+      "answerHint": "function convertToShares(uint assets) view returns (uint) { return Math.mulDiv(assets, totalSupply() + 10 ** _decimalsOffset(), totalAssets() + 1, Math.Rounding.Floor); } // virtual asset + virtual shares; convertToShares rounds down",
       "promptKind": "code"
     },
     {
       "topicTitle": "Aave flash loans",
       "promptText": "What makes an Aave flash loan safe despite being uncollateralized, and how is repayment enforced?",
-      "answerHint": "Atomicity: the pool sends funds and calls executeOperation() on your contract; after it returns, the pool requires amount + premium (0.05% on V3) to be pullable, and if it isn't the ENTIRE transaction reverts — so the loan either ends whole plus a fee or never happened. No collateral is needed because state can't persist a bad outcome. Pitfall: you must approve/leave the repayment before executeOperation returns; there's no later 'repay' step, and forgetting the premium reverts everything.",
+      "answerHint": "Atomicity: the pool transfers funds and calls executeOperation; after the callback, flashLoanSimple pulls principal plus the configured premium. If approval or balance is insufficient, the entire transaction reverts. The premium is governance-configurable, so receiver logic must use the callback value or query current pool configuration rather than hard-code 0.05%. Pitfall: flashLoan has multiple assets and can open authorized debt modes, while flashLoanSimple is the repay-with-premium path.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Flash-loan use cases (arb, liquidation, collateral swap)",
       "promptText": "Name three legitimate flash-loan strategies and the constraint they all share.",
-      "answerHint": "Cross-DEX arbitrage (borrow, buy low, sell high, repay), liquidations (borrow to repay a victim's debt, seize discounted collateral + bonus, sell, repay), and collateral swaps / debt refinancing (flash-repay one debt, move collateral, re-borrow). All share the constraint that the profit plus the flash fee must be realized WITHIN the single atomic transaction, or it reverts — zero starting capital, zero overnight risk. Pitfall: the same primitive amplifies oracle-manipulation exploits, so 'block flash loans' is not a fix — securing the price source is.",
+      "answerHint": "Cross-venue arbitrage, liquidations, and collateral swaps or debt refinancing. Each path must end the callback with enough of the repayment asset for principal plus premium, within available pool liquidity, or the transaction reverts. The principal need not be pre-funded, but gas, execution risk, slippage limits, and any shortfall still matter. Pitfall: flash liquidity can amplify oracle manipulation, so consumers must harden price sources rather than assume the primitive can be blocked.",
       "promptKind": "concept"
     },
     {
