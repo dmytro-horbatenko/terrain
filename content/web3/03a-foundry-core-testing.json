@@ -1,0 +1,598 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Foundry",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Foundry (forge/cast/anvil/chisel) is the primary toolchain for this curriculum: Solidity-native tests, fuzzing, invariants, scripting, and gas/coverage tooling, all without leaving Solidity.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 3 — Tooling: Foundry & Hardhat"
+    },
+    {
+      "title": "Foundry project anatomy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "forge init scaffolds src/ (contracts), test/ (.t.sol tests), lib/ (dependencies), and script/ (deploy/interaction scripts); foundry.toml declares which directories those are and out/ holds compiled artifacts (ABI + bytecode) while cache/ holds the compiler cache. Every other Foundry feature — remappings, profiles, gas snapshots — hooks into this layout, so knowing it is the entry point to the whole tool.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-project-layout-semantics",
+            "purpose": "Map every default Foundry directory to its configuration key and generated role",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-project-layout-docs",
+                "title": "Foundry Project Layout",
+                "url": "https://www.getfoundry.sh/projects/layout",
+                "format": "documentation",
+                "scope": "Sections Default structure, Source directories, and Output directories",
+                "estimatedMinutes": 12,
+                "why": "The current official layout page distinguishes source paths, compiled artifacts, compiler cache, and their exact foundry.toml keys.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in web3-practice (already scaffolded), confirm the src/test/lib/script/out/cache layout matches foundry.toml's src/test/script/out/libs/cache_path keys and write contracts/phase03/anatomy.md listing each directory's purpose. Done when: `forge build` succeeds and anatomy.md maps every listed foundry.toml path key to its directory.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "cast: chain interaction CLI",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "cast is Foundry's terminal tool for reading and writing chain state without writing a script: call/send/balance/storage/logs/abi-encode against any RPC. It's the fastest way to sanity-check a deployed contract or decode a transaction.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-cast-read-write-boundary",
+            "purpose": "Distinguish Cast read-only calls from signed state-changing transactions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-cast-overview-docs",
+                "title": "Cast Overview",
+                "url": "https://www.getfoundry.sh/cast",
+                "format": "documentation",
+                "scope": "Sections Key capabilities and Common workflows",
+                "estimatedMinutes": 14,
+                "why": "The current official overview demonstrates the call and signed-send boundary exercised by the learner's local-Anvil build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-cast-raw-storage",
+            "purpose": "Read a known contract storage slot directly rather than through its ABI",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-cast-storage-reference",
+                "title": "cast storage Reference",
+                "url": "https://www.getfoundry.sh/reference/cast/storage",
+                "format": "documentation",
+                "scope": "Section cast storage, from the command summary through Arguments",
+                "estimatedMinutes": 5,
+                "why": "The official command reference defines the address, base-slot, and offset inputs needed for the build's raw slot read.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: against a local anvil, deploy a contract from contracts/phase03/ and run `cast call`, `cast send`, and `cast storage` on it, recording the three commands and their output in contracts/phase03/cast-notes.md. Done when: cast call returns the expected return value and cast storage reads a known slot.",
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "anvil: local test node",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "anvil is a local, disposable Ethereum node with pre-funded accounts, instant mining, and development RPC extensions (anvil_setBalance, snapshot/revert) — the backbone of fast iterative testing and the target for scripts and fork-testing alike.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-anvil-local-node",
+            "purpose": "Use Anvil's development-only balance mutation and state snapshot RPC methods",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-anvil-custom-methods-docs",
+                "title": "Anvil Custom Methods",
+                "url": "https://www.getfoundry.sh/anvil/custom-methods",
+                "format": "documentation",
+                "scope": "Sections State snapshots and Balance and code manipulation",
+                "estimatedMinutes": 12,
+                "why": "The official method reference defines the balance mutation and snapshot controls used by the build instead of treating them as normal Ethereum RPCs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-anvil-state-persistence",
+            "purpose": "Choose explicit load and dump flags when local chain state must survive restart",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-anvil-state-management-docs",
+                "title": "Anvil State Management",
+                "url": "https://www.getfoundry.sh/anvil/state-management",
+                "format": "documentation",
+                "scope": "Sections Dumping state, Loading state, and Combined state file",
+                "estimatedMinutes": 8,
+                "why": "The official state guide separates ephemeral defaults from --state, --load-state, and --dump-state persistence behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: start `anvil`, deploy a contract from contracts/phase03/ with `forge create`, then call `anvil_setBalance` via `cast rpc` on an account, recording the sequence in contracts/phase03/anvil-notes.md. Done when: `cast balance` confirms the balance change after the RPC call.",
+      "prerequisiteTitles": ["cast: chain interaction CLI"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "chisel: Solidity REPL",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "chisel is an interactive Solidity shell: type an expression or statement and see its result immediately, with access to Foundry cheatcodes — faster than a full build/test cycle for checking a one-line assembly or ABI idea.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-chisel-repl-workflow",
+            "purpose": "Evaluate Solidity expressions and inspect the generated REPL source without a test file",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-chisel-overview-docs",
+                "title": "Chisel Commands",
+                "url": "https://www.getfoundry.sh/chisel/commands",
+                "format": "documentation",
+                "scope": "Sections Session and Examples",
+                "estimatedMinutes": 12,
+                "why": "The current official command guide shows interactive evaluation and the !source-generated, Vm-enabled Solidity contract behind the session.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in `chisel`, evaluate `keccak256(abi.encodePacked(\"test\"))` and one cheatcode call (e.g. `vm.addr(1)`), pasting both transcripts into contracts/phase03/chisel-notes.md. Done when: the transcript shows chisel resolving both without a full forge build.",
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Unit testing with forge-std",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Foundry tests are Solidity contracts inheriting forge-std's Test, using setUp() for fixtures and functions prefixed test for cases; assertions (assertEq, assertTrue, …) give readable failure diffs. Each test begins from the state created by setUp(), so one test body cannot supply state to another; with default call isolation, each top-level external call also runs in a separate transaction context.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-forge-test-lifecycle",
+            "purpose": "Write isolated Solidity test cases with the current Forge naming and setup conventions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-forge-testing-docs",
+                "title": "Forge Testing",
+                "url": "https://www.getfoundry.sh/forge/testing",
+                "format": "documentation",
+                "scope": "Sections Writing tests, Call isolation, and Filtering tests",
+                "estimatedMinutes": 18,
+                "why": "The current official testing guide defines discovery, per-case setUp, default call isolation, and the exact path filter used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-forge-std-test-api",
+            "purpose": "Use the Test contract's assertions and vm cheatcode handle deliberately",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-forge-std-overview-docs",
+                "title": "Forge Standard Library Overview",
+                "url": "https://getfoundry.sh/reference/forge-std/overview",
+                "format": "documentation",
+                "scope": "Sections Forge Std's Test and What's included",
+                "estimatedMinutes": 10,
+                "why": "The official forge-std reference identifies the assertion libraries, Test inheritance surface, and vm handle that the build actually imports.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write test/phase03/Counter.t.sol testing a small Counter contract in contracts/phase03/Counter.sol, with setUp() deploying it and ≥2 test functions using assertEq. Done when: `forge test --match-path test/phase03/Counter.t.sol` passes both cases.",
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Cheatcodes: prank & deal",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "vm.prank(addr) makes the next call appear to originate from addr (vm.startPrank/stopPrank covers a range of calls), and vm.deal(addr, amount) sets an address's ETH balance directly — together they let a test impersonate a caller and fund it without a real transfer.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-prank-caller-semantics",
+            "purpose": "Control msg.sender for one call or a bounded sequence without leaking impersonation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-prank-reference",
+                "title": "prank Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/prank/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 7,
+                "why": "The canonical cheatcode page defines exactly which next call is affected and distinguishes prank from recurrent caller modification.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-deal-balance-semantics",
+            "purpose": "Set a test address balance directly without implying transfer execution",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-deal-reference",
+                "title": "deal Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/deal/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 5,
+                "why": "The canonical reference states the direct balance mutation used by the assertion and avoids teaching it as a real ETH transfer.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in test/phase03/Prank.t.sol, use vm.prank to call an onlyOwner-style function as a non-owner and assert it reverts, then vm.deal an address and assert its new balance. Done when: forge test passes and proves both the impersonation and the balance set.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Cheatcodes: expectRevert & expectEmit",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "vm.expectRevert(...) asserts the next call reverts with the expected data, and vm.expectEmit(...) compares an emitted event against the topics/data declared beforehand — both turn \"it should fail/emit\" into a checkable assertion instead of a try/catch.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-expect-revert-semantics",
+            "purpose": "Match the intended revert data and understand next-call depth constraints",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-expect-revert-reference",
+                "title": "expectRevert Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/expect-revert/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, Examples, and Gotchas",
+                "estimatedMinutes": 12,
+                "why": "The canonical reference covers selector versus full-data matching, call depth, and the next-call behavior that makes the assertion load-bearing.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-expect-emit-semantics",
+            "purpose": "Select which indexed topics and event data an emission assertion checks",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-expect-emit-reference",
+                "title": "expectEmit Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/expect-emit/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 10,
+                "why": "The canonical reference explains the expected-log declaration and the topic/data selector booleans required by the Transfer-style build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in test/phase03/ExpectRevertEmit.t.sol, declare an argument-free `error MyError();`, assert it with vm.expectRevert(MyError.selector), and assert an event with vm.expectEmit before a Transfer-style emit. Done when: forge test passes, and temporarily deleting either cheatcode line makes the test wrongly pass or fail, proving each is load-bearing.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Cheatcodes: warp & roll",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "vm.warp(timestamp) sets block.timestamp and vm.roll(number) sets block.number, letting you jump a vesting schedule forward or simulate blocks passing without waiting in real time.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-warp-timestamp-semantics",
+            "purpose": "Set block.timestamp explicitly when testing time-dependent contract behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-warp-reference",
+                "title": "warp Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/warp/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 4,
+                "why": "The canonical reference pins warp to block.timestamp so the learner does not assume it also advances the block number.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-roll-block-number-semantics",
+            "purpose": "Set block.number independently when testing block-height-dependent behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-roll-reference",
+                "title": "roll Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/roll/",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 4,
+                "why": "The canonical reference pins roll to block.number so the learner treats time and height as separate test inputs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in test/phase03/TimeTravel.t.sol, write a small vesting-style contract in contracts/phase03/ that unlocks after a timestamp, then use vm.warp to jump past it and assert the unlock succeeds. Done when: forge test passes and fails if the vm.warp call is removed.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Fuzz testing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A fuzz test takes typed parameters instead of none; Foundry generates a configurable number of random scenarios and reports a counterexample when the property fails. It checks a general behavior across sampled inputs instead of one hand-picked example, while vm.assume or bound keeps generated values inside the intended domain.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-fuzz-property-workflow",
+            "purpose": "Turn a typed test parameter into a bounded property-based campaign and interpret failures",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-fuzz-testing-docs",
+                "title": "Foundry Fuzz Testing",
+                "url": "https://www.getfoundry.sh/forge/testing",
+                "format": "documentation",
+                "scope": "Section Fuzz testing, from parameterized tests through the bound() example",
+                "estimatedMinutes": 12,
+                "why": "The current official testing guide shows typed fuzz cases, run counts, assumptions, bounds, and the configuration that controls the campaign.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-fuzz-command-controls",
+            "purpose": "Control fuzz runs, seed, rejection limits, and reruns from the forge test command",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-forge-test-reference",
+                "title": "forge test Command Reference",
+                "url": "https://www.getfoundry.sh/reference/forge/test",
+                "format": "documentation",
+                "scope": "Sections Fuzz options and Test options",
+                "estimatedMinutes": 8,
+                "why": "The canonical command reference pins the current run, seed, rejection, and rerun flags instead of relying on obsolete deep-guide routes.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write test/phase03/Fuzz.t.sol with `function testFuzz_Deposit(uint96 amount) public` on a contract in contracts/phase03/ asserting a deposit's recorded balance always equals amount. Done when: `forge test --fuzz-runs 256` passes, and a deliberately-broken version fails with a reported counterexample.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Fork testing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Fork testing runs a test against a snapshot of remote chain state (vm.createSelectFork / --fork-url), so you can call deployed contracts as they existed at a chosen block. Pinning the block number keeps that starting state reproducible across runs.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-fork-testing-workflow",
+            "purpose": "Run tests against remote state while pinning a reproducible block boundary",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-fork-testing-docs",
+                "title": "Foundry Fork Testing",
+                "url": "https://www.getfoundry.sh/guides/fork-testing",
+                "format": "documentation",
+                "scope": "Sections Basic fork testing, Configuring forks in foundry.toml, and Best practices",
+                "estimatedMinutes": 18,
+                "why": "The official guide explains RPC-backed state, fork selection, and why a fixed block is the reproducibility boundary for the learner's test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03a-create-select-fork-api",
+            "purpose": "Select the exact createSelectFork overload that pins a block in Solidity",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-create-select-fork-reference",
+                "title": "createSelectFork Cheatcode Reference",
+                "url": "https://getfoundry.sh/reference/cheatcodes/create-select-fork",
+                "format": "documentation",
+                "scope": "Sections Signature, Description, and Examples",
+                "estimatedMinutes": 8,
+                "why": "The canonical API page distinguishes latest, explicit-block, and transaction-hash overloads used to create the pinned fork.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write test/phase03/Fork.t.sol that forks a public mainnet RPC at a pinned block and asserts a known ERC-20's totalSupply() at that block. Done when: `forge test --match-path test/phase03/Fork.t.sol --fork-url <rpc>` passes, and passes identically on a second run because the block is pinned.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Invariant testing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An invariant test declares a property that must hold after randomized sequences of calls (e.g. \"total shares never exceed total supply\"); Foundry's fuzzer can drive a handler contract through valid multi-call histories and checks invariants after each call, catching stateful bugs that isolated examples miss.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03a-invariant-handler-workflow",
+            "purpose": "Design stateful invariant campaigns with targeted handlers, runs, depth, and ghost variables",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03a-invariant-testing-docs",
+                "title": "Foundry Invariant Testing",
+                "url": "https://www.getfoundry.sh/guides/invariant-testing",
+                "format": "documentation",
+                "scope": "Sections Invariant Testing overview, Basic invariant test, Handler pattern, Ghost variables, and Configuring invariant runs",
+                "estimatedMinutes": 24,
+                "why": "The official advanced-testing guide defines per-call assertions, campaign dimensions, target selection, handlers, and ghost-variable accounting.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write test/phase03/Invariant.t.sol with a Handler contract wrapping deposit/withdraw on a contract in contracts/phase03/, and an invariant_totalAssetsMatchSum() asserting tracked balances sum to the contract's total. Done when: `forge test --match-path test/phase03/Invariant.t.sol` runs the configured depth/runs and the invariant holds.",
+      "prerequisiteTitles": ["Fuzz testing"],
+      "parentTitle": "Foundry"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Foundry project anatomy",
+      "promptText": "What do src/, test/, lib/, script/, and out/ each hold in a Foundry project, and which one is safe to delete/regenerate?",
+      "answerHint": "src/ = contracts, test/ = .t.sol tests, lib/ = installed dependencies, script/ = deploy/interaction scripts, out/ = compiled artifacts (ABI+bytecode), and cache/ = compiler cache. Pitfall: out/ and cache/ are generated and normally gitignored, but they are not the same directory or the same data.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "cast: chain interaction CLI",
+      "promptText": "Name three things cast can do without writing a Solidity script, and why cast call can never change state.",
+      "answerHint": "cast call (read), cast send (write tx), cast storage (raw slot read), plus abi-encode/logs/etc. — all from the terminal against any RPC. Pitfall: cast call behaves like eth_call — it never actually mines a tx, even against a live node, so it can't be used to change state.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "anvil: local test node",
+      "promptText": "What makes anvil faster to iterate against than a public testnet, and what happens to its state on restart?",
+      "answerHint": "Instant mining, pre-funded accounts, and development RPC extensions (anvil_setBalance, snapshot/revert) make resets cheap. Pitfall: state is in memory by default; use --state (load if present, dump on exit) or the separate --load-state/--dump-state flags when persistence is intentional.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "chisel: Solidity REPL",
+      "promptText": "Why is chisel faster than forge test for checking a one-line Solidity/assembly idea, and what does it share with real tests?",
+      "answerHint": "It evaluates each statement immediately in an interactive session instead of a full compile+run cycle, with full access to Foundry cheatcodes just like a test. Pitfall: a working chisel snippet doesn't automatically become a committed test — copy it into a real test file.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Unit testing with forge-std",
+      "promptText": "Why does each Foundry test function run against its own isolated EVM state, and what does that mean for relying on test execution order?",
+      "answerHint": "Every test* function gets setUp() re-run and a fresh state snapshot, so tests can't leak state into each other regardless of order. Pitfall: a test that depends on state created by an earlier test's body (not its own setUp()) will break — each test only sees its own setUp() plus its own body.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Unit testing with forge-std",
+      "promptText": "Write a minimal Foundry test file skeleton testing a Counter contract's increment().",
+      "answerHint": "import {Test} from \"forge-std/Test.sol\"; import {Counter} from \"../src/Counter.sol\"; contract CounterTest is Test { Counter c; function setUp() public { c = new Counter(); } function test_Increment() public { c.increment(); assertEq(c.count(), 1); } }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Cheatcodes: prank & deal",
+      "promptText": "What's the difference between vm.prank and vm.startPrank/stopPrank, and what does vm.deal NOT do?",
+      "answerHint": "prank affects only the next external call; startPrank/stopPrank affects every call until stopPrank. vm.deal sets a balance directly — it runs no real transfer logic (no receive/fallback triggered). Pitfall: forgetting stopPrank leaves impersonation active for later, unrelated calls in the same test.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Cheatcodes: prank & deal",
+      "promptText": "Write cheatcode calls making the next call appear from address(0xBEEF) with a 10 ether balance.",
+      "answerHint": "vm.deal(address(0xBEEF), 10 ether); vm.prank(address(0xBEEF)); target.doSomething();",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Cheatcodes: expectRevert & expectEmit",
+      "promptText": "Where must vm.expectRevert/vm.expectEmit be placed relative to the call they check, and what's the risk of a bare vm.expectRevert() with no arguments?",
+      "answerHint": "Immediately before the call being tested — the cheatcode applies only to the very next external call. Pitfall: vm.expectRevert() with no args matches ANY revert reason, which can hide a wrong-reason bug — pass the specific selector/string when you can.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Cheatcodes: warp & roll",
+      "promptText": "What do vm.warp and vm.roll each control, and does setting one automatically advance the other?",
+      "answerHint": "vm.warp(ts) sets block.timestamp; vm.roll(n) sets block.number — instantly, for all subsequent calls in the test. Pitfall: warping doesn't advance block.number and vice versa; a contract checking both may need both cheatcodes set consistently.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fuzz testing",
+      "promptText": "What does Foundry do when a fuzz test fails, and why does fuzzing catch bugs example-based unit tests often miss?",
+      "answerHint": "It reports the failing calldata and arguments as a counterexample. Fuzzing samples many typed inputs instead of the few a human thinks to write. Pitfall: constrain the intended domain with bound() or vm.assume(); excessive assumptions discard runs and can exhaust the rejection limit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fuzz testing",
+      "promptText": "Write a fuzz test asserting a Vault's deposit always credits the exact amount deposited.",
+      "answerHint": "function testFuzz_Deposit(uint96 amount) public { vm.assume(amount > 0); vault.deposit{value: amount}(); assertEq(vault.balanceOf(address(this)), amount); }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Fork testing",
+      "promptText": "Why does pinning a fork to a specific block number matter for test determinism?",
+      "answerHint": "Without a pinned block, forking 'latest' means the exact state (balances, oracle prices) differs run to run, so a passing test today could fail tomorrow for reasons unrelated to your code. Pitfall: forking without a rate-limit-safe RPC can hit limits mid-suite — use a dedicated fork RPC or cache.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Invariant testing",
+      "promptText": "What is a 'handler' in Foundry invariant testing, and what does it catch that a single fuzz test doesn't?",
+      "answerHint": "A handler wraps the target's functions with bounded/valid inputs; the fuzzer calls handler functions in random sequences and order, then checks the invariant after each — catching bugs that only surface after a specific multi-call history. Pitfall: an unconstrained handler wastes runs on reverting calls — bound inputs inside the handler, not just the invariant.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

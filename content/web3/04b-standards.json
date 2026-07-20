@@ -7,7 +7,7 @@
       "title": "Safety Patterns",
       "type": "concept",
       "domain": "Web3",
-      "description": "The defensive reflexes every contract needs: a pause switch for emergencies, reentrancy guards, and pull-over-push payments so one bad recipient can't wedge the whole system. These are the patterns that turn a discovered bug into a contained incident instead of a total loss. Resources: https://docs.openzeppelin.com/contracts/5.x/api/utils#Pausable",
+      "description": "The defensive reflexes every contract needs: a pause switch for emergencies, reentrancy guards, and pull-over-push payments so one bad recipient can't wedge the whole system. These are the patterns that turn a discovered bug into a contained incident instead of a total loss.",
       "prerequisiteTitles": ["Function modifiers"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -15,7 +15,7 @@
       "title": "Signatures & Meta-Transactions",
       "type": "concept",
       "domain": "Web3",
-      "description": "Using off-chain signatures on-chain: ERC-2612 permit for gasless approvals, ERC-2771 meta-transactions for gasless UX, ERC-1271 so smart-contract wallets can 'sign', and the replay defenses (nonce, deadline, domain) that keep a signature from being reused. Builds on Phase 2's ECDSA/EIP-712 primitives. Resources: https://docs.openzeppelin.com/contracts/5.x/utilities#cryptography",
+      "description": "Using off-chain signatures on-chain: ERC-2612 permit for gasless approvals, ERC-2771 meta-transactions for gasless UX, ERC-1271 so smart-contract wallets can 'sign', and the replay defenses (nonce, deadline, domain) that keep a signature from being reused. Builds on Phase 2's ECDSA/EIP-712 primitives.",
       "prerequisiteTitles": ["EIP-712 typed structured data"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -23,7 +23,7 @@
       "title": "Distribution & Factory Patterns",
       "type": "concept",
       "domain": "Web3",
-      "description": "Getting tokens out and contracts deployed at scale: Merkle and signature airdrops that claim without storing every balance, multisig custody, and factory deployment via CREATE2 and EIP-1167 minimal-proxy clones. The common thread is doing per-user work cheaply and deterministically. Resources: https://docs.openzeppelin.com/contracts/5.x/api/proxy#Clones",
+      "description": "Getting tokens out and contracts deployed at scale: Merkle and signature airdrops that claim without storing every balance, multisig custody, and factory deployment via CREATE2 and EIP-1167 minimal-proxy clones. The common thread is doing per-user work cheaply and deterministically.",
       "prerequisiteTitles": ["Hashing & Merkle trees"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -31,7 +31,7 @@
       "title": "DAOs & Governance",
       "type": "concept",
       "domain": "Web3",
-      "description": "On-chain governance: ERC-20Votes tokens with delegated, checkpointed voting power; the Governor framework's propose/vote/queue/execute lifecycle; and a Timelock that delays execution so users can exit before a malicious proposal lands. Resources: https://docs.openzeppelin.com/contracts/5.x/governance",
+      "description": "On-chain governance: ERC-20Votes tokens with delegated, checkpointed voting power; the Governor framework's propose/vote/queue/execute lifecycle; and a Timelock that delays execution so users can exit before a malicious proposal lands.",
       "prerequisiteTitles": ["ERC-20 fungible token standard"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -40,8 +40,31 @@
       "title": "Pausable circuit breaker",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Pausable adds a boolean switch with whenNotPaused/whenPaused modifiers and _pause/_unpause, so a privileged account can freeze state-changing functions the moment a bug is spotted — a circuit breaker that buys time to respond. Wire it to a PAUSER_ROLE, not the whole owner, and think hard about which functions to gate: freezing deposits is fine, but freezing withdrawals can trap user funds. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/utils#Pausable",
+      "description": "Pausable adds a boolean switch with whenNotPaused/whenPaused modifiers and _pause/_unpause, so a privileged account can freeze selected functions the moment a bug is spotted — a circuit breaker that buys time to respond. Add explicit access control to the internal pause functions, and think hard about which functions to gate: freezing deposits may contain damage, but freezing withdrawals can trap user funds.",
       "aiContext": "Build: implement contracts/phase04/Breaker.sol with a PAUSER_ROLE, whenNotPaused on deposit but an always-open emergencyWithdraw, plus test/phase04/Breaker.t.sol. Done when: forge test proves a paused deposit reverts with EnforcedPause, unpause restores it, and users can still exit while paused. Threat: centralization — a pauser can freeze funds; and gating withdrawals can trap users, so keep an exit open.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-pausable-controls",
+            "purpose": "Apply pause-state guards and explicit authorization to selected entry points",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-pausable-oz-api",
+                "title": "OpenZeppelin Pausable API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils#Pausable",
+                "format": "documentation",
+                "scope": "Section Pausable, including modifiers, errors, and internal pause functions",
+                "estimatedMinutes": 12,
+                "why": "The current official API defines exactly what Pausable supplies and makes clear that callers must expose and authorize _pause and _unpause themselves.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Function modifiers"],
       "parentTitle": "Safety Patterns"
     },
@@ -49,8 +72,49 @@
       "title": "Reentrancy guard & checks-effects-interactions",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The primary defense against reentrancy is ordering — checks, then effects (update state), then interactions (external calls) — so a re-entrant call sees already-updated state. ReentrancyGuard's nonReentrant modifier is the belt-and-braces backup, flipping a storage flag around the call (OZ 5.1 adds a transient-storage variant, ReentrancyGuardTransient, that's far cheaper). Remember guards are per-function: cross-function and read-only reentrancy can still bite. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/utils#ReentrancyGuard",
+      "description": "The primary defense against reentrancy is ordering — checks, then effects (update state), then interactions (external calls) — so a re-entrant call sees already-updated state. ReentrancyGuard's nonReentrant modifier adds one contract-wide guard around protected entry points; ReentrancyGuardTransient offers the same pattern on chains with EIP-1153 transient storage. Unguarded cross-function paths and read-only callbacks can still expose inconsistent state.",
       "aiContext": "Build: implement contracts/phase04/Bank.sol with a vulnerable withdraw and a fixed CEI+nonReentrant version, plus an Attacker.sol and test/phase04/Reentrancy.t.sol. Done when: forge test proves the attacker drains the vulnerable contract and the reentrant call reverts (ReentrancyGuardReentrantCall) or nets zero against the fixed one. Threat: single-function, cross-function, and read-only reentrancy — CEI first, guard second. (cf. Ethernaut Reentrancy)",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-reentrancy-cei",
+            "purpose": "Explain and implement checks-effects-interactions before an external value transfer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-reentrancy-solidity-security",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html#reentrancy",
+                "format": "documentation",
+                "scope": "Section Reentrancy, including the checks-effects-interactions example",
+                "estimatedMinutes": 10,
+                "why": "The language reference demonstrates the vulnerable ordering and the state-before-call repair exercised by the attack test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "04b-reentrancy-guard",
+            "purpose": "Use the contract-wide nonReentrant guard and understand its composition constraint",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-reentrancy-oz-api",
+                "title": "OpenZeppelin ReentrancyGuard API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils#ReentrancyGuard",
+                "format": "documentation",
+                "scope": "Sections ReentrancyGuard and ReentrancyGuardTransient",
+                "estimatedMinutes": 12,
+                "why": "The current API defines the single guard, nonReentrant composition limit, error, and EIP-1153-dependent transient variant used in the concept.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Sending ETH: transfer, send, call", "Function modifiers"],
       "parentTitle": "Safety Patterns"
     },
@@ -58,8 +122,31 @@
       "title": "Pull-over-push payments",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Pushing funds — looping to send ETH to a list of recipients — fails when one recipient reverts (a contract with no receive, or a deliberate griefer), bricking the whole batch, and each external send is a reentrancy opening. Pull payments invert it: record what each account is owed in a mapping and let them withdraw individually, isolating failures and moving the external call to a single, guarded path. This is the standard fix for auction refunds and reward distribution. Resources: 📖 https://docs.soliditylang.org/en/latest/common-patterns.html#withdrawal-from-contracts",
-      "aiContext": "Build: implement contracts/phase04/Auction.sol where outbid refunds are credited to a pendingReturns mapping and withdrawn via a pull function, plus test/phase04/PullPayment.t.sol with a griefing bidder that reverts on receive. Done when: forge test proves the griefer cannot block other bidders and can still withdraw its own credit. Threat: push-payment DoS via a reverting recipient, and reentrancy on the send.",
+      "description": "Pushing funds — looping to send ETH to a list of recipients — fails when one recipient reverts (a contract with no receive, or a deliberate griefer), bricking the whole batch, and each external send is a reentrancy opening. Pull payments invert it: record what each account is owed in a mapping and let them withdraw individually, isolating failures and moving the external call to a single, guarded path. This is the standard fix for auction refunds and reward distribution.",
+      "aiContext": "Build: implement contracts/phase04/Auction.sol where outbid refunds are credited to a pendingReturns mapping and withdrawn via a pull function, plus test/phase04/PullPayment.t.sol with a griefing bidder that reverts on receive. Done when: forge test proves the griefer cannot block other bidders, its failed withdrawal does not erase its credit, and another recipient can withdraw. Threat: push-payment DoS via a reverting recipient, and reentrancy on the send.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-pull-payment-withdrawal",
+            "purpose": "Replace recipient-driven push failure with isolated withdrawal credits",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-pull-payment-solidity-pattern",
+                "title": "Solidity Common Patterns",
+                "url": "https://docs.soliditylang.org/en/latest/common-patterns.html#withdrawal-from-contracts",
+                "format": "documentation",
+                "scope": "Section Withdrawal from Contracts",
+                "estimatedMinutes": 12,
+                "why": "The official language guide contrasts a reverting push recipient with pending withdrawals and demonstrates clearing credit before transfer.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Reentrancy guard & checks-effects-interactions", "Mappings"],
       "parentTitle": "Safety Patterns"
     },
@@ -68,8 +155,31 @@
       "title": "ERC-2612 permit (gasless approvals)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-2612 adds permit(owner, spender, value, deadline, v, r, s) to an ERC-20, letting a user grant an allowance with an off-chain EIP-712 signature instead of a separate on-chain approve tx — so a dApp can approve-and-act in one transaction. Each owner has a monotonic nonce that the signature includes and permit increments, so a signature can't be replayed; the deadline bounds its validity. OZ's ERC20Permit implements it. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2612",
-      "aiContext": "Build: implement contracts/phase04/PermitToken.sol extending OZ ERC20Permit, plus test/phase04/Permit.t.sol using vm.sign to build a valid permit. Done when: forge test proves a valid signature sets the allowance, replaying the same signature reverts (nonce consumed), and an expired deadline reverts. Threat: signature replay (guarded by nonce+deadline) and permit front-running — a griefer can submit your permit first, reverting your bundled tx.",
+      "description": "ERC-2612 adds permit(owner, spender, value, deadline, v, r, s) to an ERC-20, letting a user grant an allowance with an off-chain EIP-712 signature instead of a separate on-chain approve tx — so a dApp can approve-and-act in one transaction. Each owner has a monotonic nonce that the signature includes and permit increments, so a signature can't be replayed; the deadline bounds its validity. A permit can be submitted by anyone, so integrations should tolerate it being submitted before their bundled call when the intended allowance is already set. OZ's ERC20Permit implements it.",
+      "aiContext": "Build: implement contracts/phase04/PermitToken.sol extending OZ ERC20Permit, plus test/phase04/Permit.t.sol using vm.sign to build a valid permit. Done when: forge test proves a valid signature sets the allowance, replaying the same signature reverts (nonce consumed), and an expired deadline reverts. Threat: signature replay (guarded by nonce+deadline) and permit front-running — an integration that requires its permit call to succeed can be griefed after the same permit is submitted first.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-permit-semantics",
+            "purpose": "Construct and test ERC-2612 permits with nonce, deadline, and domain checks",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-permit-erc2612",
+                "title": "ERC-2612: Permit Extension for EIP-20 Signed Approvals",
+                "url": "https://eips.ethereum.org/EIPS/eip-2612",
+                "format": "documentation",
+                "scope": "Sections Specification and Security Considerations",
+                "estimatedMinutes": 20,
+                "why": "The final ERC defines the signed fields, nonce increment, deadline rule, approval effect, relayer option, front-running, censorship, and chain-split replay considerations.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["EIP-712 typed structured data", "ERC-20 approvals & SafeERC20"],
       "parentTitle": "Signatures & Meta-Transactions"
     },
@@ -77,8 +187,49 @@
       "title": "ERC-2771 meta-transactions",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-2771 enables gasless UX: a user signs a request, a relayer pays gas and calls a trusted forwarder, and the target contract (using ERC2771Context) recovers the real user from the last 20 bytes the forwarder appends to calldata via _msgSender(). The security hinges entirely on trusting only a vetted forwarder — if any untrusted contract is trusted, it can append an arbitrary address and impersonate anyone. Never read msg.sender directly in a meta-tx-aware contract. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2771",
+      "description": "ERC-2771 enables gasless UX: a user signs a request, a relayer pays gas and calls a trusted forwarder, and the target contract (using ERC2771Context) recovers the real user from the last 20 bytes the forwarder appends to calldata via _msgSender(). The security hinges entirely on trusting only a vetted forwarder — if an untrusted contract is trusted, it can append an arbitrary address and impersonate anyone. Use the Context accessors consistently in meta-transaction-aware logic.",
       "aiContext": "Build: implement contracts/phase04/Forwardable.sol using OZ ERC2771Context with an ERC2771Forwarder, plus test/phase04/MetaTx.t.sol relaying a signed request. Done when: forge test proves _msgSender() returns the signer (not the relayer) for a forwarded call and a direct call still reports the direct caller. Threat: trusting a malicious/unvetted forwarder → sender spoofing; and using msg.sender instead of _msgSender() breaks the abstraction.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-erc2771-recipient",
+            "purpose": "Recover the effective sender only from calls made by a trusted forwarder",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-erc2771-standard",
+                "title": "ERC-2771: Secure Protocol for Native Meta Transactions",
+                "url": "https://eips.ethereum.org/EIPS/eip-2771",
+                "format": "documentation",
+                "scope": "Sections Extracting The Transaction Signer address, Protocol Support Discovery Mechanism, and Security Considerations",
+                "estimatedMinutes": 20,
+                "why": "The final ERC specifies the appended 20-byte signer, direct-call fallback, trusted-forwarder discovery, gas bound, and forged-sender threat.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-erc2771-forwarder",
+            "purpose": "Construct, verify, and execute the current OpenZeppelin signed forward request used by the build",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-erc2771-oz-forwarder-api",
+                "title": "OpenZeppelin ERC2771Forwarder API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/metatx#ERC2771Forwarder",
+                "format": "documentation",
+                "scope": "Section ERC2771Forwarder, including request fields, verify, execute, and Security Considerations",
+                "estimatedMinutes": 14,
+                "why": "The current official API defines the EIP-712 request, implicit nonce, deadline, signer and trusted-target checks, and execution behavior required by the concrete forwarder test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["EIP-712 typed structured data", "abi.decode & function selectors"],
       "parentTitle": "Signatures & Meta-Transactions"
     },
@@ -86,8 +237,49 @@
       "title": "ERC-1271 contract signatures",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ecrecover only validates EOA signatures, so smart-contract wallets (Safe, ERC-4337 accounts) can't 'sign' the ECDSA way. ERC-1271 defines isValidSignature(hash, signature) returning a magic value (0x1626ba7e) if the contract considers the signature valid — letting the wallet implement its own scheme (multisig threshold, session keys). Verifiers should use OZ's SignatureChecker, which tries ecrecover then falls back to ERC-1271, so both account types work. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1271",
+      "description": "ecrecover only validates EOA signatures, so smart-contract wallets (Safe, ERC-4337 accounts) need a contract validation path. ERC-1271 defines isValidSignature(hash, signature) returning the magic value 0x1626ba7e when the contract considers the signature valid, letting the wallet implement its own scheme. OZ's SignatureChecker supports EOAs and contract signatures through one interface; unlike ECDSA signatures, a contract signature's validity can change over time.",
       "aiContext": "Build: implement contracts/phase04/SmartWallet.sol with isValidSignature plus a consumer using OZ SignatureChecker, and test/phase04/Erc1271.t.sol. Done when: forge test proves SignatureChecker accepts a valid EOA signature and a valid contract (ERC-1271) signature, and rejects a bad one. Threat: an isValidSignature that doesn't bind the hash to a nonce/domain enables signature replay across contexts.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-erc1271-wallet-validation",
+            "purpose": "Implement the contract-signature interface and validate its exact magic value",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-erc1271-standard",
+                "title": "ERC-1271: Standard Signature Validation Method for Contracts",
+                "url": "https://eips.ethereum.org/EIPS/eip-1271",
+                "format": "documentation",
+                "scope": "Sections Specification, Rationale, and Security Considerations",
+                "estimatedMinutes": 16,
+                "why": "The final ERC defines the bytes4 magic value, view/static-call constraint, implementation-owned authorization policy, and caller gas warning.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-signature-checker-accounts",
+            "purpose": "Validate EOA and ERC-1271 signatures through one current library interface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-signature-checker-oz-api",
+                "title": "OpenZeppelin SignatureChecker API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography#SignatureChecker",
+                "format": "documentation",
+                "scope": "Section SignatureChecker and isValidSignatureNow",
+                "estimatedMinutes": 10,
+                "why": "The official current API defines EOA versus contract dispatch and warns that contract-signature validity is revocable and time-dependent.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ECDSA signatures & ecrecover", "ERC-165 interface detection"],
       "parentTitle": "Signatures & Meta-Transactions"
     },
@@ -95,8 +287,49 @@
       "title": "Signature replay protection",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A bare signed message is a bearer token: without extra binding it can be replayed on the same contract (same params again), across chains (same address, different chainId), or across contracts (same struct, different verifier). The three defenses are a per-signer nonce that the contract consumes, a deadline/expiry, and an EIP-712 domain separator pinning chainId + verifyingContract. Every permit, meta-tx, and off-chain-order system needs all three. Resources: 📖 https://eips.ethereum.org/EIPS/eip-712",
+      "description": "A bare signed message is a bearer token: without extra binding it can be replayed on the same contract, across chains, or across contracts. Consume a per-signer nonce for one-time use, add a deadline when authorization should expire, and use an EIP-712 domain containing chainId and verifyingContract to separate chains and verifiers. EIP-712 supplies domain separation but explicitly does not supply replay protection by itself.",
       "aiContext": "Build: implement contracts/phase04/SignedActions.sol that executes an EIP-712-signed action guarded by a mapping nonce and a deadline, plus test/phase04/Replay.t.sol. Done when: forge test proves a valid signed action executes once, a replay reverts (nonce spent), an expired deadline reverts, and a signature for another chainId reverts. Threat: same-contract / cross-chain / cross-contract replay — bind nonce + deadline + domain.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-replay-domain-separation",
+            "purpose": "Bind a typed authorization to its chain and verifying contract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-replay-eip712",
+                "title": "EIP-712: Typed structured data hashing and signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections Definition of domainSeparator and Security Considerations: Replay attacks",
+                "estimatedMinutes": 16,
+                "why": "The final EIP defines chainId and verifyingContract domain fields while explicitly stating that the encoding standard does not itself provide replay protection.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-replay-nonce-deadline",
+            "purpose": "Consume an authorization once and bound its submission window",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-replay-erc2612-pattern",
+                "title": "ERC-2612 replay and relayer controls",
+                "url": "https://eips.ethereum.org/EIPS/eip-2612",
+                "format": "documentation",
+                "scope": "Sections Specification and Security Considerations, limited to nonce and deadline controls",
+                "estimatedMinutes": 10,
+                "why": "The final ERC is a canonical concrete application of a consumed nonce and deadline to replayable off-chain authorization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ERC-2612 permit (gasless approvals)"],
       "parentTitle": "Signatures & Meta-Transactions"
     },
@@ -105,8 +338,31 @@
       "title": "Merkle-proof airdrops",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A Merkle airdrop commits to a whole (address, amount) list with one 32-byte root on-chain; each claimer submits their leaf plus a log-sized proof, and the contract verifies it with MerkleProof.verify and marks the address claimed. This makes distributing to millions cost O(1) storage instead of writing every balance. Two disciplines matter: hash leaves consistently (often double-hash) so an internal node can't be passed off as a leaf (second-preimage), and bind the claim to msg.sender so a bot can't claim for you to a different address. Resources: 📖 https://solidity-by-example.org/app/merkle-tree/",
+      "description": "A Merkle airdrop commits to an eligibility list with one 32-byte root; each claim supplies a leaf and logarithmic-size proof, and the contract verifies it with MerkleProof.verify. This avoids preloading every allocation, though replay tracking still grows with successful claims. Encode the recipient and amount in the leaf and pay that recipient so a caller cannot redirect a claim; use an unambiguous leaf encoding (OpenZeppelin's StandardMerkleTree double-hashes leaves) so internal nodes cannot be reinterpreted as leaves.",
       "aiContext": "Build: implement contracts/phase04/MerkleAirdrop.sol verifying claims against a root with a claimed mapping, plus test/phase04/MerkleAirdrop.t.sol building a tree and a proof. Done when: forge test proves a valid proof claims the exact amount once, a second claim reverts, and a forged/altered proof reverts. Threat: second-preimage leaf collision, double-claim, and claim front-running — hash leaves safely and bind the recipient.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-merkle-proof-verification",
+            "purpose": "Build compatible leaves and verify inclusion without ambiguous leaf preimages",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-merkle-proof-oz-guide",
+                "title": "OpenZeppelin Standard Merkle Trees",
+                "url": "https://github.com/OpenZeppelin/merkle-tree#standard-merkle-trees",
+                "format": "documentation",
+                "scope": "Sections Validating a Proof in Solidity, Standard Merkle Trees, and Leaf Hash",
+                "estimatedMinutes": 18,
+                "why": "The official library README connects JavaScript tree construction to Solidity MerkleProof verification and defines the standard double-hashed leaf format.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Hashing & Merkle trees", "keccak256 hashing"],
       "parentTitle": "Distribution & Factory Patterns"
     },
@@ -114,8 +370,49 @@
       "title": "Signature-based airdrops",
       "type": "pattern",
       "domain": "Web3",
-      "description": "An alternative to Merkle trees: an off-chain signer (the project) issues an EIP-712 signature authorizing a specific address to claim a specific amount, and the contract verifies it with ecrecover/SignatureChecker before paying out. It needs no on-chain root and lets eligibility be computed lazily, but centralizes trust in the signer's key and demands the same replay defenses (nonce + deadline) as any signed claim. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/utils#SignatureChecker",
+      "description": "An alternative to Merkle trees: an off-chain signer issues an EIP-712 authorization for a specific recipient, amount, nonce, and deadline, and the contract verifies it before paying out. It needs no on-chain root and lets eligibility be computed lazily, but centralizes issuance authority in the signer's key and needs explicit replay protection. SignatureChecker lets the authorized signer be either an EOA or a contract wallet.",
       "aiContext": "Build: implement contracts/phase04/SigAirdrop.sol paying out on a valid signer EIP-712 signature guarded by a claimed nonce, plus test/phase04/SigAirdrop.t.sol. Done when: forge test proves a valid signature from the authorized signer claims once, a replay reverts, and a signature from any other key reverts. Threat: signer-key compromise (mints unlimited claims), and signature replay without a per-claim nonce.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-signature-airdrop-digest",
+            "purpose": "Define a domain-separated claim containing recipient, amount, nonce, and deadline",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-signature-airdrop-eip712",
+                "title": "EIP-712: Typed structured data hashing and signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections Definition of hashStruct, Definition of domainSeparator, and Security Considerations",
+                "estimatedMinutes": 18,
+                "why": "The final EIP supplies the canonical digest construction and domain boundaries needed for the claim authorization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-signature-airdrop-verifier",
+            "purpose": "Validate the configured issuer whether it is an EOA or contract account",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-signature-airdrop-checker",
+                "title": "OpenZeppelin SignatureChecker API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography#SignatureChecker",
+                "format": "documentation",
+                "scope": "Section SignatureChecker and isValidSignatureNow",
+                "estimatedMinutes": 8,
+                "why": "The official current API is the implementation path for accepting either ECDSA or ERC-1271 issuer signatures without custom dispatch.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Signature replay protection"],
       "parentTitle": "Distribution & Factory Patterns"
     },
@@ -123,8 +420,49 @@
       "title": "Multisig wallets",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A multisig requires M-of-N owner approvals before a transaction executes: owners submit, confirm, and once the threshold is met, execute — eliminating any single key as a point of failure and making it the default custody for treasuries and protocol admin. Safe (formerly Gnosis Safe) is the production standard, with modules and guards for extensibility. The dangerous knobs are the threshold (1-of-N is no better than an EOA) and owner-set management. Resources: 📖 https://solidity-by-example.org/app/multi-sig-wallet/",
+      "description": "A multisig requires M-of-N owner approvals before a transaction executes: owners submit or sign, and execution proceeds once the threshold is met. A threshold above one removes any single owner key as sufficient authority; 1-of-N does not. Safe is a widely used implementation with modules and guards for extensibility. Enabled modules can bypass normal signature verification and execute arbitrary transactions, so module trust is part of the wallet's security boundary.",
       "aiContext": "Build: implement contracts/phase04/MultiSig.sol with submit/confirm/execute over N owners and an M threshold, plus test/phase04/MultiSig.t.sol. Done when: forge test proves a tx executes only after M confirmations, a non-owner cannot confirm, and a re-execution of an already-executed tx reverts. Threat: threshold misconfiguration (1-of-N) and owner-key compromise; and delegatecall modules can bypass the threshold if unvetted.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-multisig-threshold-flow",
+            "purpose": "Authorize each transaction hash with distinct owners up to a configured threshold",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-multisig-safe-concepts",
+                "title": "Safe Smart Account Concepts",
+                "url": "https://docs.safe.global/advanced/smart-account-concepts",
+                "format": "documentation",
+                "scope": "Sections Owners, Threshold, Signature verification, and Safe Transaction",
+                "estimatedMinutes": 18,
+                "why": "The official implementation documentation defines owner membership, threshold authorization, distinct sorted confirmations, and transaction execution flow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "04b-multisig-module-boundary",
+            "purpose": "Treat enabled modules as alternate execution authorities outside the normal threshold path",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-multisig-safe-modules",
+                "title": "Safe Modules",
+                "url": "https://docs.safe.global/advanced/smart-account-modules",
+                "format": "documentation",
+                "scope": "Sections Overview, How Safe Modules Work, and module security warning",
+                "estimatedMinutes": 10,
+                "why": "Safe's official docs state that enabled modules call the module execution path and may execute arbitrary transactions, making them part of the custody boundary.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Low-level calls", "Mappings"],
       "parentTitle": "Distribution & Factory Patterns"
     },
@@ -132,8 +470,49 @@
       "title": "CREATE2 deterministic deployment",
       "type": "pattern",
       "domain": "Web3",
-      "description": "CREATE2 derives a contract's address from keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:], so the address depends only on the deployer, a chosen salt, and the init code — not the deployer's nonce. This lets you compute an address before deploying (counterfactual deployment) and deploy the same address across chains. Post-Cancun (EIP-6780) selfdestruct no longer clears code except in the same tx, which curtails the old CREATE2+selfdestruct metamorphic redeploy trick. Resources: 📖 https://solidity-by-example.org/app/create2/",
-      "aiContext": "Build: implement contracts/phase04/Create2Factory.sol that deploys via create2 and a pure predictAddress helper, plus test/phase04/Create2.t.sol. Done when: forge test proves predictAddress equals the actual deployed address and redeploying with the same salt+init_code reverts (address taken). Threat: metamorphic redeploy (different code at a known address) and counterfactual-address assumptions about not-yet-deployed code.",
+      "description": "CREATE2 derives a contract's address from keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:], so the address depends on the deployer, salt, and init code rather than the deployer's nonce. This enables counterfactual addresses and the same address across chains only when those inputs match. EIP-6780 means SELFDESTRUCT normally no longer deletes existing code, so historical metamorphic redeployment assumptions no longer hold outside creation-and-destruction in one transaction.",
+      "aiContext": "Build: implement contracts/phase04/Create2Factory.sol that deploys via create2 and a pure predictAddress helper, plus test/phase04/Create2.t.sol. Done when: forge test proves predictAddress equals the actual deployed address and redeploying with the same salt+init_code reverts (address taken). Threat: treating a counterfactual address as if code already exists or assuming cross-chain equality when the deployer or init code differs.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-create2-address-collision",
+            "purpose": "Predict CREATE2 addresses from exact inputs and handle occupied-address collisions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-create2-eip1014",
+                "title": "EIP-1014: Skinny CREATE2",
+                "url": "https://eips.ethereum.org/EIPS/eip-1014",
+                "format": "documentation",
+                "scope": "Sections Specification, Motivation, and Clarifications",
+                "estimatedMinutes": 18,
+                "why": "The canonical EIP defines the 85-byte address preimage, init-code distinction, counterfactual motivation, gas cost, and immediate failure on occupied destinations.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-create2-selfdestruct-era",
+            "purpose": "Reason about deterministic addresses under current SELFDESTRUCT semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-create2-eip6780",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Specification, Backwards Compatibility, and Security Considerations",
+                "estimatedMinutes": 14,
+                "why": "The current consensus rule explains why existing code normally survives SELFDESTRUCT and why old CREATE2 redeployment schemes no longer function.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["keccak256 hashing", "Calling other contracts"],
       "parentTitle": "Distribution & Factory Patterns"
     },
@@ -141,8 +520,49 @@
       "title": "Minimal-proxy clones (EIP-1167)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EIP-1167 deploys a fixed 45-byte proxy whose entire job is to delegatecall a hard-coded implementation, so spinning up the thousandth identical instance costs a tiny deployment instead of redeploying full logic. OZ's Clones library does clone() (CREATE) and cloneDeterministic() (CREATE2, so you can predict the address). Because a clone is a proxy, its own constructor never runs against its storage — you must call an initializer after cloning, exactly like an upgradeable contract. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1167",
+      "description": "ERC-1167 standardizes a 45-byte runtime proxy that delegates every call to a fixed implementation and bubbles return or revert data. OZ's Clones library deploys ordinary or deterministic clones and predicts deterministic addresses. Because construction initializes the implementation rather than each clone's storage, each clone needs its own initialization, ideally atomically in the factory.",
       "aiContext": "Build: implement contracts/phase04/CloneFactory.sol using OZ Clones to spawn initialized instances of an implementation, plus test/phase04/Clones.t.sol. Done when: forge test proves each clone is independently initialized, shares the implementation's logic, and cloneDeterministic lands at the predicted address. Threat: an uninitialized clone (anyone can initialize it) — always initialize atomically in the factory.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-clones-runtime-standard",
+            "purpose": "Explain the immutable minimal proxy's delegate and return-data behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-clones-erc1167",
+                "title": "ERC-1167: Minimal Proxy Contract",
+                "url": "https://eips.ethereum.org/EIPS/eip-1167",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, Rationale, and Test Cases",
+                "estimatedMinutes": 18,
+                "why": "The final ERC defines the 45-byte runtime, fixed implementation address, full gas forwarding, return and revert bubbling, and intended factory initialization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-clones-library-factory",
+            "purpose": "Deploy, initialize, and predict ordinary and deterministic clones with the current library",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-clones-oz-api",
+                "title": "OpenZeppelin Clones API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#Clones",
+                "format": "documentation",
+                "scope": "Section Clones functions clone, cloneDeterministic, and predictDeterministicAddress",
+                "estimatedMinutes": 14,
+                "why": "The official current API defines the CREATE and CREATE2 factory functions and prediction overloads used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [
         "CREATE2 deterministic deployment",
         "delegatecall & the proxy pattern"
@@ -154,8 +574,49 @@
       "title": "ERC-20Votes voting tokens",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC20Votes extends ERC-20 to track voting power via checkpoints and delegation: getPastVotes(account, timepoint) reads a historical snapshot, which is what stops flash-loan vote borrowing — you can only vote with power you held before the proposal's snapshot. Crucially, tokens grant zero voting power until they're delegated (delegate(self) to vote with your own tokens), a constant source of 'my tokens don't vote' confusion. ERC-6372 clock() decides whether snapshots use block numbers or timestamps. Resources: 📖 https://eips.ethereum.org/EIPS/eip-5805",
-      "aiContext": "Build: implement contracts/phase04/GovToken.sol extending OZ ERC20Votes (+ERC20Permit), plus test/phase04/Votes.t.sol. Done when: forge test proves un-delegated tokens have 0 votes, delegating grants voting power, transfers move it, and getPastVotes returns the snapshot value at a past timepoint (not the current one). Threat: flash-loan governance if a contract reads current balance instead of getPastVotes; and un-delegated supply silently can't vote.",
+      "description": "ERC20Votes extends ERC-20 with delegation and checkpointed voting weight: getPastVotes(account, timepoint) reads an immutable past value so tokens transferred after a proposal snapshot cannot vote again from a new account. Tokens have no tracked voting power until delegated, including self-delegation. ERC-6372 clock() identifies the timepoint mode. Snapshotting prevents post-snapshot reuse, but it does not stop capital acquired or borrowed before the snapshot.",
+      "aiContext": "Build: implement contracts/phase04/GovToken.sol extending OZ ERC20Votes (+ERC20Permit), plus test/phase04/Votes.t.sol. Done when: forge test proves un-delegated tokens have 0 votes, delegating grants voting power, transfers move delegated power, and getPastVotes returns the immutable value at a past timepoint. Threat: double voting if governance reads current balances; economic takeover remains possible when voting power is acquired before the snapshot.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-votes-delegation-checkpoints",
+            "purpose": "Delegate token-derived voting weight and query immutable past checkpoints on the announced clock",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-votes-erc5805",
+                "title": "ERC-5805: Voting with delegation",
+                "url": "https://eips.ethereum.org/EIPS/eip-5805",
+                "format": "documentation",
+                "scope": "Sections Specification: Methods, Expected properties, and Rationale",
+                "estimatedMinutes": 24,
+                "why": "The final ERC defines untracked undelegated balances, delegation transfer effects, clock modes, immutable getPastVotes behavior, and checkpoint protection against double voting.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04b-votes-erc20-implementation",
+            "purpose": "Compose the current ERC20Votes and ERC20Permit implementation correctly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-votes-oz-api",
+                "title": "OpenZeppelin ERC20Votes API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#ERC20Votes",
+                "format": "documentation",
+                "scope": "Section ERC20Votes and inherited Votes accessors",
+                "estimatedMinutes": 12,
+                "why": "The official current API identifies delegation, current and past vote accessors, clock support, and the concrete ERC-20 extension used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ERC-20 fungible token standard", "Reading & writing state variables"],
       "parentTitle": "DAOs & Governance"
     },
@@ -163,8 +624,31 @@
       "title": "Governor framework",
       "type": "pattern",
       "domain": "Web3",
-      "description": "OZ Governor is the modular on-chain governance engine: propose() registers actions, a votingDelay passes, holders cast For/Against/Abstain votes over a votingPeriod weighted by their getPastVotes snapshot, and if quorum and majority are met the proposal can be queued and executed. Modules plug in the vote-counting, token source (GovernorVotes over ERC20Votes), quorum rule, and timelock. A proposalThreshold gates who may propose to curb spam. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/governance#governor",
-      "aiContext": "Build: implement contracts/phase04/MyGovernor.sol composing GovernorVotes + GovernorCountingSimple + a quorum module over the GovToken, plus test/phase04/Governor.t.sol running a full propose→vote→execute. Done when: forge test proves a proposal below quorum fails, one above quorum with a For majority executes its action, and voting before delegation has no weight. Threat: governance takeover by acquiring/borrowing tokens — snapshot voting + a timelock are the countermeasures.",
+      "description": "OZ Governor is a modular on-chain governance engine: propose() registers actions, voting starts after votingDelay, holders cast votes during votingPeriod using snapshot weight, and a successful proposal can be executed or queued first when a timelock module requires it. Modules supply vote counting, voting-power source, quorum, and execution policy. A proposalThreshold can limit who may propose.",
+      "aiContext": "Build: implement contracts/phase04/MyGovernor.sol composing GovernorVotes + GovernorCountingSimple + a quorum module over the GovToken, plus test/phase04/Governor.t.sol running a full propose→vote→execute. Done when: forge test proves a proposal below quorum fails, one above quorum with a For majority executes its action, and voting before delegation has no weight. Threat: governance takeover by voting power acquired before the snapshot; a timelock creates a reaction window but does not prevent capture.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-governor-lifecycle-modules",
+            "purpose": "Compose voting, counting, quorum, and optional timelock modules and test the full proposal lifecycle",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-governor-oz-guide",
+                "title": "OpenZeppelin On-chain Governance Guide",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/governance",
+                "format": "documentation",
+                "scope": "Sections Governor, Voting Delay, Voting Period, Proposal Threshold, Quorum, and Execute the Proposal",
+                "estimatedMinutes": 26,
+                "why": "The official current guide connects module composition and clock-based settings to proposal creation, snapshot voting, quorum, queueing, and execution.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ERC-20Votes voting tokens"],
       "parentTitle": "DAOs & Governance"
     },
@@ -172,8 +656,31 @@
       "title": "Timelock controller",
       "type": "pattern",
       "domain": "Web3",
-      "description": "TimelockController enforces a minimum delay between a decision and its on-chain execution: a queued operation can only run after minDelay, giving users a window to exit if governance is captured or a malicious proposal passes. It uses PROPOSER, EXECUTOR, and CANCELLER roles, and in a Governor+Timelock setup the Timelock (not the Governor) holds ownership of the protocol and is the sole executor. The whole protection collapses if minDelay is set to zero or the roles are misassigned. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/governance#TimelockController",
+      "description": "TimelockController enforces a minimum delay between scheduling and executing an operation, giving users a reaction window after governance decisions. PROPOSER_ROLE schedules, EXECUTOR_ROLE executes ready operations, and CANCELLER_ROLE cancels pending ones; granting EXECUTOR_ROLE to address(0) lets anyone execute a ready operation. In a Governor integration, governed assets and permissions belong to the timelock because it performs the eventual calls.",
       "aiContext": "Build: implement contracts/phase04/Timelock.sol wiring OZ TimelockController as the executor for MyGovernor, plus test/phase04/Timelock.t.sol. Done when: forge test proves a scheduled operation reverts if executed before minDelay, succeeds after warping past it, and only the CANCELLER can cancel a pending op. Threat: a zero minDelay or mis-set PROPOSER/EXECUTOR roles removes the exit window entirely.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04b-timelock-lifecycle-roles",
+            "purpose": "Schedule, delay, execute, and cancel operations with deliberately assigned roles",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04b-timelock-oz-api",
+                "title": "OpenZeppelin TimelockController API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/governance#TimelockController",
+                "format": "documentation",
+                "scope": "Sections Timelock Terminology, Operation lifecycle, Roles, and TimelockController functions schedule, execute, and cancel",
+                "estimatedMinutes": 24,
+                "why": "The official current API defines operation identity and states, minimum-delay enforcement, predecessor and salt inputs, role semantics, permissionless execution, and self-administration guidance.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Governor framework", "Cheatcodes: warp & roll"],
       "parentTitle": "DAOs & Governance"
     }
@@ -182,13 +689,13 @@
     {
       "topicTitle": "Pausable circuit breaker",
       "promptText": "What does Pausable give you, and which functions should you be careful NOT to gate?",
-      "answerHint": "A whenNotPaused/whenPaused switch (_pause/_unpause) to freeze state-changing functions during an incident, ideally behind a PAUSER_ROLE. Pitfall: gating withdrawals/exits can trap user funds — pause deposits and risky actions but leave an emergency exit open, and remember a pauser is a centralization/censorship power.",
+      "answerHint": "Pause state, whenNotPaused/whenPaused modifiers, and internal _pause/_unpause functions that you authorize and apply to selected entry points. Pitfall: Pausable does not pause functions automatically, and gating withdrawals/exits can trap user funds — pause deposits and risky actions but leave an emergency exit open.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Reentrancy guard & checks-effects-interactions",
       "promptText": "State the checks-effects-interactions order and why nonReentrant alone isn't enough.",
-      "answerHint": "Checks (validate) → Effects (update state) → Interactions (external calls), so a re-entrant call sees finalized state. nonReentrant flips a per-function flag but doesn't stop cross-function reentrancy (a second guarded-elsewhere function) or read-only reentrancy (a view read during your callback). Pitfall: rely on CEI first; treat the guard as backup.",
+      "answerHint": "Checks (validate) → Effects (update state) → Interactions (external calls), so a re-entrant call sees finalized state. OZ nonReentrant uses one contract-wide guard, so reentry into any protected entry point fails; it cannot protect an unguarded sibling or prevent another protocol from reading transiently inconsistent state during a callback. Pitfall: apply CEI first and guard every exposed mutation that shares the invariant.",
       "promptKind": "concept"
     },
     {
@@ -214,7 +721,7 @@
     {
       "topicTitle": "ERC-2612 permit (gasless approvals)",
       "promptText": "How does permit avoid a separate approve tx, and what stops the signature being replayed?",
-      "answerHint": "The owner signs an EIP-712 permit(owner,spender,value,deadline) off-chain; anyone submits it and the token sets the allowance, so approve+action fit in one tx. A per-owner nonce (included and incremented) blocks replay and the deadline bounds validity. Pitfall: permit can be front-run as a griefing DoS — a third party submits your permit first, so your bundled call that also calls permit reverts.",
+      "answerHint": "The owner signs an EIP-712 permit(owner,spender,value,deadline) off-chain; anyone submits it and the token sets the allowance, so approve+action fit in one tx. A per-owner nonce (included and incremented) blocks replay and the deadline bounds validity. Pitfall: anyone can submit the permit first, so an integration should tolerate its permit call failing when the intended allowance is already set.",
       "promptKind": "concept"
     },
     {
@@ -226,7 +733,7 @@
     {
       "topicTitle": "ERC-1271 contract signatures",
       "promptText": "Why does ERC-1271 exist, and how should a verifier support both EOAs and contract wallets?",
-      "answerHint": "ecrecover only validates EOA ECDSA sigs, so smart-contract wallets expose isValidSignature(hash,sig) returning the magic value 0x1626ba7e when they accept a signature. Use OZ SignatureChecker, which tries ecrecover then falls back to ERC-1271. Pitfall: an isValidSignature that doesn't bind hash to a nonce/domain lets a signature be replayed.",
+      "answerHint": "ecrecover only validates EOA ECDSA sigs, so smart-contract wallets expose isValidSignature(hash,sig) returning the magic value 0x1626ba7e when they accept a signature. Use OZ SignatureChecker, which uses ECDSA for an EOA signer and ERC-1271 when the signer has code. Pitfall: an isValidSignature that doesn't bind hash to a nonce/domain lets a signature be replayed.",
       "promptKind": "concept"
     },
     {
@@ -238,7 +745,7 @@
     {
       "topicTitle": "Merkle-proof airdrops",
       "promptText": "How does a Merkle airdrop scale, and what two disciplines keep it safe?",
-      "answerHint": "Store one root on-chain; each user submits their (address,amount) leaf + a ~log2(n) proof, verified against the root, and is marked claimed — O(1) storage instead of every balance. Safety: hash leaves consistently (often double-hash) so an internal node can't masquerade as a leaf (second-preimage), and bind the claim to msg.sender so bots can't claim to another address. Pitfall: forgetting the claimed flag allows double-claims.",
+      "answerHint": "Store one root instead of preloading every allocation; each claim submits a recipient-and-amount leaf plus a logarithmic proof and records replay state only when claimed. Use an unambiguous leaf encoding (StandardMerkleTree double-hashes) so an internal node cannot masquerade as a leaf, and pay the recipient encoded in the leaf so a caller cannot redirect funds. Pitfall: forgetting replay tracking allows double claims.",
       "promptKind": "concept"
     },
     {
@@ -256,13 +763,13 @@
     {
       "topicTitle": "Multisig wallets",
       "promptText": "What security property does an M-of-N multisig provide, and what are its dangerous settings?",
-      "answerHint": "It requires M of N owner approvals to execute, so no single key can move funds — the default for treasuries/protocol admin (Safe is standard). Pitfall: a threshold of 1-of-N is no safer than an EOA, an over-large owner set dilutes control, and unvetted delegatecall modules/guards can bypass the threshold entirely.",
+      "answerHint": "It requires M of N owner approvals to execute; when M > 1, no single owner key is sufficient. Pitfall: 1-of-N keeps a single-key failure mode, owner and threshold changes are security-critical, and an enabled Safe module can execute arbitrary transactions without the normal signature check. Guards inspect transactions but are not the same authority path as modules.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "CREATE2 deterministic deployment",
       "promptText": "Give the CREATE2 address formula and one thing it enables that CREATE does not.",
-      "answerHint": "address = keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:]. Independent of the deployer's nonce, so you can compute the address before deploying (counterfactual) and deploy the same address on multiple chains. Pitfall: don't assume code at a precomputed address exists yet or is immutable — historically CREATE2+selfdestruct allowed metamorphic redeploys (curtailed by EIP-6780).",
+      "answerHint": "address = keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:]. Independent of the deployer's nonce, so you can compute the address before deployment; matching deployer, salt, and init code can produce the same address across chains. Pitfall: a precomputed address may have no code yet, and EIP-6780 ended general CREATE2 redeployment after later SELFDESTRUCT.",
       "promptKind": "concept"
     },
     {
@@ -274,19 +781,19 @@
     {
       "topicTitle": "ERC-20Votes voting tokens",
       "promptText": "Why doesn't holding ERC20Votes tokens give you voting power, and how does it resist flash-loan voting?",
-      "answerHint": "Voting power is tracked by delegation — you must delegate (to yourself or another) before your tokens count. getPastVotes reads a historical checkpoint at the proposal's snapshot, so power borrowed after the snapshot (a flash loan) is worthless. Pitfall: 'my tokens don't vote' is almost always un-delegated tokens; and reading current balance instead of getPastVotes reopens flash-loan governance.",
+      "answerHint": "Voting power is tracked by delegation, so you must delegate to yourself or another account before tokens count. getPastVotes fixes weight at the proposal snapshot, preventing later transfers from reusing the same tokens; power acquired after the snapshot cannot affect that vote. Pitfall: snapshotting does not stop power acquired or borrowed before the snapshot, and current balance is not a safe vote source.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Governor framework",
       "promptText": "Walk the OZ Governor proposal lifecycle and name what weights the votes.",
-      "answerHint": "propose() → votingDelay → holders cast For/Against/Abstain over votingPeriod, weighted by getPastVotes at the snapshot → if quorum + majority, queue (via timelock) → execute the encoded calls. proposalThreshold gates who can propose. Pitfall: votes use a past snapshot, so tokens must be delegated before the snapshot block/timestamp to count.",
+      "answerHint": "propose() → votingDelay → holders cast For/Against/Abstain over votingPeriod, weighted by getPastVotes at the snapshot → if quorum + majority, execute the encoded calls, queueing first when a timelock module is configured. proposalThreshold gates who can propose. Pitfall: tokens must be delegated before the snapshot block/timestamp to count.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Timelock controller",
       "promptText": "What does a governance Timelock protect against, and who holds the protocol in a Governor+Timelock setup?",
-      "answerHint": "It enforces a minDelay between a passed proposal and execution, giving users a window to exit if governance is captured. The Timelock (not the Governor) owns the protocol and is the sole EXECUTOR; PROPOSER/EXECUTOR/CANCELLER roles separate duties. Pitfall: minDelay = 0 or mis-assigned roles removes the exit window — the whole point.",
+      "answerHint": "It enforces minDelay between scheduling and execution, creating a reaction window. In a Governor integration the Timelock owns governed assets and permissions because it executes the proposal calls; the Governor is normally a proposer. PROPOSER, EXECUTOR, and CANCELLER roles separate duties, and granting EXECUTOR_ROLE to address(0) permits anyone to execute ready operations. Pitfall: zero delay or unsafe role grants remove the intended control.",
       "promptKind": "concept"
     }
   ],

@@ -7,7 +7,7 @@
       "title": "Token Standards",
       "type": "concept",
       "domain": "Web3",
-      "description": "The ERC token interfaces every dApp speaks: ERC-20 (fungible), ERC-721 (non-fungible), ERC-1155 (multi-token), ERC-4626 (tokenized vaults), and ERC-165 interface detection. Standardization is what lets wallets, DEXes, and marketplaces integrate a token they've never seen. Resources: https://docs.openzeppelin.com/contracts/5.x/tokens",
+      "description": "The ERC token interfaces every dApp speaks: ERC-20 (fungible), ERC-721 (non-fungible), ERC-1155 (multi-token), ERC-4626 (tokenized vaults), and ERC-165 interface detection. Standardization is what lets wallets, DEXes, and marketplaces integrate a token they've never seen.",
       "prerequisiteTitles": ["Mappings", "Events & indexed topics"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -15,7 +15,7 @@
       "title": "Proxies & Upgradeability",
       "type": "concept",
       "domain": "Web3",
-      "description": "How to ship a fixable contract on an immutable chain: a proxy holds state and delegatecalls logic, so the logic address can be swapped. Covers Transparent, UUPS, Beacon and Diamond patterns, ERC-1967 slots, the initializer discipline, and the storage-collision minefield they all share. Resources: https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+      "description": "How to ship a fixable contract on an immutable chain: a proxy holds state and delegatecalls logic, so the logic address can be swapped. Covers Transparent, UUPS, Beacon and Diamond patterns, ERC-1967 slots, the initializer discipline, and the storage-collision minefield they all share.",
       "prerequisiteTitles": ["delegatecall & storage context"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -23,7 +23,7 @@
       "title": "Access Control Patterns",
       "type": "concept",
       "domain": "Web3",
-      "description": "Who is allowed to call privileged functions: single-owner (Ownable), role-based (AccessControl), and two-step ownership handoff. Getting this wrong — a missing modifier or an owner set to the wrong address — is the most common critical finding in real audits. Resources: https://docs.openzeppelin.com/contracts/5.x/access-control",
+      "description": "Who is allowed to call privileged functions: single-owner (Ownable), role-based (AccessControl), and two-step ownership handoff. Getting this wrong — a missing modifier or an owner set to the wrong address — is the most common critical finding in real audits.",
       "prerequisiteTitles": ["Function modifiers"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
@@ -32,171 +32,603 @@
       "title": "ERC-20 fungible token standard",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-20 defines fungible tokens through nine functions — totalSupply, balanceOf, transfer, transferFrom, approve, allowance — and the Transfer/Approval events. Every DEX, lending market, and wallet integrates against this shape, which is why deviating from it silently breaks composability. Note the standard specifies a bool return, but famous tokens (old USDT) return nothing, so raw transfer reverts or mis-reads. Resources: 📖 https://eips.ethereum.org/EIPS/eip-20",
+      "description": "ERC-20 defines fungible tokens through six required methods — totalSupply, balanceOf, transfer, transferFrom, approve, allowance — plus Transfer/Approval events and three optional metadata methods. Every DEX, lending market, and wallet integrates against this shape. The standard specifies bool returns for transfer operations, but some deployed tokens return no value, so a typed IERC20 call can fail while SafeERC20 handles a non-reverting empty return.",
       "aiContext": "Build: implement contracts/phase04/Token.sol extending OpenZeppelin ERC20 with an initial mint, plus test/phase04/Token.t.sol. Done when: forge test proves transfer moves balances, emits Transfer, and reverts on insufficient balance. Threat: fee-on-transfer / rebasing tokens (amount received != amount sent), missing-return non-compliant tokens, and the approval race — never assume a token is well-behaved.",
       "prerequisiteTitles": ["Mappings", "Events & indexed topics"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc20-interface",
+            "purpose": "Implement and test the required fungible-token transfer and allowance interface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc20-eip",
+                "title": "ERC-20: Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-20",
+                "format": "documentation",
+                "scope": "Sections Token Methods and Events",
+                "estimatedMinutes": 18,
+                "why": "The canonical final ERC distinguishes six required methods, optional metadata, boolean transfer returns, zero-value transfers, and event requirements used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-20 approvals & SafeERC20",
       "type": "pattern",
       "domain": "Web3",
-      "description": "approve + transferFrom lets a contract pull your tokens, but changing a non-zero allowance is racy: a spender watching the mempool can spend the old allowance then the new one (approval front-running). OZ v5 removed increaseAllowance/decreaseAllowance from the base ERC20; the safe path is SafeERC20's forceApprove/safeIncreaseAllowance and wrapping every external token call in safeTransfer/safeTransferFrom so non-returning tokens don't slip through. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
-      "aiContext": "Build: implement contracts/phase04/SafeApprove.sol that pulls a token via SafeERC20 and demonstrates the set-to-zero-then-set approval pattern, with test/phase04/SafeApprove.t.sol using a non-returning mock token. Done when: forge test proves the raw transfer path reverts on the mock while the SafeERC20 path succeeds. Threat: approval-race front-running — mitigate by resetting to 0 first or using forceApprove.",
+      "description": "approve + transferFrom lets a contract pull your tokens, but changing a non-zero allowance is racy: a spender watching the mempool can spend the old allowance then the new one. ERC-20 advises clients to set an allowance to zero before another non-zero value. SafeERC20 wraps transfer calls that return false or no value, and forceApprove supports tokens that require the zero-first approval sequence.",
+      "aiContext": "Build: implement contracts/phase04/SafeApprove.sol that pulls a token via SafeERC20 and uses forceApprove with a token that requires zero-first approval, with test/phase04/SafeApprove.t.sol using non-returning transfer and zero-first approval mocks. Done when: forge test proves typed transfer fails on the empty return while SafeERC20 succeeds, and forceApprove sets the zero-first token's allowance. Threat: forceApprove solves token-call compatibility, not the spender race when replacing a live allowance; prefer allowance deltas or revoke and account for already-spent value.",
       "prerequisiteTitles": ["ERC-20 fungible token standard", "Low-level calls"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc20-allowance-race",
+            "purpose": "Explain the zero-first mitigation when replacing an existing ERC-20 allowance",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc20-approval-eip",
+                "title": "ERC-20 approve Specification",
+                "url": "https://eips.ethereum.org/EIPS/eip-20",
+                "format": "documentation",
+                "scope": "Section approve, including its client guidance note",
+                "estimatedMinutes": 6,
+                "why": "The canonical ERC states overwrite semantics and places the zero-before-nonzero mitigation in client guidance rather than requiring token contracts to enforce it.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "04a-safeerc20-compatibility",
+            "purpose": "Use SafeERC20 for false-returning, no-returning, and zero-first approval tokens",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-safeerc20-api",
+                "title": "OpenZeppelin SafeERC20 API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
+                "format": "documentation",
+                "scope": "Section SafeERC20 functions safeTransfer, safeTransferFrom, and forceApprove",
+                "estimatedMinutes": 12,
+                "why": "The official current API defines empty-return handling and forceApprove's exact zero-first compatibility role.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-165 interface detection",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-165 lets a contract advertise which interfaces it implements via supportsInterface(bytes4), where the id is the XOR of the interface's function selectors. ERC-721/1155 receiver checks and many integrations gate on it, so declaring it correctly is how other contracts decide it's safe to interact. It is only a self-declaration, though — a contract can claim support it doesn't honour. Resources: 📖 https://eips.ethereum.org/EIPS/eip-165",
+      "description": "ERC-165 lets a contract advertise which interfaces it implements via supportsInterface(bytes4), where the id is the XOR of the interface's function selectors. ERC-721 and ERC-1155 require ERC-165 support, so declaring it correctly lets integrations discover their interface shape. It is only a self-declaration, though — a contract can claim support it does not honor.",
       "aiContext": "Build: implement contracts/phase04/Introspectable.sol overriding supportsInterface for a custom interface, with test/phase04/Introspectable.t.sol. Done when: forge test proves supportsInterface returns true for the declared interface id and the ERC-165 id (0x01ffc9a7) and false for 0xffffffff. Threat: interface-detection spoofing — supportsInterface is a claim, not a proof; still guard the actual calls.",
       "prerequisiteTitles": ["abi.decode & function selectors"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc165-detection",
+            "purpose": "Calculate, publish, and validate ERC-165 interface identifiers",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc165-eip",
+                "title": "ERC-165: Standard Interface Detection",
+                "url": "https://eips.ethereum.org/EIPS/eip-165",
+                "format": "documentation",
+                "scope": "Sections How Interfaces are Identified through How to Detect if a Contract Implements any Given Interface",
+                "estimatedMinutes": 20,
+                "why": "The final ERC supplies the XOR rule, required true and false identifiers, gas bound, and two-call detection procedure exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-721 non-fungible tokens",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-721 gives each token a unique id with ownerOf/balanceOf, approve/setApprovalForAll, and safeTransferFrom, which calls onERC721Received on contract recipients so tokens can't get stuck. tokenURI (metadata extension) points at the JSON describing the asset. The receiver callback is also an attack surface: minting via _safeMint hands control to the recipient mid-transaction. Resources: 📖 https://eips.ethereum.org/EIPS/eip-721",
+      "description": "ERC-721 gives each token a unique id with ownerOf/balanceOf, approve/setApprovalForAll, and safeTransferFrom, which calls onERC721Received on contract recipients and reverts on an invalid response. tokenURI is an optional metadata extension. The receiver callback is also an attack surface: minting via _safeMint hands control to the recipient mid-transaction.",
       "aiContext": "Build: implement contracts/phase04/NFT.sol extending OZ ERC721 with a mint counter and tokenURI, plus test/phase04/NFT.t.sol including a malicious onERC721Received that re-enters mint. Done when: forge test proves ownerOf tracks transfers and the reentrant mint is stopped by CEI or a guard. Threat: onERC721Received reentrancy during _safeMint, and setApprovalForAll phishing that drains a whole collection.",
       "prerequisiteTitles": ["ERC-165 interface detection", "Function modifiers"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc721-transfer-receiver",
+            "purpose": "Implement ERC-721 ownership, approvals, safe transfer, and optional metadata correctly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc721-eip",
+                "title": "ERC-721: Non-Fungible Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-721",
+                "format": "documentation",
+                "scope": "Section Specification, including ERC721, ERC721TokenReceiver, and metadata interfaces",
+                "estimatedMinutes": 24,
+                "why": "The canonical final ERC defines ownership, operator approvals, receiver acceptance checks, ERC-165 identifiers, and the optional tokenURI extension.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-1155 multi-token standard",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-1155 holds many token types — fungible and non-fungible — in one contract, with balanceOf(account,id), balanceOfBatch, and safeBatchTransferFrom for gas-efficient multi-transfers. A single URI with an {id} placeholder serves every token's metadata, and recipients implement onERC1155Received/BatchReceived. It's the standard behind game items and editions where minting a new type shouldn't mean a new deployment. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1155",
+      "description": "ERC-1155 holds many token types — fungible and non-fungible — in one contract, with balanceOf(account,id), balanceOfBatch, and safeBatchTransferFrom for gas-efficient multi-transfers. Its optional metadata extension substitutes each token id into a shared {id} URI template, and contract recipients must return the required onERC1155Received or batch acceptance value.",
       "aiContext": "Build: implement contracts/phase04/GameItems.sol extending OZ ERC1155 with a batch mint of several ids, plus test/phase04/GameItems.t.sol. Done when: forge test proves balanceOfBatch returns the minted amounts and a batch transfer updates every id atomically. Threat: receiver-callback reentrancy via onERC1155Received/Batch — apply CEI and nonReentrant on state-changing paths.",
       "prerequisiteTitles": ["ERC-165 interface detection", "Arrays in Solidity"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc1155-batch-receiver",
+            "purpose": "Implement multi-token batch accounting, metadata substitution, and receiver acceptance checks",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc1155-eip",
+                "title": "ERC-1155: Multi Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-1155",
+                "format": "documentation",
+                "scope": "Sections ERC-1155 Token Receiver, Safe Transfer Rules, and Metadata",
+                "estimatedMinutes": 24,
+                "why": "The canonical final ERC defines atomic batch semantics, required receiver magic values, event rules, and lowercase zero-padded {id} substitution.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-4626 tokenized vaults",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ERC-4626 standardizes a yield-bearing vault as an ERC-20 share token over an underlying asset: deposit/mint add assets for shares, withdraw/redeem do the reverse, and convertToShares/convertToAssets/totalAssets expose the exchange rate. Standardizing the interface lets aggregators and integrators plug into any vault. The share price is totalAssets/totalSupply, so rounding direction matters — always round in the vault's favour. Resources: 📖 https://eips.ethereum.org/EIPS/eip-4626",
+      "description": "ERC-4626 standardizes a vault as an ERC-20 share token over one underlying asset: deposit/mint add assets for shares, withdraw/redeem do the reverse, while convert, preview, max, and totalAssets expose distinct integration views. Conversion formulas are implementation-defined, but the standard mandates method-specific rounding: outputs to users round down, required inputs round up, and both convert methods round down.",
       "aiContext": "Build: implement contracts/phase04/Vault.sol extending OZ ERC4626 over a mock asset, plus test/phase04/Vault.t.sol. Done when: forge test proves deposit mints shares, redeem returns assets, and convertToShares rounds down (assets→shares) so a user can never round up free value. Threat: first-depositor inflation via a direct donation to totalAssets — see the dedicated inflation-attack leaf.",
       "prerequisiteTitles": ["ERC-20 fungible token standard", "Reading & writing state variables"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc4626-method-rounding",
+            "purpose": "Distinguish vault convert, preview, max, and state-changing methods and apply their required rounding directions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc4626-eip",
+                "title": "ERC-4626: Tokenized Vaults",
+                "url": "https://eips.ethereum.org/EIPS/eip-4626",
+                "format": "documentation",
+                "scope": "Sections Methods and Security Considerations",
+                "estimatedMinutes": 26,
+                "why": "The canonical final ERC defines each integration view and its asymmetric rounding contract without prescribing one exchange-rate formula.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-4626 inflation attack & virtual shares",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The classic ERC-4626 exploit: an attacker deposits 1 wei to mint 1 share, then transfers a large amount of the asset directly into the vault (a donation not routed through deposit), inflating totalAssets while totalSupply stays 1. The next honest depositor's shares = assets*supply/totalAssets rounds down to zero, so their deposit is captured. OZ's defense adds virtual shares/assets via _decimalsOffset(), making the rounding always favour the vault and rendering the attack unprofitable. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/erc4626#inflation-attack",
-      "aiContext": "Build: in contracts/phase04/InflationAttack.sol reproduce the donate-and-round exploit against a naive vault, then defend with OZ's _decimalsOffset virtual shares, with test/phase04/InflationAttack.t.sol. Done when: forge test proves the second depositor loses funds against the naive vault and does NOT against the offset-defended vault. Threat: first-depositor / share-price inflation via donation + rounding-to-zero.",
+      "description": "A naive empty ERC-4626 vault can be manipulated when an attacker deposits a tiny amount, then donates assets directly: the exchange rate rises and a later depositor can round to zero shares. OpenZeppelin's implementation includes virtual assets and shares in the conversion and lets _decimalsOffset() raise share precision; the virtual terms capture part of the donation, making the attack unprofitable even at offset zero and increasingly wasteful at larger offsets.",
+      "aiContext": "Build: in contracts/phase04/InflationAttack.sol reproduce the donate-and-round exploit against a naive vault, then defend with OZ's virtual assets and shares at offset zero and a positive _decimalsOffset, with test/phase04/InflationAttack.t.sol. Done when: forge test proves the naive attack is profitable, while forcing the defended vault's victim to zero shares costs the attacker at least the victim deposit at offset zero and orders of magnitude more with a positive offset. Threat: the defense makes theft unprofitable but cannot prevent a sufficiently funded attacker from griefing a depositor.",
       "prerequisiteTitles": ["ERC-4626 tokenized vaults"],
-      "parentTitle": "Token Standards"
+      "parentTitle": "Token Standards",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc4626-inflation-defense",
+            "purpose": "Reproduce donation-driven share inflation and quantify the virtual-offset defense",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc4626-oz-guide",
+                "title": "OpenZeppelin ERC-4626 Guide",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/erc4626",
+                "format": "documentation",
+                "scope": "Sections Security concern: Inflation attack and Defending with a virtual offset",
+                "estimatedMinutes": 20,
+                "why": "The official current guide derives the donation attack and shows how virtual assets, virtual shares, and decimals offset change attacker loss.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "delegatecall & the proxy pattern",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A proxy is a thin contract that stores all state and forwards every unmatched call via delegatecall to a separate implementation, so the implementation's code runs against the proxy's storage while msg.sender and msg.value are preserved. Swapping the implementation address = upgrading the logic without moving funds or state. The catch: because logic runs in the proxy's storage, the two contracts must agree exactly on storage layout. Resources: 📖 https://solidity-by-example.org/delegatecall/",
-      "aiContext": "Build: implement contracts/phase04/MinimalProxy.sol — a fallback that delegatecalls a stored implementation — plus a LogicV1/LogicV2 pair and test/phase04/MinimalProxy.t.sol. Done when: forge test proves state set through the proxy survives an implementation swap and the swapped logic runs against the same storage. Threat: storage collision between proxy and logic, and delegatecall to an untrusted/self-destructible implementation.",
+      "description": "A proxy stores state and forwards calls via delegatecall to an implementation, so the implementation's code runs with the proxy's address, storage, balance, msg.sender, and msg.value. Changing the implementation can upgrade logic without moving proxy state. Because delegated code reads and writes the proxy's slots, successive implementations must preserve the established storage layout.",
+      "aiContext": "Build: implement contracts/phase04/MinimalProxy.sol — a fallback that delegatecalls a stored implementation — plus a LogicV1/LogicV2 pair and test/phase04/MinimalProxy.t.sol. Done when: forge test proves state set through the proxy survives an implementation swap and the swapped logic runs against the same storage. Threat: storage collision between proxy and logic, and delegatecall to an untrusted implementation that can overwrite or drain proxy state.",
       "prerequisiteTitles": ["delegatecall & storage context", "Storage slots & variable packing"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-delegatecall-context",
+            "purpose": "Trace delegated calldata, return data, caller/value, and proxy storage context",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-delegatecall-solidity-docs",
+                "title": "Solidity delegatecall and Libraries",
+                "url": "https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html#delegatecall-and-libraries",
+                "format": "documentation",
+                "scope": "Section Delegatecall and Libraries",
+                "estimatedMinutes": 10,
+                "why": "The language reference defines whose address, storage, balance, msg.sender, and msg.value apply under delegatecall.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ERC-1967 proxy storage slots",
       "type": "pattern",
       "domain": "Web3",
-      "description": "To stop the implementation's own variables from colliding with the proxy's bookkeeping, ERC-1967 standardizes fixed pseudo-random slots for the implementation address (keccak256('eip1967.proxy.implementation') - 1), the admin, and the beacon. Because those slots are astronomically unlikely to be hit by sequential variable layout, the logic contract can use slot 0 upward freely. Tools like block explorers read these standard slots to detect and label proxies. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1967",
+      "description": "ERC-1967 standardizes compiler-unallocated slots for a proxy's implementation, optional admin, and beacon. The implementation slot is bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1). Standard slots avoid accidental clashes with ordinary Solidity layout and let clients such as block explorers discover proxy metadata.",
       "aiContext": "Build: in contracts/phase04/Erc1967Slots.sol write to the implementation slot with sstore in assembly and read it back, plus test/phase04/Erc1967Slots.t.sol using vm.load. Done when: forge test proves the value read at keccak256('eip1967.proxy.implementation')-1 matches what you stored. Threat: slot collision — a proxy that parks its implementation pointer at slot 0 lets logic variables overwrite it.",
       "prerequisiteTitles": [
         "delegatecall & the proxy pattern",
         "Storage & memory access in assembly"
       ],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-erc1967-slots",
+            "purpose": "Derive and inspect standardized implementation, beacon, and admin slots",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-erc1967-eip",
+                "title": "ERC-1967: Proxy Storage Slots",
+                "url": "https://eips.ethereum.org/EIPS/eip-1967",
+                "format": "documentation",
+                "scope": "Sections Specification and Rationale",
+                "estimatedMinutes": 20,
+                "why": "The canonical final ERC gives all three constants, event expectations, client-discovery role, and collision rationale.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Transparent proxy pattern",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The Transparent proxy solves the 'function clash' — where a proxy admin function and an implementation function share a selector — by routing on the caller: the admin can only hit upgrade functions, everyone else is always delegated to the logic. In OZ v5 the proxy's admin is an immutable ProxyAdmin contract (itself Ownable), and upgrades go through it. It costs an extra SLOAD per call to check the admin versus UUPS. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#TransparentUpgradeableProxy",
+      "description": "The Transparent proxy handles selector clashes by routing on the caller: non-admin callers are delegated even when calldata matches the upgrade selector, while the admin can upgrade but cannot fall back to implementation functions. In OpenZeppelin v5 each proxy deploys an associated ProxyAdmin whose address is immutable in the proxy; ProxyAdmin ownership controls upgrades.",
       "aiContext": "Build: deploy contracts/phase04 logic behind OZ's TransparentUpgradeableProxy + ProxyAdmin in a forge script/test test/phase04/Transparent.t.sol, then upgrade it. Done when: forge test proves a non-admin call reaches the logic, an admin-initiated upgrade swaps the implementation, and state persists across the upgrade. Threat: admin-key compromise (full upgrade power) and function-selector clash if you bypass the transparent routing.",
       "prerequisiteTitles": ["ERC-1967 proxy storage slots"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-transparent-routing",
+            "purpose": "Deploy and upgrade an OpenZeppelin v5 transparent proxy through its associated ProxyAdmin",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-transparent-oz-api",
+                "title": "OpenZeppelin TransparentUpgradeableProxy API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#TransparentUpgradeableProxy",
+                "format": "documentation",
+                "scope": "Sections TransparentUpgradeableProxy, ProxyAdmin, and ITransparentUpgradeableProxy",
+                "estimatedMinutes": 20,
+                "why": "The official current API defines caller-dependent routing, the per-proxy associated ProxyAdmin, its ownership, and the v5 upgradeAndCall surface.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "UUPS proxy pattern",
       "type": "pattern",
       "domain": "Web3",
-      "description": "UUPS (ERC-1822) moves the upgrade logic into the implementation instead of the proxy: the implementation inherits UUPSUpgradeable and exposes upgradeToAndCall, gated by the mandatory _authorizeUpgrade override. This makes the proxy smaller/cheaper, but shifts two footguns onto you — forget to protect _authorizeUpgrade and anyone can upgrade (steal) the contract; ship a new implementation that lacks the UUPS upgrade code and the contract is permanently frozen. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#UUPSUpgradeable",
-      "aiContext": "Build: implement contracts/phase04/CounterUUPS.sol (UUPSUpgradeable + onlyOwner _authorizeUpgrade) behind an ERC1967Proxy, plus test/phase04/UUPS.t.sol. Done when: forge test proves an unauthorized upgradeToAndCall reverts, an owner upgrade succeeds, and state persists. Threat: unprotected _authorizeUpgrade → anyone upgrades; a non-UUPS new implementation → bricked forever. (cf. Ethernaut Motorbike)",
+      "description": "UUPS puts the upgrade mechanism in the implementation behind an ERC1967Proxy. OpenZeppelin's UUPSUpgradeable exposes upgradeToAndCall, requires an access-restricted _authorizeUpgrade override, and checks the new implementation's ERC-1822 storage-slot compatibility. Removing upgradeability still requires an intentional or custom bypass of that safety check.",
+      "aiContext": "Build: implement contracts/phase04/CounterUUPS.sol (UUPSUpgradeable + onlyOwner _authorizeUpgrade) behind an ERC1967Proxy, plus test/phase04/UUPS.t.sol. Done when: forge test proves an unauthorized upgradeToAndCall reverts, an owner upgrade succeeds, state persists, and the current OZ compatibility check rejects a non-UUPS implementation. Threat: unprotected _authorizeUpgrade lets anyone upgrade; deliberately bypassing the ERC-1822 check can remove future upgradeability.",
       "prerequisiteTitles": ["ERC-1967 proxy storage slots", "Role-based access control"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-uups-upgrade-authorization",
+            "purpose": "Authorize and compatibility-check upgrades performed by an implementation behind ERC1967Proxy",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-uups-oz-api",
+                "title": "OpenZeppelin UUPSUpgradeable API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#UUPSUpgradeable",
+                "format": "documentation",
+                "scope": "Sections UUPS overview and UUPSUpgradeable functions onlyProxy, proxiableUUID, upgradeToAndCall, and _authorizeUpgrade",
+                "estimatedMinutes": 22,
+                "why": "The official current API defines execution-context guards, mandatory authorization, and the ERC-1822 compatibility check that prevents accidental loss of upgradeability.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Beacon proxy pattern",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A Beacon proxy reads its implementation address from a shared UpgradeableBeacon contract rather than storing it locally, so upgrading the beacon once atomically upgrades every proxy pointing at it. This is the pattern for factories that deploy thousands of identical instances (e.g. per-user vaults) that must all be upgraded together. The trade-off: the beacon is a single, powerful upgrade point for the whole fleet. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy",
+      "description": "A BeaconProxy gets its implementation from a shared UpgradeableBeacon, so one beacon upgrade changes the implementation used by every attached proxy while each proxy keeps independent state. In OpenZeppelin v5 the beacon address is immutable in each proxy, and the beacon's owner controls the fleet-wide implementation pointer.",
       "aiContext": "Build: implement contracts/phase04/BeaconFactory.sol deploying multiple BeaconProxy instances against one UpgradeableBeacon, plus test/phase04/Beacon.t.sol. Done when: forge test proves upgrading the beacon changes the logic seen by all deployed proxies at once while their individual state is untouched. Threat: single-beacon compromise upgrades the entire fleet — guard beacon ownership as tightly as the funds.",
       "prerequisiteTitles": ["UUPS proxy pattern"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-beacon-fleet-upgrade",
+            "purpose": "Upgrade several state-isolated BeaconProxy instances through one controlled beacon",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-beacon-oz-api",
+                "title": "OpenZeppelin Beacon Proxy API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#BeaconProxy",
+                "format": "documentation",
+                "scope": "Sections BeaconProxy, IBeacon, and UpgradeableBeacon",
+                "estimatedMinutes": 18,
+                "why": "The official current API defines immutable beacon attachment, per-call implementation lookup, initialization, and owner-controlled fleet upgrades.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Diamond pattern (EIP-2535)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The Diamond (EIP-2535) is a multi-facet proxy: one proxy maps each function selector to one of many facet contracts via a diamondCut, letting a system exceed the 24 KB contract-size limit and upgrade facet-by-facet. Because all facets share the proxy's storage, they use Diamond Storage — each facet keeps its state in a struct at a namespaced slot (keccak of a unique string) to avoid collisions. Powerful but complex; selector and storage discipline is unforgiving. Resources: 📖 https://eips.ethereum.org/EIPS/eip-2535",
+      "description": "ERC-2535 defines a multi-facet proxy: a diamond maps function selectors to facet contracts and changes that mapping through diamondCut. Facet code executes by delegatecall against shared diamond storage. The standard describes Diamond Storage as one collision-avoidance approach, using a struct at a chosen namespaced slot; careful selector and storage discipline is essential.",
       "aiContext": "Build: implement contracts/phase04/diamond/ with a Diamond, DiamondCutFacet, and two feature facets using Diamond Storage, plus test/phase04/Diamond.t.sol. Done when: forge test proves a diamondCut adds a facet, calls route to the right facet by selector, and two facets read/write independent namespaced storage. Threat: selector clash between facets and storage-namespace collision corrupting unrelated facet state.",
       "prerequisiteTitles": ["ERC-1967 proxy storage slots", "abi.decode & function selectors"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-diamond-cut-storage",
+            "purpose": "Add selector-routed facets and isolate their state in shared diamond storage",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-diamond-eip",
+                "title": "ERC-2535: Diamonds, Multi-Facet Proxy",
+                "url": "https://eips.ethereum.org/EIPS/eip-2535",
+                "format": "documentation",
+                "scope": "Sections Specification, Adding/Replacing/Removing Functions, Storage, and Security Considerations",
+                "estimatedMinutes": 28,
+                "why": "The canonical final ERC defines diamondCut actions and events, loupe introspection, delegatecall routing, and Diamond Storage as a collision-avoidance technique.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Storage layout for upgrades",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Because a new implementation shares the proxy's existing storage, the cardinal rule of upgrades is: never reorder, remove, insert-between, or change the type of an existing state variable — only append new ones at the end. Base contracts in an inheritance chain reserve a storage gap (uint256[50] __gap) so a future version can add variables without shifting a child's slots. Break the layout and V2 reads V1's bytes as garbage — a storage collision that silently corrupts state. Resources: 📖 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
-      "aiContext": "Build: in contracts/phase04/LayoutV1.sol / LayoutV2.sol demonstrate a safe append and a deliberately-broken reorder, with test/phase04/Layout.t.sol. Done when: forge test proves the appended-variable V2 preserves V1 state while the reordered V2 mis-reads it (values collide). Threat: storage-collision on reorder/insert and missing __gap in an upgradeable base contract.",
+      "description": "Because a new implementation reads the proxy's existing storage, an upgrade must not reorder, remove, insert before, or change the type of established variables; safe additions go at the end. Storage gaps can reserve slots in upgradeable base contracts, while OpenZeppelin Contracts Upgradeable v5 uses ERC-7201 namespaced storage. Unsafe layout changes make the new code reinterpret existing bytes.",
+      "aiContext": "Build: in contracts/phase04/LayoutV1.sol / LayoutV2.sol demonstrate a safe append and a deliberately-broken reorder, with test/phase04/Layout.t.sol. Done when: forge test proves the appended-variable V2 preserves V1 state while the reordered V2 mis-reads it (values collide). Threat: storage collision on reorder/insert, or evolving a base without reserved gaps or an ERC-7201 namespace.",
       "prerequisiteTitles": [
         "Storage slots & variable packing",
         "delegatecall & the proxy pattern"
       ],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-upgrade-layout-safety",
+            "purpose": "Classify safe and unsafe storage-layout changes, including base-contract evolution",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-upgrade-layout-oz-guide",
+                "title": "OpenZeppelin Writing Upgradeable Contracts",
+                "url": "https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable",
+                "format": "documentation",
+                "scope": "Sections Modifying Your Contracts, Storage Gaps, and Namespaced Storage Layout",
+                "estimatedMinutes": 22,
+                "why": "The official upgrades guide gives invalid reorder/type/insert/remove cases and distinguishes storage gaps from ERC-7201 namespaced storage used in v5.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Initializers & _disableInitializers",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Upgradeable contracts can't use constructors — a constructor runs in the implementation's own context, so it never touches the proxy's storage. Instead they inherit Initializable and put setup in an initialize() guarded by the initializer modifier (with reinitializer(n) for later versions). Critically, the implementation contract must call _disableInitializers() in its own constructor, or an attacker can call initialize on the implementation directly and, in UUPS, self-destruct or hijack it (the Parity-wallet class of bug). Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/upgradeable#usage",
-      "aiContext": "Build: implement contracts/phase04/InitializableLogic.sol with an initializer, _disableInitializers() in the constructor, and a reinitializer(2), plus test/phase04/Initializer.t.sol. Done when: forge test proves initialize runs once (a second call reverts), the implementation itself cannot be initialized, and reinitializer(2) runs exactly once. Threat: unprotected initializer / uninitialized implementation — the Parity multisig freeze.",
+      "description": "Proxy instances do not receive state written by an implementation constructor, so upgradeable setup goes in an initializer and explicitly invokes parent initializers. Initializable supplies initializer and versioned reinitializer guards. The implementation's own constructor should call _disableInitializers() so an attacker cannot initialize and take over the otherwise unused implementation instance.",
+      "aiContext": "Build: implement contracts/phase04/InitializableLogic.sol with an initializer, _disableInitializers() in the constructor, and a reinitializer(2), plus test/phase04/Initializer.t.sol. Done when: forge test proves initialize runs once (a second call reverts), the implementation itself cannot be initialized, and reinitializer(2) runs exactly once. Threat: an unprotected proxy initializer or an unlocked implementation can be taken over by the first caller.",
       "prerequisiteTitles": ["The constructor", "delegatecall & the proxy pattern"],
-      "parentTitle": "Proxies & Upgradeability"
+      "parentTitle": "Proxies & Upgradeability",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-initializer-lifecycle",
+            "purpose": "Initialize proxy storage once, compose parent initializers, and lock the implementation instance",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-initializer-oz-guide",
+                "title": "OpenZeppelin Writing Upgradeable Contracts",
+                "url": "https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable",
+                "format": "documentation",
+                "scope": "Sections Initializers, Initializing the Implementation Contract, and Validating Initializers",
+                "estimatedMinutes": 22,
+                "why": "The official upgrades guide defines initializer guards, explicit parent initialization, reinitializer validation limits, and the _disableInitializers constructor pattern.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Ownable (OZ v5)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Ownable gives a contract one privileged owner and an onlyOwner modifier, with transferOwnership and renounceOwnership. The OZ v5 breaking change: the constructor now takes an explicit initialOwner argument (constructor(address initialOwner) Ownable(initialOwner)) instead of defaulting to msg.sender — passing address(0) reverts. Simple and cheap, but a single key is a single point of failure. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable",
+      "description": "Ownable gives a contract one privileged owner and an onlyOwner modifier, with transferOwnership and renounceOwnership. In OpenZeppelin v5 its constructor takes an explicit initialOwner and rejects address(0). Renouncing sets the owner to the zero address and disables onlyOwner functionality, so both deployment ownership and renunciation require care.",
       "aiContext": "Build: implement contracts/phase04/Owned5.sol extending OZ v5 Ownable with an onlyOwner setter, plus test/phase04/Owned5.t.sol. Done when: forge test proves the constructor sets initialOwner, a non-owner call reverts with OwnableUnauthorizedAccount, and renounceOwnership leaves owner == address(0). Threat: single-key compromise = full control, and renouncing to address(0) permanently disables every admin path.",
       "prerequisiteTitles": ["Function modifiers", "The constructor"],
-      "parentTitle": "Access Control Patterns"
+      "parentTitle": "Access Control Patterns",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-ownable-v5-lifecycle",
+            "purpose": "Set, enforce, transfer, and deliberately renounce a single privileged owner",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-ownable-v5-api",
+                "title": "OpenZeppelin Ownable API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable",
+                "format": "documentation",
+                "scope": "Section Ownable constructor, onlyOwner, transferOwnership, renounceOwnership, errors, and events",
+                "estimatedMinutes": 14,
+                "why": "The official v5 API defines explicit nonzero initial ownership, custom unauthorized errors, and loss of onlyOwner access after renunciation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Role-based access control",
       "type": "pattern",
       "domain": "Web3",
-      "description": "OZ AccessControl replaces a single owner with named bytes32 roles (e.g. MINTER_ROLE, PAUSER_ROLE): grantRole/revokeRole/hasRole, an onlyRole modifier, and a DEFAULT_ADMIN_ROLE that administers the others. This enforces least privilege — the minter can't pause, the pauser can't mint — and lets you rotate one capability without touching the rest. Use AccessControlDefaultAdminRules to make transferring the powerful admin role two-step and time-delayed. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/access-control#role-based-access-control",
-      "aiContext": "Build: implement contracts/phase04/Roled.sol with MINTER_ROLE and PAUSER_ROLE granted via AccessControl, plus test/phase04/Roled.t.sol. Done when: forge test proves a minter can mint but not pause, revokeRole removes the capability, and an unauthorized call reverts with AccessControlUnauthorizedAccount. Threat: a missing onlyRole modifier or an over-broad DEFAULT_ADMIN_ROLE collapses least-privilege back to one god key.",
+      "description": "OpenZeppelin AccessControl uses bytes32 roles, onlyRole checks, and per-role admin relationships. DEFAULT_ADMIN_ROLE is initially its own admin and administers other roles, making it especially sensitive. AccessControlDefaultAdminRules constrains that role to one account and adds a delayed two-step transfer.",
+      "aiContext": "Build: implement contracts/phase04/Roled.sol with an explicit DEFAULT_ADMIN_ROLE holder plus separate MINTER_ROLE and PAUSER_ROLE accounts, with test/phase04/Roled.t.sol. Done when: forge test proves a minter can mint but not pause, the role admin can revoke MINTER_ROLE, and an unauthorized call reverts with AccessControlUnauthorizedAccount. Threat: a missing onlyRole modifier or an over-broad DEFAULT_ADMIN_ROLE collapses least-privilege back to one god key.",
       "prerequisiteTitles": ["Function modifiers", "keccak256 hashing"],
-      "parentTitle": "Access Control Patterns"
+      "parentTitle": "Access Control Patterns",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-accesscontrol-least-privilege",
+            "purpose": "Separate capabilities into administered roles and protect the default admin",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-accesscontrol-guide",
+                "title": "OpenZeppelin Access Control Guide",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/access-control",
+                "format": "documentation",
+                "scope": "Section Role-Based Access Control, especially Granting and Revoking Roles and DEFAULT_ADMIN_ROLE guidance",
+                "estimatedMinutes": 22,
+                "why": "The official guide demonstrates role identifiers, onlyRole, grant/revoke administration, DEFAULT_ADMIN_ROLE risk, and the recommended delayed two-step AccessControlDefaultAdminRules extension.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Two-step ownership transfer",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Single-step transferOwnership sends control to whatever address you type — a typo or an address you don't actually control loses the contract forever. Ownable2Step splits it: transferOwnership records a pendingOwner, and ownership only moves when that address calls acceptOwnership, proving it exists and is controllable. The same idea underlies AccessControlDefaultAdminRules for the admin role. Resources: 📖 https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable2Step",
-      "aiContext": "Build: implement contracts/phase04/Owned2Step.sol extending Ownable2Step, plus test/phase04/Owned2Step.t.sol. Done when: forge test proves transferOwnership only sets pendingOwner (owner unchanged), acceptOwnership from the pending address completes the move, and acceptance from any other address reverts. Threat: single-step transfer to a wrong/uncontrolled address = irreversible loss of admin.",
+      "description": "Single-step transferOwnership immediately sends control to the supplied address. Ownable2Step instead records a pendingOwner, and ownership moves only when that address calls acceptOwnership. This prevents completing a transfer to an address that cannot perform the acceptance, though the current owner must still manage or replace a mistaken pending transfer.",
+      "aiContext": "Build: implement contracts/phase04/Owned2Step.sol extending Ownable2Step with a constructor that forwards initialOwner to Ownable, plus test/phase04/Owned2Step.t.sol. Done when: forge test proves transferOwnership only sets pendingOwner (owner unchanged), acceptOwnership from the pending address completes the move, and acceptance from any other address reverts. Threat: single-step transfer to a wrong/uncontrolled address = irreversible loss of admin.",
       "prerequisiteTitles": ["Ownable (OZ v5)"],
-      "parentTitle": "Access Control Patterns"
+      "parentTitle": "Access Control Patterns",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "04a-ownable2step-handoff",
+            "purpose": "Require the nominated owner to accept before ownership changes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "04a-ownable2step-api",
+                "title": "OpenZeppelin Ownable2Step API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable2Step",
+                "format": "documentation",
+                "scope": "Section Ownable2Step functions pendingOwner, transferOwnership, acceptOwnership, and _transferOwnership",
+                "estimatedMinutes": 12,
+                "why": "The official v5 API defines pending ownership, acceptance authorization, cancellation or replacement, and direct internal ownership transfer behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "proposedPrompts": [
@@ -208,14 +640,14 @@
     },
     {
       "topicTitle": "ERC-20 approvals & SafeERC20",
-      "promptText": "Explain the ERC-20 approval race and how to change an allowance safely.",
-      "answerHint": "If you change allowance from N to M, a spender can front-run: spend N, then spend M for N+M total. Reset to 0 first (or use SafeERC20.forceApprove / safeIncreaseAllowance). Pitfall: OZ v5 removed increaseAllowance/decreaseAllowance from base ERC20 — use SafeERC20 for the safe variants and for non-returning tokens.",
+      "promptText": "Explain the ERC-20 approval race and what SafeERC20 does and does not solve.",
+      "answerHint": "If an owner replaces allowance N with M, the spender can spend N before the update and later spend M. SafeERC20 handles false or empty returns; forceApprove handles tokens that require zero before non-zero, but neither makes separate owner transactions race-free. Prefer allowance deltas where applicable, or revoke and wait while accounting for value already spent.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-20 approvals & SafeERC20",
-      "promptText": "Write the safe two-step reset for changing a non-zero ERC-20 allowance using SafeERC20.",
-      "answerHint": "token.forceApprove(spender, 0); token.forceApprove(spender, newAmount); — or a single token.forceApprove that overwrites, since forceApprove sets rather than adds. Avoid a bare approve on a non-zero allowance.",
+      "promptText": "Use SafeERC20 to set an allowance on a token that requires zero before non-zero approval.",
+      "answerHint": "token.forceApprove(spender, newAmount); forceApprove performs the compatibility sequence for tokens that require zero before a new non-zero approval. Avoid presenting two forceApprove calls as necessary, and remember that zero-first reduces token compatibility problems but cannot make two separate pending transactions atomic.",
       "promptKind": "code"
     },
     {
@@ -241,19 +673,19 @@
     {
       "topicTitle": "ERC-1155 multi-token standard",
       "promptText": "What does ERC-1155 do that needing a separate ERC-20/721 deployment per asset would not?",
-      "answerHint": "One contract holds many token types (fungible and NFT) addressed by id, with batch balance queries and safeBatchTransferFrom for atomic multi-transfers and a single {id}-templated metadata URI. Pitfall: recipients' onERC1155Received/Batch callbacks are a reentrancy surface — apply CEI/nonReentrant on mint and transfer paths.",
+      "answerHint": "One contract holds many token types addressed by id, with batch balance queries and safeBatchTransferFrom for atomic multi-transfers; the optional metadata extension uses an {id}-templated URI. Pitfall: recipients' acceptance callbacks are a reentrancy surface — finalize application state before the external callback.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-4626 tokenized vaults",
-      "promptText": "What is an ERC-4626 vault's share price, and which way must conversions round?",
-      "answerHint": "Share price = totalAssets / totalSupply(shares); deposit/withdraw convert between assets and shares at that rate. Round in the vault's favour: assets→shares rounds down on deposit, shares→assets rounds down on withdraw, so a user can never extract rounding dust. Pitfall: rounding the wrong way leaks value on every interaction.",
+      "promptText": "Which way must ERC-4626 conversions and previews round?",
+      "answerHint": "Both convert methods round down. User outputs round down: previewDeposit returns no more shares than deposit and previewRedeem no more assets than redeem. Required inputs round up: previewMint returns no fewer assets and previewWithdraw no fewer shares. The standard does not require every vault's conversion estimate to equal totalAssets/totalSupply.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-4626 inflation attack & virtual shares",
       "promptText": "Walk through the ERC-4626 first-depositor inflation attack and OZ's defense.",
-      "answerHint": "Attacker mints 1 share with 1 wei, then donates a large asset amount straight to the vault so totalAssets balloons while supply stays 1; the next depositor's shares round to zero and their deposit is captured on redeem. Defense: virtual shares/assets via _decimalsOffset(), so the empty-vault ratio can't be manipulated and rounding favours the vault. Pitfall: a naive vault with no offset or dead shares is exploitable.",
+      "answerHint": "Against a naive empty vault, an attacker deposits dust then donates assets, raising the rate until a victim deposit rounds to zero shares. OpenZeppelin includes virtual assets and shares; these capture part of the donation, so even offset zero makes the attack unprofitable. A positive _decimalsOffset increases precision and makes dilution increasingly wasteful.",
       "promptKind": "concept"
     },
     {
@@ -279,19 +711,19 @@
     {
       "topicTitle": "Transparent proxy pattern",
       "promptText": "What problem does the Transparent proxy solve, and how?",
-      "answerHint": "The function-clash problem: if the proxy and implementation expose the same selector, calls are ambiguous. It routes by caller — the admin can only invoke upgrade functions, all other callers are always delegated to the logic (in OZ v5 via an immutable ProxyAdmin). Pitfall: it costs an extra admin-check SLOAD per call versus UUPS, and the admin key holds total upgrade power.",
+      "answerHint": "The selector-clash problem: proxy and implementation functions can share four-byte selectors. Transparent routing delegates every non-admin call, while the admin may upgrade but cannot fall back to implementation functions. In OpenZeppelin v5 the associated ProxyAdmin address is immutable; its owner holds the upgrade authority.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "UUPS proxy pattern",
-      "promptText": "Where does UUPS put the upgrade logic, and what are its two signature footguns?",
-      "answerHint": "In the implementation (UUPSUpgradeable.upgradeToAndCall), gated by the mandatory _authorizeUpgrade override — the proxy itself is minimal. Footguns: (1) leaving _authorizeUpgrade unprotected lets anyone upgrade and steal the contract; (2) upgrading to an implementation that lacks UUPS upgrade code freezes it permanently. Pitfall: always access-control _authorizeUpgrade and keep UUPS in every version.",
+      "promptText": "Where does UUPS put upgrade logic, and what must protect and preserve it?",
+      "answerHint": "UUPSUpgradeable puts upgradeToAndCall in the implementation behind ERC1967Proxy. _authorizeUpgrade must restrict callers, and OpenZeppelin checks proxiableUUID compatibility before installing the new implementation. A custom or deliberately bypassed check can still remove upgradeability; the current default rejects a plain non-UUPS implementation.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "UUPS proxy pattern",
-      "promptText": "Ethernaut Motorbike: why can an uninitialized UUPS implementation be destroyed, and how is the proxy affected?",
-      "answerHint": "If the implementation's initializer was never called (and _disableInitializers wasn't run in its constructor), an attacker initializes the implementation directly, becomes its owner, and calls an upgrade/delegatecall path that selfdestructs the implementation — leaving the proxy delegatecalling to empty code (bricked). Fix: _disableInitializers() in the implementation constructor.",
+      "promptText": "Legacy Ethernaut Motorbike: how did an unlocked implementation enable the historical pre-EIP-6780 bricking path?",
+      "answerHint": "The attacker initialized the implementation directly, gained its upgrade authority, then made it delegatecall code containing SELFDESTRUCT, historically deleting the implementation and leaving the proxy with no code target. _disableInitializers() prevents the takeover. Current EIP-6780 SELFDESTRUCT semantics no longer generally delete old contract code, so treat the destruction step as historical.",
       "promptKind": "problem",
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "hard"
@@ -310,14 +742,14 @@
     },
     {
       "topicTitle": "Storage layout for upgrades",
-      "promptText": "State the cardinal rule for changing storage between upgrade versions, and the purpose of __gap.",
-      "answerHint": "Only append new state variables at the end — never reorder, remove, insert-between, or change the type of existing ones, or V2 reads V1's bytes as garbage (storage collision). A uint256[50] __gap in an upgradeable base reserves slots so the base can add variables later without shifting a derived contract's storage. Pitfall: forgetting __gap in a shared base breaks every child on upgrade.",
+      "promptText": "State the storage-layout rule for upgrades, then contrast storage gaps with ERC-7201 namespaces.",
+      "answerHint": "For a sequential layout, append only: do not reorder, remove, insert before, or change existing variable types. A fixed __gap reserves base-contract slots and must shrink as the base consumes them. ERC-7201 instead isolates annotated namespaced structs; OpenZeppelin Contracts Upgradeable v5 uses this namespaced approach.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Initializers & _disableInitializers",
       "promptText": "Why can't upgradeable contracts use constructors, and why must the implementation call _disableInitializers()?",
-      "answerHint": "A constructor runs in the implementation's own context and never writes the proxy's storage, so setup goes in an initialize() guarded by the initializer modifier. _disableInitializers() in the implementation's constructor stops an attacker from initializing the naked implementation and hijacking it (the Parity freeze class). Pitfall: an unprotected/uninitialized implementation behind UUPS can be self-destructed.",
+      "answerHint": "An implementation constructor writes only implementation state, not proxy state, so proxy setup goes in a guarded initialize function and must call parent initializers explicitly. The implementation constructor calls _disableInitializers() to stop anyone taking over that separate instance. Keep this distinct from the historical Parity library incident.",
       "promptKind": "concept"
     },
     {

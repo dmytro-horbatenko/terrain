@@ -1,0 +1,435 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Hardhat 3",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Hardhat 3 is the secondary toolchain in this curriculum: Ignition deployment modules, network/config management, plugins, typed TypeScript integrations, and Foundry-compatible Solidity tests used where a JS/frontend workflow matters.",
+      "prerequisiteTitles": ["Foundry"],
+      "parentTitle": "Phase 3 — Tooling: Foundry & Hardhat"
+    },
+    {
+      "title": "Hardhat 3 project setup",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A Hardhat 3 project is a Node/TS package whose root hardhat.config.ts defines compiler and network settings, plugins, tasks, and optional path overrides. npx hardhat --init scaffolds a working project, and Hardhat 3 supports Solidity tests alongside plugin-provided TypeScript test runners.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-project-initialization-layout",
+            "purpose": "Initialize Hardhat 3 and identify the config, contract, test, Ignition, and script locations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-getting-started-docs",
+                "title": "Getting started with Hardhat 3",
+                "url": "https://hardhat.org/docs/getting-started",
+                "format": "documentation",
+                "scope": "Sections Installation and Project structure",
+                "estimatedMinutes": 12,
+                "why": "The current official setup guide defines npx hardhat --init and maps the generated config, contracts, tests, Ignition modules, and scripts.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03c-shared-source-path-config",
+            "purpose": "Point Hardhat's compiler at the curriculum's existing contracts directory with explicit compiler settings",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-configuration-paths-docs",
+                "title": "Hardhat 3 Configuration",
+                "url": "https://hardhat.org/docs/reference/configuration",
+                "format": "documentation",
+                "scope": "Sections Path configuration and Solidity configuration",
+                "estimatedMinutes": 10,
+                "why": "The official configuration reference defines paths.sources and the supported compiler-version/settings forms used by the shared-tree build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: confirm web3-practice's hardhat.config.ts compiles the same contracts/ tree Foundry uses, then run `npx hardhat build`. Done when: hardhat build succeeds against the shared contracts/ directory with no config errors.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "TypeScript testing with viem",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Hardhat's recommended TypeScript setup pairs viem plugins with node:test: hre.network.create() returns viem and network helpers connected to a simulation, while deployContract/getContractAt derive typed interactions from compiled artifacts. This exercises client-facing ABI and integration boundaries directly.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-viem-typescript-test",
+            "purpose": "Create a network connection, deploy through hardhat-viem, make a typed contract call, and run the TypeScript test",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-viem-testing-guide",
+                "title": "Testing your smart contracts with viem and node:test",
+                "url": "https://hardhat.org/docs/guides/testing/using-viem",
+                "format": "documentation",
+                "scope": "Sections Type-safe contract interactions, A simple test, and Running your test",
+                "estimatedMinutes": 18,
+                "why": "The official guide supplies the exact hre.network.create(), viem.deployContract, typed interaction, and test-command workflow required by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write a TS test in test/ deploying a contract from contracts/phase03/ via the viem helper and asserting a read call's typed return value. Done when: `npx hardhat test` passes the TS suite.",
+      "prerequisiteTitles": ["Hardhat 3 project setup"],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "Hardhat Ignition deployment",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ignition is Hardhat's declarative deployment system: a module declares contract instances and operations, Ignition derives their execution order, runs independent transactions in parallel, records deployment results, and can recover or resume without repeating completed work.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-ignition-declarative-resume",
+            "purpose": "Declare and deploy an Ignition module, then verify that a rerun recognizes completed deployment work",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-ignition-deployment-guide",
+                "title": "Deploying smart contracts using Hardhat Ignition",
+                "url": "https://hardhat.org/docs/guides/deployment/using-ignition",
+                "format": "documentation",
+                "scope": "Sections Your first Ignition Module, Deploying your module, and Modifying your module",
+                "estimatedMinutes": 18,
+                "why": "The official guide defines module declarations, deployment commands, persisted results, and rerun reconciliation against an existing deployment.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write ignition/modules/Phase03.ts as an Ignition module deploying a contract from contracts/phase03/ with a constructor argument, then run `npx hardhat ignition deploy ignition/modules/Phase03.ts --network localhost` against a running local node. Done when: deployment succeeds and re-running the same command reports no pending deployment actions.",
+      "prerequisiteTitles": ["Hardhat 3 project setup"],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "Network & config management",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "hardhat.config.ts maps network names to in-memory edr-simulated networks or http JSON-RPC connections. Simulated networks can fork a URL and pin a block; configuration variables defer RPC URL and key lookup so sensitive values are not hardcoded in committed config.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-network-types-forking",
+            "purpose": "Configure http and edr-simulated networks and pin a simulated fork to a remote block",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-network-configuration-reference",
+                "title": "Hardhat 3 Configuration",
+                "url": "https://hardhat.org/docs/reference/configuration",
+                "format": "documentation",
+                "scope": "Section Network configuration through Simulated network options",
+                "estimatedMinutes": 15,
+                "why": "The current reference distinguishes edr-simulated from http networks and defines forking.url, blockNumber, and enabled.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03c-network-secret-values",
+            "purpose": "Resolve an RPC URL lazily rather than committing it to hardhat.config.ts",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-configuration-variables-guide",
+                "title": "Managing config values and secrets safely",
+                "url": "https://hardhat.org/docs/guides/configuration-variables",
+                "format": "documentation",
+                "scope": "Section Using Configuration Variables",
+                "estimatedMinutes": 8,
+                "why": "The official guide demonstrates configVariable for RPC URLs, its default environment lookup, and lazy resolution.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: add an http network to web3-practice's hardhat.config.ts using a configuration variable for its RPC URL, then add an edr-simulated network whose forking URL is also a configuration variable and whose blockNumber is pinned. Done when: a read on the simulated fork matches known state at that block and no RPC credential is hardcoded.",
+      "prerequisiteTitles": ["Hardhat 3 project setup"],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "Hardhat plugins ecosystem",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Hardhat's plugin system composes optional capabilities such as viem integration, assertion helpers, test runners, Ignition, verification, and Foundry-remapping compatibility. A configured plugin may add tasks, hooks, configuration fields, or runtime extensions, so the installed and configured set defines the project's usable surfaces.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-official-plugin-capabilities",
+            "purpose": "Map each configured official plugin to the concrete capability it contributes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-official-plugins-catalogue",
+                "title": "Hardhat 3 official plugins",
+                "url": "https://hardhat.org/docs/plugins/official-plugins",
+                "format": "documentation",
+                "scope": "Section Official plugins, limited to entries for plugins imported by the project",
+                "estimatedMinutes": 14,
+                "why": "The maintained official catalogue identifies the supported viem, assertion, test-runner, Ignition, verification, and Foundry compatibility plugins and their roles.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: list, in contracts/phase03/plugins.md, every plugin web3-practice's hardhat.config.ts imports and includes in its plugins array, plus the concrete capability each contributes. Done when: the list matches the config and names each plugin's added task, hook, config field, or runtime surface as applicable.",
+      "prerequisiteTitles": ["Hardhat 3 project setup"],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "Coexisting: shared remappings + .t.sol tests",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Hardhat 3 natively loads scoped remappings.txt files from a project and imported npm packages; Foundry projects that rely on Forge-autogenerated remappings can add the official hardhat-foundry plugin. Hardhat also runs Foundry-origin Solidity tests within its documented compatibility surface, so a supported .t.sol test and source tree can serve both runners while each tool keeps its own config.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-remappings-resolution",
+            "purpose": "Resolve the same git-submodule import under Hardhat using its native scoped remappings.txt support",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-remappings-guide",
+                "title": "Using Solidity remappings",
+                "url": "https://hardhat.org/docs/guides/writing-contracts/remappings",
+                "format": "documentation",
+                "scope": "Sections Remappings loading, Scope of each remappings.txt file, and Remappings to git submodules",
+                "estimatedMinutes": 16,
+                "why": "The official guide defines where Hardhat loads remappings.txt, their directory scope, and the exact top-level mapping recommended for lib/ git submodules.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03c-foundry-test-compatibility",
+            "purpose": "Run a supported Foundry-origin Solidity test in Hardhat and understand when the compatibility plugin is needed",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-foundry-compatibility-reference",
+                "title": "Foundry compatibility",
+                "url": "https://hardhat.org/docs/reference/foundry-compatibility",
+                "format": "documentation",
+                "scope": "Sections Remappings, Solidity tests compatibility, and Separate build process and test artifacts",
+                "estimatedMinutes": 10,
+                "why": "The official compatibility contract distinguishes native remappings.txt, Forge-autogenerated remappings via hardhat-foundry, compatible tests, and separate generated artifacts.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in web3-practice, add a remappings.txt entry at the project root for the dependency installed in the git-submodules leaf, then compile and run the SAME test/phase03/*.t.sol file under both `forge test` and `npx hardhat test`. Done when: both tools resolve the remapped import and both run the identical .t.sol file — proving Hardhat needs its own remappings.txt (not foundry.toml) and that its Solidity test runner accepts an unmodified Foundry-style test.",
+      "prerequisiteTitles": ["remappings.txt & import resolution", "Hardhat 3 project setup"],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "Shared artifacts & mixed test suites",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A project can share a supported Solidity test file and contract source tree between forge test and npx hardhat test, while adding separate TypeScript integration tests. The generated test artifacts are not shared: Hardhat builds contracts and tests separately and keeps test artifacts internal in its cache.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-shared-solidity-test",
+            "purpose": "Discover and run one supported forge-std Solidity test through Hardhat",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-solidity-tests-guide",
+                "title": "Writing unit tests in Solidity",
+                "url": "https://hardhat.org/docs/guides/testing/using-solidity",
+                "format": "documentation",
+                "scope": "Sections Writing Solidity tests, Using assertion libraries, Using cheatcodes, and Running Solidity tests",
+                "estimatedMinutes": 20,
+                "why": "The official guide defines test-file discovery, forge-std usage, the supported cheatcode surface, and Hardhat's Solidity test command.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03c-separate-generated-artifacts",
+            "purpose": "Distinguish shared source and test files from Hardhat's separate generated test artifacts",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-shared-test-compatibility-reference",
+                "title": "Foundry compatibility",
+                "url": "https://hardhat.org/docs/reference/foundry-compatibility",
+                "format": "documentation",
+                "scope": "Sections Solidity tests compatibility and Separate build process and test artifacts",
+                "estimatedMinutes": 5,
+                "why": "The compatibility reference explicitly confirms Foundry-origin test support while warning that Hardhat's test artifacts remain separate and internal.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: run the SAME test/phase03/*.t.sol file (e.g. the Counter test from the Unit testing with forge-std leaf) under both `forge test` and `npx hardhat test` in web3-practice, without editing the test file between runs. Done when: both commands exit 0 running the identical .t.sol file in the same working tree.",
+      "prerequisiteTitles": [
+        "Coexisting: shared remappings + .t.sol tests",
+        "Unit testing with forge-std"
+      ],
+      "parentTitle": "Hardhat 3"
+    },
+    {
+      "title": "When to reach for Foundry vs Hardhat",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Choose by the required surface, not by an outdated Solidity-versus-JavaScript split: use Forge for curriculum tasks that explicitly exercise Forge-specific testing and analysis commands; use Hardhat for Ignition deployments, viem-facing TypeScript integration, or its plugin ecosystem. Hardhat 3 itself supports Solidity unit, fuzz, and invariant tests, and TypeScript tests can run alongside them.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03c-testing-surface-selection",
+            "purpose": "Recognize Hardhat 3's Solidity and TypeScript testing surfaces before assigning work by tool",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-hardhat3-testing-features",
+                "title": "What's new in Hardhat 3",
+                "url": "https://hardhat.org/docs/hardhat3/whats-new",
+                "format": "documentation",
+                "scope": "Sections Support for Solidity Tests, Test Runner Plugins, and Typed artifacts",
+                "estimatedMinutes": 10,
+                "why": "The official feature summary establishes that Solidity unit/fuzz/invariant and TypeScript tests coexist, with pluggable test runners and typed artifacts.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03c-deployment-surface-selection",
+            "purpose": "Identify declarative, resumable deployment as the curriculum's Hardhat-specific deployment surface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03c-tool-choice-ignition-guide",
+                "title": "Deploying smart contracts using Hardhat Ignition",
+                "url": "https://hardhat.org/docs/guides/deployment/using-ignition",
+                "format": "documentation",
+                "scope": "Sections Overview, Your first Ignition Module, and Deploying your module",
+                "estimatedMinutes": 12,
+                "why": "The current official guide grounds the declarative deployment and resume capabilities that distinguish the Hardhat role in this curriculum.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in contracts/phase03/tooling-decision.md, write a one-paragraph decision rule for web3-practice's later phases — which phases' Builds will run under `forge test` vs `npx hardhat ignition deploy` — and why, noting that both tools can already run the same .t.sol tests from the Shared artifacts leaf. Done when: the rule names at least one concrete upcoming phase for each tool.",
+      "prerequisiteTitles": ["Shared artifacts & mixed test suites"],
+      "parentTitle": "Hardhat 3"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Hardhat 3 project setup",
+      "promptText": "What does hardhat.config.ts declare, and what testing option does Hardhat 3 add that Hardhat 2 didn't have?",
+      "answerHint": "The Solidity compiler version/settings, source/test paths, and networks. Hardhat 3 adds first-class Foundry-compatible Solidity tests (.t.sol, forge-std style) alongside the original TypeScript test runner. Pitfall: both test styles still compile from ONE shared contracts/ tree — a config mistake there breaks both.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hardhat 3 project setup",
+      "promptText": "Complete Speedrun Ethereum challenges 0–2 (Simple NFT Example, Decentralized Staking App, Token Vendor).",
+      "answerHint": "Each challenge scaffolds a Scaffold-ETH 2 (Hardhat-based) project with a contract plus a Next.js frontend; deploy locally with Hardhat, pass the contract's own test suite, then follow the challenge's deploy/verify steps.",
+      "promptKind": "problem",
+      "url": "https://speedrunethereum.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "TypeScript testing with viem",
+      "promptText": "Why write a TS integration test with viem in addition to a Foundry Solidity test for the same contract?",
+      "answerHint": "A TS test exercises the viem-facing ABI, typing, accounts, and multi-contract wiring used by clients and scripts, complementing contract-internal Solidity tests. Use each style for the boundary it can actually observe instead of assuming one runner replaces the other.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "TypeScript testing with viem",
+      "promptText": "Write a viem-based Hardhat TS test deploying a contract and asserting a read call.",
+      "answerHint": "import assert from \"node:assert/strict\"; const counter = await viem.deployContract(\"Counter\"); await counter.write.increment(); assert.equal(await counter.read.count(), 1n);",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Hardhat Ignition deployment",
+      "promptText": "What does Ignition's deployment journal let you safely do that a plain imperative deploy script can't?",
+      "answerHint": "Resume a partially-failed multi-contract deployment without re-deploying contracts that already succeeded, because Ignition tracks what's been deployed against a module's declared dependency graph. Pitfall: Ignition modules are declarative, so imperative control flow (loops/conditionals over deploys) doesn't work the way a hand-written script would.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hardhat Ignition deployment",
+      "promptText": "Write a minimal Hardhat Ignition module deploying a Counter with a constructor arg of 0.",
+      "answerHint": "import { buildModule } from \"@nomicfoundation/hardhat-ignition/modules\"; export default buildModule(\"Phase03\", (m) => { const counter = m.contract(\"Counter\", [0]); return { counter }; });",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Network & config management",
+      "promptText": "What's the difference between an edr-simulated network and an http network in Hardhat 3's config, and why keep RPC URLs as configuration variables?",
+      "answerHint": "edr-simulated runs an in-memory local chain (optionally forking a real one); http points at a real JSON-RPC endpoint. Configuration variables keep secrets (RPC URLs, keys) out of the committed hardhat.config.ts. Pitfall: a forking config still needs a valid url — without one, forking is disabled.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hardhat plugins ecosystem",
+      "promptText": "What does a Hardhat plugin actually add to a project, beyond 'more npm packages'?",
+      "answerHint": "A plugin can add CLI tasks, hooks, config fields, global options, or runtime extensions (for example, hardhat-viem exposes viem helpers on a network connection). Check the installed plugin's documented capability instead of assuming every plugin adds every kind of surface.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Coexisting: shared remappings + .t.sol tests",
+      "promptText": "What does Hardhat 3 actually read to resolve a remapped Solidity import, and what does it NOT parse directly?",
+      "answerHint": "Hardhat 3 natively loads scoped remappings.txt files from the project and imported npm packages. If a Foundry project relies on Forge-autogenerated remappings instead, add @nomicfoundation/hardhat-foundry; otherwise an import can resolve under Forge but fail under Hardhat.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Shared artifacts & mixed test suites",
+      "promptText": "Why can a Foundry .t.sol test run unmodified under Hardhat's own test runner, without either tool 'owning' it?",
+      "answerHint": "Hardhat treats Solidity files under test/ as tests and .t.sol files under contracts/ as tests, supports forge-std, and can execute Foundry-origin tests within its documented compatibility surface. The source can be shared, but generated test artifacts and compiler settings remain tool-specific.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "When to reach for Foundry vs Hardhat",
+      "promptText": "Give the one-line decision rule for choosing Foundry vs Hardhat for a given task in this curriculum.",
+      "answerHint": "Use Forge when the task specifically needs Forge commands or analysis; use Hardhat for Ignition, viem-facing TypeScript integration, or a Hardhat plugin surface. Hardhat 3 also runs Solidity unit/fuzz/invariant tests, so choose from the concrete workflow rather than an old language-only split.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

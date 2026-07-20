@@ -1,0 +1,479 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Debugging: traces & the interactive debugger",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`-vvv` prints execution traces for failing tests; `-vvvv` prints them for all tests and adds setup traces for failures. The decoded call frames, returns, reverts, and logs turn a failure into a navigable execution path. For opcode-level inspection, `forge test --debug --match-test <regex>` launches Foundry's interactive TUI debugger for one matching function, showing opcodes, source, stack, and memory while `j`/`k`, `c`/`C`, `s`, and `g`/`G` navigate the transaction.",
+      "aiContext": "Build: intentionally break a test in test/phase03/ (e.g. a wrong assert value), run `forge test -vvv --match-test <regex>` on it, and paste the relevant trace frames into contracts/phase03/debugging-notes.md explaining which call reverted; then run `forge test --debug --match-test <regex>` on the same test and record one documented navigation command used to reach the relevant opcode. Done when: debugging-notes.md documents both diagnoses, then the fixed test passes.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-debug-trace-reading",
+            "purpose": "Interpret Forge verbosity levels and decoded execution traces for a failing test",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-traces-docs",
+                "title": "Understanding Traces",
+                "url": "https://getfoundry.sh/forge/tests/traces/",
+                "format": "documentation",
+                "scope": "Section Understanding Traces, from the verbosity summary through decoded subtraces",
+                "estimatedMinutes": 10,
+                "why": "The official guide defines when -vvv and -vvvv emit traces and how to read calls, returns, reverts, logs, and gas in the output.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03b-debugger-navigation",
+            "purpose": "Launch the interactive debugger for one test and use its current navigation keys",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-debugger-docs",
+                "title": "Foundry Debugger",
+                "url": "https://getfoundry.sh/forge/debugger/",
+                "format": "documentation",
+                "scope": "Sections Debugger, Debugger layout, and Navigating",
+                "estimatedMinutes": 14,
+                "why": "The official debugger guide supplies the exact --match-test invocation, four-pane layout, and current j/k, c/C, s, and g/G bindings.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Gas snapshots",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`forge snapshot` records gas used by each test in `.gas-snapshot`; `forge snapshot --check` compares a fresh run with that baseline and fails when an entry changes. Committing the snapshot turns gas changes—both increases and decreases—into an explicit review decision instead of an unnoticed side effect.",
+      "aiContext": "Build: run `forge snapshot` after writing a function in contracts/phase03/, then deliberately change its gas and run `forge snapshot --check`. Done when: the check fails on the changed entry and passes again after restoring the code or intentionally regenerating the reviewed baseline.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-gas-snapshot-baseline",
+            "purpose": "Create and check a per-test gas baseline without confusing it with gas reports or in-test snapshots",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-forge-snapshot-reference",
+                "title": "forge snapshot Reference",
+                "url": "https://www.getfoundry.sh/reference/forge/snapshot",
+                "format": "documentation",
+                "scope": "Section forge snapshot, from the command summary through --check and snapshot-file options",
+                "estimatedMinutes": 8,
+                "why": "The official command reference defines the project-wide .gas-snapshot workflow and the check mode exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Coverage",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`forge coverage` reports line, statement, branch, and function coverage for the tested contracts, surfacing unreached paths that a simple \"tests pass\" summary can hide. Coverage measures execution, not correctness: a reached line can still have untested inputs or broken invariants.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-coverage-report",
+            "purpose": "Generate and interpret Foundry's line, statement, branch, and function coverage report",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-forge-coverage-reference",
+                "title": "forge coverage Reference",
+                "url": "https://www.getfoundry.sh/reference/forge/coverage",
+                "format": "documentation",
+                "scope": "Section forge coverage, from the command summary through report and test-filter options",
+                "estimatedMinutes": 9,
+                "why": "The official CLI reference defines the coverage command, report formats, and filters needed to isolate the learner's contract and verify a branch change.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: run `forge coverage` on contracts/phase03/, choose a file with incomplete branch coverage, inspect its conditionals and existing tests to identify one untaken branch, then add a test that covers it. Done when: the test passes and the summary's branch coverage for that file improves.",
+      "prerequisiteTitles": ["Unit testing with forge-std"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Scripting & deployment (forge script)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A Foundry script is a Solidity contract with a `run()` entry point. Calls at the broadcast depth between `vm.startBroadcast()` and `vm.stopBroadcast()` are collected as transactions; Forge simulates them first and sends them only when `--broadcast` is present. Supplying an RPC URL makes the dry run use that chain state, while a local Anvil URL keeps both runs local.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-script-simulation-broadcast",
+            "purpose": "Write a Solidity deployment script and distinguish transaction collection, simulation, and broadcast",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-scripting-docs",
+                "title": "Foundry Scripting",
+                "url": "https://www.getfoundry.sh/forge/scripting",
+                "format": "documentation",
+                "scope": "Sections Script structure, Running scripts, and Dry run",
+                "estimatedMinutes": 14,
+                "why": "The official scripting guide directly pairs run(), startBroadcast/stopBroadcast, a no-send simulation, and the --broadcast invocation used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: write script/Phase03Deploy.s.sol deploying a contract from contracts/phase03/ inside startBroadcast/stopBroadcast, then run it against a local anvil with and without --broadcast. Done when: the dry run and the broadcast run both succeed, and `cast code <addr>` confirms the deployed bytecode.",
+      "prerequisiteTitles": ["Foundry project anatomy", "anvil: local test node"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Contract verification",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`forge verify-contract` submits an address, contract identifier, compiler inputs, and ABI-encoded constructor arguments to a selected verifier. Sourcify calls byte-for-byte agreement including compiler metadata an exact match; agreement after excluding metadata is a match (formerly partial match). Verifiers differ, so the command must name the provider and reproduce the deployment settings.",
+      "aiContext": "Build: in contracts/phase03/verify-notes.md, write the exact `forge verify-contract` command (address, contract identifier, chain, `--verifier sourcify`, and constructor-args encoding) for the contract deployed by script/Phase03Deploy.s.sol on a public testnet, and state whether the project's `bytecode_hash` setting permits a Sourcify exact match or only a match. Done when: the notes use `cast abi-encode` correctly, reproduce compiler settings, name the verifier, and use Sourcify's current match terminology.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-verification-command",
+            "purpose": "Construct a verifier-specific forge verify-contract invocation with reproducible compiler and constructor inputs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-verify-contract-reference",
+                "title": "forge verify-contract Reference",
+                "url": "https://www.getfoundry.sh/reference/forge/verify-contract",
+                "format": "documentation",
+                "scope": "Section forge verify-contract, from Usage through compiler and verifier options",
+                "estimatedMinutes": 12,
+                "why": "The official command contract enumerates the address, contract identifier, encoded constructor arguments, compiler settings, chain, and supported verifier selection.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03b-sourcify-match-semantics",
+            "purpose": "Distinguish Sourcify exact matches from matches when compiler metadata differs or is absent",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-sourcify-match-docs",
+                "title": "Sourcify Exact Match vs Match",
+                "url": "https://docs.sourcify.dev/docs/exact-match-vs-match/",
+                "format": "documentation",
+                "scope": "Sections Exact Matches and Matches",
+                "estimatedMinutes": 10,
+                "why": "Sourcify's current official explanation replaces the ambiguous full/partial labels and ties exactness to the appended metadata fingerprint.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Scripting & deployment (forge script)"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Dependency management: git submodules",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "By default, `forge install <org/repo>@<tag-or-rev>` adds source under `lib/` as a Git submodule. The superproject records the submodule URL in `.gitmodules` and its checked-out commit as a gitlink; Foundry also maintains `foundry.lock` for requested tags or revisions. A clone must initialize submodules before imports can resolve.",
+      "aiContext": "Build: run `forge install OpenZeppelin/openzeppelin-contracts@<reviewed-tag>` in web3-practice and record the resulting `lib/` entry, `.gitmodules` entry, gitlink commit, and `foundry.lock` record in contracts/phase03/deps.md. Done when: `forge build` resolves an import and deps.md explains why `git submodule update --init --recursive` is needed after a fresh clone.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-submodule-dependencies",
+            "purpose": "Install and update a reviewed submodule dependency with a resolvable import and locked revision",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-dependencies-docs",
+                "title": "Foundry Dependencies",
+                "url": "https://www.getfoundry.sh/projects/dependencies",
+                "format": "documentation",
+                "scope": "Sections Adding a dependency, Remapping dependencies, and Updating dependencies",
+                "estimatedMinutes": 12,
+                "why": "The official project guide shows default submodule installation under lib, version selection, automatic imports, and the explicit update lifecycle.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "03b-submodule-clone-state",
+            "purpose": "Explain the .gitmodules, gitlink, and recursive initialization state a fresh clone needs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-git-submodules-docs",
+                "title": "Git Tools: Submodules",
+                "url": "https://git-scm.com/book/en/v2/Git-Tools-Submodules",
+                "format": "documentation",
+                "scope": "Sections Starting with Submodules and Cloning a Project with Submodules",
+                "estimatedMinutes": 12,
+                "why": "The official Git book defines .gitmodules and gitlink state, then shows recursive clone and submodule initialization commands needed before a dependency working tree is usable.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "remappings.txt & import resolution",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A remapping rewrites a Solidity import prefix to a filesystem path—for example, `@openzeppelin/=lib/openzeppelin-contracts/`. Foundry reads explicit entries from `foundry.toml` or `remappings.txt` and, by default, auto-detects additional mappings by scanning library directories; `forge remappings` prints the resolved table.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-import-remappings",
+            "purpose": "Define an explicit import-prefix remapping and distinguish it from Foundry's auto-detected table",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-remappings-docs",
+                "title": "Foundry Dependencies: Remappings",
+                "url": "https://www.getfoundry.sh/projects/dependencies",
+                "format": "documentation",
+                "scope": "Section Remappings, through the generated remappings.txt example",
+                "estimatedMinutes": 8,
+                "why": "The official dependency guide gives the exact prefix-to-path syntax, foundry.toml form, forge remappings output, and file-generation workflow used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: add an explicit remapping in remappings.txt for the dependency installed in the git-submodules leaf, update an import in contracts/phase03/ to use the short prefix, and run `forge remappings` to confirm it resolves. Done when: `forge build` compiles the short-prefixed import and `forge remappings` lists your line.",
+      "prerequisiteTitles": ["Dependency management: git submodules"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "soldeer package manager",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Soldeer is Foundry's registry-based package manager: `forge soldeer install <name>~<version-requirement>` resolves a package into `dependencies/`, records it under `[dependencies]`, and locks the selected release in `soldeer.lock`. It can share a project with other managers, but duplicate packages and colliding remappings must be avoided.",
+      "aiContext": "Build: choose a reviewed OpenZeppelin release available in the Soldeer registry, install it with `forge soldeer install @openzeppelin-contracts~<exact-version>`, and record the `[dependencies]` and `soldeer.lock` entries in contracts/phase03/deps.md, contrasting them with the submodule records. Done when: `forge build` resolves a version-qualified import from the Soldeer package and deps.md notes the duplicate-dependency/remapping caveat.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-soldeer-registry-workflow",
+            "purpose": "Install and lock a registry dependency while keeping its remapping distinct from submodule dependencies",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-soldeer-docs",
+                "title": "Soldeer as a Package Manager",
+                "url": "https://www.getfoundry.sh/projects/soldeer",
+                "format": "documentation",
+                "scope": "Sections Adding a Dependency, Updating Dependencies, Remappings, and Remappings Caveats",
+                "estimatedMinutes": 18,
+                "why": "The official Foundry guide covers the registry command, dependencies directory, foundry.toml entry, lock/update behavior, and coexistence caveats needed by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["remappings.txt & import resolution"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "foundry.toml profiles",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`foundry.toml` supports named `[profile.<name>]` tables, with `default` selected unless `FOUNDRY_PROFILE` names another. A CI profile can override `fuzz.runs` while the local default stays fast; `forge config` under each environment shows the effective values before tests run.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-foundry-profiles",
+            "purpose": "Select a named Foundry profile and verify its effective fuzz configuration",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-profiles-docs",
+                "title": "Foundry Configuration Profiles",
+                "url": "https://www.getfoundry.sh/config/profiles",
+                "format": "documentation",
+                "scope": "Entire page (9 min)",
+                "estimatedMinutes": 9,
+                "why": "The official configuration page defines profile tables and environment selection needed to keep local and CI fuzz budgets separate.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "aiContext": "Build: in web3-practice's foundry.toml, confirm/extend the [profile.ci] block to raise fuzz.runs above the default, then compare the fuzz-run count in `forge test` output between `FOUNDRY_PROFILE=ci forge test` and a default run. Done when: the ci-profile run visibly performs more fuzz runs than the default profile on the same test.",
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    },
+    {
+      "title": "Static analysis: Slither & Aderyn wiring",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Slither and Aderyn statically analyze Solidity without needing a test to execute the vulnerable path. Their detector sets can flag patterns such as uninitialized state or unchecked calls, but findings require triage: a report is evidence to investigate, not proof that every warning is exploitable.",
+      "aiContext": "Build: install and run either `slither .` or `aderyn` at the web3-practice project root, recording the selected tool, version, command, and results for contracts/phase03/ in contracts/phase03/static-analysis.md. Done when: the selected tool completes and the notes triage every result affecting contracts/phase03/, naming each detector and disposition; if there are no such results, record the clean result explicitly.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "03b-static-analyzer-workflow",
+            "purpose": "Run and triage one supported static analyzer against a Foundry project",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "03b-slither-docs",
+                "title": "Slither Official Repository",
+                "url": "https://github.com/crytic/slither",
+                "format": "documentation",
+                "scope": "Sections Features, Usage, How to install, and Detectors in the README",
+                "estimatedMinutes": 16,
+                "why": "The maintainer-owned documentation defines supported installation paths, the preferred Foundry-project invocation, and detector names with impact and confidence for triage.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              },
+              {
+                "id": "03b-aderyn-docs",
+                "title": "Aderyn Official Repository",
+                "url": "https://github.com/Cyfrin/aderyn",
+                "format": "documentation",
+                "scope": "Sections What is Aderyn?, Features, Installation, and Quick Start in the README",
+                "estimatedMinutes": 12,
+                "why": "The maintainer-owned README defines Foundry support, current installation paths, the root-level aderyn command, and generated report workflow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Foundry project anatomy"],
+      "parentTitle": "Foundry"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Debugging: traces & the interactive debugger",
+      "promptText": "What do `-vvv` and `-vvvv` add to `forge test` output, and when would you choose each?",
+      "answerHint": "`-vvv` prints execution traces for failing tests. `-vvvv` prints traces for all tests and setup traces for failures. Start with `-vvv` to isolate a failure; use `-vvvv` when a passing path or setup needs comparison. Pitfall: broad trace output becomes noisy on fuzz or invariant campaigns, so combine it with a test filter.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Debugging: traces & the interactive debugger",
+      "promptText": "How do you launch Foundry's interactive debugger for one specific test, and what do `C`, `s`, and `G` navigate to?",
+      "answerHint": "Run `forge test --debug --match-test \"<regex>\"` with a pattern that selects one function. `C` moves to the next call-type instruction, `s` to the next `JUMPDEST`, and `G` to the end of the transaction. Pitfall: `s` is not a source-level step-into command, and the current debugger has no documented `o` step-out binding.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Gas snapshots",
+      "promptText": "What does `forge snapshot --check` actually fail the build on, and what must you do after an intentional gas increase?",
+      "answerHint": "It diffs the current run's gas-per-test against the committed .gas-snapshot file and fails if it changed. Pitfall: an intentional increase (e.g. added a safety check) needs .gas-snapshot regenerated and committed, or every future CI run fails on that line forever.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Coverage",
+      "promptText": "What can branch/line coverage from forge coverage reveal that 'all tests pass' doesn't?",
+      "answerHint": "An untested revert branch, an unreached else, or a function only ever exercised on one code path. Pitfall: 100% line coverage doesn't mean every input combination or invariant is tested — coverage measures reached code, not correctness.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Scripting & deployment (forge script)",
+      "promptText": "What's the difference between running a forge script with and without --broadcast?",
+      "answerHint": "Without `--broadcast`, Forge collects and simulates the marked transactions but sends nothing. With it, calls and creations at the broadcast call depth between `vm.startBroadcast()` and `vm.stopBroadcast()` are signed and sent after simulation succeeds. Pitfall: a dry run uses remote state only when an RPC/fork URL is supplied; otherwise it is a local EVM simulation.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Scripting & deployment (forge script)",
+      "promptText": "Write a minimal forge script deploying a Counter with a constructor arg of 42.",
+      "answerHint": "function run() external { vm.startBroadcast(); new Counter(42); vm.stopBroadcast(); }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Contract verification",
+      "promptText": "Why must compiler settings match exactly for forge verify-contract to succeed, even when the source is 'the same'?",
+      "answerHint": "The verifier recompiles the submitted sources with the supplied compiler version, optimizer, EVM, and other settings, then compares the result with deployed bytecode. Sourcify calls byte-for-byte agreement including metadata an exact match and agreement excluding metadata a match. A setting that changes executable bytecode fails both. Pitfall: constructor arguments must be ABI-encoded exactly as deployed with `cast abi-encode`, and match labels vary by verifier.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Dependency management: git submodules",
+      "promptText": "What breaks if a fresh clone of a Foundry repo skips `git submodule update --init --recursive` before `forge build`?",
+      "answerHint": "The superproject has gitlinks but the dependency working trees under `lib/` are absent, so imports fail; `--recursive` also initializes nested submodules. The recorded gitlink identifies a commit, while `foundry.lock` preserves requested tag/revision intent. Pitfall: an unqualified first install follows the repository's default ref at install time, so choose a reviewed tag or revision explicitly.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "remappings.txt & import resolution",
+      "promptText": "What does a line like `@openzeppelin/=lib/openzeppelin-contracts/` in remappings.txt do, and what does `forge remappings` show beyond what you wrote by hand?",
+      "answerHint": "It rewrites any import starting with @openzeppelin/ to resolve under lib/openzeppelin-contracts/. forge remappings prints the FULL resolved table, including entries auto-inferred from installed dependencies. Pitfall: a typo'd prefix fails silently as 'file not found', not as a remapping error.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "remappings.txt & import resolution",
+      "promptText": "Write a remappings.txt line mapping forge-std imports to lib/forge-std/src/.",
+      "answerHint": "forge-std/=lib/forge-std/src/",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "soldeer package manager",
+      "promptText": "How does installing a dependency with soldeer differ from forge install for a git submodule, in terms of where the dependency's version is recorded?",
+      "answerHint": "Soldeer records a version requirement under `[dependencies]`, resolves source under `dependencies/`, and records the exact resolution in `soldeer.lock`; default `forge install` uses a Git submodule under `lib/`, with `.gitmodules`, a gitlink commit, and `foundry.lock`. Pitfall: the managers can coexist, but do not install the same package twice or let their remappings collide.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "foundry.toml profiles",
+      "promptText": "How does FOUNDRY_PROFILE change which foundry.toml settings apply, and why give [profile.ci] more fuzz runs than [profile.default]?",
+      "answerHint": "FOUNDRY_PROFILE=ci makes Foundry read [profile.ci], falling back to [profile.default] for any key it doesn't override. Fewer runs locally means fast iteration; more runs in CI means a fuller check before merge, without changing test code. Pitfall: a key missing from [profile.ci] silently inherits from [profile.default] — an incomplete profile isn't an error, just a partial override.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "foundry.toml profiles",
+      "promptText": "Write a foundry.toml block giving the ci profile 1024 fuzz runs.",
+      "answerHint": "[profile.ci]\nfuzz = { runs = 1024 }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Static analysis: Slither & Aderyn wiring",
+      "promptText": "What class of bug can Slither/Aderyn catch that a passing test suite might miss, and why?",
+      "answerHint": "Static analyzers flag patterns like reentrancy-prone external calls before state updates, unchecked low-level call returns, or uninitialized state — by reading code structure, not executing it, so they catch a bug class even if no test happens to exercise that exact path. Pitfall: static analysis produces false positives routinely — triage findings, don't blindly 'fix' every warning.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}
