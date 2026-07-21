@@ -1,0 +1,966 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Blockchain basics",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "What a blockchain is and why it is trustless: linked blocks, hashing, immutability, distributed consensus.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Accounts, transactions & gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Ethereum's account model, transaction anatomy, and the gas/fee market.",
+      "prerequisiteTitles": ["Blockchain basics"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "EVM execution model",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How the EVM executes bytecode: state machine, data locations, opcodes.",
+      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Public-key cryptography & wallets",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An EOA is controlled by a keypair, while a wallet is the interface that manages signing authority: the private key signs, and the public key derives the 20-byte address (keccak of the pubkey, last 20 bytes). Losing an unbacked-up key means losing control; there is no protocol reset.",
+      "aiContext": "Build: run `cast wallet new` in web3-practice; in contracts/phase01/README.md explain, in your own words, how the address is derived from the public key and why the private key must never touch the chain. Done when: you can state the derivation (pubkey → keccak256 → last 20 bytes) without looking.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "wallet-address-derivation",
+            "purpose": "Reconstruct Ethereum key custody and the exact address derivation path",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "wallet-ethereum-account-creation",
+                "title": "Ethereum accounts",
+                "url": "https://ethereum.org/developers/docs/accounts/",
+                "format": "documentation",
+                "scope": "Sections \"Externally-owned accounts and key pairs\" through \"Account creation\"",
+                "estimatedMinutes": 14,
+                "why": "Explains signing authority, private-key custody, and the public-key-to-address derivation on one official page.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Transaction anatomy",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A type-2 transaction carries chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, and a signature (yParity, r, s); legacy transactions use v, r, s. The nonce enforces sender ordering and replay protection; `data` is the ABI-encoded call.",
+      "aiContext": "Build: pick a real mainnet tx and run `cast tx <hash>` and `cast receipt <hash>` in web3-practice; write contracts/phase01/tx-anatomy.md mapping each field to its purpose. Done when: you can explain why the same signed tx cannot be replayed at a different nonce or chainId.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "transaction-field-mental-model",
+            "purpose": "Map visible transaction fields and calldata to their operational roles",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "transaction-ethereum-org-anatomy",
+                "title": "Transactions",
+                "url": "https://ethereum.org/developers/docs/transactions/",
+                "format": "documentation",
+                "scope": "Sections \"What's a transaction?\" and \"The data field\"",
+                "estimatedMinutes": 18,
+                "why": "Provides a current field-by-field walkthrough plus a concrete signed JSON-RPC transaction and ABI calldata example.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "transaction-type2-payload",
+            "purpose": "Verify the canonical type-2 payload and signed field ordering",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "transaction-eip1559-payload",
+                "title": "EIP-1559: Fee market change",
+                "url": "https://eips.ethereum.org/EIPS/eip-1559",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\" and \"Specification\"",
+                "estimatedMinutes": 18,
+                "why": "Normatively lists chain ID, fee fields, access list, and y-parity/r/s so legacy and typed signatures are not conflated.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Gas & the fee market (EIP-1559)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Gas prices execution; EIP-1559 splits the price into a burned base fee (set by protocol from block fullness) and a priority tip to the proposer. Under-pricing the max fee means the tx stalls.",
+      "aiContext": "Build: read a recent block's base fee via `cast base-fee`; in contracts/phase01/gas.md work a numeric example where effectiveTip = min(maxPriorityFeePerGas, maxFeePerGas - baseFee) and total cost = gasUsed × (baseFee + effectiveTip). Done when: you can predict whether a tx with a given maxFeePerGas is valid at a known base fee and what effective tip it pays.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "gas-fee-mental-model",
+            "purpose": "Build an operational model of gas units, fee caps, burns, and proposer tips",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "gas-ethereum-org-fees",
+                "title": "Gas and fees",
+                "url": "https://ethereum.org/developers/docs/gas/",
+                "format": "documentation",
+                "scope": "Sections \"What is gas?\" through \"Max fee\"",
+                "estimatedMinutes": 18,
+                "why": "Uses worked fee examples to distinguish gas used, base fee, priority fee, max fee, refunds, and recipients.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "gas-base-fee-protocol",
+            "purpose": "Verify how block fullness changes the protocol-set base fee",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "gas-eip1559-specification",
+                "title": "EIP-1559: Fee market change",
+                "url": "https://eips.ethereum.org/EIPS/eip-1559",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"Motivation\", and \"Specification\"",
+                "estimatedMinutes": 22,
+                "why": "Defines the elasticity target, bounded base-fee adjustment, burn, and effective priority-fee cap at protocol level.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Stack / memory / storage / calldata",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM's working areas differ in lifetime, mutability, addressing, and cost: the stack is a 1024-word operand workspace, memory is byte-addressed and expansion-priced, storage is persistent 32-byte-slot state, and calldata is immutable call input that can avoid memory copies. Choosing the wrong location is a root of both bugs and gas waste.",
+      "aiContext": "Build: in contracts/phase01/data-locations.md, tabulate the four locations by lifetime, addressing, and gas cost, with one example use of each. Done when: you can say why a function argument marked `calldata` is cheaper than `memory` for a read-only array.",
+      "prerequisiteTitles": [],
+      "parentTitle": "EVM execution model",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "evm-working-data-areas",
+            "purpose": "Compare EVM stack, memory, storage, and calldata semantics and cost drivers",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "data-areas-solidity-introduction",
+                "title": "Introduction to smart contracts",
+                "url": "https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html",
+                "format": "documentation",
+                "scope": "Sections \"Storage, Transient Storage, Memory and the Stack\" and \"Calldata, Returndata and Code\"",
+                "estimatedMinutes": 18,
+                "why": "Official compiler documentation compares lifetime, addressing, expansion, persistence, and stack access without a false universal cost ranking.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "solidity-location-copy-semantics",
+            "purpose": "Understand when Solidity reference values alias or copy across data locations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "data-locations-solidity-types",
+                "title": "Solidity types: data location",
+                "url": "https://docs.soliditylang.org/en/latest/types.html#data-location",
+                "format": "documentation",
+                "scope": "Sections \"Data location\" and \"Data location and assignment behavior\"",
+                "estimatedMinutes": 15,
+                "why": "Connects EVM regions to Solidity declarations and shows which storage, memory, and calldata assignments copy or alias.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "What a blockchain is",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A blockchain is an append-only ledger of blocks, each committing to its parent by hash, replicated across many nodes that agree on one history via consensus. Tampering with an old block changes its hash and breaks every child, so the chain is immutable in practice. Trust comes from cryptography and replication, not an operator.",
+      "aiContext": "Build: write contracts/phase01/what-is-a-blockchain.md — a one-page explainer of blocks, hashes, and immutability with a diagram of three linked blocks. Done when: you can explain why editing block N invalidates descendant commitments and requires overcoming honest consensus and finality.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "blockchain-first-mental-model",
+            "purpose": "Form a current Ethereum-specific model of blocks, hashes, nodes, and consensus",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "blockchain-ethereum-technical-intro",
+                "title": "Technical intro to Ethereum",
+                "url": "https://ethereum.org/developers/docs/intro-to-ethereum/",
+                "format": "article",
+                "scope": "Section \"What is a blockchain?\"",
+                "estimatedMinutes": 10,
+                "why": "Gives a concise proof-of-stake-era explanation of parent references, replicated state, nodes, and consensus for first exposure.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "blockchain-block-commitments",
+            "purpose": "Inspect the parent and state commitments that make blocks form a verifiable history",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "blockchain-ethereum-blocks",
+                "title": "Blocks",
+                "url": "https://ethereum.org/developers/docs/blocks/",
+                "format": "documentation",
+                "scope": "Sections \"Why blocks?\" and \"What is in a block?\"",
+                "estimatedMinutes": 12,
+                "why": "Grounds the learner's linked-block diagram in current parent, state-root, transaction-root, and consensus commitments.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Hashing & Merkle trees",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "keccak256 is Ethereum's workhorse hash: deterministic, one-way, collision-resistant, fixed 32-byte output. Merkle trees hash data in pairs up to a single root, so one 32-byte root commits to a whole set and any member is provable with a log-sized branch. Block headers and state use this to make tampering detectable.",
+      "aiContext": "Build: in contracts/phase01/hashing-merkle.md, compute a hash with `cast keccak \"hello\"` and sketch a 4-leaf Merkle tree by hand, showing the proof path for leaf 2. Done when: you can state why a Merkle proof needs only ~log2(n) hashes to verify membership.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "hashing-ethereum-keccak",
+            "purpose": "Distinguish Ethereum's Keccak-256 convention and its cryptographic role",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "hashing-yellow-paper-conventions",
+                "title": "Ethereum Yellow Paper",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "book",
+                "scope": "Section 3 \"Conventions\" (Keccak definitions)",
+                "estimatedMinutes": 8,
+                "why": "Defines the exact Keccak variant Ethereum denotes as KEC and prevents confusing it with finalized NIST SHA3-256.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "merkle-commitment-and-proof",
+            "purpose": "Reconstruct how a Merkle root commits to leaves and verifies a short branch",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "merkle-ethereum-whitepaper",
+                "title": "Ethereum Whitepaper",
+                "url": "https://ethereum.org/whitepaper/",
+                "format": "article",
+                "scope": "Section \"Merkle Trees\"",
+                "estimatedMinutes": 12,
+                "why": "The original worked explanation shows hash propagation, branch proofs, and why a small root authenticates a large data set.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Mnemonics & HD wallets",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A BIP-39 mnemonic encodes entropy plus a checksum and is converted into a seed; BIP-32 derives a tree of keypairs from it, BIP-44 defines the path hierarchy, and SLIP-44 assigns coin type 60 to Ethereum (e.g. m/44'/60'/0'/0/0). One phrase therefore backs up an unlimited set of addresses, and anyone holding it controls every derived key.",
+      "aiContext": "Build: run `cast wallet new-mnemonic` then derive two addresses with `cast wallet derive-private-key`; in contracts/phase01/hd-wallets.md record the path and both addresses. Done when: you can explain how changing the last path index yields a fresh address from the same seed.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "mnemonic-to-seed",
+            "purpose": "Trace entropy and checksum words through the BIP-39 seed derivation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "hd-wallet-bip39",
+                "title": "BIP-39: Mnemonic code for deterministic keys",
+                "url": "https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"Generating the mnemonic\", and \"From mnemonic to seed\"",
+                "estimatedMinutes": 12,
+                "why": "Separates mnemonic entropy and checksum encoding from PBKDF2 seed generation, correcting the common claim that words directly encode a seed.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "hierarchical-key-derivation",
+            "purpose": "Understand BIP-32 extended keys, child derivation, and the reusable key tree",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "hd-wallet-bip32",
+                "title": "BIP-32: Hierarchical Deterministic Wallets",
+                "url": "https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki",
+                "format": "documentation",
+                "scope": "Sections \"Extended keys\", \"Child key derivation functions\", and \"The key tree\"",
+                "estimatedMinutes": 18,
+                "why": "Defines the chain code and child-key functions that let one seed deterministically produce independent branches and addresses.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "wallet-path-hierarchy",
+            "purpose": "Decode each level of a BIP-44 multi-account derivation path",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "hd-wallet-bip44",
+                "title": "BIP-44: Multi-Account Hierarchy",
+                "url": "https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki",
+                "format": "documentation",
+                "scope": "Sections \"Path levels\" through \"Address gap limit\"",
+                "estimatedMinutes": 10,
+                "why": "Explains purpose, coin type, account, change, and address-index components so changing the final index is meaningful rather than rote.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "ethereum-coin-type",
+            "purpose": "Verify why Ethereum occupies coin-type component 60 in BIP-44 paths",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "hd-wallet-slip44-ethereum",
+                "title": "SLIP-44: Registered coin types",
+                "url": "https://github.com/satoshilabs/slips/blob/master/slip-0044.md",
+                "format": "documentation",
+                "scope": "Section \"Registered coin types\" (Ethereum row 60)",
+                "estimatedMinutes": 3,
+                "why": "Supplies the primary registry entry that assigns Ether the hardened coin-type value used in Ethereum derivation paths.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Nodes, clients & JSON-RPC",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An Ethereum node runs an execution client (geth, reth) plus a consensus client (Lighthouse, Prysm) and exposes a JSON-RPC API — eth_call, eth_getBalance, eth_sendRawTransaction, and more. Independent clients speaking one spec is what keeps the network resilient; your tools (cast, viem) are just RPC callers.",
+      "aiContext": "Build: point `cast` at a public RPC and run `cast block latest` and `cast client`; in contracts/phase01/nodes-rpc.md list three read methods and one write method. Done when: you can name the difference between execution and consensus clients and why both must run.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "node-client-architecture",
+            "purpose": "Separate execution, consensus, and validator responsibilities in a post-Merge node",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "nodes-ethereum-architecture",
+                "title": "Node architecture",
+                "url": "https://ethereum.org/developers/docs/nodes-and-clients/node-architecture/",
+                "format": "documentation",
+                "scope": "Sections \"What does the execution client do?\" through \"Components of a node comparison\"",
+                "estimatedMinutes": 16,
+                "why": "Shows the two client networks, Engine API boundary, state execution, fork choice, and optional validator as distinct responsibilities.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "json-rpc-read-write-boundary",
+            "purpose": "Classify standard JSON-RPC reads, simulations, and signed transaction submission",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "nodes-ethereum-json-rpc",
+                "title": "JSON-RPC API",
+                "url": "https://ethereum.org/developers/docs/apis/json-rpc/",
+                "format": "documentation",
+                "scope": "Sections \"Conventions\", \"eth_getBalance\", \"eth_call\", and \"eth_sendRawTransaction\"",
+                "estimatedMinutes": 18,
+                "why": "Provides canonical request shapes and separates historical state reads, local call simulation, and network-changing raw transaction broadcast.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "EOAs vs contract accounts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum has two account types sharing one 20-byte address space: EOAs, controlled by signing authority, and contract accounts, controlled by code with no private key. Both hold a balance and nonce; contract accounts have persistent code and storage. EIP-7702 can delegate code to an EOA without turning a contract account into a transaction originator.",
+      "aiContext": "Build: in contracts/phase01/account-types.md, diagram both account types with their fields (nonce, balance, [codeHash, storageRoot]) and mark which can start a tx. Done when: you can say why a contract cannot spontaneously send a transaction.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "account-types-and-fields",
+            "purpose": "Compare control, initiation, code, storage, balance, and nonce across account types",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "accounts-ethereum-types",
+                "title": "Ethereum accounts",
+                "url": "https://ethereum.org/developers/docs/accounts/",
+                "format": "documentation",
+                "scope": "Sections \"Account types\" and \"An account examined\"",
+                "estimatedMinutes": 14,
+                "why": "Directly supports the requested diagram with current key differences and the four consensus-level account fields.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "eoa-delegated-code-semantics",
+            "purpose": "Update the EOA-versus-contract model for deployed EIP-7702 delegation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "accounts-eip7702",
+                "title": "EIP-7702: Set Code for EOAs",
+                "url": "https://eips.ethereum.org/EIPS/eip-7702",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"Motivation\", and \"Specification\"",
+                "estimatedMinutes": 20,
+                "why": "Defines type-4 authorizations and delegated EOA code, preventing the obsolete inference that code presence alone identifies contract control.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Nonce & replay protection",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An EOA has a monotonically increasing account nonce used as a sequence counter. A normal sender transaction is valid only at the account's exact next nonce, which forces ordering and blocks replay after inclusion. EIP-155 folds chainId into legacy transaction signatures so a mainnet transaction cannot be replayed unchanged on another chain.",
+      "aiContext": "Build: send two txs from an anvil account, then in contracts/phase01/nonce.md show their nonces and explain what happens if you broadcast nonce 5 before nonce 4. Done when: you can explain why a gapped-nonce tx sits pending and why EIP-155 stops cross-chain replay.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sender-nonce-ordering",
+            "purpose": "Explain exact sender-nonce ordering and replay prevention after inclusion",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "nonce-ethereum-transactions",
+                "title": "Transactions",
+                "url": "https://ethereum.org/developers/docs/transactions/",
+                "format": "documentation",
+                "scope": "Sections \"What's a transaction?\" and \"Transaction lifecycle\"",
+                "estimatedMinutes": 10,
+                "why": "Connects the sequential nonce field to signing, broadcast, pool admission, inclusion, and finalization in the normal transaction path.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "cross-chain-replay-domain",
+            "purpose": "Verify how chain ID domain-separates legacy transaction signatures",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "nonce-eip155-replay-protection",
+                "title": "EIP-155: Simple replay attack protection",
+                "url": "https://eips.ethereum.org/EIPS/eip-155",
+                "format": "documentation",
+                "scope": "Sections \"Specification\", \"Example\", and \"Rationale\"",
+                "estimatedMinutes": 14,
+                "why": "Shows exactly where chain ID enters the signing hash and why a signature valid on one chain fails unchanged on another.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "gapped-nonce-pool-behavior",
+            "purpose": "Observe how a client separates executable pending transactions from future queued nonces",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "nonce-geth-txpool-content",
+                "title": "Geth txpool namespace",
+                "url": "https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-txpool",
+                "format": "documentation",
+                "scope": "Section \"txpool_content\"",
+                "estimatedMinutes": 8,
+                "why": "The official client output makes pending-versus-queued nonce gaps concrete and exposes replacement transactions sharing a nonce.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Transaction types & the mempool",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Legacy transactions are untyped RLP lists (often exposed by RPC as type 0x0); EIP-2718 typed envelopes cover EIP-2930 access-list (0x1), EIP-1559 dynamic-fee (0x2), EIP-4844 blob (0x3), and EIP-7702 set-code (0x4). Signed transactions wait in each node's local mempool until selected for a block; effective fees and client or builder policy influence selection.",
+      "aiContext": "Build: in contracts/phase01/tx-types.md, tabulate the five transaction types with the EIP that introduced each and its distinguishing field. Done when: you can say which type a wallet defaults to today and why blob data is carried separately.",
+      "prerequisiteTitles": ["Transaction anatomy"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "current-transaction-types",
+            "purpose": "Identify deployed transaction types 0 through 4 and their distinguishing payload fields",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "tx-types-ethereum-envelope",
+                "title": "Transactions",
+                "url": "https://ethereum.org/developers/docs/transactions/",
+                "format": "documentation",
+                "scope": "Section \"Typed Transaction Envelope\"",
+                "estimatedMinutes": 16,
+                "why": "Maintains a current deployed catalog covering legacy, access-list, dynamic-fee, blob, and set-code transactions in one comparison.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "typed-envelope-semantics",
+            "purpose": "Understand how EIP-2718 separates a type byte from an opaque payload",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "tx-types-eip2718",
+                "title": "EIP-2718: Typed Transaction Envelope",
+                "url": "https://eips.ethereum.org/EIPS/eip-2718",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"Motivation\", and \"Specification\"",
+                "estimatedMinutes": 14,
+                "why": "Defines the canonical type-plus-payload envelope and explains why future transaction formats no longer need ambiguous RLP tricks.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "local-mempool-organization",
+            "purpose": "Inspect pending, queued, replaced, and nonce-keyed transactions in a real client pool",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "tx-types-geth-txpool",
+                "title": "Geth txpool namespace",
+                "url": "https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-txpool",
+                "format": "documentation",
+                "scope": "Sections \"txpool_content\" and \"txpool_status\"",
+                "estimatedMinutes": 10,
+                "why": "Shows that the mempool is client-local and organized by sender and nonce, including queued gaps and same-nonce replacements.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "The EVM as a state machine",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM is a deterministic state machine: a transaction maps the pre-state (world state = mapping of address → account state, each with balance/nonce/code/storage) to a post-state, gas-metered every step. All nodes re-running the same transaction with the same state and block context reach the same result.",
+      "aiContext": "Build: in contracts/phase01/evm-state-machine.md, draw world state → account state → storage trie and describe how one tx transitions it. Done when: you can explain why execution must be deterministic across every node: block-context values are explicit inputs, not live wall-clock time, external I/O, or nondeterministic randomness.",
+      "prerequisiteTitles": [],
+      "parentTitle": "EVM execution model",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "evm-state-transition-model",
+            "purpose": "Form a concrete model of transactions mapping one world state to the next",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "evm-state-ethereum-overview",
+                "title": "Ethereum Virtual Machine",
+                "url": "https://ethereum.org/developers/docs/evm/",
+                "format": "documentation",
+                "scope": "Sections \"From ledger to state machine\" through \"Transactions\"",
+                "estimatedMinutes": 16,
+                "why": "Builds the visual world-state model and introduces the deterministic Y(S,T)=S' transition before formal notation.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "evm-formal-state-model",
+            "purpose": "Verify the transaction-based state-machine and account-state definitions formally",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "evm-state-yellow-paper",
+                "title": "Ethereum Yellow Paper",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "book",
+                "scope": "Sections 2 \"The Blockchain Paradigm\" and 4.1 \"World State\"",
+                "estimatedMinutes": 18,
+                "why": "Provides the primary formal transition function and exact nonce, balance, storage-root, and code-hash account tuple.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Opcodes & the interpreter loop",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EVM bytecode is a sequence of 1-byte opcodes run in a fetch-decode-execute loop over a program counter, a 1024-slot stack, and gas. Each opcode (ADD, SLOAD, CALL, …) has a specified stack effect and gas rule, with many costs depending on memory growth or execution context; the loop halts on STOP/RETURN/REVERT or exceptional failure. evm.codes is the interactive playground used in the Build.",
+      "aiContext": "Build: on evm.codes, step through `PUSH1 0x02 PUSH1 0x03 ADD` and record the stack after each opcode in contracts/phase01/opcodes.md. Done when: you can trace stack depth and gas for a 3–4 opcode program by hand.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "EVM execution model",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "evm-instruction-mental-model",
+            "purpose": "Understand the stack machine, program counter, memory, storage, and opcode families",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "opcodes-ethereum-evm-instructions",
+                "title": "Ethereum Virtual Machine",
+                "url": "https://ethereum.org/developers/docs/evm/",
+                "format": "documentation",
+                "scope": "Sections \"EVM instructions\" through \"Opcodes\"",
+                "estimatedMinutes": 12,
+                "why": "Gives a current first model of 256-bit stack words, transient memory, persistent storage, and blockchain-specific opcode categories.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "evm-interpreter-semantics",
+            "purpose": "Trace the formal machine-state cycle and exceptional halting conditions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "opcodes-yellow-paper-execution",
+                "title": "Ethereum Yellow Paper",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "book",
+                "scope": "Section 9 \"Execution Model\"",
+                "estimatedMinutes": 18,
+                "why": "Defines machine state, instruction fetch, stack effects, program-counter updates, gas charging, and exceptional halts at the protocol seam.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Reading storage slots",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Contract storage is a 2^256 mapping of 32-byte slots. The compiler lays out state variables sequentially from slot 0 (packing small vars together); mappings and dynamic arrays hash the key or base slot to find their location. Any slot is publicly readable, bypassing getters and `private`.",
+      "aiContext": "Build: deploy a small contract on anvil, then read a slot with `cast storage <addr> <slot>`; in contracts/phase01/storage-slots.md map two state variables to their slots. Done when: for a value-type key you can compute a mapping entry slot as keccak256(abi.encode(key, declaredSlot)).",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "EVM execution model",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "solidity-storage-layout",
+            "purpose": "Derive packed variables, arrays, and mapping entries from compiler storage rules",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "storage-solidity-layout",
+                "title": "Layout of State Variables in Storage",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections \"Layout of State Variables in Storage and Transient Storage\" through \"Mappings and Dynamic Arrays\"",
+                "estimatedMinutes": 22,
+                "why": "The compiler's normative layout rules cover sequential slots, packing, keccak-derived bases, and a nested mapping worked calculation.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "raw-storage-query",
+            "purpose": "Connect a computed slot number to the standard RPC that exposes its raw value",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "storage-json-rpc-getstorageat",
+                "title": "JSON-RPC API",
+                "url": "https://ethereum.org/developers/docs/apis/json-rpc/",
+                "format": "documentation",
+                "scope": "Section \"eth_getStorageAt\"",
+                "estimatedMinutes": 8,
+                "why": "Shows the canonical account, slot, and block parameters underlying cast storage and makes historical raw-state reads explicit.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "World state & Merkle Patricia tries",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum's world state lives in a Merkle Patricia Trie keyed by account address; each account's storage is itself a trie. To verify a storage slot from stateRoot, first verify the account proof to obtain that account's storageRoot, then verify the storage-trie proof along the key's hashed-nibble path — the basis for verifying data a client did not compute.",
+      "aiContext": "Build: in contracts/phase01/state-trie.md, explain how stateRoot in the block header lets a light client verify an account balance it didn't compute. Done when: you can describe what a Merkle proof against the state root contains and why it is tamper-evident.",
+      "prerequisiteTitles": ["The EVM as a state machine"],
+      "parentTitle": "EVM execution model",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "mpt-proof-mental-model",
+            "purpose": "Understand how radix paths, hash-linked nodes, and Patricia compression produce proofs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "state-trie-ethereum-mpt",
+                "title": "Merkle Patricia Trie",
+                "url": "https://ethereum.org/developers/docs/data-structures-and-encoding/patricia-merkle-trie/",
+                "format": "documentation",
+                "scope": "Sections \"Basic radix tries\" through \"Merkle Patricia Trie\"",
+                "estimatedMinutes": 24,
+                "why": "Builds from path traversal to content-addressed nodes, branch proofs, Patricia compression, and Ethereum's concrete node forms.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "world-state-root-semantics",
+            "purpose": "Verify how account and storage tries collapse into the block's world-state commitment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "state-trie-yellow-paper",
+                "title": "Ethereum Yellow Paper",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "book",
+                "scope": "Sections 4.1 \"World State\" and Appendix D \"Modified Merkle Patricia Tree\"",
+                "estimatedMinutes": 18,
+                "why": "Defines the account tuple, storage-root nesting, key hashing, RLP encoding, and the trie root as the formal identity of world state.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Public-key cryptography & wallets",
+      "promptText": "How is an Ethereum address derived from a private key, and what is irreversible about it?",
+      "answerHint": "privkey → (secp256k1) pubkey → keccak256(pubkey) → last 20 bytes = address. One-way at each step; a lost private key is unrecoverable and there is no admin reset.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transaction anatomy",
+      "promptText": "Name the fields of an EIP-1559 type-2 transaction and say how replay is prevented.",
+      "answerHint": "chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList, yParity, r, s. The sender nonce blocks same-chain replay after inclusion; chainId domain-separates the signature across chains.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Gas & the fee market (EIP-1559)",
+      "promptText": "Break down what a sender pays per gas under EIP-1559, and where each part goes.",
+      "answerHint": "base fee (burned, set by protocol from block fullness) + effective tip (to the proposer), where effectiveTip = min(maxPriorityFeePerGas, maxFeePerGas - baseFee). Total = gasUsed × (baseFee + effectiveTip).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Stack / memory / storage / calldata",
+      "promptText": "Compare stack, memory, storage, and calldata by lifetime, mutability, and gas cost drivers.",
+      "answerHint": "Stack is 256-bit operand workspace with top-16 access; memory is mutable per-call scratch with expansion cost; storage is persistent state with context-dependent SLOAD/SSTORE costs; calldata is immutable call input and avoids a memory copy for read-only external arguments.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "What a blockchain is",
+      "promptText": "Why is a blockchain immutable in practice, rather than by decree?",
+      "answerHint": "Each block commits to its parent, so altering an old block changes descendant commitments; replacing that history must overcome honest fork choice, finality, and economic security. Pitfall: immutability is economic and consensus-backed, not absolute.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Hashing & Merkle trees",
+      "promptText": "What does a Merkle root let you prove, and how large is the proof?",
+      "answerHint": "A single 32-byte root commits to an entire set; membership of any leaf is provable with a branch of ~log2(n) sibling hashes, without revealing the rest. Pitfall: it proves inclusion, not exclusion (that needs a sorted/sparse variant).",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mnemonics & HD wallets",
+      "promptText": "Why can one seed phrase back up an unlimited number of Ethereum addresses?",
+      "answerHint": "BIP-32 hierarchical-deterministic derivation expands the BIP-39 seed into a tree of child keys along a BIP-44 path (m/44'/60'/…); each index is a new keypair. Pitfall: the phrase is the master secret — leaking it compromises every derived account.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Nodes, clients & JSON-RPC",
+      "promptText": "What is JSON-RPC's role, and why does Ethereum want many independent clients?",
+      "answerHint": "JSON-RPC is the request/response API (eth_call, eth_sendRawTransaction, …) apps use to read and write chain state. Client diversity means one client's bug can't halt or split the network. Pitfall: a public RPC is trusted infrastructure — it can lie unless you verify.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EOAs vs contract accounts",
+      "promptText": "How do EOAs and contract accounts differ in control and fields?",
+      "answerHint": "EOA authority signs transaction authorizations; contract-account behavior is code-controlled and only runs when called. Both have nonce, balance, codeHash, and storageRoot fields. EIP-7702 lets an EOA delegate code without giving a contract account a private signing key.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Nonce & replay protection",
+      "promptText": "How does the nonce prevent replay and enforce ordering?",
+      "answerHint": "Each EOA tx must use its exact next sequential nonce, so a mined tx (nonce consumed) can't re-execute and txs process in order. EIP-155 adds chainId to the signature to block cross-chain replay. Pitfall: a missing lower nonce stalls all higher-nonce txs.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transaction types & the mempool",
+      "promptText": "Name the modern Ethereum transaction types and what makes each distinct.",
+      "answerHint": "Legacy wire transactions are untyped RLP (often reported by RPC as type 0x0); typed envelopes are 0x1 access-list (2930), 0x2 dynamic-fee (1559, the default), 0x3 blob (4844), and 0x4 set-code (7702). Pitfall: blob data isn't in calldata — it rides in a separate, short-lived sidecar.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The EVM as a state machine",
+      "promptText": "In what sense is the EVM a state machine?",
+      "answerHint": "Each transaction deterministically maps world state plus explicit transaction/block context to a new world state, metered by gas. Nodes agree because there is no live wall-clock input, nondeterministic RNG, or external I/O during execution.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Opcodes & the interpreter loop",
+      "promptText": "Describe the EVM's interpreter loop and its working memory.",
+      "answerHint": "Fetch opcode at PC → decode → execute against the 1024-deep stack (plus memory/storage), charge gas, advance or jump PC; halt on STOP/RETURN/REVERT or out-of-gas. Pitfall: stack overflow (>1024) or underflow reverts the whole call.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Reading storage slots",
+      "promptText": "Where does the value of `mapping(k=>v) m` declared at slot p live in storage?",
+      "answerHint": "At keccak256(abi.encode(k, p)); the mapping itself occupies slot p only as a placeholder. Dynamic arrays keep length at p and data at keccak256(p). Pitfall: `private` hides nothing — any slot is publicly readable.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "World state & Merkle Patricia tries",
+      "promptText": "What does the block header's stateRoot commit to, and why does it matter?",
+      "answerHint": "stateRoot commits to the account trie. An account proof authenticates the account and its storageRoot against stateRoot; a separate storage proof authenticates the slot against that storageRoot along the slot key's hashed-nibble path. Changing a slot changes the storage root and ultimately stateRoot.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

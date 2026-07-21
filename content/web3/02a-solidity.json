@@ -7,7 +7,7 @@
       "title": "Types & data locations",
       "type": "concept",
       "domain": "Web3",
-      "description": "Solidity's value types, reference types (arrays/mappings/structs), and the three data locations (storage/memory/calldata) that decide lifetime, copy-vs-alias semantics, and gas. Resources: https://solidity-by-example.org/",
+      "description": "Solidity's value types, reference types (arrays/mappings/structs), and the three data locations (storage/memory/calldata) that decide lifetime, copy-vs-alias semantics, and gas.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -15,7 +15,7 @@
       "title": "Functions, visibility & modifiers",
       "type": "concept",
       "domain": "Web3",
-      "description": "How functions are declared and controlled: return values, view/pure mutability, the four visibility levels, modifiers, the constructor, and control flow. Resources: https://updraft.cyfrin.io/courses/solidity",
+      "description": "How functions are declared and controlled: return values, view/pure mutability, the four visibility levels, modifiers, the constructor, and control flow.",
       "prerequisiteTitles": ["Types & data locations"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -23,7 +23,7 @@
       "title": "Storage layout",
       "type": "concept",
       "domain": "Web3",
-      "description": "How state variables map to 32-byte storage slots: sequential layout, packing, and the constant/immutable escape from storage. This is the foundation for proxies and gas work. Resources: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+      "description": "How state variables map to 32-byte storage slots: sequential layout, packing, and the constant/immutable escape from storage. This is the foundation for proxies and gas work.",
       "prerequisiteTitles": ["Types & data locations"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -31,7 +31,7 @@
       "title": "Inheritance",
       "type": "concept",
       "domain": "Web3",
-      "description": "Composing contracts with is, virtual/override, super, shadowing rules, and abstract contracts, plus C3 linearization for multiple inheritance. Resources: https://solidity-by-example.org/inheritance/",
+      "description": "Composing contracts with is, virtual/override, super, shadowing rules, and abstract contracts, plus C3 linearization for multiple inheritance.",
       "prerequisiteTitles": ["Functions, visibility & modifiers"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -39,7 +39,7 @@
       "title": "Events & logging",
       "type": "concept",
       "domain": "Web3",
-      "description": "Events write to the transaction log — cheap, off-chain-indexable output that contracts themselves cannot read. Indexed topics vs data, and the log's on-chain anatomy. Resources: https://solidity-by-example.org/events/",
+      "description": "Events write to the transaction log — cheap, off-chain-indexable output that contracts themselves cannot read. Indexed topics vs data, and the log's on-chain anatomy.",
       "prerequisiteTitles": ["Functions, visibility & modifiers"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -48,203 +48,1053 @@
       "title": "Value types & their defaults",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Value types (bool, uint/int of 8–256 bits, address, bytes1–32, enum) are copied on assignment and every variable starts at a zero value — 0, false, address(0), 0x00…. There is no null: an unset mapping entry or storage slot reads as the type's default, which silently hides 'never set' from 'set to zero'. Since 0.8 arithmetic reverts on overflow/underflow unless wrapped in unchecked. Resources: 📖 https://solidity-by-example.org/primitives/",
+      "description": "Value types (bool, uint/int of 8–256 bits, address, bytes1–32, enum) are copied on assignment and every variable starts at a zero value — 0, false, address(0), 0x00…. There is no null: an unset mapping entry or storage slot reads as the type's default, which silently hides 'never set' from 'set to zero'. Since 0.8 arithmetic reverts on overflow/underflow unless wrapped in unchecked.",
       "aiContext": "Build: implement contracts/phase02/Primitives.sol exposing one public var of each value type plus a function that returns the default of an unassigned local, with a Foundry test in test/phase02/Primitives.t.sol asserting each default. Done when: forge test passes and the test proves an unassigned address returns address(0) and an unchecked uint8 wraps 255+1 to 0.",
       "prerequisiteTitles": [],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-value-types-semantics",
+            "purpose": "Identify Solidity value types and the domains represented by their zero values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-value-types-docs",
+                "title": "Solidity 0.8.36 Types",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#value-types",
+                "format": "documentation",
+                "scope": "Sections \"Booleans\", \"Integers\", \"Address\", \"Fixed-size byte arrays\", and \"Enums\"",
+                "estimatedMinutes": 18,
+                "why": "The released language reference defines each value domain and enum representation without relying on an older tutorial pragma.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-defaults-and-overflow",
+            "purpose": "Verify zero initialization and checked versus unchecked integer arithmetic",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-defaults-arithmetic-docs",
+                "title": "Solidity 0.8.36 Expressions and Control Structures",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/control-structures.html#checked-or-unchecked-arithmetic",
+                "format": "documentation",
+                "scope": "Sections \"Scoping and Declarations\" and \"Checked or Unchecked Arithmetic\"",
+                "estimatedMinutes": 12,
+                "why": "These sections state the exact zero defaults and show the post-0.8 revert behavior plus an unchecked wrapping example used by the Done-when.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Reference types & data location",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Arrays, structs, mappings, bytes and string are reference types, and every reference variable must declare a data location: storage (persistent, a pointer when local), memory (a mutable in-tx copy), or calldata (read-only, immutable, cheapest for external args). Assigning a storage local from a storage state var aliases it — writes go to the original, not a copy — which is a classic source of accidental state mutation. Resources: 📖 https://solidity-by-example.org/data-locations/",
+      "description": "Arrays, structs and mappings are reference types; bytes and string are special arrays. State variables live in storage, while reference-typed parameters and locals use storage (persistent and a reference when local), memory (a mutable per-call copy), or calldata (read-only input that avoids a memory copy). Assigning a storage local from a storage state var aliases it — writes go to the original, not a copy — which is a classic source of accidental state mutation.",
       "aiContext": "Build: implement contracts/phase02/DataLocations.sol with a function that takes a calldata array, copies it to memory, and mutates a storage struct via a storage-pointer local, with a test in test/phase02/DataLocations.t.sol. Done when: forge test passes and the test proves the storage-pointer write persists while the memory copy does not.",
       "prerequisiteTitles": ["Value types & their defaults"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-reference-location-semantics",
+            "purpose": "Distinguish reference data locations and predict copy versus alias behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-reference-location-docs",
+                "title": "Solidity 0.8.36 Reference Types",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#reference-types",
+                "format": "documentation",
+                "scope": "Sections \"Reference Types\", \"Data location\", and \"Data location and assignment behavior\"",
+                "estimatedMinutes": 18,
+                "why": "The canonical rules enumerate every cross-location copy and same-location reference case needed to predict persistent mutation.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-reference-location-worked",
+            "purpose": "Trace storage pointers, memory values, and calldata parameters in one contract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-reference-location-cyfrin",
+                "title": "Data Locations — Solidity Code Example",
+                "url": "https://www.cyfrin.io/glossary/data-locations-storage-memory-and-calldata-solidity-code-example",
+                "format": "article",
+                "scope": "Entire article (10 min)",
+                "estimatedMinutes": 10,
+                "why": "Its compact contract includes the local storage struct pointer and all three locations, directly matching the Build without the Updraft lesson's conflicting claim.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Arrays in Solidity",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Arrays are fixed-size (uint[3]) or dynamic (uint[]); only dynamic storage arrays support .push/.pop, and memory arrays cannot be resized. delete on an element sets it to zero without shortening the array, leaving a gap. Iterating an unbounded, user-growable array is a DoS footgun: gas grows with length until the transaction can never fit in a block. Resources: 📖 https://solidity-by-example.org/array/",
+      "description": "Arrays are fixed-size (uint[3]) or dynamic (uint[]); only dynamic storage arrays support .push/.pop, and memory arrays cannot be resized. delete on an element sets it to zero without shortening the array, leaving a gap. Iterating an unbounded, user-growable array is a DoS footgun: gas grows with length until the transaction can never fit in a block.",
       "aiContext": "Build: implement contracts/phase02/Arrays.sol with push, ordered remove (shift) and gas-cheap unordered remove (swap-and-pop), with a test in test/phase02/Arrays.t.sol. Done when: forge test passes and the test asserts swap-and-pop leaves the array length one shorter and preserves the remaining set.",
       "prerequisiteTitles": ["Reference types & data location"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-array-language-semantics",
+            "purpose": "Learn fixed and dynamic array allocation, resizing, and delete behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-array-language-docs",
+                "title": "Solidity 0.8.36 Arrays",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#arrays",
+                "format": "documentation",
+                "scope": "Sections \"Arrays\", \"Allocating Memory Arrays\", \"Array Members\", and \"delete\"",
+                "estimatedMinutes": 18,
+                "why": "The language reference precisely separates memory allocation from storage push/pop and specifies that deleting one element leaves array length unchanged.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-array-removal-worked",
+            "purpose": "Implement and contrast ordered shifting with constant-time swap-and-pop removal",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-array-removal-cyfrin",
+                "title": "Array — Solidity Code Example",
+                "url": "https://www.cyfrin.io/glossary/array-solidity-code-example",
+                "format": "article",
+                "scope": "Sections \"Array\" and \"Examples of removing array element\"",
+                "estimatedMinutes": 14,
+                "why": "The worked contracts place shifting and last-element replacement side by side and assert the exact post-removal lengths required by the Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-array-loop-safety",
+            "purpose": "Connect attacker-growable iteration to the block gas limit denial-of-service boundary",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-array-loop-security-docs",
+                "title": "Solidity 0.8.36 Security Considerations",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/security-considerations.html#gas-limit-and-loops",
+                "format": "documentation",
+                "scope": "Section \"Gas Limit and Loops\"",
+                "estimatedMinutes": 6,
+                "why": "The official security guidance explains how storage-dependent iteration can permanently stall both state-changing and on-chain view calls.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Mappings",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A mapping(K => V) is a hash-table-like store where every possible key already maps to V's default; it lives only in storage and has no length, keys, or iteration. You cannot enumerate a mapping — you must track keys yourself (e.g. a parallel array) if you need to list them. Nested mappings and mappings inside structs work, but deleting the struct does not clear the nested mapping. Resources: 📖 https://solidity-by-example.org/mapping/",
+      "description": "A mapping(K => V) is a hash-table-like store where every possible key already maps to V's default; it lives only in storage and has no length, keys, or iteration. You cannot enumerate a mapping — you must track keys yourself (e.g. a parallel array) if you need to list them. Nested mappings and mappings inside structs work, but deleting the struct does not clear the nested mapping.",
       "aiContext": "Build: implement contracts/phase02/Balances.sol with a mapping(address => uint) plus an enumerable-keys pattern (address[] + mapping(address=>bool) seen), with a test in test/phase02/Balances.t.sol. Done when: forge test passes and the test proves an unset key reads 0 and the key list stays deduplicated.",
       "prerequisiteTitles": ["Reference types & data location"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-mapping-semantics-iteration",
+            "purpose": "Model virtual default entries and add explicit key tracking for enumeration",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-mapping-types-docs",
+                "title": "Solidity 0.8.36 Mapping Types",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#mapping-types",
+                "format": "documentation",
+                "scope": "Sections \"Mapping Types\" and \"Iterable Mappings\"",
+                "estimatedMinutes": 18,
+                "why": "The canonical page explains virtual zero initialization and then supplies an iterable key-list pattern with duplicate tracking that matches the Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-mapping-clearing-caveat",
+            "purpose": "Verify why deleting a container cannot discover and clear nested mapping keys",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-mapping-clearing-docs",
+                "title": "Solidity 0.8.36 Security Considerations",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/security-considerations.html#clearing-mappings",
+                "format": "documentation",
+                "scope": "Section \"Clearing Mappings\"",
+                "estimatedMinutes": 6,
+                "why": "This focused warning covers mappings nested in structs and arrays, the edge case omitted by introductory mapping examples.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Structs",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Structs group named fields into a custom type you can store, pass in memory, or return. You can construct them positionally or with named fields, but a struct that contains a mapping can only exist in storage — you cannot build such a struct in memory. Copying a storage struct to a memory struct duplicates all value fields. Resources: 📖 https://solidity-by-example.org/structs/",
+      "description": "Structs group named fields into a custom type you can store, pass in memory, or return. You can construct them positionally or with named fields, but a struct that contains a mapping can only exist in storage — you cannot build such a struct in memory. Copying a storage struct to a memory struct duplicates all value fields.",
       "aiContext": "Build: implement contracts/phase02/Todos.sol with a Todo struct, CRUD over a Todo[] in storage, and a memory-vs-storage update demo, with a test in test/phase02/Todos.t.sol. Done when: forge test passes and the test proves updating via a storage pointer persists but updating a memory copy does not.",
       "prerequisiteTitles": ["Reference types & data location"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-struct-location-semantics",
+            "purpose": "Predict storage-reference and memory-copy behavior for struct updates",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-struct-types-docs",
+                "title": "Solidity 0.8.36 Structs",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#structs",
+                "format": "documentation",
+                "scope": "Sections \"Data location and assignment behavior\" and \"Structs\"",
+                "estimatedMinutes": 16,
+                "why": "The reference contract demonstrates a storage struct alias and the mapping-member restriction while the assignment rules establish when memory receives a copy.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-struct-crud-worked",
+            "purpose": "Build array-backed Todo struct creation, lookup, update, and deletion",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-struct-crud-cyfrin",
+                "title": "Structs — Solidity Code Example",
+                "url": "https://www.cyfrin.io/glossary/structs-solidity-code-example",
+                "format": "article",
+                "scope": "Entire article (10 min)",
+                "estimatedMinutes": 10,
+                "why": "The compact Todos contract exercises positional, named, and staged construction plus array-backed CRUD, complementing the canonical location rules.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Enums",
       "type": "pattern",
       "domain": "Web3",
-      "description": "An enum is a set of named constants backed by uint8, defaulting to its first member (index 0) and capped at 256 members. It documents state machines (e.g. Status.Pending/Shipped/Delivered) far more safely than raw integers. Casting an out-of-range integer into an enum reverts with a Panic since 0.8, so enums also validate their own domain. Resources: 📖 https://solidity-by-example.org/enum/",
+      "description": "An enum is a set of named constants represented in the ABI as uint8, defaulting to its first member (index 0) and capped at 256 members. It documents state machines (e.g. Status.Pending/Shipped/Delivered) far more safely than raw integers. Casting an out-of-range integer into an enum reverts with a Panic since 0.8, so enums also validate their own domain.",
       "aiContext": "Build: implement contracts/phase02/Shipping.sol modelling a Status enum with legal transitions guarded by requires, with a test in test/phase02/Shipping.t.sol. Done when: forge test passes and the test proves an illegal transition reverts and casting uint8(99) to Status reverts.",
       "prerequisiteTitles": ["Value types & their defaults"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-enum-domain-semantics",
+            "purpose": "Define enum defaults, member bounds, representation, and checked conversions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-enum-types-docs",
+                "title": "Solidity 0.8.36 Enums",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/types.html#enums",
+                "format": "documentation",
+                "scope": "Section \"Enums\"",
+                "estimatedMinutes": 8,
+                "why": "This narrow canonical section states the first-member default, 256-member limit, unsigned sequence, and Panic on an out-of-range integer conversion.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Ether & Wei units",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The EVM counts value in wei; 1 ether = 1e18 wei and 1 gwei = 1e9 wei, with wei/gwei/ether literal suffixes and seconds/minutes/days time suffixes. msg.value and address.balance are always in wei, so forgetting the 18-decimal scale is a pervasive off-by-1e18 bug. Resources: 📖 https://solidity-by-example.org/ether-units/",
+      "description": "The EVM counts value in wei; 1 ether = 1e18 wei and 1 gwei = 1e9 wei, with wei/gwei/ether literal suffixes and seconds/minutes/days time suffixes. msg.value and address.balance are always in wei, so forgetting the 18-decimal scale is a pervasive off-by-1e18 bug.",
       "aiContext": "Build: implement contracts/phase02/Units.sol with pure helpers converting between ether and wei and a function comparing 1 ether == 1e18 wei, with a test in test/phase02/Units.t.sol. Done when: forge test passes and the test asserts 1 ether == 1e18 and 1 gwei == 1e9.",
       "prerequisiteTitles": ["Value types & their defaults"],
-      "parentTitle": "Types & data locations"
+      "parentTitle": "Types & data locations",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-ether-unit-semantics",
+            "purpose": "Relate Solidity denomination suffixes to raw wei transaction and balance values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-ether-units-docs",
+                "title": "Solidity 0.8.36 Units and Global Variables",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/units-and-global-variables.html#ether-units",
+                "format": "documentation",
+                "scope": "Sections \"Ether Units\", \"Block and Transaction Properties\", and \"Members of Address Types\"",
+                "estimatedMinutes": 12,
+                "why": "The official reference supplies the exact suffix multipliers and defines msg.value and address.balance in the same bounded reading path.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Functions & return values",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Functions can return multiple values as a tuple, using either unnamed returns with an explicit return statement or named returns that are pre-declared and can be assigned then implicitly returned. Callers destructure tuples with (a, , c) syntax, skipping fields. Mixing a named return with an explicit return of a different value is a common confusion that shadows the named variable. Resources: 📖 https://solidity-by-example.org/function/",
+      "description": "Functions can return multiple values as a tuple, using either unnamed returns with an explicit return statement or named returns that are pre-declared and can be assigned then implicitly returned. Callers destructure tuples with (a, , c) syntax, skipping fields. An explicit return supplies its expressions directly instead of returning the current named return-variable values, so mixing the two styles is easy to misread.",
       "aiContext": "Build: implement contracts/phase02/Functions.sol with one function using named returns and one using an explicit tuple return, plus a caller that destructures both, with a test in test/phase02/Functions.t.sol. Done when: forge test passes and the test asserts both return the same tuple and destructuring skips the middle value.",
       "prerequisiteTitles": ["Value types & their defaults"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-function-return-semantics",
+            "purpose": "Declare named and unnamed return variables and return multiple values correctly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-function-returns-docs",
+                "title": "Solidity 0.8.36 Function Returns",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#function-parameters-and-return-variables",
+                "format": "documentation",
+                "scope": "Sections \"Function Parameters and Return Variables\", \"Return Variables\", and \"Returning Multiple Values\"",
+                "estimatedMinutes": 14,
+                "why": "The canonical examples distinguish implicit named returns from explicit tuple returns and define the types and arity constraints used by both Build functions.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-function-destructuring",
+            "purpose": "Destructure returned tuples while deliberately omitting unused components",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-function-destructuring-docs",
+                "title": "Solidity 0.8.36 Destructuring Assignments",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/control-structures.html#destructuring-assignments-and-returning-multiple-values",
+                "format": "documentation",
+                "scope": "Section \"Destructuring Assignments and Returning Multiple Values\"",
+                "estimatedMinutes": 10,
+                "why": "Its worked tuple assignment explicitly leaves the middle return component blank, exactly matching the caller and assertion in the Done-when.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "View & pure functions",
       "type": "pattern",
       "domain": "Web3",
-      "description": "view promises to read but not modify state; pure promises to neither read nor modify it, and the compiler enforces both. Called externally they use STATICCALL, so an on-chain caller cannot smuggle a state change through a view function. They cost gas only when invoked inside a transaction — a pure/view call from off-chain via eth_call is free. Resources: 📖 https://solidity-by-example.org/view-and-pure-functions/",
+      "description": "view promises to read but not modify state; pure promises to neither read nor modify it, and the compiler enforces both. External view calls use STATICCALL, so an on-chain caller cannot smuggle a state change through a normal view call. They cost gas when invoked inside a transaction — a pure/view call simulated off-chain via eth_call consumes no on-chain gas.",
       "aiContext": "Build: implement contracts/phase02/ViewPure.sol with a view getter over state and a pure math function, with a test in test/phase02/ViewPure.t.sol. Done when: forge test passes and the contract compiles only because neither function writes state (prove by asserting the getter's value equals the stored value).",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-state-mutability-semantics",
+            "purpose": "Separate view and pure compile-time promises from their on-chain call behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-state-mutability-docs",
+                "title": "Solidity 0.8.36 State Mutability",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#state-mutability",
+                "format": "documentation",
+                "scope": "Sections \"State Mutability\", \"View Functions\", and \"Pure Functions\"",
+                "estimatedMinutes": 14,
+                "why": "The language reference lists forbidden reads and writes and documents STATICCALL enforcement, including the library-call caveat absent from short tutorials.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Visibility specifiers",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Every function and state variable has a visibility: public (callable anywhere; state vars get an auto getter), external (only from outside; its calldata args are cheapest), internal (this contract and derived), or private (only the declaring contract). Crucially, private/internal restrict Solidity call access only — the data is still fully readable on-chain, so private is not confidentiality. Resources: 📖 https://solidity-by-example.org/visibility/",
+      "description": "Functions use public (internal or external calls), external (message calls, including this.f()), internal (this contract and derived contracts), or private (only the declaring contract) visibility. State variables use public, internal, or private, and public state variables receive generated getters. Crucially, private/internal restrict Solidity access only — the data is still readable on-chain, so private is not confidentiality.",
       "aiContext": "Build: implement contracts/phase02/Visibility.sol with one function per level and a derived contract that can reach internal but not private, with a test in test/phase02/Visibility.t.sol. Done when: forge test passes and the test calls each externally-reachable function and confirms the private one is not part of the ABI.",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-visibility-call-boundaries",
+            "purpose": "Map function and state-variable visibility to internal calls, message calls, and ABI exposure",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-visibility-contracts-docs",
+                "title": "Solidity 0.8.36 Visibility and Getters",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#visibility-and-getters",
+                "format": "documentation",
+                "scope": "Sections \"State Variable Visibility\", \"Function Visibility\", and \"Getter Functions\"",
+                "estimatedMinutes": 16,
+                "why": "The canonical rules distinguish state-variable and function visibility and show why external functions remain callable internally only through this.f().",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-visibility-confidentiality",
+            "purpose": "Reject the misconception that private Solidity storage is secret on-chain",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-private-information-docs",
+                "title": "Solidity 0.8.36 Security Considerations",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/security-considerations.html#private-information-and-randomness",
+                "format": "documentation",
+                "scope": "Section \"Private Information and Randomness\"",
+                "estimatedMinutes": 5,
+                "why": "The official security warning directly states that even local and private state values are publicly visible, supplying the adversarial boundary for the card.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Function modifiers",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A modifier wraps a function body, splicing it in at the _ placeholder to run code before and/or after — the standard tool for access control (onlyOwner), pausing, and reentrancy guards. A modifier without _ silently skips the entire function body, and modifier order matters when several apply. Modifiers can take arguments and read function context. Resources: 📖 https://solidity-by-example.org/function-modifier/",
+      "description": "A modifier wraps a function body, splicing it in at the _ placeholder to run code before and/or after — the standard tool for access control (onlyOwner), pausing, and reentrancy guards. A modifier without _ skips the entire function body, and modifier order matters when several apply. Modifiers can take arguments and read function context.",
       "aiContext": "Build: implement contracts/phase02/Modifiers.sol with onlyOwner, a validAddress(addr) parametrized modifier, and a before/after guard using code on both sides of _, with a test in test/phase02/Modifiers.t.sol. Done when: forge test passes and the test proves a non-owner call reverts and the after-body code runs.",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-modifier-language-semantics",
+            "purpose": "Place the wrapped body precisely and reason about modifier composition order",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-modifier-contracts-docs",
+                "title": "Solidity 0.8.36 Function Modifiers",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#function-modifiers",
+                "format": "documentation",
+                "scope": "Section \"Function Modifiers\"",
+                "estimatedMinutes": 14,
+                "why": "The canonical examples define placeholder insertion, arguments, multiple placeholders, and execution order rather than presenting modifiers as access-control macros only.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-modifier-worked-patterns",
+            "purpose": "Implement parameterized validation and before-and-after modifier code in one contract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-modifier-cyfrin-example",
+                "title": "Function Modifier — Solidity Code Example",
+                "url": "https://www.cyfrin.io/glossary/function-modifier-solidity-code-example",
+                "format": "article",
+                "scope": "Entire article (12 min)",
+                "estimatedMinutes": 12,
+                "why": "Its onlyOwner, validAddress, and noReentrancy examples cover all three modifier shapes named by the Build, unlike the shorter Updraft lesson.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "The constructor",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The constructor runs exactly once at deployment to initialize state and set immutables, then is discarded — it is not part of the deployed runtime bytecode and can never be called again. It may take arguments (passed in the deploy transaction) and be payable. Base-contract constructors must be given their arguments via the inheritance list or a modifier-style call. Resources: 📖 https://solidity-by-example.org/constructor/",
+      "description": "The constructor runs exactly once at deployment to initialize state and set immutables, then is discarded — it is not part of the deployed runtime bytecode and can never be called again. It may take arguments (passed in the deploy transaction) and be payable. Base-contract constructors must be given their arguments via the inheritance list or a modifier-style call.",
       "aiContext": "Build: implement contracts/phase02/Owned.sol setting owner = msg.sender in the constructor and a Base/Derived pair passing constructor args up the chain, with a test in test/phase02/Owned.t.sol. Done when: forge test passes and the test asserts owner equals the deployer and the base arg propagated.",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-constructor-lifecycle",
+            "purpose": "Initialize deployment state and pass every required base-constructor argument",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-constructor-contracts-docs",
+                "title": "Solidity 0.8.36 Constructors",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#constructors",
+                "format": "documentation",
+                "scope": "Sections \"Constructors\" and \"Arguments for Base Constructors\"",
+                "estimatedMinutes": 16,
+                "why": "The released reference distinguishes creation code from runtime code and demonstrates both legal base-argument forms used by the Derived Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Control flow: conditionals & loops",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Solidity has if/else, for, while, do-while, break and continue, but no switch (switch exists only in Yul). Because every step is gas-metered, an unbounded loop over a growable array is a denial-of-service risk once the iteration cost exceeds the block gas limit. Prefer pull-over-push and bounded loops with an explicit cap. Resources: 📖 https://solidity-by-example.org/loop/",
+      "description": "Solidity has if/else, for, while, do-while, break and continue, but no switch (switch exists only in Yul). Because every step is gas-metered, an unbounded loop over a growable array is a denial-of-service risk once the iteration cost exceeds the block gas limit. Prefer pull-over-push and bounded loops with an explicit cap.",
       "aiContext": "Build: implement contracts/phase02/Loops.sol with a bounded sum loop and a comment marking why the unbounded variant is unsafe, with a test in test/phase02/Loops.t.sol. Done when: forge test passes and the test asserts the loop sums a fixed array correctly.",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Functions, visibility & modifiers"
+      "parentTitle": "Functions, visibility & modifiers",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-control-flow-syntax",
+            "purpose": "Apply Solidity's conditional, loop, break, continue, and return constructs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-control-flow-docs",
+                "title": "Solidity 0.8.36 Control Structures",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/control-structures.html#control-structures",
+                "format": "documentation",
+                "scope": "Section \"Control Structures\"",
+                "estimatedMinutes": 8,
+                "why": "This short canonical section enumerates the high-level constructs and their boolean-condition rules without importing Yul switch semantics.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-control-flow-gas-bound",
+            "purpose": "Explain why storage-dependent iteration needs a defensible upper bound",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-control-loop-security-docs",
+                "title": "Solidity 0.8.36 Security Considerations",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/security-considerations.html#gas-limit-and-loops",
+                "format": "documentation",
+                "scope": "Section \"Gas Limit and Loops\"",
+                "estimatedMinutes": 7,
+                "why": "The official pitfall connects unbounded iteration to transaction and composability failure, supplying the reason for the Build's explicit bound.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Reading & writing state variables",
       "type": "pattern",
       "domain": "Web3",
-      "description": "State variables live in contract storage; reading is an SLOAD and writing an SSTORE, both far pricier than memory. A cold SLOAD (first touch in a tx) costs 2100 gas and a warm one 100; writing a zero slot to non-zero costs 20000, and clearing a slot to zero refunds gas. Minimizing storage touches is the single biggest lever in gas optimization. Resources: 📖 https://solidity-by-example.org/state-variables/",
+      "description": "Persistent state variables live in contract storage; a simple value read compiles to SLOAD and a write to SSTORE, both far pricier than memory. Under the current access-list schedule, the first SLOAD of a slot in a transaction costs 2100 gas and a warm SLOAD costs 100. SSTORE metering depends on the original, current, and new values; setting a warm zero slot to non-zero has a 20000-gas base cost, a first cold touch adds 2100, and eligible clearing can earn a capped refund. Minimizing repeated storage touches is a major gas-optimization lever.",
       "aiContext": "Build: implement contracts/phase02/State.sol with get/set of a uint and a function caching a storage read in a memory local before a loop, with a gas-snapshot test in test/phase02/State.t.sol. Done when: forge test passes and the snapshot shows the cached-read version costs less gas than re-reading storage in the loop.",
       "prerequisiteTitles": ["Reference types & data location"],
-      "parentTitle": "Storage layout"
+      "parentTitle": "Storage layout",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-state-variable-storage",
+            "purpose": "Connect persistent Solidity state variables to contract storage lifetime",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-state-variable-docs",
+                "title": "Solidity 0.8.36 Structure of a Contract",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/structure-of-a-contract.html#state-variables",
+                "format": "documentation",
+                "scope": "Section \"State Variables\"",
+                "estimatedMinutes": 6,
+                "why": "This focused language section establishes persistent state before the separate protocol specifications explain how its EVM accesses are priced.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-storage-access-pricing",
+            "purpose": "Calculate cold and warm storage-read charges and the cold SSTORE surcharge",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-eip2929-storage-access",
+                "title": "EIP-2929: Gas cost increases for state access opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2929",
+                "format": "documentation",
+                "scope": "Sections \"Parameters\", \"Storage read changes\", and \"SSTORE changes\"",
+                "estimatedMinutes": 14,
+                "why": "The final EIP defines the 2100 cold and 100 warm charges and explicitly adds the cold-access surcharge to SSTORE.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "sol02a-sstore-net-metering",
+            "purpose": "Reason about SSTORE cost from original, current, and replacement slot values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-eip2200-sstore-metering",
+                "title": "EIP-2200: Structured Definitions for Net Gas Metering",
+                "url": "https://eips.ethereum.org/EIPS/eip-2200",
+                "format": "documentation",
+                "scope": "Section \"Specification\"",
+                "estimatedMinutes": 16,
+                "why": "The normative original/current/new decision tree prevents the misleading idea that every non-zero write has one fixed SSTORE price.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "sol02a-storage-refund-rules",
+            "purpose": "Apply the current refund reduction and transaction refund cap to slot clearing",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-eip3529-refunds",
+                "title": "EIP-3529: Reduction in refunds",
+                "url": "https://eips.ethereum.org/EIPS/eip-3529",
+                "format": "documentation",
+                "scope": "Section \"Specification\"",
+                "estimatedMinutes": 8,
+                "why": "This final EIP replaces the older refund amount and cap, keeping the clearing claim aligned with the current mainnet gas schedule.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Storage slots & variable packing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "State variables are assigned to 32-byte slots sequentially from slot 0, and the compiler packs multiple small variables (e.g. three uint64 + a bool) into one slot when they are declared adjacently. Reordering declarations to pack can save a full SSTORE, but only pays off when the packed fields are written together — writing one packed field alone still costs a full slot read-modify-write. Resources: 🔗 https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
-      "aiContext": "Build: implement contracts/phase02/Packing.sol as two structs — one packed (adjacent small types) and one unpacked (a uint256 splitting them) — and set all fields, with a gas-snapshot test in test/phase02/Packing.t.sol. Done when: forge test passes and the snapshot proves the packed layout uses fewer storage slots/gas.",
+      "description": "State variables are assigned to 32-byte slots sequentially from slot 0, and the compiler packs multiple adjacent small variables (e.g. three uint64 + a bool) when they fit in one slot. Reordering declarations can reduce the number of occupied slots and can combine work when packed fields are read or written together. An isolated write to one packed field still needs a full-slot read-modify-write, so packing can have the opposite gas effect when neighboring fields are usually accessed separately.",
+      "aiContext": "Build: implement contracts/phase02/Packing.sol as two structs — one packed (adjacent small types) and one unpacked (a uint256 splitting them) — and set all fields, with a layout assertion and gas snapshot in test/phase02/Packing.t.sol. Done when: forge test passes, the test proves the packed layout occupies fewer slots, and the snapshot records gas without assuming every packed access is cheaper.",
       "prerequisiteTitles": ["Reading & writing state variables"],
-      "parentTitle": "Storage layout"
+      "parentTitle": "Storage layout",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-storage-layout-packing",
+            "purpose": "Derive slot assignments and evaluate when adjacent small fields help or hurt gas",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-storage-layout-docs",
+                "title": "Solidity 0.8.36 Storage Layout",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections \"Layout of State Variables in Storage and Transient Storage\" through the packing gas warning",
+                "estimatedMinutes": 20,
+                "why": "The canonical layout rules and adjacent gas warning jointly cover slot counting, struct boundaries, inheritance order, and isolated-field read-modify-write costs.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "constant vs immutable",
       "type": "pattern",
       "domain": "Web3",
-      "description": "constant values are fixed at compile time and inlined at every use — they occupy no storage slot and must be known before deployment. immutable values are assigned once in the constructor and baked into the deployed bytecode, also using no storage slot, but they can depend on constructor arguments. Both are dramatically cheaper to read than a storage variable. Resources: 📖 https://solidity-by-example.org/immutable/",
+      "description": "constant values are fixed at compile time and substituted at every use — they occupy no storage slot and must be known before deployment. immutable values can be assigned during construction and are substituted into the deployed runtime code, also using no storage slot, but they can depend on constructor arguments. Both are much cheaper to read than a storage variable, though a constant can sometimes be cheaper than an immutable.",
       "aiContext": "Build: implement contracts/phase02/Consts.sol with a constant MAX and an immutable owner set from a constructor arg, plus a storage equivalent, with a gas-snapshot test in test/phase02/Consts.t.sol. Done when: forge test passes and the snapshot shows reading constant/immutable is cheaper than reading the storage version.",
       "prerequisiteTitles": ["Reading & writing state variables"],
-      "parentTitle": "Storage layout"
+      "parentTitle": "Storage layout",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-constant-immutable-semantics",
+            "purpose": "Choose compile-time constants versus construction-time immutable values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-constant-immutable-docs",
+                "title": "Solidity 0.8.36 Constant and Immutable State Variables",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#constant-and-immutable-state-variables",
+                "format": "documentation",
+                "scope": "Sections \"Constant and Immutable State Variables\", \"Constant\", and \"Immutable\"",
+                "estimatedMinutes": 16,
+                "why": "The released reference defines assignment timing, supported expressions, bytecode substitution, and the relative cost caveat omitted by simple storage comparisons.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-constant-immutable-worked",
+            "purpose": "Refactor one compile-time value and one deployer-dependent value away from storage",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-constant-immutable-updraft",
+                "title": "Immutability and Constants — Cyfrin Updraft",
+                "url": "https://updraft.cyfrin.io/courses/solidity/fund-me/solidity-immutability-and-constants",
+                "format": "course",
+                "scope": "Sections \"Constant\" and \"Immutable\"",
+                "estimatedMinutes": 8,
+                "why": "The maintained written lesson performs the same owner/minimum-value refactor and observes deployment gas, giving the Build a concrete before-and-after workflow.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Inheritance & function overriding",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A contract inherits with is, and a base function can be overridden only if it is marked virtual and the child marks override. With multiple inheritance the override list must name every base that declares the function, and Solidity resolves the final implementation by C3 linearization (most-base to most-derived). Getting virtual/override wrong is a compile error, but mis-ordering bases changes which code actually runs. Resources: 📖 https://solidity-by-example.org/inheritance/",
+      "description": "A contract inherits with is, and a base function can be overridden only if it is marked virtual and the child marks override. With multiple inheritance, an explicit override list names the relevant bases unless a documented common-base exception applies. Solidity uses C3 linearization: direct bases are listed from most base-like to most derived, while function lookup searches the listed bases right-to-left. Getting virtual/override wrong is a compile error, but reordering bases can change which implementation runs.",
       "aiContext": "Build: implement contracts/phase02/Inherit.sol with A, B is A, C is A, and D is B, C overriding a virtual foo(), with a test in test/phase02/Inherit.t.sol. Done when: forge test passes and the test asserts D().foo() resolves through the C3 order you predicted.",
       "prerequisiteTitles": ["Visibility specifiers"],
-      "parentTitle": "Inheritance"
+      "parentTitle": "Inheritance",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-inheritance-override-order",
+            "purpose": "Predict virtual override resolution in single and multiple inheritance graphs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-inheritance-contracts-docs",
+                "title": "Solidity 0.8.36 Inheritance",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#inheritance",
+                "format": "documentation",
+                "scope": "Sections \"Inheritance\", \"Function Overriding\", and \"Multiple Inheritance and Linearization\"",
+                "estimatedMinutes": 22,
+                "why": "The canonical diamond examples define virtual/override lists, the common-base exception, base declaration order, and right-to-left lookup needed to predict D.foo().",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Calling parent contracts (super)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "You can invoke an overridden parent function directly by name (Base.foo()) or via super.foo(), which follows the C3 linearized chain rather than a single literal parent. In a diamond, super calls the next contract in the method resolution order — not necessarily the one you wrote is on — which is exactly how patterns like OpenZeppelin's hooks chain multiple mixins. Resources: 📖 https://solidity-by-example.org/super/",
+      "description": "You can invoke an overridden parent function directly by name (Base.foo()) or via super.foo(), which follows the C3-linearized chain rather than a single literal parent. In a diamond, super calls the next contract in the final inheritance order, not necessarily a base named directly in the current contract's is list; this is how cooperative hook chains can reach every mixin once.",
       "aiContext": "Build: implement contracts/phase02/Super.sol where each level appends to a string via super before its own work, with a test in test/phase02/Super.t.sol. Done when: forge test passes and the test asserts the concatenation order matches the C3 linearization, not the declaration order.",
       "prerequisiteTitles": ["Inheritance & function overriding"],
-      "parentTitle": "Inheritance"
+      "parentTitle": "Inheritance",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-super-linearized-dispatch",
+            "purpose": "Trace cooperative super calls through a diamond without skipping a base implementation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-super-contracts-docs",
+                "title": "Solidity 0.8.36 Inheritance super example",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#inheritance",
+                "format": "documentation",
+                "scope": "Section \"Inheritance\", examples contrasting explicit Emittable.emitEvent() calls with super.emitEvent()",
+                "estimatedMinutes": 18,
+                "why": "The official paired diamond contracts show the skipped-base failure and the cooperative super chain, then state the final most-derived-first order explicitly.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Shadowing inherited state variables",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Since 0.6 you cannot redeclare (shadow) an inherited state variable — the child must assign the base's variable instead, and attempting to re-declare it is a compile error. Local variables may still shadow state variables, which compiles but is a readability and audit hazard. Understanding this rule prevents the illusion of two independent variables that are actually one storage slot. Resources: 🔗 https://docs.soliditylang.org/en/latest/contracts.html#inheritance",
+      "description": "Since 0.6 a child cannot redeclare a visible inherited state variable; it must assign the inherited variable instead, and a redeclaration is a compile error. A private base variable is not visible to the child, so the current rule permits the child to use the same name for a distinct variable. Local variables may still shadow state variables, which compiles with a warning and is a readability and audit hazard.",
       "aiContext": "Build: implement contracts/phase02/Shadow.sol where a derived constructor sets an inherited value (the allowed pattern) plus a commented-out illegal redeclare, with a test in test/phase02/Shadow.t.sol. Done when: forge test passes and the test asserts the single inherited variable reflects the child's assignment.",
       "prerequisiteTitles": ["Inheritance & function overriding"],
-      "parentTitle": "Inheritance"
+      "parentTitle": "Inheritance",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-inherited-state-shadowing",
+            "purpose": "Distinguish illegal visible-state redeclaration from assignment and private-name reuse",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-shadowing-contracts-docs",
+                "title": "Solidity 0.8.36 Inheritance",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#inheritance",
+                "format": "documentation",
+                "scope": "Section \"Inheritance\", paragraph beginning \"State variable shadowing is considered as an error\"",
+                "estimatedMinutes": 6,
+                "why": "The current canonical wording limits the error to visible base variables, preserving the private-state exception that the older absolute claim omitted.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Abstract contracts & virtual functions",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A contract is abstract if it has at least one unimplemented (virtual, bodyless) function or is explicitly marked abstract; abstract contracts cannot be deployed and exist to be inherited. They can hold state, constructors, and implemented functions — this is what separates them from interfaces, which can hold none of those. Abstract contracts are the base-class tool for shared logic with pluggable pieces. Resources: 🔗 https://docs.soliditylang.org/en/latest/contracts.html#abstract-contracts",
+      "description": "A contract must be abstract if it has an unimplemented function or does not supply every required base-constructor argument, and a fully implemented contract may also be declared abstract intentionally. Abstract contracts cannot be deployed directly. They can hold state, constructors, and implemented functions — unlike interfaces, which cannot declare state variables or constructors and cannot implement functions. Abstract contracts are the base-class tool for shared logic with pluggable pieces.",
       "aiContext": "Build: implement contracts/phase02/Abstract.sol with an abstract Base declaring a virtual fee() and shared logic, and a concrete Child implementing fee(), with a test in test/phase02/Abstract.t.sol. Done when: forge test passes and the test deploys only Child and asserts the shared logic uses Child's fee().",
       "prerequisiteTitles": ["Inheritance & function overriding"],
-      "parentTitle": "Inheritance"
+      "parentTitle": "Inheritance",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-abstract-contract-boundary",
+            "purpose": "Define an abstract base and separate its capabilities from an interface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-abstract-contracts-docs",
+                "title": "Solidity 0.8.36 Abstract Contracts and Interfaces",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#abstract-contracts",
+                "format": "documentation",
+                "scope": "Sections \"Abstract Contracts\" and \"Interfaces\"",
+                "estimatedMinutes": 16,
+                "why": "These adjacent canonical sections define every reason abstract is required and enumerate interface restrictions before showing a concrete override.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Events & indexed topics",
       "type": "pattern",
       "domain": "Web3",
-      "description": "emit writes an event to the transaction log — the cheap, canonical way to surface state changes to off-chain indexers and UIs. Up to three parameters may be indexed, becoming filterable topics, while the rest are ABI-encoded into the log's data. Indexing a dynamic type (string/bytes) stores only its keccak hash in the topic, so the original value cannot be recovered from the log — a frequent surprise. Resources: 📖 https://solidity-by-example.org/events/",
+      "description": "emit writes an event to the transaction log — the standard way to surface state changes to off-chain indexers and UIs. A non-anonymous event may index up to three parameters, making them filterable topics, while the rest are ABI-encoded into the log's data. Indexing a dynamic or otherwise complex type stores a Keccak-256 hash of its special in-place encoding, so the original value cannot be decoded from the topic alone.",
       "aiContext": "Build: implement contracts/phase02/Events.sol emitting Transfer(address indexed from, address indexed to, uint value), with a test in test/phase02/Events.t.sol using vm.expectEmit. Done when: forge test passes and the test asserts the emitted topics and data match the expected event.",
       "prerequisiteTitles": ["Functions & return values"],
-      "parentTitle": "Events & logging"
+      "parentTitle": "Events & logging",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-event-language-usage",
+            "purpose": "Declare, emit, and filter normal and anonymous Solidity events",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-events-contracts-docs",
+                "title": "Solidity 0.8.36 Events",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/contracts.html#events",
+                "format": "documentation",
+                "scope": "Section \"Events\"",
+                "estimatedMinutes": 12,
+                "why": "The language reference demonstrates indexed declarations and emit syntax and states the three-versus-four indexed-argument boundary and contract-read limitation.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "sol02a-event-abi-encoding",
+            "purpose": "Predict which event values occupy topics and which are ABI-encoded into data",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-events-abi-spec",
+                "title": "Solidity 0.8.36 Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/abi-spec.html#events",
+                "format": "documentation",
+                "scope": "Section \"Events\"",
+                "estimatedMinutes": 14,
+                "why": "The canonical ABI specification distinguishes direct 32-byte indexed values from hashes of complex values and defines non-indexed data encoding exactly.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Log anatomy: topics vs data",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A log entry has up to four 32-byte topics plus an arbitrary-length data blob. For a normal event, topic0 is keccak256 of the event signature and the remaining topics are the indexed args; non-indexed args are ABI-encoded into data. An anonymous event omits topic0, freeing a fourth indexed slot but making the event unfilterable by signature. Contracts cannot read logs — logs are output for the outside world only. Resources: 🔗 https://docs.soliditylang.org/en/latest/contracts.html#events",
+      "description": "A log entry has up to four 32-byte topics plus a data byte array. For a normal event, topic0 is keccak256 of the canonical event signature and the remaining topics represent indexed arguments; non-indexed arguments are ABI-encoded into data. An anonymous event omits topic0, freeing a fourth indexed slot but preventing filtering by an event-signature topic. Contracts cannot read logs directly — logs are output for off-chain consumers.",
       "aiContext": "Build: in contracts/phase02/LogAnatomy.sol declare a normal and an anonymous event, emit both, and record the topic layout in a comment, with a test in test/phase02/LogAnatomy.t.sol using vm.recordLogs. Done when: forge test passes and the test asserts the normal event's topic0 equals keccak256 of its signature and the anonymous event has no topic0.",
       "prerequisiteTitles": ["Events & indexed topics"],
-      "parentTitle": "Events & logging"
+      "parentTitle": "Events & logging",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sol02a-log-topic-data-layout",
+            "purpose": "Reconstruct normal and anonymous event logs from the ABI event definition",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sol02a-log-anatomy-abi-spec",
+                "title": "Solidity 0.8.36 Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/v0.8.36/abi-spec.html#events",
+                "format": "documentation",
+                "scope": "Section \"Events\"",
+                "estimatedMinutes": 16,
+                "why": "This narrow official specification defines topic0, indexed-topic offsets, anonymous-event indexing, and data encoding in the exact form asserted by vm.recordLogs.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "proposedPrompts": [
@@ -257,7 +1107,7 @@
     {
       "topicTitle": "Reference types & data location",
       "promptText": "What are the three data locations, and what happens when you assign a storage state variable to a storage local?",
-      "answerHint": "storage (persistent; a pointer when local), memory (mutable in-tx copy), calldata (read-only, cheapest for external args). A storage local aliases the original — writes hit the state var, not a copy. Pitfall: expecting a copy and getting an alias silently mutates state.",
+      "answerHint": "storage (persistent; a reference when local), memory (a mutable per-call copy), calldata (read-only input that avoids a memory copy). A storage local aliases the original — writes hit the state var, not a copy. Pitfall: expecting a copy and getting an alias silently mutates state.",
       "promptKind": "concept"
     },
     {
@@ -293,7 +1143,7 @@
     {
       "topicTitle": "Enums",
       "promptText": "What is an enum's default value and backing type, and what happens on an out-of-range cast?",
-      "answerHint": "Backed by uint8, default is the first member (index 0), max 256 members. Casting an out-of-range integer to the enum reverts with a Panic since 0.8. Pitfall: relying on a 'zero = unset' sentinel is impossible — index 0 is a real, valid member.",
+      "answerHint": "The ABI represents an enum as uint8; its default is the first member (index 0), and it has at most 256 members. Casting an out-of-range integer to the enum reverts with a Panic since 0.8. Pitfall: relying on a 'zero = unset' sentinel is impossible — index 0 is a real, valid member.",
       "promptKind": "concept"
     },
     {
@@ -305,7 +1155,7 @@
     {
       "topicTitle": "Functions & return values",
       "promptText": "How do named returns differ from an explicit return, and how does a caller take just the third of three returns?",
-      "answerHint": "Named returns pre-declare variables you assign then implicitly return; explicit return sends a tuple. Destructure with (, , c) = f(); skipping fields. Pitfall: mixing a named return var with an explicit return of another value shadows/ignores the named one.",
+      "answerHint": "Named returns pre-declare variables that can be assigned and implicitly returned; an explicit return supplies its expressions directly. Destructure with (, , c) = f(); to skip fields. Pitfall: mixing implicit named returns with explicit return expressions is easy to misread.",
       "promptKind": "concept"
     },
     {
@@ -317,7 +1167,7 @@
     {
       "topicTitle": "Visibility specifiers",
       "promptText": "Name the four visibility levels and correct the myth that private data is hidden.",
-      "answerHint": "public (anywhere + auto getter), external (only from outside; cheap calldata args), internal (this + derived), private (only declaring contract). Pitfall: private/internal restrict Solidity call access only — every storage slot is publicly readable on-chain, so 'private' is never confidentiality.",
+      "answerHint": "Functions can be public (internal or external calls), external (message calls, including this.f()), internal (this contract and derived contracts), or private (only the declaring contract). State variables use public, internal, or private; public variables receive generated getters. Pitfall: private/internal restrict Solidity access only — storage remains readable on-chain.",
       "promptKind": "concept"
     },
     {
@@ -347,7 +1197,7 @@
     {
       "topicTitle": "Reading & writing state variables",
       "promptText": "Compare the gas of a cold SLOAD, a warm SLOAD, and a zero→non-zero SSTORE.",
-      "answerHint": "Cold SLOAD 2100, warm SLOAD 100, zero→non-zero SSTORE 20000 (non-zero→non-zero 5000; clearing refunds). Pitfall: re-reading the same storage var in a loop pays warm SLOADs repeatedly — cache it in a memory local first.",
+      "answerHint": "A cold SLOAD costs 2100 gas and a warm SLOAD 100. A warm zero→non-zero SSTORE has a 20000-gas base cost; a first cold touch adds 2100. Other SSTORE costs depend on the original, current, and new values, and eligible refunds are capped. Pitfall: cache repeated storage reads in a local.",
       "promptKind": "concept"
     },
     {
@@ -359,25 +1209,25 @@
     {
       "topicTitle": "Storage slots & variable packing",
       "promptText": "How does the compiler pack state variables, and when does packing NOT help?",
-      "answerHint": "It lays variables out sequentially from slot 0 and packs adjacent sub-32-byte types into one slot. Packing saves an SSTORE only when the fields are written together. Pitfall: writing one packed field alone forces a full read-modify-write of the shared slot, so packing rarely-co-written fields can cost more.",
+      "answerHint": "It lays variables out sequentially from slot 0 and packs adjacent sub-32-byte types into one slot. Packing reduces occupied slots and can combine work when neighboring fields are accessed together. Pitfall: writing one packed field alone requires a full-slot read-modify-write, so packing separately accessed fields can cost more.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "constant vs immutable",
       "promptText": "How do constant and immutable differ, and what do they share?",
-      "answerHint": "constant is fixed at compile time and inlined; immutable is set once in the constructor (can use constructor args) and baked into bytecode. Both use no storage slot and are cheap to read. Pitfall: constant can't depend on runtime data; immutable can't be written outside the constructor.",
+      "answerHint": "constant is fixed at compile time and substituted at each use; immutable can be assigned during construction from values such as constructor arguments and is substituted into runtime code. Neither occupies a storage slot, though a constant can sometimes be cheaper. Pitfall: an immutable cannot be assigned after construction.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Inheritance & function overriding",
       "promptText": "What must a base and child mark to override, and how is multiple inheritance resolved?",
-      "answerHint": "Base marks virtual, child marks override (and lists every base that declares it, e.g. override(A, B)). Multiple inheritance resolves by C3 linearization, most-base to most-derived. Pitfall: reordering bases in the is list silently changes which implementation super reaches.",
+      "answerHint": "Base marks virtual and child marks override. With multiple inheritance, the override list names the relevant bases unless the documented common-base exception applies. Direct bases are declared from most base-like to most derived, and lookup searches them right-to-left. Pitfall: reordering bases can change resolution.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Inheritance & function overriding",
       "promptText": "Write the signature of a child function that overrides a foo() declared virtual in both A and B.",
-      "answerHint": "function foo() public override(A, B) { ... } — override must name every base that declares foo.",
+      "answerHint": "function foo() public override(A, B) { ... } — when both A and B independently declare foo, the override list names both; Solidity documents an exception when one base inherits the declaring function from another.",
       "promptKind": "code"
     },
     {
@@ -389,19 +1239,19 @@
     {
       "topicTitle": "Shadowing inherited state variables",
       "promptText": "Can a child redeclare an inherited state variable? How should it set the base's value?",
-      "answerHint": "No — redeclaring (shadowing) an inherited state variable is a compile error since 0.6; assign the inherited variable directly (e.g. in the constructor). Pitfall: local variables CAN shadow state variables and compile, hiding which one you're reading.",
+      "answerHint": "A child cannot redeclare a visible inherited state variable; assign that inherited variable directly. A private base variable is not visible, so the child may use the same name for a distinct variable. Pitfall: local variables can shadow state variables and compile with a warning.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Abstract contracts & virtual functions",
       "promptText": "What makes a contract abstract, and how does it differ from an interface?",
-      "answerHint": "Having any unimplemented (virtual) function or the abstract keyword; it can't be deployed. Unlike an interface, an abstract contract may hold state, a constructor, and implemented functions. Pitfall: an unimplemented function must be virtual, and the contract can only be used by inheriting and completing it.",
+      "answerHint": "A contract must be abstract if it has an unimplemented function or lacks required base-constructor arguments; a fully implemented contract may also be marked abstract intentionally. It cannot be deployed directly. Unlike an interface, it may hold state, constructors, and implemented functions.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Events & indexed topics",
       "promptText": "How many event parameters can be indexed, and what is lost by indexing a string?",
-      "answerHint": "Up to three indexed parameters become filterable topics; the rest go into ABI-encoded data. Pitfall: an indexed dynamic type (string/bytes) stores only keccak256 of the value in the topic — the original is unrecoverable from the log, so index a hash only if you already know the preimage.",
+      "answerHint": "A non-anonymous event may index up to three parameters; an anonymous event may index four. The rest go into ABI-encoded data. Pitfall: an indexed dynamic or complex value stores Keccak-256 of its special in-place encoding, so the original is not decodable from the topic alone.",
       "promptKind": "concept"
     },
     {

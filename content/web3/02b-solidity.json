@@ -7,7 +7,7 @@
       "title": "Errors & reverts",
       "type": "concept",
       "domain": "Web3",
-      "description": "How Solidity signals failure and rolls back: require/revert/assert, custom errors, and the Error(string) / Panic(uint) selectors the EVM returns. Resources: https://solidity-by-example.org/error/",
+      "description": "How Solidity signals failure and rolls back: require/revert/assert, custom errors, and the Error(string) / Panic(uint) selectors the EVM returns.",
       "prerequisiteTitles": ["Functions, visibility & modifiers"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -15,7 +15,7 @@
       "title": "ETH transfer",
       "type": "concept",
       "domain": "Web3",
-      "description": "Receiving and sending native ETH: payable, msg.value, transfer/send/call, and the receive/fallback special functions. The most reentrancy-prone corner of the language. Resources: https://solidity-by-example.org/sending-ether/",
+      "description": "Receiving and sending native ETH: payable, msg.value, transfer/send/call, and the receive/fallback special functions. The most reentrancy-prone corner of the language.",
       "prerequisiteTitles": ["Functions, visibility & modifiers"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -23,7 +23,7 @@
       "title": "Low-level calls",
       "type": "concept",
       "domain": "Web3",
-      "description": "The raw call/delegatecall/staticcall primitives and try/catch — how contracts talk to other contracts, the storage-context trap of delegatecall, and the read-only guarantee of staticcall. Resources: https://solidity-by-example.org/call/",
+      "description": "The raw call/delegatecall/staticcall primitives and try/catch — how contracts talk to other contracts, the storage-context trap of delegatecall, and the read-only guarantee of staticcall.",
       "prerequisiteTitles": ["ETH transfer"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -31,7 +31,7 @@
       "title": "ABI encoding & decoding",
       "type": "concept",
       "domain": "Web3",
-      "description": "How arguments are serialized for calls and hashes: abi.encode vs encodePacked, abi.decode, function selectors, and encodeCall/encodeWithSelector. Collision-safety matters. Resources: https://solidity-by-example.org/abi-encode/",
+      "description": "How arguments are serialized for calls and hashes: abi.encode vs encodePacked, abi.decode, function selectors, and encodeCall/encodeWithSelector. Collision-safety matters.",
       "prerequisiteTitles": ["Low-level calls"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -39,7 +39,7 @@
       "title": "Hashing",
       "type": "concept",
       "domain": "Web3",
-      "description": "keccak256 as Ethereum's universal hash — mappings, merkle proofs, selectors, and commit-reveal — and the encode-vs-encodePacked collision trap when hashing. Resources: https://solidity-by-example.org/hashing/",
+      "description": "keccak256 as Ethereum's universal hash — mappings, merkle proofs, selectors, and commit-reveal — and the encode-vs-encodePacked collision trap when hashing.",
       "prerequisiteTitles": ["ABI encoding & decoding"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -47,7 +47,7 @@
       "title": "Signatures (ECDSA & EIP-712)",
       "type": "concept",
       "domain": "Web3",
-      "description": "Verifying off-chain authorizations on-chain: ecrecover, malleability, the EIP-191 prefix, and EIP-712 typed structured data with a domain separator for safe, human-readable signing. Resources: https://eips.ethereum.org/EIPS/eip-712",
+      "description": "Verifying off-chain authorizations on-chain: ecrecover, malleability, the EIP-191 prefix, and EIP-712 typed structured data with a domain separator for safe, human-readable signing.",
       "prerequisiteTitles": ["Hashing"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -55,7 +55,7 @@
       "title": "Libraries & interfaces",
       "type": "concept",
       "domain": "Web3",
-      "description": "Reusable, stateless libraries (using-for, internal-inlined vs external-delegatecalled) and interfaces for type-safe cross-contract calls. Resources: https://solidity-by-example.org/library/",
+      "description": "Reusable libraries (using-for; internal functions compiled into the caller, public/external functions delegatecalled) and interfaces for type-safe cross-contract calls.",
       "prerequisiteTitles": ["Inheritance"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -63,7 +63,7 @@
       "title": "Assembly & Yul intro",
       "type": "concept",
       "domain": "Web3",
-      "description": "Dropping to inline assembly (Yul): raw opcodes, the memory model (free pointer, scratch space), and direct storage access — power at the cost of every safety check. Resources: https://docs.soliditylang.org/en/latest/assembly.html",
+      "description": "Dropping to inline assembly (Yul): raw opcodes, the memory model (free pointer, scratch space), and direct storage access — power at the cost of every safety check.",
       "prerequisiteTitles": ["Storage layout"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -71,7 +71,7 @@
       "title": "Transient storage",
       "type": "concept",
       "domain": "Web3",
-      "description": "EIP-1153's TSTORE/TLOAD: cheap storage that lives for one transaction then auto-clears — ideal for reentrancy locks and transient accumulators. Resources: https://soliditylang.org/blog/2024/01/26/transient-storage/",
+      "description": "EIP-1153's TSTORE/TLOAD: cheap storage that lives for one transaction then auto-clears — ideal for reentrancy locks and transient accumulators.",
       "prerequisiteTitles": ["Storage layout"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -79,7 +79,7 @@
       "title": "User-defined value types",
       "type": "concept",
       "domain": "Web3",
-      "description": "UDVTs wrap an elementary type in a new, distinct compile-time type (Duration is uint256) for zero-cost type safety without arithmetic operators unless you add them. Resources: https://docs.soliditylang.org/en/latest/types.html#user-defined-value-types",
+      "description": "UDVTs wrap an elementary type in a new, distinct compile-time type (Duration is uint256) for zero-cost type safety without arithmetic operators unless you add them.",
       "prerequisiteTitles": ["Types & data locations"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
@@ -88,8 +88,33 @@
       "title": "Custom errors",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Custom errors (error InsufficientBalance(uint have, uint want); revert InsufficientBalance(...)) replace revert strings since 0.8.4: the revert data is just a 4-byte selector plus ABI-encoded args, far cheaper to deploy and to revert with than a string. They also give callers structured, decodable failure data. Since 0.8.26 you can even use require(cond, CustomError()). Resources: 📖 https://solidity-by-example.org/error/",
+      "description": "Custom errors (error InsufficientBalance(uint have, uint want); revert InsufficientBalance(...)) replace revert strings since 0.8.4: the revert data is a 4-byte selector plus ABI-encoded arguments, far cheaper to deploy and revert with than a string. They also give callers structured, decodable failure data, and modern Solidity supports require(cond, CustomError()).",
       "aiContext": "Build: implement contracts/phase02/Errors.sol with a withdraw guarded by a custom error carrying (have, want), with a test in test/phase02/Errors.t.sol using vm.expectRevert(abi.encodeWithSelector(...)). Done when: forge test passes and the test decodes the error's arguments from the revert data.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "custom-errors-language-semantics",
+            "purpose": "Learn the current declaration, revert/require usage, ABI shape, and gas rationale for custom errors.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "custom-errors-solidity-contracts",
+                "title": "Solidity documentation — Custom Errors",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Section \"Custom Errors\"",
+                "estimatedMinutes": 14,
+                "why": "The maintained language reference shows both revert and require forms, named arguments, selector access, and how error data is ABI-encoded, directly covering the implementation and decoding test.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Function modifiers"],
       "parentTitle": "Errors & reverts"
     },
@@ -97,8 +122,33 @@
       "title": "require, revert & assert",
       "type": "pattern",
       "domain": "Web3",
-      "description": "require validates inputs and preconditions and returns an Error(string); revert does the same for complex/early exits; assert checks invariants that should never fail and returns a Panic(uint) — e.g. 0x11 overflow, 0x12 divide-by-zero, 0x32 array out-of-bounds. Since 0.8 a failed assert reverts and refunds remaining gas rather than consuming it all. A triggered assert means a bug, never a user error. Resources: 🔗 https://docs.soliditylang.org/en/latest/control-structures.html#error-handling-assert-require-revert-and-exceptions",
+      "description": "require validates inputs and preconditions and can revert with empty data, Error(string), or a custom error; revert provides unconditional early exit with the same error choices. assert checks invariants that should never fail and returns Panic(uint) — e.g. 0x11 overflow, 0x12 divide-by-zero, 0x32 array out-of-bounds. Since 0.8 a failed assert reverts without consuming all remaining gas. A triggered assert means a bug, never a user error.",
       "aiContext": "Build: implement contracts/phase02/Guards.sol with a require input check, a revert branch, and an assert invariant, with a test in test/phase02/Guards.t.sol asserting each failure's selector. Done when: forge test passes and the test distinguishes an Error(string) revert from a Panic(0x11) on overflow.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "guards-error-control-flow",
+            "purpose": "Distinguish recoverable input failures from invariant panics and recognize their exact revert-data forms.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "guards-solidity-error-handling",
+                "title": "Solidity documentation — Error handling",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section \"Error handling: Assert, Require, Revert and Exceptions\"",
+                "estimatedMinutes": 20,
+                "why": "The compiler team's reference defines bubbling, empty/string/custom require failures, Panic codes, assert's invariant role, and revert behavior in one authoritative section aligned with every test arm.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Custom errors"],
       "parentTitle": "Errors & reverts"
     },
@@ -107,8 +157,53 @@
       "title": "payable functions & msg.value",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A function must be marked payable to accept ETH; a non-payable function reverts if sent value. msg.value (in wei) is the amount attached to the current call and is visible to internal calls in the same execution context, while address(this).balance is the contract's total. Forgetting payable, or double-counting msg.value across internal calls, are common mistakes. Resources: 📖 https://solidity-by-example.org/payable/",
+      "description": "A function must be marked payable to accept ETH; a non-payable function reverts if sent value. msg.value (in wei) is the amount attached to the current call and is visible to internal calls in the same execution context, while address(this).balance is the contract's total. Forgetting payable, or double-counting msg.value across internal calls, are common mistakes.",
       "aiContext": "Build: implement contracts/phase02/Payable.sol with a payable deposit that credits a balance mapping and a getBalance view of address(this).balance, with a test in test/phase02/Payable.t.sol. Done when: forge test passes and the test proves sending value to a non-payable function reverts and deposit credits msg.value.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "payable-message-value-context",
+            "purpose": "Identify msg.value's unit and how message context changes across external versus internal calls.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "payable-solidity-message-properties",
+                "title": "Solidity documentation — Block and Transaction Properties",
+                "url": "https://docs.soliditylang.org/en/latest/units-and-global-variables.html",
+                "format": "documentation",
+                "scope": "Section \"Block and Transaction Properties\", entries for msg.sender and msg.value plus the following context note",
+                "estimatedMinutes": 8,
+                "why": "The language reference states that msg.value is wei attached to the current message and clarifies when the msg context changes, preventing internal-call double counting.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "payable-value-acceptance",
+            "purpose": "Verify why receiving value requires payable and how value is attached to an external call.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "payable-solidity-external-calls",
+                "title": "Solidity documentation — External Function Calls",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section \"External Function Calls\", paragraphs covering the value call option and payable requirement",
+                "estimatedMinutes": 10,
+                "why": "This exact language section connects the payable marker to value-bearing calls and shows the current call-option syntax used by the Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "ETH transfer"
     },
@@ -116,8 +211,53 @@
       "title": "Sending ETH: transfer, send, call",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Three ways to send ETH differ in gas and error handling: transfer forwards a fixed 2300-gas stipend and reverts on failure; send does the same but returns a bool you must check; call{value: x}(\"\") forwards all remaining gas and returns (bool, bytes). The 2300-gas stipend of transfer/send breaks for contract recipients whose receive logic costs more, so the current guidance is call — combined with checks-effects-interactions or a reentrancy guard, because call reopens reentrancy. Resources: 📖 https://solidity-by-example.org/sending-ether/",
-      "aiContext": "Build: implement contracts/phase02/SendEth.sol exposing sendViaCall that checks the returned success bool, with a test in test/phase02/SendEth.t.sol sending to both an EOA and a contract. Done when: forge test passes and the test asserts a failed call reverts (bubbled) rather than silently succeeding.",
+      "description": "Three ways to send ETH differ in gas and error handling: transfer forwards a fixed 2300-gas stipend and reverts on failure; send does the same but returns a bool you must check; call{value: x}(\"\") forwards the available gas by default and returns (bool, bytes). Current Solidity documentation deprecates transfer and send because fixed-stipend assumptions break as opcode costs change; use call with explicit failure handling, checks-effects-interactions, or a reentrancy guard.",
+      "aiContext": "Build: implement contracts/phase02/SendEth.sol exposing sendViaCall that checks the returned success bool, with a test in test/phase02/SendEth.t.sol sending to both an EOA and a contract. Done when: forge test passes and the test asserts a failed call reverts through explicit failure handling rather than silently continuing.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "send-eth-api-semantics",
+            "purpose": "Compare transfer, send, and call by gas forwarding, return value, failure behavior, and current deprecation status.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "send-eth-solidity-address-members",
+                "title": "Solidity documentation — Members of Addresses",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Section \"Members of Addresses\", subsections for balance and transfer, send, and call/delegatecall/staticcall",
+                "estimatedMinutes": 18,
+                "why": "The current type reference now marks transfer and send deprecated, contrasts their failure behavior, and specifies call's gas and return tuple used by sendViaCall.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "send-eth-reentrancy-safety",
+            "purpose": "Understand why forwarding control creates reentrancy and how checks-effects-interactions or withdrawal design contains it.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "send-eth-solidity-security",
+                "title": "Solidity documentation — Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Sections \"Reentrancy\" and \"Sending and Receiving Ether\"",
+                "estimatedMinutes": 16,
+                "why": "The official adversarial guidance traces the callback risk, demonstrates checks-effects-interactions, and explains why stipend-based delivery can fail or block progress.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["payable functions & msg.value"],
       "parentTitle": "ETH transfer"
     },
@@ -125,8 +265,33 @@
       "title": "receive & fallback",
       "type": "pattern",
       "domain": "Web3",
-      "description": "receive() external payable runs when the contract is sent plain ETH with empty calldata; fallback() external [payable] runs when no function selector matches (or when ETH arrives with data and there is no receive). The dispatch rule: empty calldata + a receive present → receive, otherwise → fallback. A contract with neither cannot accept plain transfers (only forced ETH via selfdestruct/coinbase). Resources: 📖 https://solidity-by-example.org/fallback/",
+      "description": "receive() external payable runs when the contract is sent plain ETH with empty calldata; fallback() external [payable] runs when no function selector matches (or when ETH arrives with data and there is no receive). The dispatch rule: empty calldata + a receive present → receive, otherwise → fallback. A contract with neither cannot accept plain transfers, though protocol balance credits or selfdestruct can force ETH without a message call.",
       "aiContext": "Build: implement contracts/phase02/Fallback.sol with both receive and fallback logging which one ran, with a test in test/phase02/Fallback.t.sol sending empty vs non-matching calldata. Done when: forge test passes and the test proves empty calldata hits receive and unknown-selector calldata hits fallback.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "receive-fallback-dispatch",
+            "purpose": "Apply Solidity's exact empty-calldata, unknown-selector, and payable dispatch rules.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "receive-fallback-solidity-special-functions",
+                "title": "Solidity documentation — Receive and Fallback Functions",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Sections \"Receive Ether Function\" and \"Fallback Function\"",
+                "estimatedMinutes": 18,
+                "why": "The maintained language reference gives the dispatch precedence, payable constraints, calldata form, stipend caveat, and forced-balance exception exercised by the Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["payable functions & msg.value"],
       "parentTitle": "ETH transfer"
     },
@@ -135,8 +300,53 @@
       "title": "Low-level call",
       "type": "pattern",
       "domain": "Web3",
-      "description": "addr.call{value, gas}(abi.encodeWithSelector(...)) is the type-unsafe primitive that forwards a raw payload and returns (bool success, bytes returndata) WITHOUT reverting on failure — you must check success yourself. It also does not verify the target has code: calling an EOA or empty address returns success = true with empty data. This is the escape hatch when you don't have the callee's ABI, at the cost of every compiler guarantee. Resources: 📖 https://solidity-by-example.org/call/",
+      "description": "addr.call{value, gas}(abi.encodeWithSelector(...)) is the type-unsafe primitive that forwards a raw payload and returns (bool success, bytes returndata) WITHOUT reverting on failure — you must check success yourself. It also does not verify the target has code: calling an EOA or empty address returns success = true with empty data. This is the escape hatch when you don't have the callee's ABI, at the cost of every compiler guarantee.",
       "aiContext": "Build: implement contracts/phase02/LowCall.sol invoking a target function via call and reverting on !success, with a test in test/phase02/LowCall.t.sol. Done when: forge test passes and the test proves an unchecked call to a reverting target would silently continue unless success is checked.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "low-call-payload-and-return",
+            "purpose": "Learn raw call payload construction, gas/value options, and the success/returndata result tuple.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "low-call-solidity-address-members",
+                "title": "Solidity documentation — Low-level Address Calls",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Section \"Members of Addresses\", subsection \"call, delegatecall and staticcall\"",
+                "estimatedMinutes": 15,
+                "why": "The type reference defines the raw bytes interface, return tuple, call options, callback risk, and why regular contract-object calls are preferred when an ABI is known.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "low-call-failure-traps",
+            "purpose": "Recognize that low-level failures return false and calls to non-existent accounts can return true.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "low-call-solidity-error-bubbling",
+                "title": "Solidity documentation — Error handling",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section \"Error handling: Assert, Require, Revert and Exceptions\", opening paragraphs on low-level returns",
+                "estimatedMinutes": 8,
+                "why": "This focused warning is the canonical source for the two non-obvious test cases: low-level calls do not bubble automatically and a codeless target reports success.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Sending ETH: transfer, send, call"],
       "parentTitle": "Low-level calls"
     },
@@ -144,8 +354,53 @@
       "title": "delegatecall & storage context",
       "type": "pattern",
       "domain": "Web3",
-      "description": "delegatecall runs the target's code in the CALLER's context: the caller's storage is read and written, and msg.sender/msg.value are preserved from the original call. This is the mechanism behind every proxy, but it demands that the proxy's and implementation's storage layouts match slot-for-slot — a mismatch makes the implementation write to the wrong slots and corrupt state. address(this) is the caller, not the code's contract. Resources: 📖 https://solidity-by-example.org/delegatecall/",
+      "description": "delegatecall runs the target's code in the CALLER's context: the caller's storage is read and written, and msg.sender/msg.value are preserved from the original call. This is the mechanism behind every proxy, but it demands that the proxy's and implementation's storage layouts match slot-for-slot — a mismatch makes the implementation write to the wrong slots and corrupt state. address(this) is the caller, not the code's contract.",
       "aiContext": "Build: implement contracts/phase02/Delegate.sol as a proxy-like caller and a logic contract that sets a uint and address, with a test in test/phase02/Delegate.t.sol proving the caller's storage changes. Done when: forge test passes and the test asserts the logic wrote into the caller's slots and msg.sender inside the logic equals the original caller.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "delegatecall-execution-context",
+            "purpose": "Understand which code, address, balance, storage, msg.sender, and msg.value delegatecall uses.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "delegatecall-solidity-evm-intro",
+                "title": "Solidity documentation — Delegatecall and Libraries",
+                "url": "https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html",
+                "format": "documentation",
+                "scope": "Section \"Delegatecall and Libraries\"",
+                "estimatedMinutes": 10,
+                "why": "The official EVM introduction states the context switch precisely and maps each preserved value to the caller, directly supporting the caller-storage and original-sender assertions.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "delegatecall-storage-compatibility",
+            "purpose": "See how compiler-assigned slots and inheritance ordering make layout compatibility a proxy invariant.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "delegatecall-solidity-storage-layout",
+                "title": "Solidity documentation — Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Section \"Layout of State Variables in Storage and Transient Storage\", opening rules through the external-interface note",
+                "estimatedMinutes": 14,
+                "why": "The compiler reference makes slot ordering and inheritance layout concrete, explaining why identical-looking variables at different slots are corrupted under delegatecall.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Low-level call"],
       "parentTitle": "Low-level calls"
     },
@@ -153,8 +408,51 @@
       "title": "staticcall & read-only enforcement",
       "type": "pattern",
       "domain": "Web3",
-      "description": "staticcall is like call but the EVM reverts the sub-call if it attempts any state change — SSTORE, log emission, contract creation, selfdestruct, or a value-bearing call. It is how external view functions are invoked, guaranteeing a call cannot mutate state behind your back. If you invoke a 'view' function through a raw call instead of staticcall, that guarantee is gone. Resources: 🔗 https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html#index-6",
+      "description": "staticcall is like call but the EVM reverts the sub-call if it attempts any state change — SSTORE, log emission, contract creation, selfdestruct, or a value-bearing call. It is how external view functions are invoked, guaranteeing a call cannot mutate state behind your back. If you invoke a 'view' function through a raw call instead of staticcall, that guarantee is gone.",
       "aiContext": "Build: implement contracts/phase02/Static.sol calling a read-only function via staticcall and a writing function via staticcall (expected to revert), with a test in test/phase02/Static.t.sol. Done when: forge test passes and the test proves the read succeeds and the state-writing staticcall reverts.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "staticcall-solidity-view-enforcement",
+            "purpose": "Connect Solidity external view calls to EVM-level STATICCALL enforcement and its limits.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "staticcall-solidity-view-functions",
+                "title": "Solidity documentation — View Functions",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Section \"View Functions\", paragraphs on STATICCALL enforcement",
+                "estimatedMinutes": 10,
+                "why": "The language reference explains why external view calls use STATICCALL, which state operations count as writes, and why pure is only a compiler-level read restriction.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "staticcall-opcode-semantics",
+            "purpose": "Verify the transitive STATIC flag, zero-value behavior, and forbidden state changes at protocol level.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "staticcall-eip214-specification",
+                "title": "EIP-214: New opcode STATICCALL",
+                "url": "https://eips.ethereum.org/EIPS/eip-214",
+                "format": "documentation",
+                "scope": "Sections \"Simple Summary\" and \"Specification\"",
+                "estimatedMinutes": 10,
+                "why": "The final core EIP is the normative source for the STATIC flag inherited by subcalls and the exact operations that make the Build's writing call fail.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Low-level call"],
       "parentTitle": "Low-level calls"
     },
@@ -162,8 +460,33 @@
       "title": "try/catch for external calls",
       "type": "pattern",
       "domain": "Web3",
-      "description": "try/catch handles reverts from an external call or a new-contract creation only — not internal/private calls. You can branch on catch Error(string reason) (a revert/require string), catch Panic(uint code) (an assert/arithmetic panic), catch (bytes lowLevelData) (custom errors and everything else), or a bare catch. It lets a caller recover instead of bubbling the callee's failure. Resources: 📖 https://solidity-by-example.org/try-catch/",
+      "description": "try/catch handles reverts from an external call or a new-contract creation only — not internal/private calls. You can branch on catch Error(string reason) (a revert/require string), catch Panic(uint code) (an assert/arithmetic panic), catch (bytes lowLevelData) (custom errors and everything else), or a bare catch. It lets a caller recover instead of bubbling the callee's failure.",
       "aiContext": "Build: implement contracts/phase02/TryCatch.sol calling an external contract that can revert with a string, a panic, or a custom error, with a test in test/phase02/TryCatch.t.sol hitting each catch arm. Done when: forge test passes and the test asserts the Error(string) reason and the Panic code are captured separately.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "try-catch-external-failures",
+            "purpose": "Learn the eligible call expressions, typed catch arms, low-level bytes fallback, and decoding edge cases.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "try-catch-solidity-control-structures",
+                "title": "Solidity documentation — try/catch",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section \"try/catch\"",
+                "estimatedMinutes": 18,
+                "why": "The maintained language reference is both canonical and worked: it shows Error, Panic, and bytes arms and states exactly why only an external call or contract creation can be caught.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Low-level call"],
       "parentTitle": "Low-level calls"
     },
@@ -172,8 +495,33 @@
       "title": "abi.encode vs encodePacked",
       "type": "pattern",
       "domain": "Web3",
-      "description": "abi.encode pads every argument to a 32-byte boundary, producing canonical, unambiguously decodable bytes; abi.encodePacked concatenates the minimal representation with no padding, which is compact but NOT decodable and ambiguous for adjacent dynamic types. Because encodePacked((\"a\"),(\"bc\")) equals encodePacked((\"ab\"),(\"c\")), hashing packed user-controlled dynamic arguments can collide — a real authorization-bypass vector. Use encode (or a fixed separator) when the bytes feed a hash used for security. Resources: 📖 https://solidity-by-example.org/abi-encode/",
+      "description": "abi.encode uses standard ABI head/tail encoding with 32-byte words, producing canonical bytes that can be decoded with a known schema; abi.encodePacked concatenates a compact representation without dynamic lengths, which is ambiguous for adjacent dynamic types. Because encodePacked((\"a\"),(\"bc\")) equals encodePacked((\"ab\"),(\"c\")), hashing packed user-controlled dynamic arguments can collide — a real authorization-bypass vector. Use encode when the bytes feed a security-relevant hash.",
       "aiContext": "Build: implement contracts/phase02/AbiEncode.sol with both encoders and a function hashing two strings each way, with a test in test/phase02/AbiEncode.t.sol demonstrating the packed collision. Done when: forge test passes and the test proves two different string pairs produce the SAME encodePacked hash but DIFFERENT encode hashes.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "packed-encoding-collision-model",
+            "purpose": "Compare standard ABI encoding with packed layout and reproduce ambiguity between adjacent dynamic values.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "packed-encoding-solidity-abi-spec",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Section \"Non-standard Packed Mode\", including the collision warning",
+                "estimatedMinutes": 15,
+                "why": "The canonical ABI specification defines which values lose padding or lengths and explicitly demonstrates why two dynamic arguments can collide, exactly matching the adversarial test.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "ABI encoding & decoding"
     },
@@ -181,8 +529,53 @@
       "title": "abi.decode & function selectors",
       "type": "pattern",
       "domain": "Web3",
-      "description": "abi.decode(data, (uint, address)) reverses abi.encode back into typed values. A function selector is the first 4 bytes of keccak256 of the canonical signature (\"transfer(address,uint256)\"); calldata is selector ++ abi.encode(args). Prefer abi.encodeCall(IERC20.transfer, (to, amt)) — it is type-checked at compile time — over abi.encodeWithSignature, whose string signature typos slip through silently. Resources: 📖 https://solidity-by-example.org/abi-decode/",
+      "description": "abi.decode(data, (uint, address)) reverses abi.encode back into typed values. A function selector is the first 4 bytes of keccak256 of the canonical signature (\"transfer(address,uint256)\"); calldata is selector ++ abi.encode(args). Prefer abi.encodeCall(IERC20.transfer, (to, amt)) — it is type-checked at compile time — over abi.encodeWithSignature, whose string signature typos slip through silently.",
       "aiContext": "Build: implement contracts/phase02/AbiDecode.sol that encodes a struct+array with abi.encode, decodes it back, and builds a call payload with abi.encodeCall, with a test in test/phase02/AbiDecode.t.sol. Done when: forge test passes and the test asserts the round-trip decode equals the input and the selector equals bytes4(keccak256(sig)).",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "abi-selector-wire-format",
+            "purpose": "Derive the four-byte selector from a canonical signature and place standard-encoded arguments after it.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "abi-selectors-solidity-spec",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Sections \"Function Selector\", \"Argument Encoding\", and \"Function Selector and Argument Encoding\"",
+                "estimatedMinutes": 15,
+                "why": "The ABI specification defines canonical type names, selector bytes, and the selector-plus-arguments wire format used in the Build's exact equality assertion.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "abi-solidity-helper-functions",
+            "purpose": "Use abi.decode and choose type-checked abi.encodeCall over string-based call construction.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "abi-helpers-solidity-globals",
+                "title": "Solidity documentation — ABI Encoding and Decoding Functions",
+                "url": "https://docs.soliditylang.org/en/latest/units-and-global-variables.html",
+                "format": "documentation",
+                "scope": "Section \"ABI Encoding and Decoding Functions\"",
+                "estimatedMinutes": 10,
+                "why": "The language reference gives the current signatures of decode, encodeWithSelector, encodeWithSignature, and encodeCall and explicitly documents encodeCall's full compile-time type check.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["abi.encode vs encodePacked"],
       "parentTitle": "ABI encoding & decoding"
     },
@@ -191,8 +584,53 @@
       "title": "keccak256 hashing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "keccak256(bytes) is Ethereum's workhorse 256-bit hash (the pre-standard Keccak, not NIST SHA3-256) — deterministic, one-way, collision-resistant — and underlies mapping slots, merkle proofs, function selectors, commit-reveal, and signatures. You hash by first ABI-encoding the inputs, and the choice of encode vs encodePacked changes the digest and the collision risk. Resources: 📖 https://solidity-by-example.org/hashing/",
+      "description": "keccak256(bytes) is Ethereum's workhorse 256-bit hash (the pre-standard Keccak, not NIST SHA3-256) — deterministic, one-way, collision-resistant — and underlies mapping slots, merkle proofs, function selectors, commit-reveal, and signatures. You hash by first ABI-encoding the inputs, and the choice of encode vs encodePacked changes the digest and the collision risk.",
       "aiContext": "Build: implement contracts/phase02/Keccak.sol with a commit-reveal (commit = keccak256(abi.encode(secret, salt))) plus a reveal check, with a test in test/phase02/Keccak.t.sol. Done when: forge test passes and the test proves a correct reveal matches the commitment and a wrong secret does not.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "keccak-solidity-primitive",
+            "purpose": "Use Solidity's Keccak-256 primitive and distinguish it from the removed sha3 alias and SHA-256.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "keccak-solidity-cryptographic-functions",
+                "title": "Solidity documentation — Mathematical and Cryptographic Functions",
+                "url": "https://docs.soliditylang.org/en/latest/units-and-global-variables.html",
+                "format": "documentation",
+                "scope": "Section \"Mathematical and Cryptographic Functions\", entry for keccak256",
+                "estimatedMinutes": 6,
+                "why": "The maintained language reference precisely names the function and its Keccak-256 output without conflating it with Solidity's distinct sha256 primitive.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "keccak-input-encoding-safety",
+            "purpose": "Choose an unambiguous preimage encoding for commit-reveal and other security-sensitive hashes.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "keccak-solidity-packed-warning",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Section \"Non-standard Packed Mode\", collision warning",
+                "estimatedMinutes": 10,
+                "why": "This normative warning explains why the Build deliberately hashes abi.encode(secret, salt) rather than an ambiguous packed pair.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["abi.encode vs encodePacked"],
       "parentTitle": "Hashing"
     },
@@ -201,8 +639,71 @@
       "title": "ECDSA signatures & ecrecover",
       "type": "pattern",
       "domain": "Web3",
-      "description": "ecrecover(hash, v, r, s) returns the address that signed hash, or address(0) on failure — so you MUST reject a zero return, otherwise a bad signature 'authorizes' address(0). Signatures are malleable: for any valid (r, s) there is a second valid (r, n−s), so enforce low-s and add a nonce/deadline to stop replay. Off-chain signers hash the EIP-191 prefixed message (\"\\x19Ethereum Signed Message:\\n32\"); use OpenZeppelin's ECDSA library to get all of this right. Resources: 📖 https://solidity-by-example.org/signature/",
+      "description": "ecrecover(hash, v, r, s) returns the address that signed hash, or address(0) on failure — so you MUST reject a zero return, otherwise a bad signature 'authorizes' address(0). Signatures are malleable: for any valid (r, s) there is a second valid (r, n−s), so enforce low-s and add a nonce/deadline to stop replay. Off-chain signers hash the EIP-191 prefixed message (\"\\x19Ethereum Signed Message:\\n32\"); use OpenZeppelin's ECDSA and MessageHashUtils libraries to get these checks right.",
       "aiContext": "Build: implement contracts/phase02/VerifySig.sol recovering a signer with the EIP-191 prefix and rejecting address(0), with a test in test/phase02/VerifySig.t.sol using vm.sign. Done when: forge test passes and the test proves a valid signature recovers the expected signer and a tampered message does not.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "ecdsa-ecrecover-semantics",
+            "purpose": "Verify ecrecover's parameters, zero-address failure result, and unchanged high-s malleability behavior.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "ecdsa-solidity-ecrecover",
+                "title": "Solidity documentation — ecrecover",
+                "url": "https://docs.soliditylang.org/en/latest/units-and-global-variables.html",
+                "format": "documentation",
+                "scope": "Section \"Mathematical and Cryptographic Functions\", ecrecover entry and malleability warning",
+                "estimatedMinutes": 10,
+                "why": "The language reference is the canonical source for address(0) on error and explains that Homestead's low-s transaction rule did not change the ecrecover precompile.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "ecdsa-signed-message-domain",
+            "purpose": "Understand the EIP-191 prefix and version byte that separate signed messages from transactions and other signing domains.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "ecdsa-erc191-standard",
+                "title": "ERC-191: Signed Data Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-191",
+                "format": "documentation",
+                "scope": "Sections \"Specification\" and \"Registry of version bytes\"",
+                "estimatedMinutes": 10,
+                "why": "The final ERC defines the 0x19 envelope and personal-sign 0x45 form behind the exact prefix that the Build hashes before recovery.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "ecdsa-safe-recovery-library",
+            "purpose": "Apply low-s checks and construct EIP-191 digests with maintained production utilities instead of raw recovery code.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "ecdsa-openzeppelin-cryptography",
+                "title": "OpenZeppelin Contracts — Cryptography",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography",
+                "format": "documentation",
+                "scope": "Sections \"ECDSA\" and \"MessageHashUtils\"",
+                "estimatedMinutes": 16,
+                "why": "The maintained library reference supplies the hardened recover functions and EIP-191 digest helpers that replace hand-rolled zero/malleability checks in real contracts.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["keccak256 hashing"],
       "parentTitle": "Signatures (ECDSA & EIP-712)"
     },
@@ -210,8 +711,51 @@
       "title": "EIP-712 typed structured data",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EIP-712 makes signed data human-readable in the wallet and replay-safe by hashing a typed struct together with a domain separator built from name, version, chainId, and verifyingContract. The digest is keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(message)). Omitting chainId or verifyingContract from the domain lets a signature be replayed on another chain or contract — this is exactly what ERC-2612 permit relies on getting right. Resources: 🔗 https://eips.ethereum.org/EIPS/eip-712",
+      "description": "EIP-712 makes signed structured data inspectable and domain-separated by hashing a typed struct with a domain such as name, version, chainId, and verifyingContract. The digest is keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(message)). Domain fields prevent cross-chain or cross-contract reuse when included, but EIP-712 does not itself stop replay of the same message within one domain; applications still need a nonce, deadline, or idempotent action.",
       "aiContext": "Build: implement contracts/phase02/Permit712.sol computing a domain separator and verifying an EIP-712 Mail/permit-style struct signature, with a test in test/phase02/Permit712.t.sol. Done when: forge test passes and the test proves a signature valid for this contract's domain fails verification when the chainId in the domain is changed.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "eip712-typed-data-standard",
+            "purpose": "Derive hashStruct, the domain separator, and the 0x1901 digest while separating domain reuse from same-domain replay.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip712-canonical-standard",
+                "title": "EIP-712: Typed structured data hashing and signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections \"Specification\", \"Definition of hashStruct\", \"Definition of domainSeparator\", and \"Replay attacks\"",
+                "estimatedMinutes": 22,
+                "why": "The final standard defines every hash component used by the Build and explicitly warns that EIP-712 itself does not reject a repeated signed message.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "eip712-maintained-implementation",
+            "purpose": "Use a maintained domain-separator and typed-data digest implementation that tracks chain-id changes.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip712-openzeppelin-contract",
+                "title": "OpenZeppelin Contracts — EIP712",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography",
+                "format": "documentation",
+                "scope": "Section \"EIP712\"",
+                "estimatedMinutes": 12,
+                "why": "The production library documents _domainSeparatorV4 and _hashTypedDataV4 and explains how the cached domain updates for chain-id changes, directly mirroring the negative test.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["ECDSA signatures & ecrecover"],
       "parentTitle": "Signatures (ECDSA & EIP-712)"
     },
@@ -220,8 +764,33 @@
       "title": "Libraries & using-for",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A library is stateless reusable code: it holds no state, cannot receive ETH, and cannot be destroyed. internal library functions are inlined into the caller's bytecode; external ones are deployed once and reached by DELEGATECALL (so they run in the caller's context and must never assume their own storage). using Lib for Type attaches the library's functions as methods on that type. Resources: 📖 https://solidity-by-example.org/library/",
+      "description": "A library is reusable code without its own declared state; it cannot receive ETH normally or be destroyed. internal library functions are compiled into the caller's bytecode, while public/external ones use a deployed library through DELEGATECALL, running in the caller's context. using Lib for Type attaches compatible library functions as methods on that type.",
       "aiContext": "Build: implement contracts/phase02/Lib.sol with an internal library (e.g. a Math.max) attached via using-for and used on a uint, with a test in test/phase02/Lib.t.sol. Done when: forge test passes and the test calls the attached method as x.max(y) and asserts the result.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "libraries-call-and-attachment-model",
+            "purpose": "Distinguish internal versus deployed library calls and attach compatible functions with using-for.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "libraries-solidity-contracts-reference",
+                "title": "Solidity documentation — Libraries and Using For",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Sections \"Libraries\" and \"Using For\"",
+                "estimatedMinutes": 22,
+                "why": "The language reference explains internal calling convention, public-library DELEGATECALL context, call protection, and the first-parameter rule behind x.max(y) in one coherent source.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Libraries & interfaces"
     },
@@ -229,8 +798,51 @@
       "title": "Interfaces",
       "type": "pattern",
       "domain": "Web3",
-      "description": "An interface declares only external function signatures — no bodies, no state, no constructor — and all its functions are implicitly virtual. You wrap an address as IToken(addr) to make type-safe high-level calls to a contract you don't have the source for, and type(IToken).interfaceId gives the ERC-165 identifier. An interface is a promise about the target; calling it on a non-conforming address may revert or misbehave. Resources: 📖 https://solidity-by-example.org/interface/",
+      "description": "An interface declares external function signatures and can include ABI-visible types, events, and errors, but no function bodies, state variables, constructor, or modifiers; its functions are implicitly virtual. You wrap an address as IToken(addr) for type-checked high-level calls, and type(IToken).interfaceId gives the ERC-165 selector XOR. The interface is a compile-time promise, not runtime proof that the target conforms.",
       "aiContext": "Build: implement contracts/phase02/UseInterface.sol defining an ICounter interface and a consumer that increments and reads a separate Counter through it, with a test in test/phase02/UseInterface.t.sol. Done when: forge test passes and the test drives the Counter entirely through the interface type.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "interfaces-solidity-language-model",
+            "purpose": "Learn which ABI-visible declarations an interface may contain and what restrictions distinguish it from an abstract contract.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "interfaces-solidity-contracts-reference",
+                "title": "Solidity documentation — Interfaces",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Section \"Interfaces\"",
+                "estimatedMinutes": 14,
+                "why": "The maintained language reference lists the actual restrictions and shows that interfaces may declare enum/struct types, correcting the common 'functions only' oversimplification.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "interfaces-erc165-identity",
+            "purpose": "Compute an ERC-165 interface identifier and understand what supportsInterface proves at runtime.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "interfaces-erc165-specification",
+                "title": "ERC-165: Standard Interface Detection",
+                "url": "https://eips.ethereum.org/EIPS/eip-165",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"How Interfaces are Identified\", and \"How a Contract will Publish the Interfaces it Implements\"",
+                "estimatedMinutes": 10,
+                "why": "The final ERC defines interfaceId as the XOR of function selectors and distinguishes a declared Solidity interface from a contract's runtime support claim.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Libraries & interfaces"
     },
@@ -238,8 +850,33 @@
       "title": "Calling other contracts",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The high-level way to call another contract is Contract(addr).f(args) or Interface(addr).f(args): the compiler ABI-encodes the arguments, performs a CALL, checks the callee has code, and bubbles up any revert automatically. Since 0.8 a high-level call to an address with no code reverts. This is safer than raw call but still trusts the target's declared ABI — a wrong interface silently mis-encodes arguments. Resources: 📖 https://solidity-by-example.org/calling-contract/",
+      "description": "The high-level way to call another contract is Contract(addr).f(args) or Interface(addr).f(args): the compiler ABI-encodes the arguments, performs a CALL, checks the callee has code (or relies on return-data decoding), and bubbles up failures automatically. This is safer than raw call but still trusts the target's declared ABI — a wrong interface encodes and interprets data according to the wrong schema.",
       "aiContext": "Build: implement contracts/phase02/CallContract.sol calling a Callee's setX and setXandSendEther via the high-level syntax, with a test in test/phase02/CallContract.t.sol. Done when: forge test passes and the test asserts the callee's state and balance changed and a call to a codeless address reverts.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "high-level-contract-call-semantics",
+            "purpose": "Trace compiler-encoded external calls, value options, code-existence handling, return decoding, and failure bubbling.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "high-level-calls-solidity-control-structures",
+                "title": "Solidity documentation — External Function Calls",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section \"External Function Calls\"",
+                "estimatedMinutes": 18,
+                "why": "The canonical language section covers contract-object syntax, value transfer, codeless-address checks and their return-data exception, automatic bubbling, and the danger of trusting an implementation behind an ABI.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Interfaces"],
       "parentTitle": "Libraries & interfaces"
     },
@@ -248,8 +885,53 @@
       "title": "Inline assembly & Yul basics",
       "type": "pattern",
       "domain": "Web3",
-      "description": "An assembly { } block drops into Yul, letting you emit near-raw opcodes with direct access to memory, storage, and calldata and none of Solidity's type or overflow checks. It is used for gas-critical paths and low-level ops the language can't express. The power is dangerous: you must respect the memory model — scratch space 0x00–0x3f, the free-memory pointer at 0x40 — or you corrupt the surrounding Solidity. Resources: 🔗 https://docs.soliditylang.org/en/latest/assembly.html",
+      "description": "An assembly { } block drops into Yul, giving direct access to memory, storage, calldata, and wrapping arithmetic without Solidity's usual type and overflow checks. It is used for low-level operations or measured optimizations. You must respect scratch space 0x00–0x3f, the free-memory pointer stored at 0x40–0x5f, and the zero slot at 0x60–0x7f or risk corrupting surrounding Solidity allocations.",
       "aiContext": "Build: implement contracts/phase02/Asm.sol with an assembly add and a mload/mstore round-trip that reads and restores the free memory pointer, with a test in test/phase02/Asm.t.sol. Done when: forge test passes and the test asserts the assembly result equals the Solidity equivalent.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "assembly-yul-language-and-safety",
+            "purpose": "Enter Yul from Solidity, use its basic operations, and recognize which compiler safety checks assembly bypasses.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "assembly-solidity-inline-reference",
+                "title": "Solidity documentation — Inline Assembly",
+                "url": "https://docs.soliditylang.org/en/latest/assembly.html",
+                "format": "documentation",
+                "scope": "Sections \"Inline Assembly\", \"Example\", and \"Things to Avoid\"",
+                "estimatedMinutes": 18,
+                "why": "The maintained compiler reference introduces assembly/Yul, demonstrates mload/mstore and arithmetic, and states the safety and optimizer guarantees the learner assumes manually.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "assembly-solidity-memory-contract",
+            "purpose": "Memorize reserved memory ranges and preserve the free pointer and zero slot around an assembly block.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "assembly-solidity-memory-layout",
+                "title": "Solidity documentation — Layout in Memory",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_memory.html",
+                "format": "documentation",
+                "scope": "Section \"Layout in Memory\"",
+                "estimatedMinutes": 10,
+                "why": "The short canonical page is the exact source for scratch space, the 0x40 free-memory pointer, the 0x60 zero slot, and temporary-allocation caveats used by the round-trip test.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Assembly & Yul intro"
     },
@@ -257,8 +939,73 @@
       "title": "Storage & memory access in assembly",
       "type": "pattern",
       "domain": "Web3",
-      "description": "In Yul, sload(slot)/sstore(slot,val) read and write storage directly, and mload/mstore/mstore8 operate on memory; keccak256(ptr, len) hashes a memory region. You compute a mapping's slot as keccak256(key . baseSlot), which is exactly how proxy patterns read arbitrary slots. Overwriting the free-memory pointer at 0x40 or the scratch space without restoring it corrupts higher-level allocations. Resources: 🔗 https://docs.soliditylang.org/en/latest/yul.html",
-      "aiContext": "Build: implement contracts/phase02/AsmStorage.sol reading a state variable's slot via sload and computing a mapping entry's slot with keccak256(key.slot) in assembly, with a test in test/phase02/AsmStorage.t.sol. Done when: forge test passes and the test asserts the assembly-read value equals the Solidity getter and the computed mapping slot holds the stored value.",
+      "description": "In Yul, sload(slot)/sstore(slot,val) read and write storage directly, while mload/mstore/mstore8 operate on memory and keccak256(ptr, len) hashes a memory region. For a value-type mapping key, the entry slot is keccak256 over the 32-byte-padded key followed by the 32-byte base slot, equivalent to keccak256(abi.encode(key, baseSlot)). A wrong slot or damaged memory pointer can silently corrupt unrelated state or allocations.",
+      "aiContext": "Build: implement contracts/phase02/AsmStorage.sol reading a state variable's slot via sload and computing a value-keyed mapping entry by storing the key at 0x00, the base slot at 0x20, and hashing keccak256(0x00, 0x40), with a test in test/phase02/AsmStorage.t.sol. Done when: forge test passes and the test asserts the assembly-read value equals the Solidity getter and the computed mapping slot holds the stored value.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "assembly-solidity-variable-access",
+            "purpose": "Access Solidity value, memory, and storage references correctly from inline assembly.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "assembly-storage-solidity-access",
+                "title": "Solidity documentation — Assembly Variable Access",
+                "url": "https://docs.soliditylang.org/en/latest/assembly.html",
+                "format": "documentation",
+                "scope": "Sections \"Access to External Variables, Functions and Libraries\" and \"Memory Management\"",
+                "estimatedMinutes": 14,
+                "why": "The compiler reference explains .slot access, memory-pointer values, direct assignment hazards, and the allocation convention needed to connect Solidity variables to sload and mload safely.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "assembly-mapping-slot-derivation",
+            "purpose": "Derive a value-keyed mapping entry from the padded key and base slot before using sload or sstore.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "assembly-storage-solidity-mappings",
+                "title": "Solidity documentation — Mappings and Dynamic Arrays",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Section \"Mappings and Dynamic Arrays\"",
+                "estimatedMinutes": 12,
+                "why": "The canonical layout formula specifies h(key) concatenated before base slot and the exact padding rule, which the Build implements as two mstore operations and a 64-byte hash.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "assembly-memory-region-safety",
+            "purpose": "Keep scratch, free-pointer, and zero-slot writes compatible with surrounding Solidity allocations.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "assembly-storage-solidity-memory-layout",
+                "title": "Solidity documentation — Layout in Memory",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_memory.html",
+                "format": "documentation",
+                "scope": "Section \"Layout in Memory\"",
+                "estimatedMinutes": 8,
+                "why": "This bounded companion source identifies which temporary writes are safe and which pointer or zero-slot changes silently break later high-level allocations.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Inline assembly & Yul basics"],
       "parentTitle": "Assembly & Yul intro"
     },
@@ -267,8 +1014,51 @@
       "title": "Transient storage (EIP-1153)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EIP-1153 adds TSTORE/TLOAD — storage that persists for the duration of a single transaction and is automatically wiped when the transaction ends, at a flat ~100 gas versus cold SSTORE's 20000. Because a value written by TSTORE survives across nested calls within the same tx, it is ideal for a reentrancy lock or a transient accumulator without the SSTORE/refund cost. Solidity exposes it via the transient keyword (0.8.28+) or tstore/tload in assembly; remember it clears at end-of-tx, not end-of-call, so a lock must be reset before returning. Resources: 🔗 https://soliditylang.org/blog/2024/01/26/transient-storage/",
+      "description": "EIP-1153 adds TSTORE/TLOAD — contract-private state that persists for one transaction and is discarded at its end. Each opcode currently costs 100 gas, avoiding persistent storage's disk access and refund accounting. Values survive across nested frames owned by the same contract, making transient storage useful for reentrancy locks and transaction-scoped accumulators. Solidity supports value-type transient state variables from 0.8.28 and tstore/tload in assembly; a composable lock must still reset before returning because clearing happens at end-of-transaction, not end-of-call.",
       "aiContext": "Build: implement contracts/phase02/Transient.sol with a reentrancy guard backed by transient storage, with a test in test/phase02/Transient.t.sol that reenters. Done when: forge test passes and the test proves a reentrant call reverts and a second independent transaction succeeds (the lock cleared).",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "transient-opcode-semantics",
+            "purpose": "Verify TLOAD/TSTORE lifetime, ownership, revert behavior, gas cost, and static-call restriction at protocol level.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "transient-eip1153-specification",
+                "title": "EIP-1153: Transient storage opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-1153",
+                "format": "documentation",
+                "scope": "Sections \"Abstract\", \"Motivation\", \"Specification\", and \"Security Considerations\"",
+                "estimatedMinutes": 20,
+                "why": "The final core EIP is the authority for 100-gas pricing, transaction-end clearing, per-contract ownership, nested-frame visibility, revert rollback, and the reentrancy-lock use case.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "transient-solidity-language-usage",
+            "purpose": "Implement a composable value-type transient variable and understand why a lock should reset before each successful return.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "transient-solidity-contracts-reference",
+                "title": "Solidity documentation — Transient Storage",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Sections \"Transient Storage\" and \"Composability of Smart Contracts and the Caveats of Transient Storage\"",
+                "estimatedMinutes": 18,
+                "why": "The current language docs show 0.8.28 transient declarations and a guard that unlocks after the body, then explain same-transaction composability failures that an end-of-transaction-only mental model misses.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Transient storage"
     },
@@ -277,8 +1067,53 @@
       "title": "Defining a UDVT with wrap/unwrap",
       "type": "pattern",
       "domain": "Web3",
-      "description": "type Duration is uint256 defines a user-defined value type — a new, distinct type over an elementary one, converted only via Duration.wrap(x) and Duration.unwrap(d). It costs nothing at runtime (it's the same underlying value) but stops you from accidentally mixing, say, a Price and a Quantity that are both uint256. A UDVT has no operators or implicit conversions by default; since 0.8.19 you can attach operators with using-for, but it adds compile-time distinctness only, never runtime checks. Resources: 🔗 https://docs.soliditylang.org/en/latest/types.html#user-defined-value-types",
+      "description": "type Duration is uint256 defines a user-defined value type — a new, distinct type over an elementary one, converted only via Duration.wrap(x) and Duration.unwrap(d). It costs nothing at runtime (the ABI uses the underlying value) but stops you from accidentally mixing, say, a Price and a Quantity that are both uint256. A UDVT has no operators or implicit conversions by default; operators can be defined through a global using-for directive, but this adds compile-time distinctness only, never runtime checks.",
       "aiContext": "Build: implement contracts/phase02/Udvt.sol with a Duration UDVT plus an add() helper via using-for, and a function that would not compile if a raw uint256 were passed, with a test in test/phase02/Udvt.t.sol. Done when: forge test passes and the test round-trips wrap/unwrap and asserts add() sums two Durations.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "udvt-type-and-representation",
+            "purpose": "Define a zero-cost distinct type, wrap and unwrap it, and identify its ABI representation and conversion restrictions.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "udvt-solidity-types-reference",
+                "title": "Solidity documentation — User-defined Value Types",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Section \"User-defined Value Types\"",
+                "estimatedMinutes": 14,
+                "why": "The maintained type reference defines type C is V, wrap/unwrap, the lack of implicit conversions and default operators, and the inherited data representation tested by the Build.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "udvt-attached-functions-and-operators",
+            "purpose": "Attach an add helper as a member and distinguish member functions from globally defined UDVT operators.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "udvt-solidity-using-for",
+                "title": "Solidity documentation — Using For",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html",
+                "format": "documentation",
+                "scope": "Section \"Using For\", through the rules for user-defined operators",
+                "estimatedMinutes": 12,
+                "why": "The language reference gives the first-parameter attachment rule used by d.add(x) and the stricter global/pure requirements if the learner later binds + itself.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "User-defined value types"
     }
@@ -299,7 +1134,7 @@
     {
       "topicTitle": "require, revert & assert",
       "promptText": "When do you use require vs assert, and what does each return on failure?",
-      "answerHint": "require/revert for input/precondition and complex checks → Error(string); assert for invariants that should be unreachable → Panic(uint) (0x11 overflow, 0x12 div-by-zero, 0x32 OOB). Pitfall: a triggered assert signals a contract bug, not bad user input — never guard normal user errors with assert.",
+      "answerHint": "Use require for preconditions and revert for unconditional/complex exits; either can return empty data, Error(string), or a custom error. assert is for unreachable invariants and returns Panic(uint) (0x11 overflow, 0x12 divide-by-zero, 0x32 OOB). Pitfall: a triggered assert signals a contract bug, not bad user input.",
       "promptKind": "concept"
     },
     {
@@ -311,19 +1146,19 @@
     {
       "topicTitle": "Sending ETH: transfer, send, call",
       "promptText": "Compare transfer, send, and call for sending ETH, and state today's recommendation.",
-      "answerHint": "transfer: 2300-gas stipend, reverts on fail. send: 2300-gas stipend, returns bool (check it!). call{value:}(\"\"): forwards all gas, returns (bool, bytes) — the recommended method. Pitfall: call reopens reentrancy, so pair it with checks-effects-interactions or a guard; the 2300 stipend of transfer/send breaks many contract recipients.",
+      "answerHint": "transfer: 2300-gas stipend, reverts on failure. send: same stipend, returns bool. Both are deprecated in current Solidity docs. call{value:}(\"\") forwards available gas by default and returns (bool, bytes); check success. Pitfall: call hands over control, so use checks-effects-interactions or a guard.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Sending ETH: transfer, send, call",
       "promptText": "Write a safe ETH send using call that reverts on failure.",
-      "answerHint": "(bool ok, ) = to.call{value: amount}(\"\"); require(ok, \"send failed\"); — forward all gas, check success.",
+      "answerHint": "(bool ok, ) = to.call{value: amount}(\"\"); require(ok, \"send failed\"); — forward the available gas by default and check success.",
       "promptKind": "code"
     },
     {
       "topicTitle": "receive & fallback",
       "promptText": "Which of receive/fallback runs for a given call, and can a contract with neither accept ETH?",
-      "answerHint": "Empty calldata + a receive present → receive; otherwise (data, or no receive) → fallback (must be payable to hold ETH). Pitfall: a contract with neither cannot accept plain transfers — only forced ETH via selfdestruct or block-reward coinbase, and only 2300 gas is available when reached via transfer/send.",
+      "answerHint": "Empty calldata + a receive present → receive; otherwise (data, or no receive) → fallback, which must be payable to accept value. A contract with neither rejects plain transfers, though selfdestruct or protocol balance credits can force ETH. Pitfall: transfer/send provide only their fixed stipend to receive/fallback.",
       "promptKind": "concept"
     },
     {
@@ -359,13 +1194,13 @@
     {
       "topicTitle": "abi.encode vs encodePacked",
       "promptText": "How do abi.encode and abi.encodePacked differ, and why is encodePacked dangerous for hashing?",
-      "answerHint": "encode pads each arg to 32 bytes (decodable, canonical); encodePacked concatenates tightly (compact, not decodable). Pitfall: with two adjacent dynamic types, encodePacked collides — (\"a\",\"bc\") and (\"ab\",\"c\") hash identically — so hashing packed user input can forge authorizations. Use encode or a fixed separator for security-relevant hashes.",
+      "answerHint": "abi.encode uses standard 32-byte-word head/tail encoding and is decodable with the schema; encodePacked omits dynamic lengths and concatenates compactly. Pitfall: adjacent dynamic values are ambiguous — (\"a\",\"bc\") and (\"ab\",\"c\") have the same packed preimage. Use abi.encode for security-relevant structured hashes.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "abi.encode vs encodePacked",
       "promptText": "Write the hash of two strings in a way that is NOT vulnerable to the packed collision.",
-      "answerHint": "keccak256(abi.encode(a, b)) — encode pads each field, so distinct pairs never collide (unlike keccak256(abi.encodePacked(a, b))).",
+      "answerHint": "keccak256(abi.encode(a, b)) — standard ABI encoding gives distinct pairs distinct preimages, unlike the ambiguous packed concatenation (apart from the hash function's negligible collision probability).",
       "promptKind": "code"
     },
     {
@@ -395,7 +1230,7 @@
     {
       "topicTitle": "EIP-712 typed structured data",
       "promptText": "What goes into an EIP-712 domain separator, and why does it matter for replay?",
-      "answerHint": "name, version, chainId, verifyingContract → the domain separator, combined as keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(msg)). Pitfall: omitting chainId or verifyingContract lets one signature be replayed on another chain or contract — permit/ERC-2612 security depends on including both.",
+      "answerHint": "Common domain fields are name, version, chainId, and verifyingContract; the digest is keccak256(\"\\x19\\x01\" ++ domainSeparator ++ hashStruct(msg)). These fields separate chains/contracts, but EIP-712 alone does not stop same-domain replay — include a nonce/deadline or make the action idempotent.",
       "promptKind": "concept"
     },
     {
@@ -407,31 +1242,31 @@
     {
       "topicTitle": "Libraries & using-for",
       "promptText": "How do internal and external library functions differ, and what can a library not do?",
-      "answerHint": "internal functions are inlined into the caller's bytecode; external ones are deployed once and reached via DELEGATECALL (run in the caller's context). A library holds no state, can't receive ETH, and can't be destroyed. Pitfall: an external library runs in the caller's storage context, so it must never assume its own storage; it also needs linking at deploy.",
+      "answerHint": "internal library functions are compiled into the caller and use the internal calling convention; public/external ones use a separately deployed library through DELEGATECALL. A library declares no state, cannot normally receive ETH, and cannot be destroyed. Pitfall: deployed library code runs in the caller's context and must be linked.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Interfaces",
       "promptText": "What can an interface contain, and what does IToken(addr).f() assume?",
-      "answerHint": "Only external function signatures — no bodies, state, or constructor; all functions are implicitly virtual. IToken(addr).f() assumes addr implements that ABI. Pitfall: calling the interface on a non-conforming or codeless address can revert or misbehave — the type is a promise, not a guarantee.",
+      "answerHint": "Interfaces contain external function signatures and may declare ABI-visible types, events, and errors, but no implementations, state variables, constructor, or modifiers; functions are implicitly virtual. IToken(addr).f() assumes runtime conformance. Pitfall: the type is a compile-time promise, not proof about the address.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Calling other contracts",
       "promptText": "What does the high-level Contract(addr).f() do that raw call doesn't?",
-      "answerHint": "It ABI-encodes args from the declared types, performs the CALL, checks the callee has code, and auto-bubbles any revert; since 0.8 a call to a codeless address reverts. Pitfall: it still trusts the declared ABI — a wrong interface silently mis-encodes the arguments.",
+      "answerHint": "It ABI-encodes from declared types, performs CALL, checks code when needed (or lets return decoding reject empty data), decodes returns, and bubbles failures. A codeless target therefore reverts through a check or decoding. Pitfall: a wrong interface still encodes and interprets data using the wrong schema.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Inline assembly & Yul basics",
       "promptText": "What safety do you give up in an assembly block, and what memory regions must you respect?",
-      "answerHint": "You lose type checking and overflow/underflow reverts and can touch memory/storage/calldata directly. Respect scratch space 0x00–0x3f and the free-memory pointer at 0x40. Pitfall: clobbering 0x40 or scratch space without restoring it corrupts the surrounding Solidity's allocations.",
+      "answerHint": "You lose normal type and checked-arithmetic guarantees and can touch memory/storage/calldata directly. Respect scratch 0x00–0x3f, the free-pointer word at 0x40–0x5f, and the zero slot at 0x60–0x7f. Pitfall: corrupting the pointer or zero slot breaks surrounding Solidity allocations.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Storage & memory access in assembly",
       "promptText": "In Yul, which opcodes read/write storage and memory, and how is a mapping entry's slot located?",
-      "answerHint": "sload/sstore for storage, mload/mstore/mstore8 for memory, keccak256(ptr,len) to hash a memory region; a mapping value lives at keccak256(key . baseSlot). Pitfall: the assembly bypasses the compiler's slot bookkeeping, so a wrong slot computation reads/writes unrelated state and disturbing 0x40 corrupts Solidity allocations.",
+      "answerHint": "sload/sstore access storage; mload/mstore/mstore8 access memory; keccak256(ptr,len) hashes memory. For a value-type key, mapping m at slot p uses keccak256(abi.encode(key, p)): 32-byte key then 32-byte slot. Pitfall: reversed order, wrong padding, or a bad slot touches unrelated state.",
       "promptKind": "concept"
     },
     {
@@ -443,7 +1278,7 @@
     {
       "topicTitle": "Transient storage (EIP-1153)",
       "promptText": "What is the lifetime and cost of transient storage, and why is it a good reentrancy lock?",
-      "answerHint": "TSTORE/TLOAD persist for one transaction then auto-clear, at ~100 gas vs cold SSTORE's 20000; the value survives across nested calls in the same tx. Pitfall: it clears at end-of-tx, not end-of-call — a lock set true must be reset false before the function returns, or it stays locked for the rest of the tx.",
+      "answerHint": "TSTORE and TLOAD each currently cost 100 gas; contract-private transient values survive owned nested frames and are discarded at transaction end. That makes a lock visible to reentrant calls without persistent-storage/refund costs. Pitfall: reset it before a successful return so later calls in the same transaction remain composable.",
       "promptKind": "concept"
     },
     {

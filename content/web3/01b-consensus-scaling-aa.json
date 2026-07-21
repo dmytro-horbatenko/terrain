@@ -1,0 +1,956 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Consensus (PoS)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Proof-of-Stake: validators, attestations, finality, slashing, and post-Merge issuance.",
+      "prerequisiteTitles": ["EVM execution model"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "L2s & rollups",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "How rollups scale Ethereum: optimistic vs ZK proofs, data availability and blobs, sequencers, and the L2Beat trust framework.",
+      "prerequisiteTitles": ["Consensus (PoS)"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Account abstraction",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Smart-account UX through ERC-4337 (UserOps, bundlers, EntryPoint, paymasters) and protocol-level EIP-7702 EOA delegation.",
+      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "2025–26 protocol state",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Where Ethereum is now: the shipped Pectra and Fusaka forks, validator consolidation, the classic Merge/Surge/Scourge/Verge/Purge/Splurge taxonomy, and Ethereum's current protocol workstreams.",
+      "prerequisiteTitles": ["L2s & rollups"],
+      "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
+    },
+    {
+      "title": "Proof-of-Stake basics",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Post-Merge Ethereum secures itself with validators whose activation minimum is 32 ETH. One proposer is pseudo-randomly selected for each 12-second slot, while committees attest and every active validator attests once per 32-slot epoch. Honest participation earns rewards; equivocation can be slashed and downtime is penalized. Economic stake, not hashpower, backs finality.",
+      "aiContext": "Build: in contracts/phase01/pos-basics.md, explain validators, attestations, and finality in your own words with the 32-ETH activation minimum and slot/epoch timing. Done when: you can describe how a block gets attested and roughly when it finalizes.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "pos-mental-model",
+            "purpose": "Build a first mental model of validators, slots, epochs, attestations, and finality.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "pos-ethereum-org-overview",
+                "title": "Proof-of-stake (PoS) — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/consensus-mechanisms/pos/",
+                "format": "documentation",
+                "scope": "Sections What is proof-of-stake, Validators, and Finality",
+                "estimatedMinutes": 18,
+                "why": "The maintained Ethereum explanation connects the protocol actors and timing without requiring the learner to decode specification pseudocode first."
+              }
+            ]
+          },
+          {
+            "id": "pos-canonical-duties",
+            "purpose": "Confirm exact validator duties and the protocol rules that make conflicting signatures slashable.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "pos-consensus-validator-spec",
+                "title": "Phase 0 Honest Validator — Ethereum Consensus Specs",
+                "url": "https://ethereum.github.io/consensus-specs/phase0/validator/",
+                "format": "documentation",
+                "scope": "Sections Activation, Beacon chain responsibilities, and How to avoid slashing",
+                "estimatedMinutes": 18,
+                "why": "The canonical validator specification pins down proposal, attestation, and signing duties that the pedagogical overview intentionally summarizes."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "The Merge & post-merge issuance",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The Merge (Sept 2022) swapped PoW for PoS, cutting new-ETH issuance by roughly 90% because there are no miner block rewards, only validator rewards. Combined with the EIP-1559 base-fee burn, net issuance can go negative under load ('ultrasound money').",
+      "aiContext": "Build: in contracts/phase01/the-merge.md, write a one-paragraph before/after comparison of issuance (PoW miner rewards vs PoS validator rewards) and note the burn's effect. Done when: you can explain why net ETH supply can shrink post-Merge and why the Merge did not change gas fees or throughput.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "merge-issuance-model",
+            "purpose": "Compare pre- and post-Merge issuance and relate issuance to the variable EIP-1559 burn.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "merge-ethereum-org-issuance",
+                "title": "How The Merge impacted ETH supply — ethereum.org",
+                "url": "https://ethereum.org/roadmap/merge/issuance/",
+                "format": "documentation",
+                "scope": "Sections ETH issuance tldr, Components of ETH issuance, and Post-merge inflation breakdown",
+                "estimatedMinutes": 15,
+                "why": "This focused official page supplies the historical before-and-after numbers and explains why burn can outweigh issuance without implying that it always does.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "merge-non-scaling-boundary",
+            "purpose": "Confirm that the Merge changed consensus rather than gas fees, throughput, or meaningful transaction speed.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "merge-ethereum-org-misconceptions",
+                "title": "The Merge: misconceptions — ethereum.org",
+                "url": "https://ethereum.org/roadmap/merge/",
+                "format": "documentation",
+                "scope": "Sections Misconception: The Merge failed to reduced gas fees and Misconception: Transactions were accelerated substantially by The Merge",
+                "estimatedMinutes": 8,
+                "why": "These focused official corrections directly support the Done-when boundary that the issuance page does not cover.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "Slashing & the beacon chain",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum's consensus layer coordinates validators. Slashing punishes provable equivocation — a double proposal, double vote, or surround vote — by burning stake and ejecting the validator. Ordinary downtime loses rewards and incurs offline penalties; the stronger inactivity leak activates when the chain has failed to finalize. This makes attacks financially self-punishing.",
+      "aiContext": "Build: in contracts/phase01/slashing.md, list the three slashable conditions and contrast ordinary offline penalties with the inactivity leak. Done when: you can explain why running one validator key on two machines risks slashing.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "slashing-penalty-model",
+            "purpose": "Distinguish missed-duty penalties, the non-finality inactivity leak, and slashing consequences.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "slashing-ethereum-org-penalties",
+                "title": "Proof-of-stake rewards and penalties — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/consensus-mechanisms/pos/rewards-and-penalties/",
+                "format": "documentation",
+                "scope": "Sections Penalties, Slashing, and Inactivity leak",
+                "estimatedMinutes": 16,
+                "why": "The official explainer clearly separates routine offline penalties from the inactivity leak and the much more severe slashing path."
+              }
+            ]
+          },
+          {
+            "id": "slashing-canonical-offenses",
+            "purpose": "Verify the exact conflicting proposer and attester messages that create slashable evidence.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "slashing-consensus-validator-spec",
+                "title": "How to avoid slashing — Ethereum Consensus Specs",
+                "url": "https://ethereum.github.io/consensus-specs/phase0/validator/",
+                "format": "documentation",
+                "scope": "Sections How to avoid slashing, Proposer slashing, and Attester slashing",
+                "estimatedMinutes": 15,
+                "why": "The canonical signing rules define proposer and attester conflicts precisely enough to audit the duplicate-key failure described by the Build."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "Finality & fork choice (Gasper)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Gasper combines Casper FFG (finality) with LMD-GHOST (fork choice). Fork choice picks the head by heaviest attestation weight each slot; FFG then justifies and finalizes checkpoints every epoch. Once finalized, reverting a block would require slashing at least one-third of all staked ETH.",
+      "aiContext": "Build: in contracts/phase01/finality.md, explain the difference between a block being 'head', 'justified', and 'finalized', with the ~2-epoch timing. Done when: you can state the cost, in stake, of reverting a finalized block.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "gasper-mental-model",
+            "purpose": "Relate LMD-GHOST head selection to Casper FFG justification and finalization checkpoints.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "gasper-ethereum-org-explainer",
+                "title": "Gasper — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/consensus-mechanisms/pos/gasper/",
+                "format": "documentation",
+                "scope": "Sections The role of Gasper, What is finality?, and Fork choice",
+                "estimatedMinutes": 15,
+                "why": "The Ethereum explainer explicitly connects the two algorithms and gives the vocabulary needed for the head, justified, and finalized comparison."
+              }
+            ]
+          },
+          {
+            "id": "gasper-canonical-finality",
+            "purpose": "Check the protocol's exact checkpoint justification and finalization transition rules.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "gasper-consensus-finality-spec",
+                "title": "Phase 0 Beacon Chain — Ethereum Consensus Specs",
+                "url": "https://ethereum.github.io/consensus-specs/phase0/beacon-chain/",
+                "format": "documentation",
+                "scope": "Section Justification and finalization",
+                "estimatedMinutes": 15,
+                "why": "The canonical state-transition specification removes ambiguity about when checkpoints become justified or finalized beyond the prose overview."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Consensus (PoS)"
+    },
+    {
+      "title": "Rollups: optimistic vs ZK",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Rollups execute transactions off-L1 and post data plus a state commitment back to Ethereum for security. Optimistic rollups assume validity and allow a fraud-proof challenge window, which commonly delays canonical-bridge withdrawals for days. ZK rollups post a validity proof verified on L1, avoiding that fraud-challenge window while still waiting for proof submission and L1 finality.",
+      "aiContext": "Build: in contracts/phase01/rollups.md, make a table comparing optimistic vs ZK rollups on proof type, withdrawal latency, and trust assumptions. Done when: you can explain why an optimistic-rollup withdrawal takes ~7 days but a ZK one need not.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "rollups-optimistic-semantics",
+            "purpose": "Understand optimistic execution, fraud proofs, challenge periods, and canonical-bridge withdrawal delay.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "rollups-ethereum-org-optimistic",
+                "title": "Optimistic Rollups — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/scaling/optimistic-rollups/",
+                "format": "documentation",
+                "scope": "Sections What is an optimistic rollup, Fraud proving, and L1/L2 interoperability",
+                "estimatedMinutes": 14,
+                "why": "This maintained overview explains why optimistic state commitments need a challenge window and ties that mechanism directly to the withdrawal delay in the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "rollups-validity-semantics",
+            "purpose": "Understand validity proofs, state commitments, and why ZK exits need no fraud challenge period.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "rollups-ethereum-org-zk",
+                "title": "Zero-knowledge rollups — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/scaling/zk-rollups/",
+                "format": "documentation",
+                "scope": "Sections What are zero-knowledge rollups, State commitments, and Entries and exits",
+                "estimatedMinutes": 14,
+                "why": "The companion official overview makes the validity-proof path directly comparable while showing that proof verification replaces, rather than merely shortens, a fraud window.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "Data availability & blobs (EIP-4844)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-4844 (proto-danksharding) added blob-carrying transactions: ~128 KiB data chunks committed to by a transaction, kept by Ethereum's consensus data-availability layer for a limited retention window, and priced in a separate blob-gas market. Rollups post data as blobs instead of permanent calldata, substantially reducing data-posting costs without bloating execution state forever.",
+      "aiContext": "Build: in contracts/phase01/blobs.md, explain what a blob is, why it is cheaper than calldata, and why it is ephemeral. Done when: you can say why L2 fees dropped sharply after 4844 and why blobs don't bloat state forever.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "blobs-storage-model",
+            "purpose": "Build an intuitive model of temporary blob storage and its role in rollup data availability.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "blobs-ethereum-org-storage",
+                "title": "Blockchain data storage strategies — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/data-availability/blockchain-data-storage-strategies/",
+                "format": "documentation",
+                "scope": "Sections The security requirements and EIP-4844 blobs",
+                "estimatedMinutes": 10,
+                "why": "The maintained Ethereum guide explains the retention tradeoff in learner-facing terms and connects temporary data to rollup reconstruction needs."
+              }
+            ]
+          },
+          {
+            "id": "blobs-canonical-transaction",
+            "purpose": "Confirm the blob transaction format, size, fee market, and minimum sidecar retention parameter.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "blobs-eip-4844",
+                "title": "EIP-4844: Shard Blob Transactions",
+                "url": "https://eips.ethereum.org/EIPS/eip-4844",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, and Parameters",
+                "estimatedMinutes": 15,
+                "why": "The final protocol proposal is the authoritative source for blob dimensions, blob-gas constants, and the 4096-epoch retention floor."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "L2Beat trust framework",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Not all 'L2s' inherit Ethereum security equally. L2Beat's changing Stage 0/1/2 framework tracks rollup maturity through proof, data-availability, exit, upgrade, and Security Council conditions. It is an opinionated decentralization framework, not an overall security score, and teaches you to inspect claims instead of trusting marketing.",
+      "aiContext": "Build: on l2beat.com pick three L2s and record each one's stage (0/1/2) and the main risk that caps it, in contracts/phase01/l2beat.md. Done when: you can explain what separates a Stage 0 from a Stage 1 rollup.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "l2beat-stage-methodology",
+            "purpose": "Learn the current criteria that distinguish Stage 0, Stage 1, and Stage 2 rollup maturity.",
+            "requiredWhen": "always",
+            "options": [
+              {
+                "id": "l2beat-current-stages-framework",
+                "title": "The Stages Framework — L2BEAT",
+                "url": "https://forum.l2beat.com/t/the-stages-framework/291",
+                "format": "documentation",
+                "scope": "Sections Stage 0 requirements, Stage 1 requirements, Stage 2 requirements, and Changelog",
+                "estimatedMinutes": 18,
+                "why": "L2BEAT labels this maintained document as its source of truth, and its changelog exposes recent criteria changes that older stage explainers miss.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "l2beat-live-project-audit",
+            "purpose": "Apply the framework to live project stages, proof systems, and project-specific risk disclosures.",
+            "requiredWhen": "always",
+            "options": [
+              {
+                "id": "l2beat-scaling-summary",
+                "title": "Scaling Summary — L2BEAT",
+                "url": "https://l2beat.com/scaling/summary",
+                "format": "exercise",
+                "scope": "Section Rollups table: Risks, Proof system, and stage columns",
+                "estimatedMinutes": 12,
+                "why": "The live table provides the current stage labels and links to the exact risk that caps each selected project, which the static methodology cannot supply.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 30
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "Sequencers & batchers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Most rollups run a single sequencer that orders L2 transactions and gives fast soft-confirmations; a batcher then posts compressed transaction data to L1. A sequencer alone cannot authorize invalid state when the proof system and L1 contracts work, but it can censor or reorder, which is why L1 forced-inclusion escape hatches and sequencer decentralization matter.",
+      "aiContext": "Build: in contracts/phase01/sequencers.md, diagram user → sequencer → batcher → L1 and mark where censorship and MEV can occur. Done when: you can explain what a forced-inclusion mechanism protects against.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sequencers-risk-model",
+            "purpose": "Understand sequencer ordering power, soft confirmations, censorship, and L1 forced inclusion.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sequencers-ethereum-org-optimistic",
+                "title": "Optimistic Rollups — ethereum.org",
+                "url": "https://ethereum.org/developers/docs/scaling/optimistic-rollups/",
+                "format": "documentation",
+                "scope": "Sections What is an optimistic rollup and L1/L2 interoperability",
+                "estimatedMinutes": 15,
+                "why": "The neutral Ethereum overview establishes the general operator and forced-inclusion model before the learner studies one concrete rollup implementation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "sequencers-worked-pipeline",
+            "purpose": "Trace a concrete sequencer-to-batcher-to-L1 pipeline and its censorship-resistance window.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sequencers-op-stack-overview",
+                "title": "OP Stack Protocol Overview",
+                "url": "https://specs.optimism.io/protocol/overview.html",
+                "format": "documentation",
+                "scope": "Sections L2 Node Components and Epochs and the Sequencing Window",
+                "estimatedMinutes": 18,
+                "why": "The maintained OP Stack specification supplies the concrete actor diagram, batch publication flow, and sequencing-window inclusion guarantee needed for the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
+      "parentTitle": "L2s & rollups"
+    },
+    {
+      "title": "Account abstraction (ERC-4337)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-4337 brings smart-contract wallets without a consensus change: users sign UserOperations that bundlers collect, apply view/trace simulation to, and submit through handleOps(PackedUserOperation[]) to a supported versioned EntryPoint singleton. The EntryPoint validates and executes each operation against the user's wallet; an optional paymaster can sponsor gas. This unlocks social recovery, batching, and gasless UX.",
+      "aiContext": "Build: in contracts/phase01/erc4337.md, draw UserOperation → bundler (view/trace simulation) → handleOps(PackedUserOperation[]) → versioned EntryPoint singleton → wallet (→ paymaster). Done when: you can name each actor's job and explain why clients must support the deployed EntryPoint version rather than assume one permanent singleton.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "erc4337-versioned-entrypoint-deployment",
+            "purpose": "Confirm that EntryPoint singleton deployments are versioned and clients must coordinate compatible addresses and interfaces.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "erc4337-entrypoint-v090-release",
+                "title": "account-abstraction v0.9.0 release — eth-infinitism",
+                "url": "https://github.com/eth-infinitism/account-abstraction/releases/tag/v0.9.0",
+                "format": "documentation",
+                "scope": "Sections Deployment, Summary, and Compatibility",
+                "estimatedMinutes": 6,
+                "why": "The official implementation release identifies the deployed versioned singleton and the compatibility boundary clients must support."
+              }
+            ]
+          },
+          {
+            "id": "erc4337-canonical-semantics",
+            "purpose": "Verify PackedUserOperation[], handleOps, required EntryPoint behavior, and supported view or trace-based simulation.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "erc4337-standard",
+                "title": "ERC-4337: Account Abstraction Using Alt Mempool",
+                "url": "https://eips.ethereum.org/EIPS/eip-4337",
+                "format": "documentation",
+                "scope": "Sections Abstract, Definitions, EntryPoint interface, Required EntryPoint functionality, and UserOperation Simulation",
+                "estimatedMinutes": 24,
+                "why": "The current canonical ERC defines the packed on-chain interface, handleOps flow, validation boundaries, and view or trace simulation modes.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["EOAs vs contract accounts"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "EIP-7702 EOA delegation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-7702 (Pectra) lets an EOA authorize a persistent delegation indicator that points to deployed contract code, so the same address can gain smart-account features such as batching, sponsorship, and session keys. A later authorization can replace or clear the delegation; the EOA key retains ultimate control.",
+      "aiContext": "Build: in contracts/phase01/eip7702.md, explain what a 7702 delegation authorization does and contrast it with a 4337 smart wallet. Done when: you can say why 7702 keeps your existing address while adding contract behavior.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "eip7702-operational-model",
+            "purpose": "Understand authorization tuples, delegation lifecycle, wallet integration, and user-facing security risks.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip7702-ethereum-org-guidelines",
+                "title": "Pectra 7702 guidelines — ethereum.org",
+                "url": "https://ethereum.org/roadmap/pectra/7702/",
+                "format": "documentation",
+                "scope": "Sections Abstract, Best practices, and Security Considerations",
+                "estimatedMinutes": 18,
+                "why": "The maintained wallet-facing guide turns the transaction mechanism into operational guidance and makes the delegation's control and phishing risks concrete.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "eip7702-canonical-delegation",
+            "purpose": "Confirm the exact transaction format and that code delegation persists until replaced or cleared.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip7702-standard",
+                "title": "EIP-7702: Set Code for EOAs",
+                "url": "https://eips.ethereum.org/EIPS/eip-7702",
+                "format": "documentation",
+                "scope": "Sections Abstract, Set code transaction, and Persistence of code delegation",
+                "estimatedMinutes": 20,
+                "why": "The final EIP explicitly records the move from temporary code to persistent delegation, preventing the common but material one-transaction misconception."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "Bundler economics",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A bundler is the ERC-4337 actor that pays transaction gas to submit a bundle of UserOperations and is reimbursed from each operation's prefund through the EntryPoint, including its fee. To avoid loss, bundlers simulate validation and reject operations that would revert or grief them, which is why the 4337 mempool enforces ERC-7562 validation and storage-access rules.",
+      "aiContext": "Build: in contracts/phase01/bundler-economics.md, explain how a bundler is reimbursed and why it must simulate before including a UserOp. Done when: you can describe the griefing risk a bundler avoids by simulating.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "bundlers-incentive-loop",
+            "purpose": "Trace how bundlers validate, submit, pay gas, and recover fees from a UserOperation bundle.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "bundlers-erc4337-economics",
+                "title": "ERC-4337 bundler and fee flow",
+                "url": "https://eips.ethereum.org/EIPS/eip-4337",
+                "format": "documentation",
+                "scope": "Sections Definitions, The UserOperation structure, EntryPoint interface, Required EntryPoint contract functionality, and Bundling",
+                "estimatedMinutes": 18,
+                "why": "The current canonical ERC traces the gas fields, beneficiary payment, prefunding, validation, and bundle simulation without the removed simulateValidation API still shown by the older overview.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "bundlers-validation-safety",
+            "purpose": "Verify the deterministic validation and storage-access rules that keep simulation predictive.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "bundlers-erc7562-rules",
+                "title": "ERC-7562: Account Abstraction Validation Scope Rules",
+                "url": "https://eips.ethereum.org/EIPS/eip-7562",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, and Rationale",
+                "estimatedMinutes": 18,
+                "why": "The canonical validation-scope standard defines the shared opcode and associated-storage restrictions behind the overview's instruction to simulate.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "Paymasters & gas sponsorship",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A paymaster is a contract that agrees to pay a UserOperation's gas, enabling sponsored onboarding or ERC-20-denominated fees. Its EntryPoint deposit pays gas; a separate locked stake may be required when validation accesses shared state. The paymaster validates whom to sponsor, and weak replay, quota, or cost checks can drain its deposit.",
+      "aiContext": "Build: in contracts/phase01/paymasters.md, explain the two common paymaster modes (sponsor-all vs pay-in-ERC20) and the deposit it posts to the EntryPoint. Done when: you can name one way a naive paymaster can be drained.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "paymasters-canonical-flow",
+            "purpose": "Confirm paymaster validation, deposit accounting, optional stake, and post-operation semantics.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "paymasters-erc4337-standard",
+                "title": "ERC-4337 paymaster specification",
+                "url": "https://eips.ethereum.org/EIPS/eip-4337",
+                "format": "documentation",
+                "scope": "Sections Extension: paymasters, Paymasters contracts, and Paymasters rationale",
+                "estimatedMinutes": 20,
+                "why": "The canonical ERC distinguishes the gas-paying deposit from the locked stake and defines exactly when validation and postOp run.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "paymasters-common-modes",
+            "purpose": "Compare direct gas sponsorship with ERC-20-denominated gas payment patterns used in the Build.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "paymasters-types-guide",
+                "title": "Types of Paymasters — ERC-4337 Documentation",
+                "url": "https://docs.erc4337.io/paymasters/types.html",
+                "format": "documentation",
+                "scope": "Sections Whitelist Paymaster, Verifying Paymaster (Off-Chain Signed), and ERC-20 Paymaster (Token Paymaster)",
+                "estimatedMinutes": 10,
+                "why": "The maintained official guide supplies the sponsorship and token-payment patterns explicitly required by the Build, which the canonical lifecycle alone does not explain.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "paymasters-adversarial-checklist",
+            "purpose": "Identify replay, gas-griefing, quota, and post-operation failure modes in sponsorship logic.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "paymasters-security-guide",
+                "title": "Security and Griefing Protection — ERC-4337 Documentation",
+                "url": "https://docs.erc4337.io/paymasters/security-and-griefing.html",
+                "format": "documentation",
+                "scope": "Sections Deterministic Validation, Bundler Simulation, and PostOp Protections",
+                "estimatedMinutes": 12,
+                "why": "The maintained adversarial guide turns the standard's constraints into concrete ways a naive sponsor can lose funds, directly supporting the Done-when gate.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Account abstraction (ERC-4337)"],
+      "parentTitle": "Account abstraction"
+    },
+    {
+      "title": "Pectra & Fusaka deltas",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pectra activated in May 2025 with EIP-7702 EOA delegation, EIP-7251 validator consolidation, higher blob targets, and other changes. Fusaka activated in December 2025 with PeerDAS (EIP-7594), blob-parameter-only forks, and L1 scaling and hardening changes. Tracking shipped forks from post-activation sources keeps your mental model current.",
+      "aiContext": "Build: in contracts/phase01/forks.md, list what Pectra (May 2025) and Fusaka (December 2025) each shipped in a short table. Done when: you can name one user-facing change from Pectra and one scaling change from Fusaka.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "forks-pectra-deltas",
+            "purpose": "Identify Pectra's shipped account, validator, and blob-capacity changes from a post-activation source.",
+            "requiredWhen": "always",
+            "options": [
+              {
+                "id": "forks-ethereum-org-pectra",
+                "title": "Prague-Electra (Pectra) — ethereum.org",
+                "url": "https://ethereum.org/roadmap/pectra/",
+                "format": "documentation",
+                "scope": "Sections Improvements in Pectra, EOA account code, Increase the max effective balance, and Blob throughput increase",
+                "estimatedMinutes": 18,
+                "why": "This maintained post-activation page separates what actually shipped from older candidate lists and highlights both user-facing and validator changes.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "forks-fusaka-deltas",
+            "purpose": "Identify Fusaka's shipped PeerDAS and blob-scaling changes from a post-activation source.",
+            "requiredWhen": "always",
+            "options": [
+              {
+                "id": "forks-ethereum-org-fusaka",
+                "title": "Fulu-Osaka (Fusaka) — ethereum.org",
+                "url": "https://ethereum.org/roadmap/fusaka/",
+                "format": "documentation",
+                "scope": "Sections Improvements in Fusaka, PeerDAS, and Blob-Parameter-Only forks",
+                "estimatedMinutes": 15,
+                "why": "The maintained upgrade page records the December 2025 activation and explains how PeerDAS and later parameter-only forks divide the blob-scaling work.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "2025–26 protocol state"
+    },
+    {
+      "title": "The Ethereum roadmap (Verge/Purge/Splurge)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Vitalik's 2023–24 roadmap taxonomy grouped work into the Merge (PoS), Surge (rollup/DA scaling), Scourge (MEV and censorship resistance), Verge (resource-light verification), Purge (protocol simplification), and Splurge (miscellaneous improvements). It remains useful vocabulary, but the current ethereum.org roadmap is organized by shipped/upcoming forks and Ethereum Foundation Protocol work uses Scale, Improve UX, and Harden the L1.",
+      "aiContext": "Build: in contracts/phase01/roadmap.md, list the classic roadmap tracks, place EIP-4844 and EIP-7702 onto them, then note the three 2026 Protocol workstreams. Done when: you can distinguish the classic conceptual taxonomy from current fork and workstream tracking.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "roadmap-classic-merge",
+            "purpose": "Understand the Merge track's post-PoS priorities in the classic roadmap taxonomy.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-merge",
+                "title": "Possible futures of the Ethereum protocol, part 1: The Merge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/14/futures1.html",
+                "format": "article",
+                "scope": "Section The Merge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction defines the Merge track and its remaining proof-of-stake work."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-classic-surge",
+            "purpose": "Understand the Surge track's rollup and data-availability scaling priorities.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-surge",
+                "title": "Possible futures of the Ethereum protocol, part 2: The Surge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/17/futures2.html",
+                "format": "article",
+                "scope": "Section The Surge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction anchors the Surge in rollup-centric scaling and data availability."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-classic-scourge",
+            "purpose": "Understand the Scourge track's MEV and censorship-resistance priorities.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-scourge",
+                "title": "Possible futures of the Ethereum protocol, part 3: The Scourge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/20/futures3.html",
+                "format": "article",
+                "scope": "Section The Scourge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction defines the Scourge around transaction inclusion, MEV, and centralization pressure."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-classic-verge",
+            "purpose": "Understand the Verge track's resource-light verification priorities.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-verge",
+                "title": "Possible futures of the Ethereum protocol, part 4: The Verge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/23/futures4.html",
+                "format": "article",
+                "scope": "Section The Verge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction frames the Verge as making verification easier and less resource-intensive."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-classic-purge",
+            "purpose": "Understand the Purge track's protocol simplification and history-reduction priorities.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-purge",
+                "title": "Possible futures of the Ethereum protocol, part 5: The Purge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/26/futures5.html",
+                "format": "article",
+                "scope": "Section The Purge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction connects the Purge to reducing storage burden and protocol complexity."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-classic-splurge",
+            "purpose": "Understand the Splurge track's remaining protocol improvements.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "roadmap-vitalik-futures-splurge",
+                "title": "Possible futures of the Ethereum protocol, part 6: The Splurge — Vitalik Buterin",
+                "url": "https://vitalik.eth.limo/general/2024/10/29/futures6.html",
+                "format": "article",
+                "scope": "Section The Splurge: key goals",
+                "estimatedMinutes": 5,
+                "why": "The primary essay's introduction defines the Splurge as important work outside the other five tracks."
+              }
+            ]
+          },
+          {
+            "id": "roadmap-current-workstreams",
+            "purpose": "Contrast the classic taxonomy with the Ethereum Foundation Protocol team's current 2026 workstreams.",
+            "requiredWhen": "always",
+            "options": [
+              {
+                "id": "roadmap-ef-2026-priorities",
+                "title": "Protocol Priorities Update for 2026 — Ethereum Foundation",
+                "url": "https://blog.ethereum.org/2026/02/18/protocol-priorities-update-2026",
+                "format": "article",
+                "scope": "Sections TL;DR, An impactful 2026, and Looking ahead",
+                "estimatedMinutes": 14,
+                "why": "The Protocol track leads explicitly define Scale, Improve UX, and Harden the L1, preventing the learner from mistaking the older taxonomy for current team organization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Pectra & Fusaka deltas"],
+      "parentTitle": "2025–26 protocol state"
+    },
+    {
+      "title": "EIP-7251 & validator consolidation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-7251 (Pectra) raised the maximum effective balance to 2048 ETH for validators using compounding withdrawal credentials and added in-protocol consolidation, while preserving the 32-ETH activation minimum. Fewer validator indices can mean less attestation and aggregation overhead and simpler operations for large stakers.",
+      "aiContext": "Build: in contracts/phase01/maxeb.md, explain what MaxEB changes for a large staker and what stays the same for a solo 32-ETH validator. Done when: you can state why consolidation reduces beacon-chain message load.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "maxeb-first-model",
+            "purpose": "Understand the learner-facing difference between the 32 ETH activation minimum and 2048 ETH maximum.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "maxeb-ethereum-org-pectra",
+                "title": "Pectra: Increase the max effective balance — ethereum.org",
+                "url": "https://ethereum.org/roadmap/pectra/",
+                "format": "documentation",
+                "scope": "Section Increase the max effective balance",
+                "estimatedMinutes": 8,
+                "why": "The maintained upgrade explanation gives the concise operator-facing motivation before the learner reads the protocol proposal's consolidation machinery.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "maxeb-canonical-mechanics",
+            "purpose": "Verify compounding credentials, consolidation requests, balance limits, and validator-set overhead rationale.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "maxeb-eip-7251",
+                "title": "EIP-7251: Increase the MAX_EFFECTIVE_BALANCE",
+                "url": "https://eips.ethereum.org/EIPS/eip-7251",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, and Rationale",
+                "estimatedMinutes": 18,
+                "why": "The final EIP is authoritative for the 32-to-2048 limits, consolidation path, and why reducing redundant validators lowers consensus overhead."
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Pectra & Fusaka deltas"],
+      "parentTitle": "2025–26 protocol state"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Proof-of-Stake basics",
+      "promptText": "What replaces mining under Proof-of-Stake, and how are validators kept honest?",
+      "answerHint": "Validators stake ETH and are pseudo-randomly chosen to propose/attest per 12s slot; correct attestations earn rewards, equivocation or downtime is slashed or penalized. Pitfall: security is economic — an attacker must risk stake, not buy hashpower.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The Merge & post-merge issuance",
+      "promptText": "How did the Merge change ETH issuance?",
+      "answerHint": "It removed PoW miner rewards, leaving only the much smaller PoS validator rewards (~90% issuance drop); with EIP-1559 burn, net issuance can be negative under demand. Pitfall: the Merge changed consensus and issuance, not gas fees or throughput.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Slashing & the beacon chain",
+      "promptText": "What gets a validator slashed, versus merely penalized?",
+      "answerHint": "Slashing (stake burn + ejection) is for provable equivocation: a double proposal, double vote, or surround vote. Ordinary offline time loses rewards and incurs penalties; the stronger inactivity leak escalates only during prolonged failure to finalize. Pitfall: redundant setups sharing one key can double-sign and self-slash.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Finality & fork choice (Gasper)",
+      "promptText": "What does 'finalized' mean under Gasper, and how does it differ from the current head?",
+      "answerHint": "Head = current heaviest-attested block (LMD-GHOST), reorg-able; finalized = a checkpoint justified in two consecutive epochs (Casper FFG), and reverting it burns ≥1/3 of stake. Pitfall: only data ~2 epochs old is finalized, not the latest block.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Rollups: optimistic vs ZK",
+      "promptText": "Optimistic vs ZK rollups — what is the core difference and its consequence?",
+      "answerHint": "Optimistic assumes transactions valid and relies on fraud proofs plus a challenge window (commonly ~7 days for canonical withdrawals); ZK posts a validity proof, so it needs no fraud window but still waits for proof submission and L1 finality. Pitfall: both inherit L1 security only if the required data is available.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Data availability & blobs (EIP-4844)",
+      "promptText": "What is a blob (EIP-4844) and why did it cut L2 fees?",
+      "answerHint": "A ~128 KiB data chunk committed to by a transaction, priced in its own blob-gas market and retained only for a limited window (initially ~18 days) — enough for rollups to establish availability without permanent calldata prices. Pitfall: the EVM can access the commitment, not the blob data itself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "L2Beat trust framework",
+      "promptText": "What does L2Beat's Stage 0/1/2 framework measure?",
+      "answerHint": "Rollup maturity, not total security: Stage 0 meets baseline rollup/proof/DA criteria; Stage 1 adds a walkaway condition, a properly configured Security Council, and exit/challenge windows; Stage 2 requires permissionless proofs, long upgrade exits, and tightly limited emergency powers. Pitfall: criteria change, so use the framework changelog.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Sequencers & batchers",
+      "promptText": "What powers does a rollup sequencer have, and what protects users from it?",
+      "answerHint": "It orders L2 txs and gives fast pre-confirmations, and can censor or reorder (MEV), but cannot make invalid state settle when the proof system and L1 contracts work. Forced inclusion via L1 limits censorship. Pitfall: broader admin and proof-system risks still matter, and a down centralized sequencer halts the L2's fast path.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Account abstraction (ERC-4337)",
+      "promptText": "Trace an ERC-4337 UserOperation from signing to execution.",
+      "answerHint": "User signs a UserOperation → bundler runs view/trace simulation → packs operations into PackedUserOperation[] and submits handleOps → the compatible versioned EntryPoint singleton validates the wallet and optional paymaster, then calls account execution. No consensus change. Pitfall: clients must target a supported EntryPoint version and deployment address.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-7702 EOA delegation",
+      "promptText": "What does EIP-7702 change, and how does it differ from ERC-4337?",
+      "answerHint": "7702 lets an EOA persistently delegate code execution to a contract through a signed authorization, retaining the same address; the delegation can later be replaced or cleared. ERC-4337 defines a separate UserOperation/EntryPoint flow and can also serve delegated EOAs. Pitfall: malicious delegated code can control the account.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bundler economics",
+      "promptText": "How does a bundler get paid, and why does it simulate UserOps first?",
+      "answerHint": "The EntryPoint reimburses the bundler's gas (+ margin) from each op's prefund; simulation ensures validation won't revert on-chain, which would make the bundler eat the gas. Pitfall: storage-access rules (ERC-7562) keep simulation predictive of real execution.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Paymasters & gas sponsorship",
+      "promptText": "What is a paymaster and what is its main risk?",
+      "answerHint": "An ERC-4337 contract that funds a UserOperation's gas for sponsorship or token-denominated fees. Its EntryPoint deposit pays gas; a separate locked stake supports broader validation access. Risk: weak replay, eligibility, quota, or cost checks let attackers drain the deposit.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Pectra & Fusaka deltas",
+      "promptText": "Name a headline change from Pectra and from Fusaka.",
+      "answerHint": "Pectra (May 2025): EIP-7702 EOA delegation and EIP-7251 validator consolidation. Fusaka (December 2025): PeerDAS (EIP-7594) plus blob-parameter-only scaling machinery. Pitfall: use post-activation upgrade pages, not pre-fork candidate lists.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The Ethereum roadmap (Verge/Purge/Splurge)",
+      "promptText": "What did the classic Ethereum roadmap tracks mean, and how is current work organized?",
+      "answerHint": "Classic taxonomy: Merge (PoS), Surge (scaling/DA), Scourge (MEV/censorship), Verge (resource-light verification), Purge (simplification), Splurge (miscellaneous). In 2026 EF Protocol work uses Scale, Improve UX, and Harden the L1, while ethereum.org tracks concrete forks. Pitfall: the classic tracks are not a release sequence or current org chart.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "EIP-7251 & validator consolidation",
+      "promptText": "What did EIP-7251 (MaxEB) change and why does it help?",
+      "answerHint": "It lets compounding validators have up to 2048 ETH effective balance and adds in-protocol consolidation, reducing redundant validator indices and consensus messages; the 32-ETH activation minimum remains. Pitfall: a consolidated validator places more stake behind one signing setup.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}
