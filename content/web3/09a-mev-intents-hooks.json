@@ -1,0 +1,759 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Maximal Extractable Value (MEV)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "MEV is value extracted from block production beyond standard block rewards and gas fees by including, excluding, or changing transaction order: PBS, the searcher→builder→proposer supply chain, and arbitrage, liquidation, and sandwich strategies.",
+      "prerequisiteTitles": ["Phase 9 — Frontier Strands"],
+      "parentTitle": "Phase 9 — Frontier Strands"
+    },
+    {
+      "title": "Intents & ERC-7683",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Intents shift the model from signing prescribed calls toward authorizing constraints or desired outcomes that solvers compete to fulfill: generalized smart-account intents, ERC-7683's solver-facing order representation, and UniswapX/CoW/Across solver markets.",
+      "prerequisiteTitles": ["Maximal Extractable Value (MEV)"],
+      "parentTitle": "Phase 9 — Frontier Strands"
+    },
+    {
+      "title": "Uniswap V4 Hooks (Deep)",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "V4 hooks are pool-specific extension contracts: before/after lifecycle callbacks, dynamic LP fees, permission bits encoded in the hook address, return deltas, and production hook design patterns.",
+      "prerequisiteTitles": ["Uniswap V4 hooks"],
+      "parentTitle": "Phase 9 — Frontier Strands"
+    },
+    {
+      "title": "Proposer-builder separation (PBS)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "PBS splits block building from block proposing: builders assemble execution payloads and bid, while the selected validator chooses a blinded payload header before the body is revealed. MEV-Boost implements out-of-protocol PBS through trusted relays; EIP-7732 is a draft proposal for enshrined PBS. Outsourcing specialized building lets solo validators compete for builder revenue without running the same MEV infrastructure.",
+      "aiContext": "Build: in contracts/phase09/pbs.md diagram the proposer↔relay↔builder flow and explain what the proposer commits to (a header) before it sees the body. Done when: you can state why PBS uses a commit-reveal via a trusted relay and what a proposer could steal without one (unbundling/frontrunning the builder's MEV).",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-pbs-current-builder-api",
+            "purpose": "Trace today's relay-mediated blinded Builder API flow",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-pbs-ethereum-mev-docs",
+                "title": "Ethereum.org MEV",
+                "url": "https://ethereum.org/developers/docs/mev/",
+                "format": "documentation",
+                "scope": "Sections Proposer-Builder Separation and Builder API",
+                "estimatedMinutes": 16,
+                "why": "The official Ethereum guide explains blinded header selection, body reveal, relay trust, and the current Builder API sequence.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-pbs-enshrined-proposal",
+            "purpose": "Distinguish draft enshrined PBS from today's out-of-protocol mechanism",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-pbs-eip-7732",
+                "title": "EIP-7732: Enshrined Proposer-Builder Separation",
+                "url": "https://eips.ethereum.org/EIPS/eip-7732",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, and Rationale through Builder safety",
+                "estimatedMinutes": 14,
+                "why": "The draft proposal is the primary source for what enshrined PBS would change and which withholding and builder-safety risks remain.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "The MEV supply chain: searchers, builders, proposers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "MEV flows through specialized actors: searchers identify opportunities and submit ordered bundles or private transactions, builders combine private order flow with public transactions into valuable blocks, relays validate and escrow builder payloads, and proposers choose among header bids. Competition can bid much of an opportunity's value toward the proposer, but the exact split is market-dependent.",
+      "aiContext": "Build: in contracts/phase09/mev-supply-chain.md trace one sandwich opportunity from a searcher's bundle through a builder and relay to a proposer, labelling data visibility, bids, and possible revenue at each step. Done when: you can explain why competition can bid most of a highly contested opportunity toward the proposer without assuming that split for every opportunity.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-mev-actor-flow",
+            "purpose": "Trace private order flow and bids through searchers, builders, relays, and proposers",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-mev-auction-architecture",
+                "title": "Flashbots Auction Overview",
+                "url": "https://docs.flashbots.net/flashbots-auction/overview",
+                "format": "documentation",
+                "scope": "Sections Technical Architecture, Searchers, Block Builders, Relays, and Validators",
+                "estimatedMinutes": 18,
+                "why": "Flashbots documents each production actor, what data it receives, and how block headers and bodies move between them.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [
+        "Proposer-builder separation (PBS)",
+        "Transaction types & the mempool"
+      ],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "Flashbots & MEV-Boost",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Flashbots Auction provides private submission of ordered transaction bundles to builders, while MEV-Boost lets validators query relays for competing builder headers. A bundle targets a block and executes in order; transactions revert the bundle unless explicitly allowed to revert, but inclusion is never guaranteed. Private sealed bidding avoids public-mempool priority-gas auctions and losing bids staying onchain, while builders and relays still see order flow and can censor it.",
+      "aiContext": "Build: in contracts/phase09/flashbots.md specify an eth_sendBundle request, including target block and revertingTxHashes, then diagram the MEV-Boost builder→relay→proposer header/body exchange. Done when: you can distinguish ordered atomic execution from guaranteed inclusion, explain why a losing private bid need not consume gas, and identify the builder/relay privacy and censorship assumptions.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-flashbots-bundle-contract",
+            "purpose": "Specify bundle ordering, validity, allowed reverts, privacy, and non-guaranteed inclusion",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-flashbots-auction-bundles",
+                "title": "Flashbots Auction Overview",
+                "url": "https://docs.flashbots.net/flashbots-auction/overview",
+                "format": "documentation",
+                "scope": "Sections How does it work?, Technical Architecture, and Trust Assumptions",
+                "estimatedMinutes": 20,
+                "why": "The official auction contract defines eth_sendBundle fields, losing-bid behavior, builder visibility, and relay-mediated delivery.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-mev-boost-spec-boundary",
+            "purpose": "Locate MEV-Boost within the current Ethereum Builder API specification stack",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-mev-boost-specifications",
+                "title": "MEV-Boost Specifications",
+                "url": "https://docs.flashbots.net/flashbots-mev-boost/architecture-overview/specifications",
+                "format": "documentation",
+                "scope": "Sections MEV-Boost Specifications and Fundamental Specifications",
+                "estimatedMinutes": 6,
+                "why": "The official page identifies MEV-Boost as an implementation of Ethereum's temporary Builder API rather than a consensus rule.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["The MEV supply chain: searchers, builders, proposers"],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "Arbitrage & sandwich MEV",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "DEX arbitrage buys on the lower-priced venue and sells on the higher-priced venue in one atomic transaction, subject to fees, gas, competition, and execution. A sandwich places one trade before a visible victim swap to worsen its execution and another after it to unwind; the victim's size and permitted price movement bound the opportunity.",
+      "aiContext": "Build: in contracts/phase09/Sandwich.t.sol fork mainnet, seed a victim swap with high slippage on a constant-product pool, and script a frontrun+backrun that profits; then show a tight slippage bound defeats it. Done when: forge test proves the sandwich profits at loose slippage and reverts/ is unprofitable once the victim sets minAmountOut correctly.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-arbitrage-sandwich-mechanics",
+            "purpose": "Model atomic DEX arbitrage and the ordered legs and victim impact of a sandwich",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-ethereum-mev-examples",
+                "title": "Ethereum.org MEV",
+                "url": "https://ethereum.org/developers/docs/mev/",
+                "format": "documentation",
+                "scope": "Sections DEX arbitrage, Sandwich trading, and Effects of MEV",
+                "estimatedMinutes": 12,
+                "why": "The official guide separates atomic cross-venue arbitrage from non-atomic sandwich ordering and documents user slippage harm.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [
+        "Constant-product market maker (x*y=k)",
+        "The MEV supply chain: searchers, builders, proposers"
+      ],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "Liquidation MEV",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "In Aave V3, a position becomes liquidatable when its health factor falls below 1. A liquidator repays eligible debt and receives corresponding collateral plus the configured liquidation bonus; bots compete on monitoring, oracle updates, execution cost, and inclusion. A flash loan can supply temporary debt capital, but its premium, swaps, gas, and slippage still determine profitability.",
+      "aiContext": "Build: in contracts/phase09/Liquidator.sol implement a flashLoanSimple receiver that calls liquidationCall against a pinned local Aave V3 fixture, then swaps enough seized collateral to repay principal plus premium. Done when: forge test moves the fixture's oracle price below health factor 1 and proves the debt reduction, collateral seizure, flash-loan repayment, and positive net balance atomically.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-aave-liquidation-trigger",
+            "purpose": "Compute liquidation eligibility and track debt repayment, seized collateral, and the liquidation bonus",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-aave-liquidations",
+                "title": "Aave Health Factor & Liquidations",
+                "url": "https://aave.com/help/borrowing/liquidations",
+                "format": "documentation",
+                "scope": "Sections Health Factor and Liquidation Process",
+                "estimatedMinutes": 12,
+                "why": "Aave's current protocol guide defines the health-factor formula, eligibility threshold, close-factor conditions, and liquidation reward.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "09a-aave-pool-calls",
+            "purpose": "Use the exact account-data, liquidation, and simple flash-loan Pool calls",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-aave-ipool-interface",
+                "title": "Aave V3 IPool Interface",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPool.sol",
+                "format": "documentation",
+                "scope": "Sections liquidationCall, flashLoanSimple, and getUserAccountData NatSpec and signatures",
+                "estimatedMinutes": 12,
+                "why": "The maintained protocol repository is the primary contract for the three calls exercised by the local liquidation fixture.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "09a-aave-flash-loan-callback",
+            "purpose": "Implement executeOperation and the atomic principal-plus-premium repayment boundary",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-aave-simple-receiver-interface",
+                "title": "Aave V3 IFlashLoanSimpleReceiver Interface",
+                "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/misc/flashloan/interfaces/IFlashLoanSimpleReceiver.sol",
+                "format": "documentation",
+                "scope": "Section IFlashLoanSimpleReceiver: executeOperation NatSpec and signature",
+                "estimatedMinutes": 8,
+                "why": "The maintained receiver interface defines the callback parameters, success return, and approval requirement for repaying principal plus premium.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Health factor & liquidation", "Aave flash loans"],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "MEV-Share & order-flow auctions (OFAs)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Order-flow auctions can return part of backrun value to the order-flow source. MEV-Share lets a bundle disclose selected hints, accept composable backruns, and encode post-execution refund percentages and recipients. More revealing hints can improve searcher competition but reduce privacy; builders still receive the submitted transaction data.",
+      "aiContext": "Build: in contracts/phase09/mev-share.md annotate a mev_sendBundle with inclusion, body, privacy.hints, validity.refund, and refundConfig, then contrast it with public-mempool submission. Done when: you can state exactly what each selected hint reveals, who receives the configured refund, and which builders receive full bundle data.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-mev-share-hints-refunds",
+            "purpose": "Configure selective hint disclosure, backrun composition, and refund allocation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-mev-share-bundles",
+                "title": "MEV-Share Understanding Bundles",
+                "url": "https://docs.flashbots.net/flashbots-mev-share/searchers/understanding-bundles",
+                "format": "documentation",
+                "scope": "Sections Bundle Definition, Sharing hints, Builders, and Bundle composition",
+                "estimatedMinutes": 18,
+                "why": "The official schema defines every hint, refund field, builder-routing rule, and privacy tradeoff used in the artifact.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Flashbots & MEV-Boost", "Arbitrage & sandwich MEV"],
+      "parentTitle": "Maximal Extractable Value (MEV)"
+    },
+    {
+      "title": "Intents & solvers",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An intent authorizes constraints or outcomes rather than necessarily prescribing one calldata path. Solvers search for valid executions and submit solution transactions, but there is no single universal intent format: authorization, nonce/replay rules, settlement, and solver payment belong to the chosen standard and protocol. Smart-account intent proposals such as ERC-7521 separate wallet signature validation from intent-standard execution.",
+      "aiContext": "Build: in contracts/phase09/intents.md contrast an imperative transaction with an ERC-7521 UserIntent and IntentSolution, including wallet validation, segments, solver simulation, nonce/replay policy, deadline, chain, assets, and minimum outcome. Done when: you can identify which constraints are signature-bound and which trust assumptions come from the selected intent standard and settlement protocol.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-general-intent-account-flow",
+            "purpose": "Trace a signed smart-account intent through validation, solver construction, simulation, and execution",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-erc-7521",
+                "title": "ERC-7521: General Intents for Smart Contract Wallets",
+                "url": "https://eips.ethereum.org/EIPS/eip-7521",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification through Simulation, and Security Considerations",
+                "estimatedMinutes": 24,
+                "why": "The draft standard concretely separates UserIntent authorization, wallet validation, intent-standard execution, and solver-supplied solution transactions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["EIP-712 typed structured data"],
+      "parentTitle": "Intents & ERC-7683"
+    },
+    {
+      "title": "ERC-7683 cross-chain intents",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The current ERC-7683 draft standardizes a solver-facing representation, not a universal open/fill settlement interface. A protocol exposes an opaque payload and an onchain resolver that solvers call offchain to obtain ordered steps, variables, payments, and named assumptions. The protocol still chooses authorization, order dissemination, pricing, execution ordering, settlement verification, and payment security.",
+      "aiContext": "Build: in contracts/phase09/erc7683.md map protocol payload → vetted resolver eth_call → ResolvedOrder steps/variables/payments/assumptions → solver execution, and contrast it with the superseded open/fill draft. Done when: you can explain what ERC-7683 guarantees, what a resolver must surface, and why settlement safety remains protocol-specific.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-erc-7683-current-resolver-model",
+            "purpose": "Use the current resolver-centric solver interface and separate it from protocol-specific settlement",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-erc-7683-spec",
+                "title": "ERC-7683: Cross Chain Intents",
+                "url": "https://eips.ethereum.org/EIPS/eip-7683",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, Specification, Previous Draft, and Security Considerations",
+                "estimatedMinutes": 28,
+                "why": "The current draft explicitly replaces the older open/fill interface with opaque payloads, resolvers, steps, variables, payments, and named assumptions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Intents & solvers"],
+      "parentTitle": "Intents & ERC-7683"
+    },
+    {
+      "title": "Solver markets: UniswapX, CoW, Across",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Three production intent systems use different mechanisms: UniswapX supports chain-specific auctions, including Dutch auctions where a signed order's output decays within its bounds; CoW Protocol uses fair combinatorial batch auctions and coincidence-of-wants matching; Across relayers front destination capital and are repaid after bonded, optimistic bundle verification through its settlement system.",
+      "aiContext": "Build: in contracts/phase09/solver-markets.md compare UniswapX auctions, CoW batch auctions + CoWs, and Across RFQ/relayer settlement on price discovery, capital fronting, and finality risk. Done when: you can trace who authorizes the order, who competes, where external liquidity enters, and when each solver or relayer is paid.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-uniswapx-market-mechanism",
+            "purpose": "Identify UniswapX order authorization, auction, and filler mechanics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-uniswapx-overview",
+                "title": "UniswapX Overview",
+                "url": "https://developers.uniswap.org/docs/liquidity/uniswapx/overview",
+                "format": "documentation",
+                "scope": "Sections Trading on UniswapX and Fillers on UniswapX",
+                "estimatedMinutes": 8,
+                "why": "Uniswap documents signed output orders, chain-specific auction mechanisms, Dutch decay, Permit2 authorization, and permissionless fillers.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-cow-market-mechanism",
+            "purpose": "Identify CoW Protocol batch-auction and coincidence-of-wants mechanics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-cow-protocol-overview",
+                "title": "CoW Protocol Documentation",
+                "url": "https://docs.cow.fi/",
+                "format": "documentation",
+                "scope": "Section What is CoW Protocol?",
+                "estimatedMinutes": 5,
+                "why": "CoW's official overview defines fair combinatorial batch auctions and coincidence-of-wants liquidity matching.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-across-market-mechanism",
+            "purpose": "Trace Across capital fronting, verification, and relayer repayment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-across-intent-architecture",
+                "title": "Intent Architecture in Across",
+                "url": "https://docs.across.to/guides/concepts/intents-architecture",
+                "format": "documentation",
+                "scope": "Sections The Three Layers and How Settlement Flows",
+                "estimatedMinutes": 12,
+                "why": "Across documents its RFQ, capital-fronting relayer network, bonded optimistic verification, and batched repayment flow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["ERC-7683 cross-chain intents", "Arbitrage & sandwich MEV"],
+      "parentTitle": "Intents & ERC-7683"
+    },
+    {
+      "title": "V4 beforeSwap & afterSwap callbacks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A V4 hook is an external contract attached to a pool and called by PoolManager at address-permissioned lifecycle points. beforeSwap can alter the specified/unspecified deltas only when the corresponding return-delta flag is set and may return a per-swap LP-fee override for dynamic-fee pools; afterSwap can return an unspecified-currency delta when permissioned. Every callback must return its selector, and resulting deltas participate in PoolManager accounting.",
+      "aiContext": "Build: in contracts/phase09/LogHook.sol implement a hook overriding beforeSwap and afterSwap that records swap counts, and test it against a v4 PoolManager in test/phase09/LogHook.t.sol. Done when: forge test proves both callbacks fire on a swap and the hook returns the correct selector (returning the wrong selector must revert the pool call).",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-v4-swap-hook-lifecycle",
+            "purpose": "Locate beforeSwap and afterSwap in the pool-specific hook lifecycle",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-hooks-concepts",
+                "title": "Uniswap V4 Hooks",
+                "url": "https://developers.uniswap.org/docs/protocols/v4/concepts/hooks",
+                "format": "documentation",
+                "scope": "Sections Key Concepts and Core Hook Functions through Swap hooks",
+                "estimatedMinutes": 10,
+                "why": "The official concepts page defines pool attachment, address permissions, and the before/after swap lifecycle.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-v4-swap-hook-return-contract",
+            "purpose": "Implement exact selectors, return-delta permissions, and accounting semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-hooks-library-swap",
+                "title": "Uniswap V4 Hooks.sol",
+                "url": "https://github.com/Uniswap/v4-core/blob/main/src/libraries/Hooks.sol",
+                "format": "documentation",
+                "scope": "Sections constants, callHook, beforeSwap, afterSwap, and validateHookPermissions",
+                "estimatedMinutes": 18,
+                "why": "The core implementation is authoritative for selector validation, return lengths, return-delta flags, fee overrides, and accounting signs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Uniswap V4 hooks", "Uniswap V4 flash accounting (lock/unlock)"],
+      "parentTitle": "Uniswap V4 Hooks (Deep)"
+    },
+    {
+      "title": "V4 dynamic fees via hooks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A V4 pool's dynamic-fee capability is immutable at initialization and encoded by LPFeeLibrary.DYNAMIC_FEE_FLAG (0x800000). Its hook can update the stored LP fee through PoolManager.updateDynamicLPFee or return a valid per-swap override from beforeSwap with OVERRIDE_FEE_FLAG. These are LP fees, distinct from protocol fees and custom hook fees.",
+      "aiContext": "Build: in contracts/phase09/DynamicFeeHook.sol set a higher fee when a swap pushes price in one direction and a lower fee otherwise, tested in test/phase09/DynamicFeeHook.t.sol. Done when: forge test proves two identical-size swaps in opposite directions are charged different fees, and the pool was created with the dynamic-fee sentinel.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-v4-dynamic-fee-mechanism",
+            "purpose": "Configure immutable dynamic-fee capability and compare both LP fee update paths",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-dynamic-fees-docs",
+                "title": "Uniswap V4 Dynamic Fees",
+                "url": "https://developers.uniswap.org/docs/protocols/v4/concepts/dynamic-fees",
+                "format": "documentation",
+                "scope": "Sections What Are Dynamic Fees? and Dynamic Fees Mechanism",
+                "estimatedMinutes": 12,
+                "why": "The official guide distinguishes LP fees from other fees and defines immutable opt-in plus both update paths.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "09a-v4-dynamic-fee-flags",
+            "purpose": "Use and validate the exact dynamic and per-swap override flag values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-lp-fee-library",
+                "title": "Uniswap V4 LPFeeLibrary.sol",
+                "url": "https://github.com/Uniswap/v4-core/blob/main/src/libraries/LPFeeLibrary.sol",
+                "format": "documentation",
+                "scope": "Sections constants, isDynamicFee, isOverride, and removeOverrideFlagAndValidate",
+                "estimatedMinutes": 8,
+                "why": "The core library fixes the exact dynamic and override flag values and validates the maximum fee boundary.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [
+        "V4 beforeSwap & afterSwap callbacks",
+        "Uniswap V3 fee growth & positions"
+      ],
+      "parentTitle": "Uniswap V4 Hooks (Deep)"
+    },
+    {
+      "title": "V4 hook permission flags & address mining",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The 14 least-significant bits of a V4 hook address encode callback and return-delta permissions. PoolManager checks these bits to decide which callbacks to invoke; BaseHook's constructor validates that the deployed address matches getHookPermissions. CREATE2 salt mining is therefore used to deploy at an address with the intended bitmap.",
+      "aiContext": "Build: in contracts/phase09/HookMiner.t.sol use HookMiner to find a CREATE2 salt for BEFORE_SWAP_FLAG | AFTER_SWAP_FLAG, deploy the hook, and initialize a pool with it. Done when: forge test proves the deployed address bitmap and callback execution, while deploying BaseHook bytecode at an address inconsistent with getHookPermissions reverts during construction.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-v4-address-permission-mask",
+            "purpose": "Derive and validate the hook address's 14-bit permission mask",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-hooks-permission-code",
+                "title": "Uniswap V4 Hooks.sol",
+                "url": "https://github.com/Uniswap/v4-core/blob/main/src/libraries/Hooks.sol",
+                "format": "documentation",
+                "scope": "Sections ALL_HOOK_MASK through Permissions and validateHookPermissions",
+                "estimatedMinutes": 14,
+                "why": "The core source enumerates all 14 bits and defines exact address-to-permissions validation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "09a-v4-create2-hook-mining",
+            "purpose": "Find and verify a CREATE2 address matching the required permission bits",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-hook-miner",
+                "title": "Uniswap V4 HookMiner.sol",
+                "url": "https://github.com/Uniswap/v4-hooks-public/blob/main/src/utils/HookMiner.sol",
+                "format": "documentation",
+                "scope": "Sections library documentation, find, and computeAddress",
+                "estimatedMinutes": 10,
+                "why": "The official periphery utility implements CREATE2 salt search against the permission mask used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [
+        "V4 beforeSwap & afterSwap callbacks",
+        "CREATE2 deterministic deployment"
+      ],
+      "parentTitle": "Uniswap V4 Hooks (Deep)"
+    },
+    {
+      "title": "Building a V4 hook (Atrium patterns)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Production V4 hooks commonly extend the official periphery BaseHook, declare an exact permission bitmap through getHookPermissions, and test against PoolManager accounting. Security review must cover access control, callback inputs, delta solvency and settlement, reentrancy and nested actions, price manipulation, and gas/denial-of-service risk; a hook's custom logic is outside core's safety guarantees.",
+      "aiContext": "Build: fork the v4-template into contracts/phase09/v4-hook and implement one non-trivial hook (e.g. a per-block limit-order or a fee that funds an oracle). Done when: forge test in the template passes for your hook including a swap that triggers your custom logic, and getHookPermissions matches the callbacks you actually override.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "09a-v4-hook-template-workflow",
+            "purpose": "Build and test one hook using the maintained official template",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-template",
+                "title": "Uniswap V4 Hook Template",
+                "url": "https://github.com/Uniswap/v4-template",
+                "format": "documentation",
+                "scope": "Sections Get Started, Requirements, and Counter.sol/Counter.t.sol example links",
+                "estimatedMinutes": 18,
+                "why": "The maintained official template supplies a minimal hook, PoolManager fixture, tokens, liquidity, and swap tests.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "09a-v4-base-hook-boundary",
+            "purpose": "Apply BaseHook permission validation and PoolManager-only callback boundaries",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-base-hook",
+                "title": "Uniswap V4 BaseHook.sol",
+                "url": "https://github.com/Uniswap/v4-hooks-public/blob/main/src/base/BaseHook.sol",
+                "format": "documentation",
+                "scope": "Sections constructor, onlyPoolManager, getHookPermissions, and callback dispatch methods",
+                "estimatedMinutes": 12,
+                "why": "The official abstraction defines constructor-time permission validation, PoolManager access control, and override boundaries.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "09a-v4-hook-security-review",
+            "purpose": "Review a custom hook's accounting, permissions, manipulation, reentrancy, and denial-of-service risks",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "09a-v4-security-framework",
+                "title": "Uniswap Hooks Security Framework",
+                "url": "https://github.com/uniswapfoundation/security-framework",
+                "format": "documentation",
+                "scope": "Sections How Hook Risk Emerges through Permission Encoding & Salt Grinding Pitfalls, and Security Best Practices Checklist through Accounting Safety",
+                "estimatedMinutes": 20,
+                "why": "The Uniswap Foundation framework supplies the production review categories omitted by the teaching template.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [
+        "V4 hook permission flags & address mining",
+        "Uniswap V4 singleton PoolManager"
+      ],
+      "parentTitle": "Uniswap V4 Hooks (Deep)"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Proposer-builder separation (PBS)",
+      "promptText": "What does PBS separate, and what does the proposer actually commit to?",
+      "answerHint": "Builders assemble execution payloads and bid; the proposer chooses a blinded header before body reveal. Today MEV-Boost implements this out of protocol through trusted relays, while EIP-7732 is only a draft for enshrined PBS. The commitment prevents same-slot unbundling of a revealed builder payload.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "The MEV supply chain: searchers, builders, proposers",
+      "promptText": "Trace MEV through its actors and say where most of the value ends up.",
+      "answerHint": "Searchers submit bundles/private transactions → builders combine them with public flow → relays validate and escrow candidate payloads → proposers choose header bids. Competition can move much of an opportunity's value to the proposer, but the realized split varies by opportunity and market structure.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Flashbots & MEV-Boost",
+      "promptText": "What does sending a bundle through Flashbots (vs the public mempool) give you, and what's the systemic cost?",
+      "answerHint": "eth_sendBundle privately sends an ordered bundle for a target block; transactions revert the bundle unless listed in revertingTxHashes, and inclusion is not guaranteed. Losing sealed bids need not land onchain, but builders and relays can see or censor the order flow. MEV-Boost lets proposers choose competing builder headers through relays.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Arbitrage & sandwich MEV",
+      "promptText": "How does a sandwich attack profit, and what defeats it?",
+      "answerHint": "Frontrun the victim's swap to push price against them, let them execute at the worse price, then backrun to unwind. The victim's size and permitted price movement bound the opportunity; fees, gas, competition, and execution determine realized profit. A tight minAmountOut can make the controlled example revert or unprofitable, while loose slippage creates more room for extraction.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Liquidation MEV",
+      "promptText": "Why do searchers race to liquidate, and how can a flash loan fund the transaction?",
+      "answerHint": "On Aave V3, health factor below 1 permits liquidationCall: repay eligible debt and receive corresponding collateral plus the configured bonus. A flash loan can front the debt asset, but principal, premium, swap slippage, gas, and inclusion competition all must fit inside the realized bonus.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Liquidation MEV",
+      "promptText": "Practice building a flash-loan-funded liquidation bot (Damn Vulnerable DeFi puppet-style / real Aave).",
+      "answerHint": "Flash-borrow the debt asset, call liquidationCall, seize collateral, swap enough to repay principal plus premium, and keep only the net remainder — all atomically in a pinned local fixture.",
+      "promptKind": "problem",
+      "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPool.sol",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 180
+    },
+    {
+      "topicTitle": "MEV-Share & order-flow auctions (OFAs)",
+      "promptText": "How does an order-flow auction return MEV to users?",
+      "answerHint": "MEV-Share's mev_sendBundle can disclose selected privacy.hints so searchers compose backruns, then validity.refund and refundConfig allocate percentages after inclusion. More hints improve searchability but leak more; selected builders still receive the full submitted bundle.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Intents & solvers",
+      "promptText": "How does an intent differ from a transaction, and what must the signature bound?",
+      "answerHint": "A transaction prescribes execution, while an intent authorizes constraints/outcomes that a solver may satisfy with a chosen path. The signed domain must bind the account, chain(s), assets, limits, deadline, and replay policy. Authorization and settlement security depend on the chosen intent standard; there is no universal intent envelope.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ERC-7683 cross-chain intents",
+      "promptText": "What does the current ERC-7683 draft standardize, and what does it leave protocol-specific?",
+      "answerHint": "The current ERC-7683 draft standardizes opaque payload resolution into steps, variables, payments, and named assumptions through a vetted resolver called offchain with eth_call. It does not require a common open/fill interface or secure settlement; those remain protocol-specific.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Solver markets: UniswapX, CoW, Across",
+      "promptText": "Contrast UniswapX, CoW, and Across on price discovery and risk.",
+      "answerHint": "UniswapX uses chain-specific competitive auctions, including Dutch output decay; CoW uses fair combinatorial batch auctions with coincidence-of-wants matching; Across relayers front destination capital and are repaid through bonded optimistic bundle settlement. Compare who sets price, fronts capital, and bears settlement/finality risk.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "V4 beforeSwap & afterSwap callbacks",
+      "promptText": "When do V4's swap hooks fire, and what must a hook return?",
+      "answerHint": "beforeSwap and afterSwap run around PoolManager.swap only when their address bits are set. Return-delta permissions are separate bits; beforeSwap may also return a per-swap LP-fee override for a dynamic-fee pool. Every callback returns its exact selector, and wrong selectors or malformed return data revert.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "V4 dynamic fees via hooks",
+      "promptText": "How does a V4 pool get a dynamic fee?",
+      "answerHint": "Initialize with LPFeeLibrary.DYNAMIC_FEE_FLAG (0x800000); the hook may update the stored LP fee with updateDynamicLPFee or return a valid beforeSwap override carrying OVERRIDE_FEE_FLAG. Dynamic capability is immutable, and LP fees are distinct from protocol and hook fees.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "V4 hook permission flags & address mining",
+      "promptText": "How does the PoolManager know which hooks to call, and why must you mine the hook address?",
+      "answerHint": "Fourteen low address bits encode callback and return-delta permissions, so CREATE2 salt mining finds an address with the intended mask. BaseHook validates getHookPermissions against that address during construction; PoolManager later uses the bits to decide which callbacks to invoke.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building a V4 hook (Atrium patterns)",
+      "promptText": "What must a production V4 hook get right, and why is gas-leanness non-negotiable?",
+      "answerHint": "Extend BaseHook, make getHookPermissions match the mined address, restrict privileged entry points, and prove every returned delta settles under PoolManager accounting. Review callback inputs, nested actions/reentrancy, price manipulation, gas/DoS, and upgrade/admin risk; custom hook safety is not guaranteed by v4 core.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Building a V4 hook (Atrium patterns)",
+      "promptText": "Build and test a Uniswap V4 hook from the official template (Hook Incubator style).",
+      "answerHint": "Extend BaseHook, implement getHookPermissions + the callbacks you need, mine the address, and prove a swap triggers your logic in the v4-template test harness.",
+      "promptKind": "problem",
+      "url": "https://github.com/Uniswap/v4-template",
+      "problemDifficulty": "hard",
+      "estimatedMinutes": 240
+    }
+  ],
+  "noteSummaries": []
+}

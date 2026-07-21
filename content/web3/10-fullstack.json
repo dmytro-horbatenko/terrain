@@ -7,7 +7,7 @@
       "title": "viem & wagmi",
       "type": "concept",
       "domain": "Web3",
-      "description": "The modern TypeScript stack for talking to Ethereum: viem's public/wallet clients for reads, writes, and event watching, and wagmi's React hooks + typegen layered on top. Resources: https://viem.sh/",
+      "description": "The modern TypeScript stack for talking to Ethereum: viem's public/wallet clients for reads, writes, and event watching, and wagmi's React hooks + typegen layered on top.",
       "prerequisiteTitles": ["Phase 10 — Full-Stack dApp"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
@@ -15,7 +15,7 @@
       "title": "Wallet Connection",
       "type": "concept",
       "domain": "Web3",
-      "description": "Getting a user's wallet into your dApp: injected providers (EIP-1193/EIP-6963), WalletConnect, the RainbowKit/ConnectKit connect UIs, and Sign-In With Ethereum for auth. Resources: https://www.rainbowkit.com/",
+      "description": "Getting a user's wallet into your dApp: injected providers (EIP-1193/EIP-6963), WalletConnect, the RainbowKit/ConnectKit connect UIs, and Sign-In With Ethereum for auth.",
       "prerequisiteTitles": ["viem & wagmi"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
@@ -23,7 +23,7 @@
       "title": "Events & Indexing",
       "type": "concept",
       "domain": "Web3",
-      "description": "Turning on-chain logs into queryable app data: reading event logs directly, and building indexers with The Graph subgraphs or Ponder. Resources: https://thegraph.com/docs/",
+      "description": "Turning on-chain logs into queryable app data: reading event logs directly, and building indexers with The Graph subgraphs or Ponder.",
       "prerequisiteTitles": ["viem & wagmi"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
@@ -31,7 +31,7 @@
       "title": "Scaffold-ETH 2",
       "type": "concept",
       "domain": "Web3",
-      "description": "The batteries-included full-stack starter: a Foundry/Hardhat contract package wired to a Next.js frontend with typed contract hooks, a debug UI, and a local burner wallet. Resources: https://docs.scaffoldeth.io/",
+      "description": "The batteries-included full-stack starter: a Foundry/Hardhat contract package wired to a Next.js frontend with typed contract hooks, a debug UI, and a local burner wallet.",
       "prerequisiteTitles": ["viem & wagmi"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
@@ -39,7 +39,7 @@
       "title": "Speedrun Ethereum Ladder",
       "type": "concept",
       "domain": "Web3",
-      "description": "The BuidlGuidl challenge progression built on Scaffold-ETH: staking, a token vendor, a dice game, a DEX, and beyond — each a shippable full-stack dApp. Resources: https://speedrunethereum.com/",
+      "description": "The BuidlGuidl challenge progression built on Scaffold-ETH: crowdfunding, a token vendor, a dice game, a DEX, and beyond — each a shippable full-stack dApp.",
       "prerequisiteTitles": ["Scaffold-ETH 2"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
@@ -48,179 +48,802 @@
       "title": "viem clients: public, wallet & transports",
       "type": "pattern",
       "domain": "Web3",
-      "description": "viem splits access into a Public Client (read-only: eth_call, getBalance, logs) and a Wallet Client (signing: sendTransaction, signMessage), each built over a Transport (http, webSocket, or an injected EIP-1193 provider). You configure a chain and transport once and reuse the client. This separation makes it explicit which calls need a signer and which are free reads. Resources: 📖 https://viem.sh/docs/clients/intro",
+      "description": "viem splits access into a Public Client (read-only: eth_call, getBalance, logs) and a Wallet Client (accounts, signing, and transactions), each built over a Transport (http, webSocket, or a custom EIP-1193 provider). You configure a chain and transport once and reuse the client. This separation makes it explicit which calls need wallet authority and which do not.",
       "aiContext": "Build: in frontend/src/clients.ts create a Public Client (http transport, a testnet chain) and a Wallet Client from window.ethereum, then read a balance and log the connected account. Done when: `getBalance` returns via the public client and the wallet client exposes an address from the injected provider, with the two responsibilities clearly separated.",
       "prerequisiteTitles": ["viem & wagmi"],
-      "parentTitle": "viem & wagmi"
+      "parentTitle": "viem & wagmi",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-viem-client-boundaries",
+            "purpose": "Create public and wallet clients with the correct account and transport boundaries",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-client-docs",
+                "title": "viem Clients Introduction",
+                "url": "https://viem.sh/docs/clients/intro",
+                "format": "documentation",
+                "scope": "Sections Clients, Public Client, Wallet Client, and Transports",
+                "estimatedMinutes": 14,
+                "why": "The current first-party overview distinguishes public and wallet action surfaces and shows HTTP, WebSocket, and custom EIP-1193 transports.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Reading contracts with viem",
       "type": "pattern",
       "domain": "Web3",
-      "description": "readContract calls a view/pure function by supplying the contract address, the ABI, the function name, and args — no gas, no signer, just an eth_call decoded by the ABI. Passing the ABI `as const` gives viem full type inference so the return type and argument types are checked at compile time. multicall batches many reads into one RPC round-trip. Resources: 📖 https://viem.sh/docs/contract/readContract",
+      "description": "readContract calls a view/pure function by supplying the contract address, ABI, function name, and args: it performs an eth_call rather than sending a transaction. Passing the ABI `as const` gives viem full type inference so return and argument types are checked at compile time. multicall batches compatible reads through Multicall3 in one RPC request.",
       "aiContext": "Build: in frontend/src/read.ts call an ERC-20's balanceOf and decimals via readContract with the ABI `as const`, and batch both with multicall. Done when: the values return correctly typed (no `any`), and the multicall version issues a single RPC call for both reads.",
       "prerequisiteTitles": [
         "viem clients: public, wallet & transports",
         "ABI encoding & decoding"
       ],
-      "parentTitle": "viem & wagmi"
+      "parentTitle": "viem & wagmi",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-viem-read-contract",
+            "purpose": "Perform an ABI-typed eth_call with readContract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-read-contract-docs",
+                "title": "viem readContract",
+                "url": "https://viem.sh/docs/contract/readContract",
+                "format": "documentation",
+                "scope": "Sections Usage, Parameters, and Type Inference",
+                "estimatedMinutes": 12,
+                "why": "The action reference defines the current address, ABI, functionName, args, and inferred return contract used by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-viem-multicall",
+            "purpose": "Batch the two ERC-20 reads through Multicall3",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-multicall-docs",
+                "title": "viem multicall",
+                "url": "https://viem.sh/docs/contract/multicall",
+                "format": "documentation",
+                "scope": "Sections Usage, Return Value, and Parameters through allowFailure",
+                "estimatedMinutes": 10,
+                "why": "The dedicated reference documents one-call batching, result status behavior, and the allowFailure shape that a typed implementation must handle.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Writing transactions with viem & wagmi",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The safe write path is simulate-then-write: simulateContract runs the call against current state (catching reverts and returning the prepared request) before writeContract actually sends and signs it, returning a tx hash you then await with waitForTransactionReceipt. In wagmi/React this is the useSimulateContract → useWriteContract → useWaitForTransactionReceipt trio. Resources: 📖 https://viem.sh/docs/contract/writeContract",
+      "description": "A useful write path is simulate-then-write: simulateContract validates the call against the state it reads and returns a prepared request; writeContract asks the account to sign and sends it, returning a hash to pass to waitForTransactionReceipt. In wagmi/React, useSimulateContract can compose with useWriteContract, then useWaitForTransactionReceipt tracks confirmation. Simulation reduces avoidable failures but cannot guarantee later execution against changed state.",
       "aiContext": "Build: in frontend/src/write.ts (or a wagmi component) simulate then write an ERC-20 transfer, then wait for the receipt and show status. Done when: a would-revert transfer is caught by simulateContract before any wallet prompt, and a valid transfer returns a mined receipt you display.",
       "prerequisiteTitles": ["Reading contracts with viem", "Transaction anatomy"],
-      "parentTitle": "viem & wagmi"
+      "parentTitle": "viem & wagmi",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-viem-simulate-write",
+            "purpose": "Simulate a prepared contract request and submit it",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-simulate-docs",
+                "title": "viem simulateContract",
+                "url": "https://viem.sh/docs/contract/simulateContract",
+                "format": "documentation",
+                "scope": "Sections Usage and Pairing with writeContract",
+                "estimatedMinutes": 12,
+                "why": "The current action reference shows the simulation result/request boundary and composes the prepared request with walletClient.writeContract.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              },
+              {
+                "id": "10-wagmi-simulate-compose-docs",
+                "title": "wagmi useSimulateContract",
+                "url": "https://wagmi.sh/react/api/hooks/useSimulateContract",
+                "format": "documentation",
+                "scope": "Sections Usage and Composing with useWriteContract",
+                "estimatedMinutes": 10,
+                "why": "The current React API demonstrates gating writeContract on data.request and avoids obsolete prepare-hook APIs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-viem-wait-receipt",
+            "purpose": "Wait for the submitted transaction receipt",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-wait-receipt-docs",
+                "title": "viem waitForTransactionReceipt",
+                "url": "https://viem.sh/docs/actions/public/waitForTransactionReceipt",
+                "format": "documentation",
+                "scope": "Sections Usage, Returns, confirmations, and onReplaced",
+                "estimatedMinutes": 8,
+                "why": "The current action reference defines the hash-to-receipt boundary, confirmation count, and transaction replacement handling.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Watching events & logs (viem)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "watchContractEvent (or watchEvent) subscribes to new logs for a contract/event and fires a callback with decoded args; getContractEvents fetches historical logs over a block range. Under HTTP transport viem polls; over WebSocket it uses real subscriptions. Because logs can be reorged, treat a log as final only after enough confirmations. Resources: 📖 https://viem.sh/docs/contract/watchContractEvent",
-      "aiContext": "Build: in frontend/src/watch.ts subscribe to an ERC-20 Transfer event with watchContractEvent and also fetch the last 1000 blocks of history with getContractEvents. Done when: a live transfer triggers your callback with decoded from/to/value and the historical query returns past events, and you handle a reorged/removed log.",
+      "description": "watchContractEvent watches new contract logs and invokes onLogs with decoded events; getContractEvents fetches historical logs over a block range. The watcher polls filters (falling back to getLogs when filters are unsupported), while a WebSocket client can use subscriptions unless polling is requested. Applications must reconcile provisional UI state with confirmed chain state across reorgs.",
+      "aiContext": "Build: in frontend/src/watch.ts watch an ERC-20 Transfer event with watchContractEvent and fetch the last 1000 blocks with getContractEvents. Done when: onLogs receives decoded from/to/value, the historical range returns past events, both paths can be stopped or refreshed cleanly, and provisional event UI is reconciled from confirmed state after a chain reorganization.",
       "prerequisiteTitles": ["Reading contracts with viem", "Events & logging"],
-      "parentTitle": "viem & wagmi"
+      "parentTitle": "viem & wagmi",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-viem-live-events",
+            "purpose": "Watch decoded contract logs with current filter, polling, and subscription behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-watch-event-docs",
+                "title": "viem watchContractEvent",
+                "url": "https://viem.sh/docs/contract/watchContractEvent",
+                "format": "documentation",
+                "scope": "Sections Usage, Scoping to an Event Name, onLogs, and poll",
+                "estimatedMinutes": 14,
+                "why": "The action reference defines batched callbacks, filter fallback, and the WebSocket polling switch without promising unsupported finality callbacks.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-viem-historical-events",
+            "purpose": "Fetch decoded historical events over an explicit block range",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-contract-events-docs",
+                "title": "viem getContractEvents",
+                "url": "https://viem.sh/docs/contract/getContractEvents",
+                "format": "documentation",
+                "scope": "Sections Usage, fromBlock, and toBlock",
+                "estimatedMinutes": 8,
+                "why": "The bounded reference supplies the historical action and exact range parameters complementary to the live watcher.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "ABIs & type generation (wagmi CLI)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The ABI is the contract's typed interface; the wagmi CLI (@wagmi/cli) reads your ABIs (from Foundry/Hardhat artifacts or Etherscan) and generates fully-typed React hooks and actions, so a renamed function or wrong arg is a compile error, not a runtime one. This end-to-end typing from Solidity to TSX is the biggest ergonomics win of the stack. Resources: 📖 https://wagmi.sh/cli/getting-started",
-      "aiContext": "Build: in frontend/ configure @wagmi/cli to read your Foundry out/ artifacts and generate typed hooks, then use a generated read hook in a component. Done when: `wagmi generate` produces typed hooks, and changing a function's signature in Solidity + regenerating turns a stale call site into a TypeScript error.",
+      "description": "The ABI is the contract's typed interface; the wagmi CLI (@wagmi/cli) resolves ABIs from Foundry/Hardhat projects or block explorers. With its React plugin it generates typed React hooks, so renamed functions and wrong argument types become compile-time failures. Generation must run again after contract artifacts change.",
+      "aiContext": "Build: in frontend/ configure @wagmi/cli with the foundry and react plugins to read Foundry artifacts and generate typed hooks, then use a generated read hook. Done when: `wagmi generate` produces typed hooks, and changing a Solidity signature, rebuilding artifacts, and regenerating turns the stale call site into a TypeScript error.",
       "prerequisiteTitles": ["Reading contracts with viem", "The 4-byte function selector"],
-      "parentTitle": "viem & wagmi"
+      "parentTitle": "viem & wagmi",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-wagmi-cli-artifacts",
+            "purpose": "Generate current React hooks from configured ABIs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-wagmi-cli-getting-started",
+                "title": "wagmi CLI Getting Started",
+                "url": "https://wagmi.sh/cli/getting-started",
+                "format": "documentation",
+                "scope": "Sections Add Contracts And Plugins, Run Code Generation, and Use Generated Code",
+                "estimatedMinutes": 14,
+                "why": "The current guide shows that React hooks require the react plugin and records generated hook names and the generate workflow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-wagmi-cli-foundry",
+            "purpose": "Resolve ABIs from the Foundry project artifacts",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-wagmi-foundry-plugin-docs",
+                "title": "wagmi CLI foundry Plugin",
+                "url": "https://wagmi.sh/cli/api/plugins/foundry",
+                "format": "documentation",
+                "scope": "Sections Usage and Parameters",
+                "estimatedMinutes": 8,
+                "why": "The plugin reference supplies the exact artifact-project input rather than conflating ABI resolution with hook generation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Injected wallets & EIP-1193 / EIP-6963",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A browser wallet injects an EIP-1193 provider exposing request({ method, params }) (eth_requestAccounts, eth_sendTransaction, …) and events (accountsChanged, chainChanged). When several wallets are installed they used to fight over window.ethereum; EIP-6963 fixes this with a multi-provider discovery event so a UI can list each wallet cleanly. Your app should react to account/chain changes rather than assuming they're static. Resources: 📖 https://eips.ethereum.org/EIPS/eip-1193",
+      "description": "A browser wallet can expose an EIP-1193 provider with request({ method, params }) and events including accountsChanged and chainChanged. EIP-1193 does not standardize window.ethereum. EIP-6963 adds window events for announcing and requesting multiple injected providers without relying on one mutable provider slot. Apps must react to account and chain changes rather than treating them as static.",
       "aiContext": "Build: in frontend/src/injected.ts request accounts via the EIP-1193 provider and subscribe to accountsChanged and chainChanged, updating UI state. Done when: switching accounts or networks in the wallet updates your app without a reload, and you can enumerate multiple wallets via EIP-6963 discovery.",
       "prerequisiteTitles": ["Wallet Connection"],
-      "parentTitle": "Wallet Connection"
+      "parentTitle": "Wallet Connection",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-eip1193-provider",
+            "purpose": "Use the provider request API and react to account and chain events",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-eip1193-spec",
+                "title": "EIP-1193 Ethereum Provider JavaScript API",
+                "url": "https://eips.ethereum.org/EIPS/eip-1193",
+                "format": "documentation",
+                "scope": "Sections API, Events, and Consumer-Facing API Documentation",
+                "estimatedMinutes": 18,
+                "why": "The canonical final EIP defines request and provider events while explicitly treating window.ethereum as a historical convention, not the interface contract.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "10-eip6963-discovery",
+            "purpose": "Enumerate multiple injected providers through request and announce window events",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-eip6963-spec",
+                "title": "EIP-6963 Multi Injected Provider Discovery",
+                "url": "https://eips.ethereum.org/EIPS/eip-6963",
+                "format": "documentation",
+                "scope": "Sections Window Events, Provider Info, and Provider Detail",
+                "estimatedMinutes": 14,
+                "why": "The canonical EIP defines the bidirectional discovery event flow and the provider metadata needed to render a selector safely.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "WalletConnect, RainbowKit & ConnectKit",
       "type": "pattern",
       "domain": "Web3",
-      "description": "WalletConnect connects a dApp to a mobile wallet over a relay via an encrypted session (QR/deep link) instead of a browser extension. RainbowKit and ConnectKit are wagmi-based React libraries that give you a polished 'Connect Wallet' modal handling injected + WalletConnect + coinbase connectors, chain switching, and account UI in a few lines — so you rarely wire connectors by hand. Resources: 📖 https://www.rainbowkit.com/docs/introduction",
-      "aiContext": "Build: in frontend/ wrap the app in wagmi + RainbowKit providers with a WalletConnect projectId and drop in the ConnectButton. Done when: you can connect an injected wallet and a mobile wallet via WalletConnect QR, switch chains from the modal, and read the connected address from a wagmi hook.",
+      "description": "WalletConnect establishes an end-to-end encrypted relay session between an app and wallet, commonly paired through QR or deep link. RainbowKit and ConnectKit are wagmi-based React connection UIs. Current RainbowKit setup uses getDefaultConfig plus WagmiProvider, QueryClientProvider, and RainbowKitProvider; WalletConnect-backed connections require a projectId.",
+      "aiContext": "Build: in frontend/ create config with getDefaultConfig and a WalletConnect projectId, then nest WagmiProvider, QueryClientProvider, and RainbowKitProvider and render ConnectButton. Done when: an injected wallet and a mobile wallet connect, the modal switches configured chains, and a wagmi hook reads the active address.",
       "prerequisiteTitles": ["Injected wallets & EIP-1193 / EIP-6963"],
-      "parentTitle": "Wallet Connection"
+      "parentTitle": "Wallet Connection",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-rainbowkit-current-setup",
+            "purpose": "Configure the current RainbowKit provider stack and wallet connection UI",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-rainbowkit-install-docs",
+                "title": "RainbowKit Installation",
+                "url": "https://rainbowkit.com/en-US/docs/installation",
+                "format": "documentation",
+                "scope": "Sections Manual setup, Configure, and Wrap providers",
+                "estimatedMinutes": 16,
+                "why": "The maintained guide provides getDefaultConfig, projectId, transports, and the required Wagmi/TanStack/RainbowKit provider nesting.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-walletconnect-session-model",
+            "purpose": "Explain the encrypted relay boundary behind the modal",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-walletconnect-network-docs",
+                "title": "WalletConnect Network",
+                "url": "https://docs.walletconnect.network/network",
+                "format": "documentation",
+                "scope": "Section Technology, especially Relay Service and End-to-End Encryption",
+                "estimatedMinutes": 10,
+                "why": "The protocol owner documents the off-chain relay and end-to-end encryption model that UI-library docs intentionally abstract away.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Sign-In With Ethereum (SIWE / EIP-4361)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "SIWE authenticates a user by having them sign a structured EIP-4361 message (domain, address, statement, nonce, issued-at) with their wallet; the backend recovers the signer and, if it matches and the server-issued nonce is unused, starts a session. It proves control of an address without a password. The nonce is essential — reusing or omitting it allows signature replay. Resources: 📖 https://eips.ethereum.org/EIPS/eip-4361",
-      "aiContext": "Build: in frontend + a small server, implement SIWE: server issues a nonce, wallet signs the SIWE message, server verifies with viem's verifyMessage/recover and sets a session. Done when: a valid signature over a fresh server nonce logs the user in, and replaying an old signed message (stale nonce) is rejected.",
+      "description": "SIWE authenticates control of an address with a signed EIP-4361 message. The relying party must validate the signature and message fields relevant to the request, including domain, URI, chain ID, nonce, issued-at, and any validity bounds, then consume the server-issued nonce before starting a session. Contract accounts require ERC-1271-aware verification. A nonce alone is not the complete verification policy.",
+      "aiContext": "Build: in frontend + a small server, implement SIWE: issue a single-use nonce, construct and sign the EIP-4361 message, then validate signature, domain, URI, chain ID, nonce, timestamps, and address before consuming the nonce and setting a session. Done when: a valid EOA login succeeds, wrong-origin/expired/replayed messages fail, and the verifier has an ERC-1271 path for contract accounts.",
       "prerequisiteTitles": [
         "WalletConnect, RainbowKit & ConnectKit",
         "ECDSA signatures & ecrecover"
       ],
-      "parentTitle": "Wallet Connection"
+      "parentTitle": "Wallet Connection",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-siwe-verification",
+            "purpose": "Construct and verify a replay-resistant SIWE request and session",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-siwe-eip4361",
+                "title": "ERC-4361 Sign-In with Ethereum",
+                "url": "https://eips.ethereum.org/EIPS/eip-4361",
+                "format": "documentation",
+                "scope": "Sections Message Format, Verifying a Signature, and Security Considerations",
+                "estimatedMinutes": 24,
+                "why": "The canonical ERC defines mandatory fields, relying-party validation, nonce replay protection, time bounds, and ERC-1271 contract-account verification.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Reading event logs on the frontend",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Events are the cheap, queryable trail a dApp reads to reconstruct state: indexed parameters become searchable topics you can filter (e.g. all Transfers to an address), non-indexed params live in the data field. Direct log queries (getLogs/getContractEvents) work for small ranges, but RPCs cap block spans and reorgs can remove logs — which is exactly why heavy apps move to an indexer. Resources: 📖 https://viem.sh/docs/actions/public/getLogs",
-      "aiContext": "Build: in frontend/src/logs.ts filter an ERC-20 Transfer log by an indexed `to` address over a bounded block range and render the results. Done when: the indexed-topic filter returns only matching transfers, you handle the RPC's max-range limit by chunking, and you can explain why this doesn't scale to full history.",
+      "description": "Events are a queryable trail a dApp can use to derive views: indexed parameters are encoded into topics that filters can match, while non-indexed parameters are ABI-encoded in data. Direct getLogs/getContractEvents queries are suitable for bounded ranges, but provider limits, repeated scans, and reorg reconciliation make an indexer preferable for durable full-history products.",
+      "aiContext": "Build: in frontend/src/logs.ts filter an ERC-20 Transfer log by an indexed `to` address over a bounded block range and render the results. Done when: the indexed-topic filter returns only matching transfers inside explicit fromBlock/toBlock bounds, and you can explain why repeated client-side scans do not scale to full history.",
       "prerequisiteTitles": ["Events & Indexing", "Log anatomy: topics vs data"],
-      "parentTitle": "Events & Indexing"
+      "parentTitle": "Events & Indexing",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-viem-filter-logs",
+            "purpose": "Filter indexed event parameters over a bounded block range",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-viem-getlogs-docs",
+                "title": "viem getLogs",
+                "url": "https://viem.sh/docs/actions/public/getLogs",
+                "format": "documentation",
+                "scope": "Sections Usage, Event, args, fromBlock, and toBlock",
+                "estimatedMinutes": 16,
+                "why": "The current action reference shows ABI event filters, indexed args, and bounded range parameters required by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "The Graph & subgraphs",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A subgraph is a declarative indexer: a manifest (which contracts/events to watch), a GraphQL schema (the entities to store), and AssemblyScript mappings that transform each event into entity updates. The Graph indexes it and serves a GraphQL API, so your frontend queries clean, aggregated data instead of scanning logs. It's the standard way to power dashboards and histories. Resources: 📖 https://thegraph.com/docs/en/subgraphs/quick-start/",
-      "aiContext": "Build: scaffold a subgraph in indexing/subgraph for an ERC-20, mapping Transfer events into Account + Transfer entities, and deploy to a local Graph node or Subgraph Studio. Done when: a GraphQL query returns per-account balances/transfer counts derived purely from indexed events, and adding a new event handler updates the schema.",
+      "description": "A subgraph definition combines subgraph.yaml (data sources and handlers), schema.graphql (stored entities), and AssemblyScript mappings that transform chain data into entity updates. After code generation, build, and deployment, consumers query the indexed entities through GraphQL instead of repeatedly scanning raw logs.",
+      "aiContext": "Build: scaffold a subgraph in indexing/subgraph for an ERC-20, mapping Transfer events into Account + Transfer entities, and deploy to a local Graph node or Subgraph Studio. Done when: a GraphQL query returns per-account balances/transfer counts derived purely from indexed events, and after adding a schema field plus its mapping update, rerunning codegen and build succeeds and populates that field.",
       "prerequisiteTitles": ["Reading event logs on the frontend"],
-      "parentTitle": "Events & Indexing"
+      "parentTitle": "Events & Indexing",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-subgraph-definition",
+            "purpose": "Define data sources, entities, and event mappings for the ERC-20 subgraph",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-subgraph-manifest-docs",
+                "title": "The Graph Subgraph Manifest",
+                "url": "https://thegraph.com/docs/en/subgraphs/developing/creating/subgraph-manifest/",
+                "format": "documentation",
+                "scope": "Sections Overview, Subgraph Entries, and Mapping Function",
+                "estimatedMinutes": 20,
+                "why": "The maintained protocol documentation ties subgraph.yaml, schema.graphql, mapping.ts, eventHandlers, and generated mapping types together.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-subgraph-codegen-build",
+            "purpose": "Generate types and build mappings after ABI or schema changes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-subgraph-mapping-docs",
+                "title": "The Graph AssemblyScript Mappings",
+                "url": "https://thegraph.com/docs/en/subgraphs/developing/creating/assemblyscript-mappings/",
+                "format": "documentation",
+                "scope": "Section Code Generation through build validation",
+                "estimatedMinutes": 12,
+                "why": "The official mapping guide states when graph codegen must be rerun and what generated contract, event, and entity types it creates.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Ponder indexing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Ponder is a TypeScript-native indexer: you define a schema and write event-handler functions in TS (no AssemblyScript), and it backfills + live-syncs into a SQL database it exposes over GraphQL/REST. It runs as your own service (easy local dev, full type-safety with viem types) versus The Graph's hosted, decentralized network — the usual tradeoff is control/DX vs decentralization. Resources: 📖 https://github.com/ponder-sh/ponder",
-      "aiContext": "Build: in indexing/ponder set up a Ponder project indexing the same ERC-20 Transfer event into a table and query it. Done when: `ponder dev` backfills historical transfers and live-updates on new ones, and you can query per-account totals over its GraphQL endpoint.",
+      "description": "Ponder is a TypeScript framework for EVM indexing: ponder.config.ts selects chains and contracts, ponder.schema.ts defines on-chain tables, and ponder.on handlers write event-derived records. It backfills and live-syncs into Postgres and exposes query APIs over HTTP, including generated GraphQL and SQL. You deploy and operate the service yourself.",
+      "aiContext": "Build: in indexing/ponder set up a Ponder project indexing the same ERC-20 Transfer event into a table and query it. Done when: its development server backfills historical transfers and live-updates on new ones, and you can query per-account totals over its GraphQL endpoint.",
       "prerequisiteTitles": ["The Graph & subgraphs"],
-      "parentTitle": "Events & Indexing"
+      "parentTitle": "Events & Indexing",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-ponder-indexer",
+            "purpose": "Configure, index, store, and query ERC-20 Transfer records with current Ponder APIs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-ponder-repository-readme",
+                "title": "Ponder Repository README",
+                "url": "https://github.com/ponder-sh/ponder",
+                "format": "documentation",
+                "scope": "Sections Features and Quickstart steps 1–6 in the repository README",
+                "estimatedMinutes": 22,
+                "why": "The maintained source repository shows current createConfig, onchainTable, ponder.on/context.db, backfill/live development, and generated GraphQL workflow together.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Scaffold-ETH 2 architecture",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Scaffold-ETH 2 is a monorepo with two packages: a contracts package (Foundry or Hardhat) and a Next.js frontend already wired with wagmi/viem, RainbowKit, and a typed contract registry generated from your deployments. It ships a burner wallet, a Debug Contracts page that auto-renders every function, and hot-reload from contract to UI — so you iterate full-stack without hand-writing plumbing. Resources: 📖 https://docs.scaffoldeth.io/",
+      "description": "Scaffold-ETH 2 combines a Foundry or Hardhat contract workspace with a Next.js frontend wired to wagmi, viem, and RainbowKit. Deployments feed contract address and ABI information to the frontend. It includes contract hot reload, a local burner wallet and faucet, and a Debug Contracts UI for rapid local iteration.",
       "aiContext": "Build: `npx create-eth@latest` into frontend/scaffold, run the local chain, deploy the example contract, and open the Debug Contracts page. Done when: you can call your deployed contract's functions from the auto-generated Debug UI and a redeploy updates the frontend's typed contract registry automatically.",
       "prerequisiteTitles": ["Scaffold-ETH 2"],
-      "parentTitle": "Scaffold-ETH 2"
+      "parentTitle": "Scaffold-ETH 2",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-scaffold-architecture",
+            "purpose": "Identify the current Scaffold-ETH stack and integrations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-welcome-docs",
+                "title": "Scaffold-ETH 2 Welcome",
+                "url": "https://docs.scaffoldeth.io/",
+                "format": "documentation",
+                "scope": "Sections About Scaffold-ETH 2 and Tech Stack",
+                "estimatedMinutes": 10,
+                "why": "The maintained overview documents contract hot reload, burner wallet/faucet, and the current Foundry-or-Hardhat plus Next.js/wagmi/viem stack.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-scaffold-installation",
+            "purpose": "Generate a current Hardhat-or-Foundry Scaffold-ETH project",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-install-docs",
+                "title": "Scaffold-ETH 2 Installation",
+                "url": "https://docs.scaffoldeth.io/quick-start/installation",
+                "format": "documentation",
+                "scope": "Sections Requirements and Setup",
+                "estimatedMinutes": 8,
+                "why": "The current installation guide supplies the create-eth command and the supported Hardhat-or-Foundry project choice used by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-scaffold-deployment-flow",
+            "purpose": "Run the local chain, deploy the example contract, and launch the frontend",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-environment-docs",
+                "title": "Scaffold-ETH 2 Environment",
+                "url": "https://docs.scaffoldeth.io/quick-start/environment",
+                "format": "documentation",
+                "scope": "Sections Initialize a Local Blockchain, Deploy Your Smart Contract, and Launch your NextJS Application",
+                "estimatedMinutes": 12,
+                "why": "The current quick start supplies the local chain, deploy, and frontend commands and the resulting contract-interaction loop.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Scaffold-ETH hooks (useScaffoldReadContract etc.)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Scaffold wraps wagmi with typed convenience hooks keyed off your deployed contracts: useScaffoldReadContract (typed reads), useScaffoldWriteContract (simulate+write+notifications), and useScaffoldEventHistory / useScaffoldWatchContractEvent for logs. Because they read the generated deployment info, you pass a contract name + function name and get full type inference with no manual ABI/address wiring. Resources: 📖 https://docs.scaffoldeth.io/hooks/",
+      "description": "Scaffold wraps wagmi with typed hooks keyed by deployed contract name: useScaffoldReadContract for reads, useScaffoldWriteContract for writes, and useScaffoldEventHistory or useScaffoldWatchContractEvent for logs. They resolve ABI and address from deployed contract information, avoiding repeated manual wiring. The write hook returns writeContractAsync and exposes mining state plus confirmation callbacks.",
       "aiContext": "Build: in frontend/scaffold add a component using useScaffoldReadContract to show a value and useScaffoldWriteContract to change it, plus useScaffoldEventHistory to list past events. Done when: the read updates after a successful write (with the built-in tx notification) and the event list reflects the new event — all with typed contract/function names.",
       "prerequisiteTitles": [
         "Scaffold-ETH 2 architecture",
         "Writing transactions with viem & wagmi"
       ],
-      "parentTitle": "Scaffold-ETH 2"
+      "parentTitle": "Scaffold-ETH 2",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-scaffold-read-hook",
+            "purpose": "Read through the deployed-contract-aware Scaffold hook",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-read-hook-docs",
+                "title": "useScaffoldReadContract",
+                "url": "https://docs.scaffoldeth.io/hooks/useScaffoldReadContract",
+                "format": "documentation",
+                "scope": "Sections Usage and Configuration",
+                "estimatedMinutes": 8,
+                "why": "The hook reference defines contractName/functionName inference and reactive read configuration.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-scaffold-write-hook",
+            "purpose": "Submit and track a write through the deployed-contract-aware Scaffold hook",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-write-hook-docs",
+                "title": "useScaffoldWriteContract",
+                "url": "https://docs.scaffoldeth.io/hooks/useScaffoldWriteContract",
+                "format": "documentation",
+                "scope": "Sections Usage, writeContractAsync, and Configuration",
+                "estimatedMinutes": 10,
+                "why": "The current reference documents writeContractAsync, isMining, blockConfirmations, and onBlockConfirmation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "10-scaffold-event-history",
+            "purpose": "Fetch bounded deployed-contract event history for the component",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-scaffold-history-hook-docs",
+                "title": "useScaffoldEventHistory",
+                "url": "https://docs.scaffoldeth.io/hooks/useScaffoldEventHistory",
+                "format": "documentation",
+                "scope": "Sections Usage and Configuration",
+                "estimatedMinutes": 10,
+                "why": "The dedicated reference defines eventName, fromBlock, blockData, transactionData, receiptData, and watch options for historical display.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
     },
 
     {
       "title": "Speedrun: Decentralized Staking App",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Challenge 1 builds a Staker contract with a funding deadline and threshold: users stake ETH, and if the threshold is met by the deadline the funds execute to an external contract, otherwise stakers can withdraw. It teaches payable functions, block.timestamp deadlines, a withdrawal pattern, and wiring a React UI to stake/withdraw with live balances. Resources: 🔗 https://speedrunethereum.com/challenge/decentralized-staking",
-      "aiContext": "Build: complete SpeedRunEthereum Challenge 1 in frontend/speedrun (Scaffold-ETH): implement Staker.sol (stake, execute, withdraw, deadline/threshold) and its UI. Done when: the provided challenge tests pass and the UI lets you stake, cross the threshold to execute, or withdraw after a missed deadline.",
+      "description": "The current first challenge is Crowdfunding: CrowdFund collects contributions until a deadline, sends the pool to FundingRecipient when the threshold is met, or opens contributor withdrawals otherwise. It teaches payable functions, event-driven UI, a deadline state machine, checks-effects-interactions for refunds, testnet deployment, and frontend shipping. The curriculum title retains the ladder's former staking name for stable graph identity.",
+      "aiContext": "Build: complete the current Speedrun Ethereum Crowdfunding challenge in frontend/speedrun: implement CrowdFund.sol (contribute, execute, withdraw, deadline/threshold) and its UI. Done when: the challenge tests pass, the UI records contributions, execution funds the recipient after a successful deadline, and contributors can withdraw after an unsuccessful one.",
       "prerequisiteTitles": ["Scaffold-ETH 2 architecture", "Speedrun Ethereum Ladder"],
-      "parentTitle": "Speedrun Ethereum Ladder"
+      "parentTitle": "Speedrun Ethereum Ladder",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-speedrun-crowdfunding",
+            "purpose": "Complete the current first ladder challenge and its contribution/deadline state machine",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-speedrun-crowdfunding-guide",
+                "title": "Speedrun Ethereum Crowdfunding App",
+                "url": "https://speedrunethereum.com/challenge/crowdfunding",
+                "format": "exercise",
+                "scope": "Sections Your Mission and Checkpoints 1–7",
+                "estimatedMinutes": 26,
+                "why": "The current first-party challenge replaces the old staking route and defines CrowdFund, contribute/execute/withdraw, tests, deployment, and frontend shipping.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Speedrun: Token Vendor",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Challenge 2 builds an ERC-20 plus a Vendor contract that sells tokens at a fixed price and buys them back (with approve→transferFrom), reinforcing the ERC-20 allowance flow, price math, and an Ownership withdraw. On the frontend you handle the two-step approve-then-sell UX that trips up most first dApps. Resources: 🔗 https://speedrunethereum.com/challenge/token-vendor",
+      "description": "The Token Vendor challenge builds an ERC-20 plus a Vendor that sells tokens at a fixed price and buys them back through approve then transferFrom. It reinforces allowance flow, integer price math, owner-only ETH withdrawal, safe ETH transfer with call, and the frontend's two-transaction approve-then-sell UX.",
       "aiContext": "Build: complete Challenge 2 in frontend/speedrun: an ERC-20 + Vendor with buyTokens (payable), sellTokens (approve + transferFrom), and owner withdraw, plus UI. Done when: the challenge tests pass and the UI can buy tokens with ETH and sell them back after an approve, with balances updating.",
       "prerequisiteTitles": ["Speedrun: Decentralized Staking App"],
-      "parentTitle": "Speedrun Ethereum Ladder"
+      "parentTitle": "Speedrun Ethereum Ladder",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-speedrun-token-vendor",
+            "purpose": "Complete the current token sale and approve-then-buyback challenge",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-speedrun-token-vendor-guide",
+                "title": "Speedrun Ethereum Token Vendor",
+                "url": "https://speedrunethereum.com/challenge/token-vendor",
+                "format": "exercise",
+                "scope": "Sections Checkpoint 2: Vendor through Checkpoint 4: Vendor Buyback",
+                "estimatedMinutes": 24,
+                "why": "The maintained challenge specifies current buyTokens, approve/transferFrom sellTokens, owner withdrawal, safe ETH-call, tests, and frontend workflow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Speedrun: Dice Game (randomness)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Challenge 3 exposes on-chain randomness pitfalls: the naive DiceGame derives a 'random' roll from block data, and you write a RiggedRoll contract that predicts the same value in the same block to win only when it's profitable. It's a hands-on lesson that block.timestamp/blockhash randomness is fully predictable to a contract in the same transaction/block. Resources: 🔗 https://speedrunethereum.com/challenge/dice-game",
+      "description": "The Dice Game challenge exposes on-chain randomness pitfalls: DiceGame derives a roll from the previous block hash, its address, and a public nonce; RiggedRoll computes the same value before calling. It demonstrates that deterministic inputs available to the attacker do not provide unpredictable randomness.",
       "aiContext": "Build: complete Challenge 3 in frontend/speedrun: implement RiggedRoll that recomputes DiceGame's roll and only calls rollTheDice on a winning prediction. Done when: the challenge tests pass and your RiggedRoll reliably wins, and you can explain in a note why on-chain blockhash randomness is exploitable and what (VRF/commit-reveal) fixes it.",
       "prerequisiteTitles": ["Speedrun: Token Vendor", "Weak randomness & timestamp dependence"],
-      "parentTitle": "Speedrun Ethereum Ladder"
+      "parentTitle": "Speedrun Ethereum Ladder",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-speedrun-dice-game",
+            "purpose": "Reproduce the exact deterministic roll and exploit it only on winning inputs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-speedrun-dice-guide",
+                "title": "Speedrun Ethereum Dice Game",
+                "url": "https://speedrunethereum.com/challenge/dice-game",
+                "format": "exercise",
+                "scope": "Sections Checkpoint 1: Dice Game and Checkpoint 2: Rigged Contract through Testing your progress",
+                "estimatedMinutes": 22,
+                "why": "The current challenge specifies the exact previous-block-hash, game-address, and nonce tuple, winning range, call value, and RiggedRoll tests.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Speedrun: Build a DEX",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Challenge 4 builds a minimal constant-product (x*y=k) DEX from scratch: init liquidity, price via the invariant with a 0.3% fee, ethToToken/tokenToEth swaps, and deposit/withdraw of LP shares — the capstone that ties Phase-7 AMM math to a working full-stack app with a swap UI and live reserves. Resources: 🔗 https://speedrunethereum.com/challenge/dex",
+      "description": "The DEX challenge builds a minimal constant-product (x*y=k) AMM: initial liquidity, a price function using xInput*997 for a 0.3% fee, ETH/token swaps, and proportional LP deposit and withdrawal. The frontend exercises quotes, live reserves, allowances, and the missing minimum-output protection that enables sandwich attacks.",
       "aiContext": "Build: complete Challenge 4 in frontend/speedrun: implement DEX.sol (init, price with fee, swaps, deposit/withdraw) and a swap UI showing reserves and expected output. Done when: the challenge tests pass, a swap moves the price along x*y=k with the fee applied, and the UI's quoted output matches the on-chain result.",
       "prerequisiteTitles": [
         "Speedrun: Dice Game (randomness)",
         "Constant-product market maker (x*y=k)"
       ],
-      "parentTitle": "Speedrun Ethereum Ladder"
+      "parentTitle": "Speedrun Ethereum Ladder",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-speedrun-dex",
+            "purpose": "Implement the challenge's exact AMM pricing, swaps, liquidity, tests, and UI",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-speedrun-dex-guide",
+                "title": "Speedrun Ethereum Build a DEX",
+                "url": "https://speedrunethereum.com/challenge/dex",
+                "format": "exercise",
+                "scope": "Sections Checkpoint 2: Reserves through Checkpoint 5: Liquidity, and Checkpoint 9: Deeper Understanding and Next Steps",
+                "estimatedMinutes": 26,
+                "why": "The maintained challenge defines reserve accounting, xInput*997 pricing, both swap functions, LP-share math, tests, and the missing minimum-output threat.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "title": "Speedrun: later challenges (Multisig, SVG NFT, Oracle)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Beyond the core four, the ladder continues into a Multisig wallet (off-chain signatures + on-chain execution threshold), a fully on-chain SVG NFT (encoding art and tokenURI in the contract), an Oracle/prediction challenge, and stablecoin/app-specific tracks. Each deepens a distinct skill — signature aggregation, on-chain data URIs, oracle consumption — while staying in the Scaffold-ETH full-stack loop. Resources: 🔗 https://speedrunethereum.com/",
-      "aiContext": "Build: complete at least one later SpeedRunEthereum challenge (Multisig, SVG NFT, or Oracle) in frontend/speedrun. Done when: that challenge's tests pass and its UI works end-to-end — e.g. a multisig executes only after enough owner signatures, or an on-chain SVG NFT renders from its tokenURI with no external hosting.",
+      "description": "The current later Oracles challenge compares whitelist, staking, and optimistic designs, then implements assertions, proposals, disputes, settlements, and reward claims. The catalog changes over time, so use the current challenge page rather than assuming older Multisig or SVG-NFT routes still host those exercises.",
+      "aiContext": "Build: complete the current Speedrun Ethereum Oracles challenge in frontend/speedrun. Done when: its checkpoint tests pass, the UI works end-to-end, and the optimistic oracle demonstrates assertion, proposal, dispute, settlement, and reward-claim flows.",
       "prerequisiteTitles": ["Speedrun: Build a DEX"],
-      "parentTitle": "Speedrun Ethereum Ladder"
+      "parentTitle": "Speedrun Ethereum Ladder",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "10-speedrun-later-challenge",
+            "purpose": "Complete the currently published Oracles challenge",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "10-speedrun-oracles-guide",
+                "title": "Speedrun Ethereum Oracles",
+                "url": "https://speedrunethereum.com/challenge/oracles",
+                "format": "exercise",
+                "scope": "Sections Checkpoint 1: Whitelist Oracle Overview through Checkpoint 7: Oracle Comparison & Trade-offs",
+                "estimatedMinutes": 26,
+                "why": "The current alternative supplies explicit whitelist, economic-staking, and dispute-based oracle implementations plus test and frontend checkpoints.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "proposedPrompts": [
@@ -233,19 +856,19 @@
     {
       "topicTitle": "Reading contracts with viem",
       "promptText": "What does readContract need, and how do you get full type inference and fewer RPC calls?",
-      "answerHint": "address + ABI + functionName + args; it's a decoded eth_call (no gas, no signer). Declare the ABI `as const` so viem infers argument and return types; use multicall to batch several reads into one round-trip. Pitfall: an ABI not `as const` degrades everything to `any`, silently losing the type safety that's the whole point.",
+      "answerHint": "address + ABI + functionName + args; it is a decoded eth_call rather than a transaction. Declare an inline ABI `as const` so viem can infer argument and return types; use multicall for compatible reads in one RPC request. Pitfall: a widened ABI loses precise function and result inference.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Writing transactions with viem & wagmi",
       "promptText": "Why simulate before writeContract, and what's the wagmi hook trio?",
-      "answerHint": "simulateContract runs the call against current state to catch reverts and prepare the request before writeContract signs/sends; then waitForTransactionReceipt confirms. In React: useSimulateContract → useWriteContract → useWaitForTransactionReceipt. Pitfall: skipping simulation means the user pays gas for a tx that reverts on-chain and gets a confusing wallet error instead of an early, decoded failure.",
+      "answerHint": "simulateContract validates against the state it reads and prepares a request before writeContract signs/sends; waitForTransactionReceipt tracks confirmation. In React, compose useSimulateContract with useWriteContract, then useWaitForTransactionReceipt. Pitfall: simulation reduces avoidable failures but cannot guarantee execution after state changes.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Watching events & logs (viem)",
       "promptText": "How do you get live vs historical events in viem, and what must you handle?",
-      "answerHint": "watchContractEvent subscribes to new decoded logs (polling over HTTP, real subscriptions over WebSocket); getContractEvents fetches historical logs over a block range. Pitfall: logs can be reorged/removed, so treat one as final only after enough confirmations — a UI that trusts an unconfirmed log can show state that later disappears.",
+      "answerHint": "watchContractEvent watches new decoded logs, normally polling a filter and falling back to getLogs; a WebSocket client can use subscriptions. getContractEvents fetches a historical range. Pitfall: a log-backed optimistic UI must reconcile against confirmed state after reorgs rather than treating the first callback as final.",
       "promptKind": "concept"
     },
     {
@@ -269,7 +892,7 @@
     {
       "topicTitle": "Sign-In With Ethereum (SIWE / EIP-4361)",
       "promptText": "How does SIWE authenticate a user, and why is the nonce essential?",
-      "answerHint": "The user signs a structured EIP-4361 message (domain, address, nonce, issued-at); the server recovers the signer and, if it matches and the server-issued nonce is unused, starts a session — proving key control with no password. Pitfall: reusing or omitting the nonce enables signature replay, letting an old signed message log someone in again.",
+      "answerHint": "The user signs an EIP-4361 message; the server verifies the signature plus expected domain, URI, version, chain ID, address, nonce, issued-at, and any validity bounds before consuming the nonce and starting a session. EOAs use ERC-191 verification, while contract accounts need an ERC-1271 path on the specified chain. Pitfall: a valid signature and nonce alone do not make the message valid for this relying party.",
       "promptKind": "concept"
     },
     {
@@ -296,7 +919,7 @@
     {
       "topicTitle": "Ponder indexing",
       "promptText": "How does Ponder differ from The Graph in language and operating model?",
-      "answerHint": "Ponder is TypeScript-native (handlers in TS, not AssemblyScript), backfills + live-syncs into your own SQL DB, and serves GraphQL/REST — you run it as a service; The Graph offers a hosted/decentralized network. Pitfall: running your own indexer means you own its uptime and reorg handling — the DX gain trades off against the decentralization The Graph provides.",
+      "answerHint": "Ponder uses TypeScript indexing functions, backfills and live-syncs into Postgres, and exposes HTTP query APIs including generated GraphQL and SQL; you deploy the service. The Graph uses subgraph manifests, schemas, AssemblyScript mappings, and its network. Pitfall: self-hosting means you own indexer availability and operations.",
       "promptKind": "concept"
     },
     {
@@ -308,22 +931,22 @@
     {
       "topicTitle": "Scaffold-ETH hooks (useScaffoldReadContract etc.)",
       "promptText": "What do the Scaffold hooks add over raw wagmi hooks?",
-      "answerHint": "They key off your generated deployment info, so you pass a contract name + function name (not a raw address/ABI) and get typed reads (useScaffoldReadContract), simulate+write+notifications (useScaffoldWriteContract), and event history/watch hooks. Pitfall: they only know contracts present in the generated deployments — a contract you deployed outside the flow won't be found by name.",
+      "answerHint": "They resolve ABI/address from deployed contract info, so contractName + functionName drive typed reads, writeContractAsync submissions, and event history/watch hooks without raw wiring. Receipt tracking remains a separate concern. Pitfall: contracts absent from deployed or configured external contract data cannot be resolved by name.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: Decentralized Staking App",
-      "promptText": "Complete SpeedRunEthereum Challenge 1 (Decentralized Staking).",
-      "answerHint": "Implement Staker.sol with stake (payable), a deadline + threshold, execute() to forward funds if met, and withdraw() if not; wire the Scaffold-ETH UI to stake/withdraw with live balances.",
+      "promptText": "Complete the current first Speedrun Ethereum challenge (Crowdfunding).",
+      "answerHint": "Implement CrowdFund.sol with contribute (payable), deadline + threshold, execute() to fund FundingRecipient or open refunds, and checks-effects-interactions withdraw; pass checkpoint tests and ship the contribution UI.",
       "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/decentralized-staking",
+      "url": "https://speedrunethereum.com/challenge/crowdfunding",
       "problemDifficulty": "medium",
       "estimatedMinutes": 180
     },
     {
       "topicTitle": "Speedrun: Decentralized Staking App",
-      "promptText": "In the Staker challenge, why use a withdraw (pull) pattern rather than pushing refunds?",
-      "answerHint": "Let each staker withdraw their own funds after a missed deadline instead of looping to push refunds — pull avoids gas-griefing/DoS and reentrancy from an untrusted recipient. Pitfall: track whether execute() already ran so stakers can't both trigger execution and withdraw the same funds.",
+      "promptText": "In the Crowdfunding challenge, why let contributors withdraw rather than pushing every refund?",
+      "answerHint": "Each contributor claims their recorded balance after an unsuccessful deadline, avoiding an unbounded refund loop and one recipient blocking everyone. Zero the balance before the external call. Pitfall: guard the state machine so contributions, successful execution, and refunds cannot overlap incorrectly.",
       "promptKind": "concept"
     },
     {
@@ -344,7 +967,7 @@
     {
       "topicTitle": "Speedrun: Dice Game (randomness)",
       "promptText": "Why is the Dice Game's on-chain randomness exploitable?",
-      "answerHint": "The roll is derived from block data (block.timestamp/blockhash/prevrandao) that a contract can read in the same transaction, so RiggedRoll recomputes the exact roll and only plays when it wins. Pitfall: any 'randomness' available to a contract at call time is predictable — use a VRF or commit-reveal for real unpredictability.",
+      "answerHint": "DiceGame hashes blockhash(block.number - 1), its own address, and a public nonce, then takes modulo 16. RiggedRoll reads the same inputs before calling and plays only for rolls 0–5. Pitfall: deterministic public inputs are predictable; use a VRF or a correctly designed commit-reveal when unpredictability is required.",
       "promptKind": "concept"
     },
     {
@@ -368,21 +991,21 @@
     {
       "topicTitle": "Speedrun: Build a DEX",
       "promptText": "In the DEX challenge, how is the output of a swap priced?",
-      "answerHint": "By the constant-product invariant x*y=k with a fee: outputAmount = (inputWithFee * outputReserve) / (inputReserve + inputWithFee), where inputWithFee applies the 0.3% cut. Pitfall: quoting off spot price instead of the invariant ignores slippage — large swaps move the price and get materially less out than a naive linear quote.",
+      "answerHint": "The challenge sets inputWithFee = input * 997, then output = (inputWithFee * outputReserve) / (inputReserve * 1000 + inputWithFee). Pitfall: a spot-price quote ignores slippage, and swap functions without a minimum output expose users to sandwiching.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: later challenges (Multisig, SVG NFT, Oracle)",
-      "promptText": "What distinct skill does the Multisig challenge teach versus a normal contract call?",
-      "answerHint": "Owners sign transaction hashes off-chain (EIP-712) and anyone can submit the bundle of signatures on-chain; execution runs only once a threshold of valid owner signatures is recovered. Pitfall: the contract must track executed nonces/hashes so a set of signatures can't be replayed to execute the same tx twice.",
+      "promptText": "How do the three oracle designs in the current challenge trade trust for complexity?",
+      "answerHint": "The whitelist oracle trusts approved reporters; the staking oracle decentralizes reporting with stake, rewards, inactivity penalties, and slashing; the optimistic oracle accepts bonded proposals unless disputed, then a decider settles the outcome. Pitfall: each design moves trust rather than eliminating it, so state the authority, incentives, latency, and dispute assumptions.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: later challenges (Multisig, SVG NFT, Oracle)",
-      "promptText": "Finish at least one later SpeedRunEthereum challenge (Multisig, SVG NFT, or Oracle).",
-      "answerHint": "Pick one: a threshold multisig (off-chain sigs + on-chain execute), a fully on-chain SVG NFT (tokenURI returns base64 data URI), or an oracle-consuming app; pass its tests and wire the UI.",
+      "promptText": "Finish at least one currently published later Speedrun Ethereum challenge.",
+      "answerHint": "Complete Oracles: implement the whitelist, staking, and optimistic designs; pass the checkpoint tests and wire the reporting, assertion, proposal, dispute, settlement, and reward-claim UI flows.",
       "promptKind": "problem",
-      "url": "https://speedrunethereum.com/",
+      "url": "https://speedrunethereum.com/challenge/oracles",
       "problemDifficulty": "hard",
       "estimatedMinutes": 240
     }
