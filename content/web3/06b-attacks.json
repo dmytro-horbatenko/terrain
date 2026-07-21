@@ -7,7 +7,7 @@
       "title": "Reentrancy attacks",
       "type": "concept",
       "domain": "Web3",
-      "description": "The archetypal external-call bug family: a contract calls out to an address that re-enters it before its own state is updated, so a stale balance or flag is trusted twice. Spans single-function, cross-function, cross-contract, read-only, and callback-hook variants; the defense is Checks-Effects-Interactions plus a reentrancy guard. Resources: https://solidity-by-example.org/hacks/re-entrancy/",
+      "description": "The archetypal external-call bug family: a contract calls out to an address that re-enters it before its own state is updated, so a stale balance or flag is trusted twice. Spans single-function, cross-function, cross-contract, read-only, and callback-hook variants; defenses include restoring invariants before external calls and applying a shared reentrancy guard where needed.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -15,7 +15,7 @@
       "title": "Access control & authorization attacks",
       "type": "concept",
       "domain": "Web3",
-      "description": "The largest source of real 2025 losses (OWASP SC01): functions that fail to check WHO is calling, or check it wrongly. Missing modifiers, tx.origin auth, unprotected initializers/selfdestruct, and weak signature checks all let an attacker invoke privileged logic. Resources: https://scs.owasp.org/sctop10/",
+      "description": "OWASP SC01 in the current Smart Contract Top 10: functions that fail to check who is calling, or check it wrongly. Missing modifiers, tx.origin authorization, unprotected initializers or privileged opcodes, and weak signature checks can all let an attacker invoke privileged logic.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -23,7 +23,7 @@
       "title": "Arithmetic & precision attacks",
       "type": "concept",
       "domain": "Web3",
-      "description": "Bugs where the math is the vulnerability: overflow/underflow (pre-0.8 or inside unchecked/casts/assembly), division-before-multiplication truncation, wrong rounding direction, and share-price manipulation in vaults. Small rounding edges compound into drainable value. Resources: https://docs.soliditylang.org/en/latest/security-considerations.html",
+      "description": "Bugs where the math is the vulnerability: overflow or underflow (pre-0.8 or inside unchecked arithmetic, casts, or assembly), premature integer division, wrong rounding direction, and share-price manipulation in vaults. Small rounding edges can compound into drainable value.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -31,7 +31,7 @@
       "title": "Price oracle & flash-loan attacks",
       "type": "concept",
       "domain": "Web3",
-      "description": "OWASP SC03/SC04: an attacker distorts the price a protocol reads — a spot AMM reserve, a manipulable TWAP, or a governance snapshot — often funding the distortion with a single-transaction flash loan that needs no capital. Root cause is trusting a manipulable on-chain source as ground truth. Resources: https://docs.chain.link/data-feeds/price-feeds",
+      "description": "OWASP SC03/SC04: an attacker distorts the price or voting power a protocol reads — a spot AMM reserve, a weak TWAP, or a current-balance governance vote — often funding the distortion with a single-transaction flash loan. Root cause is trusting state that temporary borrowed liquidity can rewrite.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -40,8 +40,67 @@
       "title": "Single-function reentrancy",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A withdraw() that sends ETH via a low-level call BEFORE zeroing the caller's recorded balance lets the recipient's receive()/fallback re-enter withdraw() and drain the contract, because the balance check still passes on each re-entry. This is the 2016 DAO hack (~$60M, the cause of the ETH/ETC fork). Fix: Checks-Effects-Interactions (update state before the external call) plus a nonReentrant guard. Resources: 📖 https://solidity-by-example.org/hacks/re-entrancy/",
+      "description": "A withdraw() that sends ETH via a low-level call before zeroing the caller's recorded balance lets the recipient's receive()/fallback re-enter withdraw() and drain the contract, because the balance check still passes on each re-entry. The 2016 DAO attack recursively called its split path and drained more than 3.6 million ETH, prompting the DAO fork. Fix the stale-state window with Checks-Effects-Interactions and, where appropriate, a reentrancy guard.",
       "aiContext": "Build: in security/attacks/reentrancy-single/ write a vulnerable Vault (balance decremented AFTER the call), an Attacker that re-enters withdraw() from receive() to drain it, and a Foundry test that proves the drain; then apply CEI + OpenZeppelin ReentrancyGuard. Done when: the exploit test empties the vault on the vulnerable contract and reverts after the fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-single-reentrancy-mechanism",
+            "purpose": "Trace the inconsistent-state window and apply Checks-Effects-Interactions without relying on a gas stipend",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-solidity-reentrancy-security-docs",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Sections Reentrancy and Use the Checks-Effects-Interactions Pattern",
+                "estimatedMinutes": 12,
+                "why": "The canonical Solidity guide shows the stale-credit withdrawal mechanism and the ordering pattern exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06b-dao-recursive-call-incident",
+            "purpose": "Separate the historical DAO recursive-call facts from the simplified vault exercise",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-ethereum-foundation-dao-alert",
+                "title": "Critical Update Re: DAO Vulnerability",
+                "url": "https://blog.ethereum.org/2016/06/17/critical-update-re-dao-vulnerability",
+                "format": "article",
+                "scope": "Section Critical Update Re: DAO Vulnerability, first three paragraphs",
+                "estimatedMinutes": 6,
+                "why": "The contemporaneous Ethereum Foundation notice identifies the recursively called split function and the scope of the DAO-specific incident.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06b-dao-fork-outcome",
+            "purpose": "Verify the amount drained and the resulting DAO fork without projecting later facts onto the initial incident alert",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-ethereum-dao-fork-timeline",
+                "title": "Timeline of all Ethereum forks",
+                "url": "https://ethereum.org/ethereum-forks/",
+                "format": "documentation",
+                "scope": "Section DAO fork, subsection Summary",
+                "estimatedMinutes": 6,
+                "why": "Ethereum.org records that more than 3.6 million ETH was drained, that the fork moved affected funds to a recovery contract, and that the split continued as Ethereum Classic.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Reentrancy attacks"
     },
@@ -49,8 +108,31 @@
       "title": "Cross-function & cross-contract reentrancy",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A per-function nonReentrant guard is not enough when two functions (or two contracts) share the same state: the attacker re-enters a DIFFERENT function that reads the not-yet-updated balance, or bounces through a second contract the guard doesn't cover. The state, not one function, is what must be consistent before any external call. Resources: 📖 https://solidity-by-example.org/hacks/re-entrancy/",
+      "description": "Guarding only one entry point is not enough when another function or contract can observe the same inconsistent state: the attacker re-enters an unguarded function that reads the not-yet-updated balance, or bounces through a second contract outside the lock. The shared invariant, not one named function, must hold before control leaves the system.",
       "aiContext": "Build: in security/attacks/reentrancy-cross/ write a contract with withdraw() and transfer() sharing a balances mapping, where transfer() has no guard; the Attacker re-enters transfer() mid-withdraw to move a stale balance. Done when: the test double-spends on the vulnerable version and fails once CEI is applied across BOTH functions.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-cross-reentrancy-invariants",
+            "purpose": "Reason about reentrancy as an invariant boundary spanning entry points and contracts",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-reentrancy-invariants",
+                "title": "Reentrancy After Istanbul",
+                "url": "https://blog.openzeppelin.com/reentrancy-after-istanbul",
+                "format": "documentation",
+                "scope": "Sections What is Reentrancy? and Reentrancy Guards",
+                "estimatedMinutes": 14,
+                "why": "OpenZeppelin frames the bug around observable inconsistent invariants and documents the shared guard semantics needed across relevant entry points.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Single-function reentrancy"],
       "parentTitle": "Reentrancy attacks"
     },
@@ -58,8 +140,31 @@
       "title": "Read-only reentrancy",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A view function has no state to guard, yet an attacker can call it MID-manipulation: during a reentrant callback (e.g. Curve's remove_liquidity sending ETH), the pool's internal accounting is temporarily inconsistent, so a `getVirtualPrice()`/`get_dy()` read returns a wrong value that a consumer contract trusts. Several 2022–23 lending protocols were drained this way. Fix: reentrancy-lock even the read path, or read only after the lock clears. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "description": "A view function writes no state, yet an attacker can call it mid-manipulation: during a callback such as Curve's ETH-paying remove_liquidity path, pool balances and LP supply can be temporarily inconsistent, so get_virtual_price() reports a wrong value that an integrating contract trusts. The 2022 disclosure exposed several major integrations. Fix the read path or reject reads while the upstream pool's lock is entered.",
       "aiContext": "Build: in security/attacks/reentrancy-readonly/ write a Pool whose ETH-refund path is reentrant and a Consumer that prices collateral from the pool's view function; the Attacker re-enters during remove-liquidity and borrows against a corrupted price. Done when: the test over-borrows on the vulnerable consumer and reverts after the read is guarded by the pool's reentrancy lock.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-readonly-reentrancy-disclosure",
+            "purpose": "Reproduce the temporary Curve balance-versus-supply inconsistency and its effect on a view consumer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-chainsecurity-curve-readonly-postmortem",
+                "title": "Curve LP Oracle Manipulation: Post Mortem",
+                "url": "https://www.chainsecurity.com/blog/curve-lp-oracle-manipulation-post-mortem",
+                "format": "article",
+                "scope": "Sections Background, Read-Only Reentrancy, and Vulnerability Analysis",
+                "estimatedMinutes": 20,
+                "why": "The original discloser explains the exact remove_liquidity callback, inconsistent D and LP supply, and manipulated get_virtual_price read modeled by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Single-function reentrancy"],
       "parentTitle": "Reentrancy attacks"
     },
@@ -67,8 +172,49 @@
       "title": "ERC-777 & callback-hook reentrancy",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Tokens with transfer hooks — ERC-777 tokensReceived/tokensToSend, ERC-1155 onERC1155Received, ERC-721 onERC721Received — hand control to the recipient DURING a transfer, turning an otherwise safe ERC-20-style flow into a reentrancy vector. The 2020 Uniswap V1 / imBTC and Cream Finance incidents exploited exactly this. Fix: CEI so no state is stale when the hook fires, plus a guard. Resources: 📖 https://eips.ethereum.org/EIPS/eip-777",
-      "aiContext": "Build: in security/attacks/reentrancy-erc777/ write a Vault that credits shares after a token transferFrom of an ERC-777, and an Attacker whose tokensReceived hook re-enters deposit()/withdraw(); prove the drain in Foundry. Done when: the hook-driven exploit succeeds on the vulnerable vault and reverts after CEI ordering is fixed.",
+      "description": "Tokens with transfer hooks — ERC-777 tokensToSend/tokensReceived, ERC-1155 onERC1155Received, and ERC-721 onERC721Received — execute external code during a transfer. A caller that assumes an ERC-20-compatible transfer is inert can therefore expose stale accounting; the disclosed Uniswap V1/ERC-777 vulnerability used this compatibility edge. Restore invariants before the hook can observe them and use a guard where necessary.",
+      "aiContext": "Build: in security/attacks/reentrancy-erc777/ write an exchange that pays ETH before calling transferFrom on an ERC-777-compatible token, and an Attacker whose tokensToSend hook re-enters the sale while the ETH reserve is already lower but the token reserve is stale. Done when: repeated hook-driven sales extract excess ETH on the vulnerable exchange and fail once reserve/accounting effects precede the interaction and the entry point is guarded.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-erc777-hook-order",
+            "purpose": "Locate sender and recipient hooks inside the ERC-777 transfer lifecycle",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-eip777-hooks-spec",
+                "title": "ERC-777 Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-777",
+                "format": "documentation",
+                "scope": "Sections Hooks, ERC777TokensSender and tokensToSend, and ERC777TokensRecipient and tokensReceived",
+                "estimatedMinutes": 16,
+                "why": "The canonical standard fixes the callback order and ERC-20 compatibility behavior that create the build's external-control boundary.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06b-uniswap-erc777-incident-mechanism",
+            "purpose": "Map the generic hook lifecycle to the reserve ordering exploited in an ERC-777-compatible Uniswap exchange",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-uniswap-erc777-analysis",
+                "title": "Exploiting Uniswap: from reentrancy to actual profit",
+                "url": "https://www.openzeppelin.com/news/exploiting-uniswap-from-reentrancy-to-actual-profit",
+                "format": "article",
+                "scope": "Sections Uniswap + ERC777 and Exploiting the reentrancy",
+                "estimatedMinutes": 14,
+                "why": "OpenZeppelin's disclosed proof of concept supplies the exact ETH-payment and tokensToSend ordering used by the corrected exercise.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Single-function reentrancy"],
       "parentTitle": "Reentrancy attacks"
     },
@@ -77,8 +223,31 @@
       "title": "Missing & incorrect access-control modifiers",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The plurality of stolen value (OWASP SC01): a state-changing or fund-moving function is left with default (public/external) visibility and no onlyOwner/role check, or the check is on the wrong role, letting anyone call it. Parity, Poly Network, and countless smaller hacks reduce to one unguarded privileged function. Fix: explicit visibility, a checked modifier on every privileged path, and enumerating privileged functions during review. Resources: 📖 https://scs.owasp.org/sctop10/",
+      "description": "A state-changing or fund-moving function is externally reachable without the intended owner or role check, or checks the wrong role, letting an unauthorized caller invoke privileged logic. Fix the authorization at every privileged entry point and audit the complete external/public function surface against the intended role matrix.",
       "aiContext": "Build: in security/attacks/access-missing/ write a Vault whose setOwner()/sweep() is public with no modifier, and a test where a non-owner EOA seizes ownership and drains it; then add onlyOwner and re-run. Done when: the attacker call succeeds pre-fix and reverts with the access error post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-access-control-entrypoints",
+            "purpose": "Map privileged entry points to the owner or role checks that enforce least privilege",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-access-control-guide",
+                "title": "OpenZeppelin Access Control",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/access-control",
+                "format": "documentation",
+                "scope": "Sections Ownership and Ownable and Role-Based Access Control",
+                "estimatedMinutes": 15,
+                "why": "The current library guide distinguishes single-owner and granular-role enforcement and shows the exact onlyOwner boundary used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Access control & authorization attacks"
     },
@@ -86,8 +255,31 @@
       "title": "tx.origin authentication",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Authenticating with `tx.origin == owner` instead of `msg.sender == owner` is phishable: if the owner is tricked into calling a malicious contract, that contract calls the victim, and tx.origin is still the owner, so the check passes. Always authorize the immediate caller (msg.sender). Resources: 📖 https://solidity-by-example.org/hacks/phishing-with-tx-origin/",
+      "description": "Authenticating with `tx.origin == owner` instead of `msg.sender == owner` is phishable: if the owner is tricked into calling a malicious contract, that contract calls the victim, and tx.origin is still the owner, so the check passes. Authorize the immediate caller with msg.sender.",
       "aiContext": "Build: in security/attacks/tx-origin/ write a Wallet gated by tx.origin, a malicious Lure contract, and a test where the owner calling Lure triggers a transfer out of the Wallet; then switch the check to msg.sender. Done when: the phishing test drains the wallet pre-fix and reverts post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-tx-origin-authentication",
+            "purpose": "Distinguish transaction origin from the immediate message caller in an authorization check",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-solidity-tx-origin-security-docs",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Section tx.origin",
+                "estimatedMinutes": 8,
+                "why": "The canonical Solidity warning gives the intermediary-contract phishing flow and requires msg.sender for authorization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Access control & authorization attacks"
     },
@@ -95,8 +287,31 @@
       "title": "Uninitialized proxy & unprotected initializer",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Upgradeable contracts replace the constructor with an initialize() function; if it is left callable by anyone (no initializer/one-shot guard) an attacker calls it first and becomes owner, or front-runs the legitimate init. The 2017 Parity multisig freeze (~$300M locked) is the canonical case. Fix: OpenZeppelin `initializer` modifier, initialize in the same tx as deploy, and _disableInitializers() in the implementation's constructor. Resources: 📖 https://blog.openzeppelin.com/parity-wallet-hack-reloaded",
+      "description": "Proxy deployments move setup from the implementation's constructor to an initializer executed in proxy storage. If initialization is omitted or repeatable, an attacker can claim ownership of the proxy; if the implementation is left initializable, it can be taken over directly and may endanger the proxy. Use a one-shot initializer, initialize the proxy atomically, and call _disableInitializers() in the implementation constructor.",
       "aiContext": "Build: in security/attacks/uninit-proxy/ write an upgradeable Vault whose initialize() sets owner but lacks the initializer guard, and a test where an attacker calls initialize() to claim ownership; then add the guard + _disableInitializers(). Done when: the attacker becomes owner pre-fix and initialize() reverts as already-initialized post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-upgradeable-initialization-boundaries",
+            "purpose": "Protect proxy initialization and separately lock the implementation contract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-upgradeable-initializers",
+                "title": "Writing Upgradeable Contracts",
+                "url": "https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable",
+                "format": "documentation",
+                "scope": "Sections Initializers and Initializing the Implementation Contract",
+                "estimatedMinutes": 15,
+                "why": "The current OpenZeppelin guide defines the initializer modifier and the distinct _disableInitializers implementation lock modeled in the exercise.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
       "parentTitle": "Access control & authorization attacks"
     },
@@ -104,8 +319,49 @@
       "title": "Unprotected selfdestruct",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A selfdestruct (or delegatecall reaching one) behind an unguarded function lets anyone delete the contract's code and send its ETH away — bricking every contract that depends on it. The second Parity incident froze ~$300M when a library was selfdestructed after an attacker initialized and killed it. Fix: gate selfdestruct behind strict access control, or avoid it entirely (post-Cancun it no longer clears code except in the same tx as creation). Resources: 📖 https://solidity-by-example.org/hacks/self-destruct/",
-      "aiContext": "Build: in security/attacks/selfdestruct/ write a Bank that must hold a running balance-invariant, plus an unguarded kill() with selfdestruct; a test force-destroys it and shows dependents break. Done when: the unguarded kill succeeds pre-fix and reverts (onlyOwner) post-fix.",
+      "description": "An unguarded path to SELFDESTRUCT lets any caller force the contract's entire ETH balance to the chosen beneficiary. Since Cancun/EIP-6780, it does not delete code or storage unless executed in the same transaction as creation, but the balance transfer and execution halt remain; the opcode is deprecated and new uses are strongly discouraged. Avoid it, or strictly authorize any unavoidable legacy path.",
+      "aiContext": "Build: in security/attacks/selfdestruct/ write a funded Bank with an unguarded kill(address payable beneficiary), and test under Cancun semantics that an attacker can force its full ETH balance to the attacker while the pre-existing contract's code remains. Done when: the unauthorized balance transfer succeeds pre-fix and reverts after onlyOwner is added; separately assert the code-preservation behavior required by EIP-6780.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-selfdestruct-cancun-semantics",
+            "purpose": "Test the current balance-transfer and code-preservation semantics of SELFDESTRUCT",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-eip6780-selfdestruct-spec",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, and Security Considerations",
+                "estimatedMinutes": 12,
+                "why": "The canonical Cancun specification distinguishes forced balance transfer from the same-transaction-only code deletion behavior asserted by the corrected build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06b-parity-library-selfdestruct-incident",
+            "purpose": "Distinguish the historical Parity library deletion from post-Cancun SELFDESTRUCT behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-parity-wallet-analysis",
+                "title": "Parity Wallet Hack Reloaded",
+                "url": "https://blog.openzeppelin.com/parity-wallet-hack-reloaded",
+                "format": "article",
+                "scope": "Sections A quick recap, The new vulnerability, and A new attack",
+                "estimatedMinutes": 10,
+                "why": "OpenZeppelin's contemporaneous analysis explains how the shared library was initialized and then killed under the pre-Cancun rules, freezing dependent wallets.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
       "parentTitle": "Access control & authorization attacks"
     },
@@ -113,8 +369,31 @@
       "title": "Signature-based authorization gaps",
       "type": "pattern",
       "domain": "Web3",
-      "description": "When authorization is proven by an off-chain signature instead of msg.sender, the checks move into the contract: it must verify the signer is authorized, that ecrecover did not return address(0), and that the signed payload is bound to this contract and use. A missing signer-set check or an unvalidated recovered address is a privilege-escalation hole (this leaf is the auth angle; replay and malleability are covered under signature attacks). Resources: 📖 https://scs.owasp.org/sctop10/",
+      "description": "When authorization is proven by an off-chain signature instead of msg.sender, the contract must recover a nonzero signer, verify that signer has the required role, and hash the intended structured action under the correct domain. Merely recovering some address proves signature validity, not authorization; replay and malleability are covered separately under signature attacks.",
       "aiContext": "Build: in security/attacks/sig-authz/ write an admin action gated by an ECDSA signature that forgets to check the recovered signer against an allowlist; a test authorizes with an arbitrary key. Done when: the unauthorized signer executes the action pre-fix and is rejected once the signer allowlist check is added.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-signature-recovery-vs-authorization",
+            "purpose": "Recover a signer under the intended domain and then enforce the signer's role explicitly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-cryptography-api",
+                "title": "OpenZeppelin Cryptography API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography",
+                "format": "documentation",
+                "scope": "Sections ECDSA, MessageHashUtils, and EIP712",
+                "estimatedMinutes": 18,
+                "why": "The current API separates signer recovery, message hashing, and typed-data domains, making clear that the application must still check the recovered account's authority.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
       "parentTitle": "Access control & authorization attacks"
     },
@@ -123,8 +402,49 @@
       "title": "Integer overflow & underflow",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Before Solidity 0.8 arithmetic wrapped silently, so a balance of 0 minus 1 became 2^256-1; the 2018 BEC/BeautyChain hack minted astronomically many tokens via a multiplication overflow (batchTransfer). 0.8+ reverts on overflow BY DEFAULT, but `unchecked` blocks, downcasts (uint256→uint128), and inline assembly still wrap — modern bugs live there. Fix: keep arithmetic checked, validate before downcasting, and use SafeCast. Resources: 📖 https://solidity-by-example.org/hacks/overflow/",
+      "description": "Before Solidity 0.8 arithmetic wrapped silently; Solidity 0.8+ reverts on ordinary overflow and underflow by default. The protection does not make unchecked arithmetic, explicit narrowing conversions, or inline assembly safe: unchecked operations wrap and explicit integer conversions truncate. Keep value-bearing arithmetic checked and use range-checked casts such as SafeCast.",
       "aiContext": "Build: in security/attacks/overflow/ write a token whose transfer subtracts inside an unchecked block (and a uint96 downcast on amount), and a test where an underflow/truncation mints or steals balance; then remove unchecked and add SafeCast. Done when: the exploit inflates a balance pre-fix and reverts post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-checked-arithmetic-and-casts",
+            "purpose": "Identify where Solidity 0.8 checks end and wrapping or truncation resumes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-solidity-unchecked-arithmetic-docs",
+                "title": "Solidity Expressions and Control Structures",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html",
+                "format": "documentation",
+                "scope": "Section Checked or Unchecked Arithmetic",
+                "estimatedMinutes": 12,
+                "why": "The compiler documentation defines checked defaults, unchecked wrapping, and truncating explicit conversions used by the vulnerable token.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06b-safecast-range-check",
+            "purpose": "Replace a silent narrowing conversion with a checked downcast",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-safecast-api",
+                "title": "OpenZeppelin Utils API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils",
+                "format": "documentation",
+                "scope": "Section SafeCast",
+                "estimatedMinutes": 6,
+                "why": "The current API documents checked downcasts that revert when the input does not fit the destination type.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Arithmetic & precision attacks"
     },
@@ -132,8 +452,49 @@
       "title": "Division-before-multiplication & precision loss",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EVM integer division truncates, so `(a / b) * c` loses the remainder that `(a * c) / b` would keep — this division before multiplication, or rounding in the protocol's favor when it should round against the user (or vice versa), lets an attacker accumulate the discarded dust or pay less than owed. Always multiply before dividing and choose rounding direction deliberately (round shares down on deposit, up on withdraw). Resources: 📖 https://docs.soliditylang.org/en/latest/security-considerations.html",
-      "aiContext": "Build: in security/attacks/precision/ write a reward/fee calc that divides before multiplying and rounds the wrong way, and a Foundry test that farms the rounding to extract value or underpay; then reorder to mul-before-div with an explicit rounding choice. Done when: the test shows a non-zero drain pre-fix and zero (or protocol-favorable) residue post-fix.",
+      "description": "Solidity integer division rounds toward zero, so `(a / b) * c` discards a remainder before the multiplication can preserve it. Moving multiplication first may overflow even when the final quotient fits, so use full-precision mulDiv where necessary and choose the rounding direction for the economic operation explicitly. Repeated favorable rounding can turn small errors into extractable value.",
+      "aiContext": "Build: in security/attacks/precision/ write a reward/fee calculation that divides before multiplying and rounds in the attacker's favor, and a Foundry test that repeats the operation to extract value or underpay; then use Math.mulDiv with the intended rounding mode. Done when: the test shows a non-zero cumulative edge pre-fix and no attacker-favorable residue post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-integer-division-rounding",
+            "purpose": "Predict when integer division discards precision and choose an explicit rounding direction",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-solidity-integer-division-docs",
+                "title": "Solidity Types",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Sections Value Types and Division",
+                "estimatedMinutes": 8,
+                "why": "The canonical type semantics establish that integer division returns an integer and rounds toward zero.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06b-full-precision-muldiv",
+            "purpose": "Compute multiplication and division without avoidable intermediate overflow",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-math-muldiv-api",
+                "title": "OpenZeppelin Utils API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils",
+                "format": "documentation",
+                "scope": "Section Math, functions mulDiv and mulShr",
+                "estimatedMinutes": 8,
+                "why": "The current Math API supplies the full-precision operation and explicit rounding overload required by the fix.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Integer overflow & underflow"],
       "parentTitle": "Arithmetic & precision attacks"
     },
@@ -141,8 +502,31 @@
       "title": "ERC-4626 first-depositor share inflation",
       "type": "pattern",
       "domain": "Web3",
-      "description": "In an empty ERC-4626 vault the first depositor mints 1 wei of shares, then DONATES a large amount of the underlying directly to the vault (raising totalAssets without minting shares); this inflates the share price so a later depositor's assets round down to zero shares, and the attacker redeems their 1 share for the victim's deposit. Fix: seed the vault with dead shares, use virtual shares/offset (OZ ERC4626 default), or an internal asset accounting variable instead of balanceOf. Resources: 📖 https://www.rareskills.io/post/erc4626",
+      "description": "In a naive empty ERC-4626 vault, a first depositor can mint a tiny share amount and then donate underlying directly, raising totalAssets without minting shares. A later deposit can round down to zero shares, after which the attacker redeems the victim's assets. OpenZeppelin's defense combines virtual assets and shares with a decimals offset, making the attack unprofitable while reducing rounding loss.",
       "aiContext": "Build: in security/attacks/vault-inflation/ write a naive ERC-4626 (assets = token.balanceOf(this)) and a test: attacker deposits 1 wei, donates a large amount, victim deposits and gets 0 shares, attacker redeems the lot; then switch to OZ's virtual-offset vault. Done when: the victim is robbed pre-fix and gets fair shares post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-erc4626-inflation-defense",
+            "purpose": "Quantify the donation attack and the loss captured by virtual assets and shares",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-erc4626-security-guide",
+                "title": "OpenZeppelin ERC-4626 Guide",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/erc4626",
+                "format": "documentation",
+                "scope": "Sections Security Concern: Inflation Attack and Defending with a virtual offset",
+                "estimatedMinutes": 18,
+                "why": "The current implementation guide derives the empty-vault donation attack and the virtual-share, virtual-asset, and decimals-offset defense used by the fixed build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
       "parentTitle": "Arithmetic & precision attacks"
     },
@@ -150,8 +534,31 @@
       "title": "Token decimals mismatch",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Assuming every token has 18 decimals breaks the moment a protocol integrates USDC/USDT (6) or WBTC (8): a price or amount scaled by the wrong factor is off by 10^12, letting an attacker deposit a trivial amount and withdraw a fortune (or vice versa). Fix: read decimals() per token and normalize all cross-token math to a common scale; never hardcode 1e18. Resources: 📖 https://docs.soliditylang.org/en/latest/security-considerations.html",
-      "aiContext": "Build: in security/attacks/decimals/ write a two-token exchange that hardcodes 1e18 scaling and a test that swaps a 6-decimal token to extract 10^12x value; then normalize using each token's decimals(). Done when: the mis-scaled swap over-pays pre-fix and is balanced post-fix.",
+      "description": "Assuming every token has 18 decimals breaks integrations with assets such as 6-decimal USDC or 8-decimal WBTC: the same human amount has a different integer representation. Normalize each explicitly supported asset using verified integration metadata; ERC-20 decimals() is optional, so arbitrary token-supplied metadata is not a trust boundary by itself.",
+      "aiContext": "Build: in security/attacks/decimals/ write a two-token exchange that hardcodes 1e18 scaling and a test that swaps a configured 6-decimal token to extract 10^12x value; then normalize with immutable per-asset scale factors validated when the supported tokens are configured. Done when: the mis-scaled swap over-pays pre-fix and is balanced post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-erc20-decimals-semantics",
+            "purpose": "Treat token decimals as representation metadata and account for its optional status",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-eip20-decimals-spec",
+                "title": "ERC-20 Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-20",
+                "format": "documentation",
+                "scope": "Sections Token, Methods, and decimals",
+                "estimatedMinutes": 7,
+                "why": "The canonical standard defines decimals as a display divisor and explicitly marks the method optional, supporting configured rather than blindly trusted scaling.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
       "parentTitle": "Arithmetic & precision attacks"
     },
@@ -160,8 +567,31 @@
       "title": "Spot-price oracle manipulation",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Pricing collateral from an AMM's INSTANTANEOUS reserves (`reserveB * 1e18 / reserveA`, or getAmountOut on the current pool) means one large swap moves the price for exactly as long as the attacker needs it. They swap to skew the pool, borrow/mint against the false price, and swap back — the pool is an oracle that anyone with capital can rewrite in the same block. Fix: never price off spot reserves; use a manipulation-resistant oracle (Chainlink, or a long TWAP). Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "description": "Pricing collateral from an AMM's instantaneous reserves means one large swap can move the reported price for exactly as long as an attacker needs it. They skew the pool, borrow or mint against the false price, and unwind the trade, leaving the consumer with bad debt. Do not use a manipulable pool's spot reserves as an independent price oracle.",
       "aiContext": "Build: in security/attacks/oracle-spot/ deploy a constant-product pool and a Lender that prices collateral from spot reserves; a test swaps to move the price, over-borrows, and swaps back. Done when: the attacker extracts more than deposited pre-fix and the borrow is bounded once priced off a TWAP/Chainlink mock.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-amm-spot-oracle-manipulation",
+            "purpose": "Explain why the current reserve ratio is cheap to rewrite within a transaction",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-uniswap-v2-oracle-whitepaper",
+                "title": "Uniswap v2 Core Whitepaper",
+                "url": "https://app.uniswap.org/whitepaper.pdf",
+                "format": "article",
+                "scope": "Section 2.2 Price oracle",
+                "estimatedMinutes": 12,
+                "why": "The protocol whitepaper contrasts manipulable within-block spot prices with the prior-block cumulative-price design built to resist them.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
@@ -169,8 +599,31 @@
       "title": "TWAP oracle manipulation",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A time-weighted average price resists a single-block move, but it is not immune: over a short window, on a low-liquidity pair, or across several blocks an attacker can still drag the average — and a TWAP that samples too infrequently lags real price, which is its own risk. Choosing the window and liquidity floor is the security decision. Mango Markets (2022, ~$115M) manipulated a thin market's price over time. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "description": "A time-weighted average price raises the cost of a momentary move, but it is not immune: a short window or low-liquidity market can still be held away from fair value long enough to move the average. A longer window costs more to manipulate but responds more slowly to real market changes, so observation period, liquidity assumptions, and fallback behavior are security parameters.",
       "aiContext": "Build: in security/attacks/oracle-twap/ implement a Uniswap-V2-style cumulative-price TWAP and a consumer, then a multi-block Foundry test (vm.roll/vm.warp) that walks the average on a thin pool enough to over-borrow. Done when: the test moves the TWAP past the consumer's safety margin on a low-liquidity setup and fails once the window/liquidity floor is raised.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-twap-window-tradeoff",
+            "purpose": "Derive a cumulative-price TWAP and relate observation length to manipulation cost and freshness",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-uniswap-v2-twap-whitepaper",
+                "title": "Uniswap v2 Core Whitepaper",
+                "url": "https://app.uniswap.org/whitepaper.pdf",
+                "format": "article",
+                "scope": "Section 2.2 Price oracle, paragraphs defining cumulative-price checkpoints and the observation-period tradeoff",
+                "estimatedMinutes": 15,
+                "why": "The protocol paper defines cumulative-price checkpoints and states the longer-period manipulation-cost versus recency tradeoff exercised by the multi-block test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Spot-price oracle manipulation"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
@@ -178,8 +631,49 @@
       "title": "Flash-loan price manipulation",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A flash loan supplies unbounded capital for one transaction (borrow, act, repay atomically or the whole tx reverts), so spot-oracle manipulation needs NO attacker capital: borrow millions, skew the pool, exploit the false price, repay, keep the profit. bZx (2020) and Harvest Finance (2020, ~$34M) are textbook cases. The flash loan is the amplifier; the real bug is the manipulable price source. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "description": "A flash loan supplies large temporary liquidity for one atomic transaction: borrow, act, and repay, or the transaction reverts. That can remove much of the attacker's upfront-capital requirement for spot-oracle manipulation. Harvest Finance's first-party account describes a 2020 flash-loan-funded economic attack against manipulated Curve pool valuation; the loan amplified the vulnerable price/accounting design.",
       "aiContext": "Build: in security/attacks/flashloan-price/ combine a flash-loan provider, a spot-priced lender, and an Attacker that borrows, manipulates, drains, and repays in one tx; prove profit in Foundry. Done when: the single-tx exploit nets profit against the spot-priced lender and is unprofitable once the lender uses a resistant oracle.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-flashloan-oracle-amplifier",
+            "purpose": "Separate atomic borrowed liquidity from the manipulable spot-oracle root cause",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-chainlink-flashloan-oracle-guide",
+                "title": "What Are Flash Loans?",
+                "url": "https://chain.link/education-hub/flash-loans",
+                "format": "documentation",
+                "scope": "Sections Flash Loans and Price Oracle Attacks and How Chainlink Oracles Prevent Flash Loan Attacks",
+                "estimatedMinutes": 14,
+                "why": "Chainlink's current guide walks the same borrow-swap-overborrow-repay sequence and identifies the DEX spot feed, not the loan primitive, as the vulnerable dependency.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06b-harvest-economic-attack",
+            "purpose": "Compare the simplified lender exercise with a first-party flash-loan-funded valuation incident",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-harvest-firstparty-update",
+                "title": "Restoring Funds and Immediate Next Steps to Mitigate Hacks",
+                "url": "https://medium.com/harvest-finance/week-9-update-restoring-funds-and-immediate-next-steps-to-mitigate-hacks-c2dc5bd829e5",
+                "format": "article",
+                "scope": "Section What We Know and its post-mortem summary",
+                "estimatedMinutes": 8,
+                "why": "Harvest's own account identifies manipulation of Curve Y Pool asset value and the resulting favorable vault-share pricing without overstating the simplified model as the historical implementation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Spot-price oracle manipulation"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
@@ -187,8 +681,49 @@
       "title": "Flash-loan governance attacks",
       "type": "pattern",
       "domain": "Web3",
-      "description": "If voting power is read from a token balance or a same-block snapshot, an attacker flash-borrows enough governance tokens to pass a malicious proposal (or reach quorum) within one transaction, then repays. Beanstalk (2022, ~$182M) used a flash loan to pass an emergency proposal that drained the treasury. Fix: snapshot voting power at a past block (checkpointing), enforce timelocks, and disallow same-block propose-and-execute. Resources: 📖 https://github.com/SunWeb3Sec/DeFiHackLabs",
+      "description": "If voting power is read from a current balance or an attacker-controlled snapshot, borrowed tokens can satisfy a proposal threshold or quorum temporarily. In 2022, Beanstalk reported that a flash loan compromised its governance mechanism and stole about $77M in non-Beanstalk user assets. Past-timepoint vote checkpoints, voting delay, and a separate execution timelock narrow this class of attack.",
       "aiContext": "Build: in security/attacks/flashloan-gov/ write a Governor that counts votes by current token balance and a malicious proposal that transfers the treasury; a test flash-borrows tokens, proposes/votes/executes in one tx. Done when: the treasury is drained pre-fix and the attack fails once voting uses past-block checkpoints + a timelock.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-beanstalk-governance-incident",
+            "purpose": "Ground the flash-loan governance mechanism and loss figure in the affected protocol's account",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-beanstalk-firstparty-exploit",
+                "title": "Beanstalk Governance Exploit",
+                "url": "https://bean.money/blog/beanstalk-governance-exploit",
+                "format": "article",
+                "scope": "Sections Beanstalk Governance Exploit and Technical Breakdown",
+                "estimatedMinutes": 10,
+                "why": "Beanstalk's first-party post states that a flash loan compromised governance and reports approximately $77M in stolen non-Beanstalk user assets.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06b-governance-checkpoints-timelock",
+            "purpose": "Use past voting-power checkpoints and delayed execution as separate controls",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-openzeppelin-governance-guide",
+                "title": "How to set up on-chain governance",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/governance",
+                "format": "documentation",
+                "scope": "Sections Setup, Token, and Timelock",
+                "estimatedMinutes": 18,
+                "why": "The current Governor guide explains ERC20Votes historical balances and TimelockController's distinct queue-to-execute delay used by the fix.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Flash-loan price manipulation"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
@@ -196,8 +731,49 @@
       "title": "Stale & misconfigured price feeds",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Even a real Chainlink feed is unsafe if consumed carelessly: not checking `updatedAt` (accepting a stale price after a feed halts), ignoring the feed's heartbeat/deviation config, mixing up feed decimals (8 vs 18), or reading a deprecated aggregator. A wrong or frozen price mis-collateralizes the whole protocol. Fix: validate answer > 0 and updatedAt within the heartbeat, scale by the feed's decimals(), and handle the revert path. Resources: 📖 https://docs.chain.link/data-feeds/using-data-feeds",
-      "aiContext": "Build: in security/attacks/oracle-stale/ write a consumer that reads latestRoundData() but ignores updatedAt and decimals; a test freezes the mock feed (old timestamp) and a wrong-decimals feed to mis-price collateral. Done when: the consumer accepts the stale/mis-scaled price pre-fix and reverts once staleness + decimals checks are added.",
+      "description": "A correctly operated data feed can still be unsafe for a particular consumer if the contract ignores updatedAt, assumes the wrong response decimals, uses the wrong feed or network, or has no behavior for unavailable data. Consume the current proxy through AggregatorV3Interface, set a maximum age justified by that feed and application, scale from decimals(), and define circuit-breaker or fail-safe behavior.",
+      "aiContext": "Build: in security/attacks/oracle-stale/ write a consumer that reads latestRoundData() but ignores updatedAt and decimals; test an old mock report and a feed with a different response precision. Done when: the consumer accepts stale or mis-scaled data pre-fix and rejects it after a configured maximum-age check, correct decimal normalization, positive-answer validation, and explicit failure behavior are added.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-chainlink-round-metadata",
+            "purpose": "Consume answer precision and update time from the current feed proxy interface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-chainlink-datafeeds-api",
+                "title": "Chainlink Data Feeds API Reference",
+                "url": "https://docs.chain.link/data-feeds/api-reference",
+                "format": "documentation",
+                "scope": "Sections AggregatorV3Interface, decimals, and latestRoundData",
+                "estimatedMinutes": 12,
+                "why": "The current API defines response precision, updatedAt, and proxy-based consumption, which are the exact fields the build initially ignores.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "06b-feed-selection-risk-controls",
+            "purpose": "Justify maximum-age and failure behavior from the selected feed's documented properties and application risk",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-chainlink-quality-feed-selection",
+                "title": "Selecting Quality Data Feeds",
+                "url": "https://docs.chain.link/data-feeds/selecting-data-feeds",
+                "format": "documentation",
+                "scope": "Sections Risk mitigation and Market hours",
+                "estimatedMinutes": 12,
+                "why": "Chainlink's current selection guide requires consumers to evaluate feed-specific risk and define safeguards rather than applying one universal heartbeat assumption.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Spot-price oracle manipulation"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
@@ -205,8 +781,31 @@
       "title": "Read-only reentrancy into oracles",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The read-only reentrancy variant aimed specifically at oracle reads: a consumer prices assets from a pool's view function (e.g. Curve's get_virtual_price) while the pool is mid-callback and its accounting is transiently inconsistent, so the price is wrong precisely when trusted. Multiple lending markets integrating Curve LP tokens were drained (2022–23). Fix: call the pool's reentrancy-lock check before reading, or use a source not corrupt during callbacks. Resources: 📖 https://github.com/SunWeb3Sec/DeFiVulnLabs",
-      "aiContext": "Build: in security/attacks/oracle-readonly-reentrancy/ reuse the reentrant pool, add a Lending market that prices Curve-style LP collateral from the pool's view function, and an Attacker that re-enters during remove_liquidity to borrow at a corrupted price. Done when: the over-borrow succeeds pre-fix and reverts once the consumer checks the pool's reentrancy lock before reading.",
+      "description": "The oracle-focused read-only reentrancy variant occurs when a consumer prices assets from a pool view while the pool is mid-callback and its balances and share supply are transiently inconsistent. ChainSecurity's 2022 Curve disclosure showed get_virtual_price() could be manipulated and identified multiple exposed integrations. Reject reads while the upstream lock is entered—probing a harmless lock-protected function when the lock is not public—or use a source whose invariants hold during callbacks.",
+      "aiContext": "Build: in security/attacks/oracle-readonly-reentrancy/ reuse the reentrant pool, add a Lending market that prices Curve-style LP collateral from the pool's view function, and an Attacker that re-enters during remove_liquidity to borrow at a corrupted price. Model the historical consumer fix by calling a harmless lock-protected pool function immediately before the price read. Done when: the over-borrow succeeds pre-fix and reverts because that probe encounters the entered lock after the fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06b-readonly-oracle-consumer",
+            "purpose": "Connect a transiently inconsistent upstream view to an unsafe collateral-price consumer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06b-chainsecurity-curve-oracle-consumer",
+                "title": "Curve LP Oracle Manipulation: Post Mortem",
+                "url": "https://www.chainsecurity.com/blog/curve-lp-oracle-manipulation-post-mortem",
+                "format": "article",
+                "scope": "Sections Vulnerability Analysis, Integrations, and Fixing price feeds",
+                "estimatedMinutes": 18,
+                "why": "The original disclosure traces manipulated get_virtual_price into integrating protocols and documents the historical consumer workaround: trigger the non-public lock through a harmless state-changing function before reading.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Read-only reentrancy", "Spot-price oracle manipulation"],
       "parentTitle": "Price oracle & flash-loan attacks"
     }
@@ -235,7 +834,7 @@
     {
       "topicTitle": "Cross-function & cross-contract reentrancy",
       "promptText": "Why can a per-function nonReentrant guard still leave a contract reentrant?",
-      "answerHint": "The guard only locks ONE function; if a second function (or a sibling contract) reads/writes the same shared state and isn't covered by the same lock, the attacker re-enters THAT one during the external call and acts on stale state. Pitfall: reentrancy is a property of shared state across the whole system, not of a single function — apply CEI everywhere the state is touched and share one lock.",
+      "answerHint": "If only one entry point is guarded, a second function or sibling contract that reads or writes the same state may remain callable during the external interaction. The attacker re-enters that unguarded path and acts on stale state. Reentrancy is a property of shared invariants across the system: restore them before the call and cover all relevant entry points with the same lock boundary.",
       "promptKind": "concept"
     },
     {
@@ -263,13 +862,13 @@
     {
       "topicTitle": "ERC-777 & callback-hook reentrancy",
       "promptText": "Why does an ERC-777 (or ERC-1155/721 receiver) token turn a normally-safe transfer into a reentrancy vector?",
-      "answerHint": "These standards invoke a hook on the recipient (tokensReceived / onERC1155Received / onERC721Received) DURING the transfer, handing control to attacker code before the caller has finished updating its own state — so an ERC-20-style flow that assumed transfer was inert becomes reentrant. Pitfall: 'it's just an ERC-20 integration' is wrong if the token has hooks; apply CEI + a guard and be wary of arbitrary/whiteldistable token lists.",
+      "answerHint": "These standards invoke external hooks during a transfer: ERC-777 calls the sender's tokensToSend before updating balances and the recipient's tokensReceived afterward, while ERC-1155/ERC-721 call receiver hooks. That hands control to attacker code while the integrating contract may still have unfinished accounting. Pitfall: 'it's just an ERC-20 integration' is wrong if a compatible token has hooks; apply CEI plus a guard and constrain arbitrary token lists.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-777 & callback-hook reentrancy",
       "promptText": "Replay the Cream Finance / imBTC-style ERC-777 reentrancy from DeFiHackLabs and reproduce the drain locally.",
-      "answerHint": "Fork or mock an ERC-777 with a tokensReceived hook, deposit into a vault that credits shares after transferFrom, and re-enter deposit/borrow from the hook while the vault's state is stale — DeFiHackLabs has the historical PoC to adapt.",
+      "answerHint": "Mock an ERC-20-compatible ERC-777 and register the attacker's tokensToSend hook. Sell tokens to an exchange that pays ETH before transferFrom; re-enter the sale from tokensToSend, after the ETH reserve has fallen but before the token reserve changes. Repeated micro-sales extract more ETH than non-reentrant sales. Move accounting effects before the interaction and guard the entry point.",
       "promptKind": "problem",
       "url": "https://github.com/SunWeb3Sec/DeFiHackLabs",
       "problemDifficulty": "hard"
@@ -304,7 +903,7 @@
     {
       "topicTitle": "Uninitialized proxy & unprotected initializer",
       "promptText": "Why is an unprotected initialize() dangerous in an upgradeable contract, and how is it fixed?",
-      "answerHint": "Proxies can't run the implementation's constructor, so setup moves to initialize(); if it lacks a one-shot guard, an attacker calls it first (or front-runs deploy) to set themselves as owner. Fix: OpenZeppelin `initializer` modifier (reverts on second call), initialize atomically with deployment, and call _disableInitializers() in the implementation's constructor so the logic contract can't be initialized directly. Pitfall: the IMPLEMENTATION contract itself, if left initializable, is a live takeover target (see Motorbike/Parity).",
+      "answerHint": "Proxies can't run the implementation's constructor, so setup moves to initialize(); if it lacks a one-shot guard, an attacker calls it first (or front-runs deploy) to set themselves as owner. Fix: OpenZeppelin `initializer` modifier (reverts on a repeated call), initialize atomically with deployment, and call _disableInitializers() in the implementation's constructor so the logic contract can't be initialized directly. Pitfall: proxy storage and implementation storage are separate trust boundaries; protect both.",
       "promptKind": "concept"
     },
     {
@@ -318,7 +917,7 @@
     {
       "topicTitle": "Unprotected selfdestruct",
       "promptText": "What damage does an unguarded selfdestruct do, and what happened to Parity?",
-      "answerHint": "Anyone can delete the contract's code and forward its ETH, bricking every contract that delegatecalls into it. In the 2017 Parity library incident an attacker initialized the shared library, became owner, and selfdestructed it — permanently freezing ~$300M in wallets that depended on it. Fix: gate it behind strict access control or remove it. Pitfall: post-Cancun (EIP-6780) selfdestruct only clears code in the same tx as creation, but it still forwards the balance and is still an access-control hazard.",
+      "answerHint": "In the 2017 Parity incident, an attacker initialized the shared wallet library and called its kill path; under the pre-Cancun rules that deleted the library code and froze wallets that depended on it. Under post-Cancun EIP-6780, SELFDESTRUCT on a pre-existing contract instead transfers its full ETH balance and leaves code/storage intact; deletion remains only in the creation transaction. Avoid the deprecated opcode or strictly authorize the path.",
       "promptKind": "concept"
     },
     {
@@ -343,13 +942,13 @@
     {
       "topicTitle": "Division-before-multiplication & precision loss",
       "promptText": "Why does `(a / b) * c` lose value that `(a * c) / b` keeps, and how does rounding direction matter?",
-      "answerHint": "EVM integer division truncates the remainder immediately, so dividing first discards precision before the multiply can use it — always multiply before dividing. Rounding direction must favor the protocol: round shares DOWN when minting to a depositor and UP when charging on withdrawal, or the discarded dust becomes an attacker's profit. Pitfall: even correct mul-before-div still truncates — decide, and document, who eats the rounding on every path.",
+      "answerHint": "Solidity integer division rounds toward zero, so dividing first discards precision before a later multiply can use it. Multiplying first can overflow even when the quotient fits, so use a full-precision mulDiv implementation when needed. Choose an explicit rounding mode for the economic operation and test that repeated rounding cannot systematically favor the caller.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "ERC-4626 first-depositor share inflation",
       "promptText": "Walk through the ERC-4626 first-depositor / donation inflation attack and its standard mitigation.",
-      "answerHint": "On an empty vault the attacker mints 1 wei of shares, then transfers a large amount of the underlying straight to the vault so totalAssets balloons while totalShares stays 1; the next depositor's assets/price rounds DOWN to 0 shares, and the attacker redeems their single share for everyone's deposits. Mitigation: virtual shares/offset (OpenZeppelin ERC4626 default), seeding dead shares at deployment, or tracking assets in an internal variable rather than balanceOf. Pitfall: pricing assets from token.balanceOf(this) is what makes the donation count — use internal accounting.",
+      "answerHint": "On an empty vault the attacker mints a tiny number of shares, then transfers underlying straight to the vault so totalAssets rises while totalSupply does not. The victim's deposit rounds down to zero shares, effectively donating assets that the attacker can redeem. OpenZeppelin's defense adds virtual assets and shares plus a decimals offset; the offset improves precision and the virtual balances capture part of the attacker's donation, making the attack unprofitable.",
       "promptKind": "concept"
     },
     {
@@ -361,7 +960,7 @@
     {
       "topicTitle": "Token decimals mismatch",
       "promptText": "How does assuming 18 decimals create an exploitable bug when integrating USDC or WBTC?",
-      "answerHint": "USDC/USDT use 6 decimals and WBTC 8, so a hardcoded 1e18 scale mis-values amounts by 10^12 or 10^10 — an attacker deposits a token whose units the contract over-values and withdraws far more of another. Fix: read decimals() per token and normalize all cross-asset math to one internal scale. Pitfall: decimals() is not part of the ERC-20 required interface and some tokens omit or lie about it — verify per integration rather than trusting the call blindly.",
+      "answerHint": "USDC/USDT use 6 decimals and WBTC 8, so a hardcoded 1e18 scale can mis-value raw amounts by 10^12 or 10^10. Normalize supported assets with configured, verified scale factors. ERC-20 decimals() is optional and arbitrary tokens may omit or misreport it, so validate metadata as part of the integration rather than trusting each caller-supplied token.",
       "promptKind": "concept"
     },
 
@@ -382,13 +981,13 @@
     {
       "topicTitle": "TWAP oracle manipulation",
       "promptText": "A TWAP resists single-block manipulation — so what is still the attacker's angle, and what is the design tradeoff?",
-      "answerHint": "On a thin pool or a short window the attacker can still drag the average over one or several blocks (Mango Markets walked a low-liquidity price up), and JIT-holding a manipulated price across the sampling interval works if the window is short. But lengthening the window makes the oracle LAG real price — the tradeoff is manipulation-resistance vs freshness. Pitfall: a TWAP is only as safe as the pool's liquidity; set a minimum-liquidity guard, not just a window length.",
+      "answerHint": "On a thin pool or short observation window, an attacker can hold the market away from fair value long enough to drag the average. Lengthening the period raises manipulation cost but makes the oracle lag real price changes. Security therefore depends on liquidity and observation assumptions as well as window length, with explicit fallback behavior when those assumptions fail.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Flash-loan price manipulation",
       "promptText": "What does a flash loan add to an oracle-manipulation attack, and where is the real bug?",
-      "answerHint": "A flash loan lends unbounded capital for one atomic transaction (repay by tx end or the whole thing reverts), removing the attacker's capital requirement — they borrow millions, skew a spot oracle, exploit the false price, and repay, all in one tx (bZx, Harvest). The real bug is the manipulable price source; the flash loan just makes it free to trigger. Pitfall: 'flash-loan protection' by blocking known lenders is whack-a-mole — fix the oracle so a momentary price move isn't profitable in the first place.",
+      "answerHint": "A flash loan supplies large temporary liquidity for one atomic transaction (repay by transaction end or the whole transaction reverts), sharply reducing the attacker's upfront-capital requirement. They skew a spot oracle, exploit the false price, repay, and keep the remainder. The root bug is the manipulable price source; blocking known lenders does not fix it.",
       "promptKind": "concept"
     },
     {
@@ -402,7 +1001,7 @@
     {
       "topicTitle": "Flash-loan governance attacks",
       "promptText": "How does a flash loan defeat token-balance-based governance, and what stops it?",
-      "answerHint": "If voting power is read from a current token balance (or same-block snapshot), the attacker flash-borrows enough tokens to pass a malicious proposal within one transaction and repays after — Beanstalk lost ~$182M this way. Fix: count votes from a PAST-block checkpoint (ERC20Votes), require a timelock between proposal passage and execution, and forbid same-block propose-vote-execute. Pitfall: a snapshot taken at proposal-creation in the SAME block the attacker borrows is no protection — the checkpoint must precede the borrow.",
+      "answerHint": "If voting power is read from a current balance or attacker-controlled snapshot, borrowed tokens can satisfy quorum temporarily and be repaid after execution. Beanstalk reported about $77M in non-Beanstalk user assets stolen through its governance mechanism. Use past-timepoint ERC20Votes checkpoints, a voting delay, and a separate execution timelock; a snapshot created after borrowing is not protection.",
       "promptKind": "concept"
     },
     {
@@ -416,13 +1015,13 @@
     {
       "topicTitle": "Stale & misconfigured price feeds",
       "promptText": "What must a Chainlink consumer validate on latestRoundData(), and why?",
-      "answerHint": "answer > 0 (reject zero/negative), updatedAt within the feed's heartbeat (reject a stale price after a feed halt), the correct feed decimals() when scaling, and that you're reading the current aggregator — otherwise a frozen or mis-scaled price silently mis-collateralizes the protocol. Pitfall: a healthy-looking read can still be stale if the feed stopped updating; checking only answer > 0 (and not updatedAt) is the common miss.",
+      "answerHint": "Require a positive answer, normalize using the feed's decimals(), and reject updatedAt values older than an application maximum age justified by that feed's documented behavior. Read through the current proxy on the intended network and define circuit-breaker or failure behavior. There is no safe universal heartbeat constant for every feed and application.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Read-only reentrancy into oracles",
       "promptText": "How does read-only reentrancy specifically break an oracle consumer?",
-      "answerHint": "The consumer prices collateral from a pool's VIEW function (e.g. Curve get_virtual_price) that returns an inconsistent value while the pool is mid-callback (an ETH refund during remove_liquidity re-enters the attacker); the price is wrong exactly when it's trusted, so borrows/liquidations execute on bad terms. Fix: check the pool's reentrancy lock before reading (Curve exposes a way to detect this), or use a source that isn't corrupt during callbacks. Pitfall: guarding your own state-changing functions does nothing here — the corrupted value comes from an EXTERNAL view you read mid-reentrancy.",
+      "answerHint": "The consumer prices collateral from a pool's view function (for example, Curve get_virtual_price) while an ETH refund during remove_liquidity has left pool balances and LP supply inconsistent. Historical Curve locks were not public, so integrations probed the lock by first calling a harmless lock-protected function and reverted if it was entered. Alternatively, use a source whose invariants hold during callbacks. Guarding only the consumer's entry point does not validate the external view.",
       "promptKind": "concept"
     }
   ],

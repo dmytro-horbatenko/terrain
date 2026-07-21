@@ -7,7 +7,7 @@
       "title": "Audit Process & Methodology",
       "type": "concept",
       "domain": "Web3",
-      "description": "How a smart-contract security review actually runs, end to end: scoping the codebase, building a mental model before hunting bugs, and balancing manual review against tooling. This is the operating discipline the rest of Phase 6 (classification, tooling, fuzzing, reporting) assumes. Resources: https://secure-contracts.com/",
+      "description": "How a smart-contract security review actually runs, end to end: scoping the codebase, building a mental model before hunting bugs, and balancing manual review against tooling. This is the operating discipline the rest of Phase 6 (classification, tooling, fuzzing, reporting) assumes.",
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -15,7 +15,7 @@
       "title": "Severity & Vulnerability Classification",
       "type": "concept",
       "domain": "Web3",
-      "description": "The frameworks that turn 'this looks bad' into a defensible severity: the OWASP Smart Contract Top 10 (2026) for risk categories, Immunefi's likelihood×impact scale for bounty/severity triage, and the EEA EthTrust levels for certification — plus what changed now that the SWC registry is deprecated. Resources: https://scs.owasp.org/sctop10/ https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/",
+      "description": "The frameworks that turn 'this looks bad' into defensible analysis: the OWASP Smart Contract Top 10 (2026) for risk categories, Immunefi's impact-led scale with likelihood downgrade factors for bounty severity, and the EEA EthTrust levels for certification — plus why the unmaintained SWC registry needs current supporting guidance.",
       "prerequisiteTitles": ["Audit Process & Methodology"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -23,7 +23,7 @@
       "title": "Static Analysis Tooling",
       "type": "concept",
       "domain": "Web3",
-      "description": "Automated pattern-matching over source code that runs in seconds and catches known bug shapes without executing anything: Slither (Python, the incumbent, 90+ detectors) and Aderyn (Rust, Cyfrin's newer analyzer, sub-second on large codebases) are the two tools every auditor runs before a human reads a line. Resources: https://github.com/crytic/slither https://github.com/Cyfrin/aderyn",
+      "description": "Static analyzers inspect source and compiler representations without executing generated transaction sequences. Slither provides detectors and code-comprehension printers; Aderyn produces Markdown, JSON, and SARIF reports and supports editor integration. Their output is evidence to triage, not a substitute for manual protocol reasoning.",
       "prerequisiteTitles": ["Severity & Vulnerability Classification"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -31,7 +31,7 @@
       "title": "Fuzzing & Invariants for Security",
       "type": "concept",
       "domain": "Web3",
-      "description": "Where static analysis stops, dynamic testing over random/guided call sequences picks up: Foundry's built-in invariant testing, Echidna, and Medusa all hammer a contract with call sequences looking for a property that should always hold to break. The hard part isn't running the fuzzer — it's writing invariants specific enough to catch a real bug. Resources: https://book.getfoundry.sh/forge/invariant-testing https://github.com/crytic/echidna",
+      "description": "Where static analysis stops, dynamic testing over random/guided call sequences picks up: Foundry's built-in invariant testing, Echidna, and Medusa all hammer a contract with call sequences looking for a property that should always hold to break. The hard part isn't running the fuzzer — it's writing invariants specific enough to catch a real bug.",
       "prerequisiteTitles": ["Static Analysis Tooling"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
@@ -39,7 +39,7 @@
       "title": "Security Report Writing",
       "type": "concept",
       "domain": "Web3",
-      "description": "Turning findings into a report a client, a bounty payout, or a public disclosure can act on: justifying the severity you assigned against a named framework, keeping the proof of concept as small as possible while still convincing, and writing recommendations specific enough to implement without another meeting. Resources: https://updraft.cyfrin.io/courses/security https://solodit.cyfrin.io/checklist",
+      "description": "Turning findings into a report a client, a bounty payout, or a public disclosure can act on: justifying the severity you assigned against a named framework, keeping the proof of concept as small as possible while still convincing, and writing recommendations specific enough to implement without another meeting.",
       "prerequisiteTitles": [
         "Fuzzing & Invariants for Security",
         "Severity & Vulnerability Classification"
@@ -51,8 +51,31 @@
       "title": "Reading an unfamiliar codebase",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Auditing starts by orienting, not reading top-to-bottom: find every external/public entry point, trace which ones move value or change privileged state, and sketch a call graph of who calls whom before hunting for bugs. A codebase read in file order hides the actual attack surface, which is defined by reachability from an attacker-controlled call, not by file layout. Resources: 📖 https://secure-contracts.com/ 📖 https://updraft.cyfrin.io/courses/security",
+      "description": "Auditing starts by orienting, not reading top-to-bottom: find every external/public entry point, trace which ones move value or change privileged state, and sketch a call graph of who calls whom before hunting for bugs. A codebase read in file order hides the actual attack surface, which is defined by reachability from an attacker-controlled call, not by file layout.",
       "aiContext": "Build: pick any contract in security/samples/, and in security/notes/<contract>-entrypoints.md list every external/public function, mark which ones move value or change access-control state, and draw a one-page call graph. Done when: the notes file names at least one function you would NOT have flagged as security-relevant on a top-to-bottom read.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-codebase-entrypoints",
+            "purpose": "Map attacker-reachable state-changing entry points, authorization, and call relationships before review",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-slither-review-printers",
+                "title": "Slither README",
+                "url": "https://github.com/crytic/slither",
+                "format": "documentation",
+                "scope": "Sections Usage and Printers, including entry-points, call-graph, and vars-and-auth",
+                "estimatedMinutes": 14,
+                "why": "The official tool reference provides the exact entry-point, call-graph, and authorization printers that make the learner's manual map complete and checkable.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Audit Process & Methodology"
     },
@@ -60,8 +83,31 @@
       "title": "Audit scoping & the audit lifecycle",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A scope pins down exactly what's being reviewed before work starts: a commit hash (not a moving branch), a list of in-scope files/contracts, known issues excluded up front, and a fixed time window. The lifecycle then runs scoping → initial review → findings drafted → fix review (re-checking patches against the same commit range) → final report — skipping fix review is how 'fixed' bugs ship half-fixed. Resources: 📖 https://secure-contracts.com/ 📖 https://updraft.cyfrin.io/courses/security",
+      "description": "A scope pins down exactly what's being reviewed before work starts: a commit hash (not a moving branch), a list of in-scope files/contracts, known issues excluded up front, and a fixed time window. The lifecycle then runs scoping → initial review → findings drafted → fix review (re-checking patches against the same commit range) → final report — skipping fix review is how 'fixed' bugs ship half-fixed.",
       "aiContext": "Build: in security/notes/scope-template.md, write a scope document for a sample protocol in security/samples/ — commit hash, in-scope file list, out-of-scope/known-issues, and lifecycle stages with target dates. Done when: the template has a named commit-hash field and a distinct 'fix review' stage separate from the initial review.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-review-scope",
+            "purpose": "Freeze the exact review target and distinguish initial review, fix review, and final delivery",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-openzeppelin-audit-lifecycle",
+                "title": "What Is a Smart Contract Audit, the OpenZeppelin Way",
+                "url": "https://www.openzeppelin.com/news/what-is-a-smart-contract-audit-lessons-from-openzeppelins-1000-audits",
+                "format": "article",
+                "scope": "Sections Audit Preparation & Scope Definition, Reporting & Fix Review, and Final Delivery & Optional Publication",
+                "estimatedMinutes": 15,
+                "why": "OpenZeppelin's current process pins the codebase and commit hash, verifies fixes against the whole codebase, and distinguishes the initial report from final delivery after fix review.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Reading an unfamiliar codebase"],
       "parentTitle": "Audit Process & Methodology"
     },
@@ -69,8 +115,31 @@
       "title": "Note-taking and building a mental model",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Good audit notes aren't a transcript of the code — they're an evolving model of invariants ('X should never exceed Y') and open questions ('what happens if this reverts mid-loop?') tagged to specific lines, so a two-line hunch survives to become a real finding a week later. Auditors who don't write down assumptions re-derive (or forget) them every time they revisit a file. Resources: 📖 https://secure-contracts.com/ 📖 https://updraft.cyfrin.io/courses/security",
+      "description": "Good audit notes aren't a transcript of the code — they're an evolving model of invariants ('X should never exceed Y') and open questions ('what happens if this reverts mid-loop?') tagged to specific lines, so a two-line hunch survives to become a real finding a week later. Auditors who don't write down assumptions re-derive (or forget) them every time they revisit a file.",
       "aiContext": "Build: while reviewing a sample contract in security/samples/, keep running notes in security/notes/<contract>-model.md: a list of invariants you believe hold plus a separate list of open questions/hunches with file:line references. Done when: you have at least 3 invariants and 2 open questions, each pointing at the exact line it depends on.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-mental-model-properties",
+            "purpose": "Turn system assumptions and high-value state-machine behavior into explicit review properties and questions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-program-analysis-properties",
+                "title": "Building Secure Contracts: Program Analysis",
+                "url": "https://secure-contracts.com/program-analysis/",
+                "format": "documentation",
+                "scope": "Sections Determining Security Properties and Components",
+                "estimatedMinutes": 18,
+                "why": "The maintained Trail of Bits guide shows how threat modeling, state machines, access control, arithmetic, and external interactions become concrete properties rather than code paraphrase.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Audit scoping & the audit lifecycle"],
       "parentTitle": "Audit Process & Methodology"
     },
@@ -78,8 +147,31 @@
       "title": "Manual review vs. automated tooling",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Static analyzers and fuzzers are fast at pattern-matching known bug shapes (reentrancy-prone external calls, unchecked returns, arithmetic issues) but structurally can't judge whether the business logic itself is correct — 'is this the right formula for this protocol?' is a human question. A competent audit runs tools early to clear the cheap findings, then spends scarce human hours on the business-logic and cross-contract reasoning tools can't do. Resources: 📖 https://updraft.cyfrin.io/courses/security 📖 https://secure-contracts.com/",
-      "aiContext": "Build: on a sample contract in security/samples/, run one static analyzer (see the Static Analysis Tooling chapter) and separately do a 20-minute manual read; in security/notes/manual-vs-tool.md list what the tool caught, what your manual read caught that the tool didn't, and vice versa. Done when: you have at least one entry in each of the three columns (tool-only, manual-only, both).",
+      "description": "Static analyzers quickly match structural bug patterns, while fuzzers execute generated call sequences against explicit properties; neither can decide whether an unstated business rule is correct. A competent review runs tools early for the checks they can express, then spends human time defining protocol intent and reasoning about business logic and cross-contract behavior.",
+      "aiContext": "Build: on a sample contract in security/samples/, run one static analyzer (see the Static Analysis Tooling chapter) and separately do a 20-minute manual read; in security/notes/manual-vs-tool.md classify every observation as tool-only, manual-only, or both, leaving a column empty with a note if the exercise produced no such observation. Done when: every actual tool result and manual observation is classified without inventing an example to fill a column.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-analysis-tool-boundaries",
+            "purpose": "Choose static analysis, fuzzing, and manual reasoning according to their documented strengths and limits",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-program-analysis-workflow",
+                "title": "Building Secure Contracts: Program Analysis",
+                "url": "https://secure-contracts.com/program-analysis/",
+                "format": "documentation",
+                "scope": "Sections Program Analysis comparison table, Suggested Workflow, and Components",
+                "estimatedMinutes": 20,
+                "why": "The official Trail of Bits workflow compares static analysis, fuzzing, and symbolic execution, including false alarms and the complex properties that require human or dynamic reasoning.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Note-taking and building a mental model"],
       "parentTitle": "Audit Process & Methodology"
     },
@@ -88,8 +180,49 @@
       "title": "OWASP Smart Contract Top 10 (2026)",
       "type": "pattern",
       "domain": "Web3",
-      "description": "OWASP's 2026 list ranks smart-contract risk by real 2025 losses, not historical folklore: SC01 Access Control, SC02 Business Logic, SC03 Price Oracle Manipulation, SC04 Flash-Loan-Facilitated Attacks, SC05 Lack of Input Validation, SC06 Unchecked External Calls, SC07 Arithmetic Errors, SC08 Reentrancy, SC09 Integer Overflow/Underflow, SC10 Proxy & Upgradeability. Reentrancy — the historical #1 — is now #8, because access-control and business-logic mistakes account for far more stolen value today. Resources: 📖 https://scs.owasp.org/sctop10/ 📖 https://owasp.org/www-project-smart-contract-top-10/",
-      "aiContext": "Build: in security/notes/owasp-top10-2026.md, list all ten SC categories in rank order with a one-line reason each rank changed (or didn't) from your prior assumptions. Done when: you can recite the top 4 in order without looking and explain why reentrancy dropped out of the top spot.",
+      "description": "OWASP's 2026 list combines practitioner survey rankings with 2025 incident data and qualitative review: SC01 Access Control, SC02 Business Logic, SC03 Price Oracle Manipulation, SC04 Flash-Loan-Facilitated Attacks, SC05 Lack of Input Validation, SC06 Unchecked External Calls, SC07 Arithmetic Errors, SC08 Reentrancy, SC09 Integer Overflow/Underflow, SC10 Proxy & Upgradeability. The ordering is primarily driven by practitioner survey mean rank, with incident evidence used to validate it.",
+      "aiContext": "Build: in security/notes/owasp-top10-2026.md, list all ten SC categories in rank order and give one evidence-backed sentence for each category's placement. Done when: you can recite the top 4 in order without looking and explain from OWASP's methodology why reentrancy is ranked eighth.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-owasp-2026-ranking",
+            "purpose": "Record the current Smart Contract Top 10 order and its incident and practitioner evidence",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-owasp-top10-2026",
+                "title": "OWASP Smart Contract Top 10: 2026",
+                "url": "https://scs.owasp.org/sctop10/",
+                "format": "documentation",
+                "scope": "Sections Behind the Rankings, 2026 Ranking, Overview, and Data Sources",
+                "estimatedMinutes": 18,
+                "why": "The canonical current OWASP page supplies the exact ten-category order and links its forward-looking ranking to 2025 practitioner and incident evidence.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "06a-owasp-ranking-method",
+            "purpose": "Explain the aggregation method that turns survey and incident evidence into the published category order",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-owasp-ranking-methodology",
+                "title": "OWASP Smart Contract Top 10 Ranking Methodology",
+                "url": "https://scs.owasp.org/sctop10/methodology/",
+                "format": "documentation",
+                "scope": "Sections Overview through From Statistics to the Final Ranked List",
+                "estimatedMinutes": 18,
+                "why": "The canonical method page explains why survey rank is primary and incident data validates the order, supporting evidence-backed placement rather than invented historical explanations.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Severity & Vulnerability Classification"
     },
@@ -97,8 +230,31 @@
       "title": "Immunefi severity classification",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Immunefi's classification system grades a bug primarily by impact — Critical (direct theft or permanent freezing of funds), High (theft of unclaimed yield or temporary freezing), Medium (griefing with no profit motive), Low (a promise unmet but no value lost) — then adjusts down for likelihood factors like requiring elevated privileges or unusual user interaction. It's the de facto standard bug-bounty severity scale, and auditors reuse its vocabulary even outside bounty programs. Resources: 📖 https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/",
+      "description": "Immunefi's classification system grades a bug largely by the consequence of a successful exploit. Smart-contract examples include Critical for direct theft or permanent freezing of funds, High for theft of unclaimed yield or temporary freezing, Medium for griefing with no profit motive, and Low when a contract fails to deliver promised returns without losing value. Elevated privileges or uncommon user interaction may downgrade or disqualify a report.",
       "aiContext": "Build: in security/notes/immunefi-severity.md, classify 4 hypothetical bugs (invent them, or pull from security/samples/) against Critical/High/Medium/Low using Immunefi's impact-first criteria, and note one case where likelihood (e.g. requires a compromised owner key) would downgrade it. Done when: each of your 4 has a one-line impact justification citing the Immunefi tier criterion it matches.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-immunefi-severity",
+            "purpose": "Classify blockchain and smart-contract impacts and apply documented likelihood downgrade factors",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-immunefi-v23",
+                "title": "Immunefi Vulnerability Severity Classification System v2.3",
+                "url": "https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/",
+                "format": "documentation",
+                "scope": "Sections Blockchain/DLT and Smart Contracts, plus the opening classification guidance",
+                "estimatedMinutes": 20,
+                "why": "Immunefi's canonical scale defines the four impact-led tiers and explicitly explains downgrades for elevated privilege or uncommon user interaction.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["OWASP Smart Contract Top 10 (2026)"],
       "parentTitle": "Severity & Vulnerability Classification"
     },
@@ -106,8 +262,49 @@
       "title": "EEA EthTrust levels & the SWC registry's retirement",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The EEA EthTrust Security Levels specification certifies a contract against three cumulative tiers — each higher level requires everything the lower ones do, moving from automated-analysis-checkable properties up to full manual review of business logic — and its checks were originally keyed to the SWC (Smart Contract Weakness Classification) registry. SWC is now deprecated and unmaintained; EthTrust and the OWASP SC Top 10 are the frameworks that replaced it as the working weakness taxonomy. Resources: 📖 https://entethalliance.org/specs/ethtrust-sl/v1/ 📖 https://scs.owasp.org/sctop10/",
-      "aiContext": "Build: in security/notes/ethtrust-vs-swc.md, write 3–4 sentences explaining what each EthTrust level adds over the one below it, and why citing a bare 'SWC-107' in a 2026 finding is a red flag rather than good practice. Done when: you can name what changes between the lowest and highest EthTrust tier (automated-only vs manual-business-logic review) without re-reading the spec.",
+      "description": "The current EEA EthTrust Security Levels specification defines three cumulative certification tiers: [S] focuses on checks usually suitable for automated static analysis, [M] adds stricter checks requiring human judgment, and [Q] adds documented functional-correctness and business-logic review. The SWC registry says it has not been thoroughly updated since 2020 and may contain errors or omissions, so a bare SWC identifier needs current supporting guidance.",
+      "aiContext": "Build: in security/notes/ethtrust-vs-swc.md, write 3–4 sentences explaining what each EthTrust level adds over the one below it, and why citing a bare 'SWC-107' in a 2026 finding is a red flag rather than good practice. Done when: you can name what changes between the lowest and highest EthTrust tier (automated checks vs documented functional-correctness review) without re-reading the spec.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-ethtrust-levels",
+            "purpose": "Compare the cumulative S, M, and Q certification requirements in the current EthTrust release",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-ethtrust-v3",
+                "title": "EEA EthTrust Security Levels Specification Version 3",
+                "url": "https://entethalliance.org/specs/ethtrust-sl/v3/",
+                "format": "documentation",
+                "scope": "Sections 2 Conformance and 5 EEA EthTrust Security Levels",
+                "estimatedMinutes": 24,
+                "why": "The current March 2025 EEA specification is the normative source for cumulative conformance and the S, M, and Q requirements; it supersedes the legacy v1 link.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06a-swc-maintenance-status",
+            "purpose": "Verify why a bare SWC identifier is insufficient current vulnerability guidance",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-swc-registry-status",
+                "title": "Smart Contract Weakness Classification Registry",
+                "url": "https://swcregistry.io/",
+                "format": "documentation",
+                "scope": "Section Please note, this content is no longer actively maintained",
+                "estimatedMinutes": 5,
+                "why": "The registry itself states it has not been thoroughly updated since 2020, may contain errors and omissions, and points readers to maintained guidance.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Immunefi severity classification"],
       "parentTitle": "Severity & Vulnerability Classification"
     },
@@ -115,8 +312,31 @@
       "title": "Anatomy of a good finding",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A finding a client can act on has four parts in order: a title that names the bug precisely ('reentrancy in withdraw() via missing CEI ordering', not 'reentrancy issue'), an impact statement in the client's terms (what an attacker gains, who loses what), a minimal proof of concept that reproduces it, and a recommendation specific enough to implement without another meeting. Vague findings get deprioritized because the reader can't tell what's actually at stake. Resources: 📖 https://updraft.cyfrin.io/courses/security 📖 https://codehawks.cyfrin.io/first-flights",
-      "aiContext": "Build: pick one bug you found (or seed one) in a security/samples/ contract and write it up in security/reports/finding-01.md with the four sections — title, impact, PoC, recommendation. Done when: a second read of just the title and impact (no PoC) tells you exactly what's wrong and how bad it is.",
+      "description": "A finding a client can act on uses a descriptive title, a clear vulnerability and impact explanation, explicit risk reasoning, a runnable proof of concept, and a recommendation specific enough to implement. Vague findings get deprioritized because the reader cannot reproduce the issue or determine what is actually at stake.",
+      "aiContext": "Build: pick one bug you found (or seed one) in a security/samples/ contract and write it up in security/reports/finding-01.md with Title, Bug Description, Impact, Risk Breakdown, Recommendation, and Proof of Concept sections. Done when: the title names the vulnerability and impact, the PoC is runnable, and the recommendation names a concrete fix or mitigation.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-finding-structure",
+            "purpose": "Write a concise finding with reproducible impact, runnable proof, and a specific mitigation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-immunefi-report-guide",
+                "title": "How to Submit Bug Reports That Get Paid",
+                "url": "https://immunefi.com/blog/security-guides/how-to-submit-bug-reports-that-get-paid/",
+                "format": "article",
+                "scope": "Sections Title, Bug Description, Impact, Risk Breakdown, Recommendation, and Proof of Concept",
+                "estimatedMinutes": 16,
+                "why": "Immunefi's reporting guide defines the concise impact statement, severity reasoning, runnable exploit PoC, and implementable recommendation required by the artifact.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["EEA EthTrust levels & the SWC registry's retirement"],
       "parentTitle": "Severity & Vulnerability Classification"
     },
@@ -125,8 +345,31 @@
       "title": "Slither static analysis",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Slither is Trail of Bits' Python-based static analyzer: it compiles your contracts, builds an intermediate representation (SlithIR) over the AST, and runs 90+ built-in detectors (reentrancy, uninitialized state, incorrect ERC-20 interfaces, and more) plus printers for call graphs and inheritance. It's fast, has near-zero setup for a Foundry or Hardhat project, and is the tool every auditor runs first. Resources: 📖 https://github.com/crytic/slither 📖 https://updraft.cyfrin.io/courses/security",
-      "aiContext": "Build: run `slither .` against a sample contract in security/samples/ and save the raw output to security/notes/slither-output.txt; then in security/notes/slither-triage.md classify each finding as real or false-positive with a one-line reason. Done when: you can name two findings Slither caught that you'd have missed on a quick manual read, and one you triaged as a false positive.",
+      "description": "Slither is Trail of Bits' Python-based static-analysis framework: it compiles Solidity or Vyper, builds the SlithIR intermediate representation, runs vulnerability detectors, and offers printers for entry points, call graphs, inheritance, and authorization. Its official CLI integrates with Foundry and Hardhat projects, but every emitted detector result still needs code-specific triage.",
+      "aiContext": "Build: run `slither .` against a sample contract in security/samples/ and save the raw output to security/notes/slither-output.txt; then in security/notes/slither-triage.md classify each finding as real or false-positive with a one-line reason. Done when: every emitted finding is classified as a true or false positive with a one-line code-specific reason.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-slither-run-triage",
+            "purpose": "Run Slither on a Foundry or Hardhat project and interpret detector impact and confidence",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-slither-readme",
+                "title": "Slither README",
+                "url": "https://github.com/crytic/slither",
+                "format": "documentation",
+                "scope": "Sections Features, Usage, and Detectors",
+                "estimatedMinutes": 18,
+                "why": "The maintained official README provides the exact project command, detector catalogue, and impact/confidence metadata needed to run and triage output.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Static Analysis Tooling"
     },
@@ -134,8 +377,31 @@
       "title": "Aderyn static analysis",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Aderyn is Cyfrin's Rust-based static analyzer: same idea as Slither (AST-level detectors, no execution), built for editor-integration speed — sub-second analysis even on large Foundry/Hardhat codebases — with a VS Code extension and a documented framework for writing custom detectors. Running both Slither and Aderyn on the same code surfaces different, only partially-overlapping detector sets, which is why serious audits run more than one static tool. Resources: 📖 https://github.com/Cyfrin/aderyn 📖 https://updraft.cyfrin.io/courses/security",
-      "aiContext": "Build: run `aderyn .` on the same sample contract you ran Slither on, save the report, and in security/notes/slither-vs-aderyn.md list which findings appeared in both tools, which appeared in only one, and any clear false positive from either. Done when: you can name at least one finding each tool caught that the other missed.",
+      "description": "Aderyn is Cyfrin's Rust-based Solidity static analyzer. It supports Foundry and Hardhat projects without configuration, produces Markdown, JSON, or SARIF reports, and powers an official VS Code extension. Comparing its report with Slither exposes overlap and differences without assuming in advance that either tool must find a unique issue.",
+      "aiContext": "Build: run `aderyn` on the same sample contract you ran Slither on, save the report, and in security/notes/slither-vs-aderyn.md list which findings appeared in both tools, which appeared in only one, and any clear false positive from either. Done when: every finding from both reports appears in the overlap/tool-only comparison, even if one tool has no unique finding.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-aderyn-run-compare",
+            "purpose": "Run Aderyn with its current CLI and compare its report against Slither without assuming unique findings",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-aderyn-readme",
+                "title": "Aderyn README",
+                "url": "https://github.com/Cyfrin/aderyn",
+                "format": "documentation",
+                "scope": "Sections What is Aderyn, Features, and Quick Start",
+                "estimatedMinutes": 14,
+                "why": "Cyfrin's maintained README defines current Foundry/Hardhat support, report formats, and the bare `aderyn` command; it avoids the stale `aderyn .` invocation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Slither static analysis"],
       "parentTitle": "Static Analysis Tooling"
     },
@@ -143,8 +409,31 @@
       "title": "What static analysis catches vs misses",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Static tools reliably catch syntactic and structural bug shapes — reentrancy-prone call ordering, unchecked low-level call returns, uninitialized storage pointers, missing access-control modifiers matched against a known pattern — but they cannot evaluate a business rule against the protocol's actual intent, cannot reason precisely about cross-contract or cross-transaction state (that's what a fuzzer or invariant test is for), and routinely produce false positives needing a human to triage. Treat tool output as a prioritized list to investigate, not a verdict. Resources: 📖 https://secure-contracts.com/ 📖 https://updraft.cyfrin.io/courses/security",
-      "aiContext": "Build: in security/notes/tool-limits.md, write down (from your own Slither/Aderyn runs) one true positive, one false positive, and one bug class you know neither tool could have caught (e.g. a wrong reward formula) with a one-sentence reason why not. Done when: all three entries reference an actual finding or contract you looked at, not a hypothetical.",
+      "description": "Static tools can flag detector-defined syntactic and structural patterns without generated execution, but their approximations can produce false alarms and miss bugs outside the encoded checks. Protocol-specific intent must still be supplied through manual reasoning or explicit properties for dynamic analysis. Treat tool output as a prioritized list to investigate, not a verdict.",
+      "aiContext": "Build: in security/notes/tool-limits.md, write down (from your own Slither/Aderyn runs) one true positive, one suspected false positive if present, and one protocol-specific property not expressed by either tool, with a one-sentence reason for each. Done when: every entry references an actual finding, tool output, or contract you inspected rather than inventing a required false positive.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-static-analysis-limits",
+            "purpose": "Distinguish detector output, false alarms, and protocol-specific security properties requiring other analysis",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-program-analysis-static",
+                "title": "Building Secure Contracts: Program Analysis",
+                "url": "https://secure-contracts.com/program-analysis/",
+                "format": "documentation",
+                "scope": "Sections Program Analysis comparison table, Suggested Workflow, and Determining Security Properties",
+                "estimatedMinutes": 18,
+                "why": "Trail of Bits explicitly documents static analysis speed, possible false alarms, moderate misses, and the need to define higher-level state-machine properties for fuzzing or manual review.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Aderyn static analysis"],
       "parentTitle": "Static Analysis Tooling"
     },
@@ -153,8 +442,31 @@
       "title": "Foundry invariant testing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Foundry's invariant tests (functions prefixed `invariant_` in a contract that declares `targetContract`/`targetSelector`) run many random sequences of calls against your system through a 'handler' contract, re-checking the invariant after every call in the sequence — not just once like a fuzz test. A failing run gives you the exact call sequence that broke the property, often a shorter, more direct exploit path than staring at the code would find. Resources: 📖 https://book.getfoundry.sh/forge/invariant-testing 📖 https://updraft.cyfrin.io/courses/security",
-      "aiContext": "Build: in test/security/invariant/SampleInvariant.t.sol, write a Foundry invariant test with a handler contract for a sample contract in security/samples/, asserting one real property (e.g. sum of balances == totalSupply). Done when: `forge test --match-contract SampleInvariant` runs the configured number of sequences with zero invariant violations, and you can explain what the handler restricts the fuzzer to calling.",
+      "description": "Foundry invariant tests run generated sequences of calls against targeted contracts and re-check `invariant_` properties as the sequence advances. A handler is an intentional layer for constraining actions and tracking ghost state, not a requirement of every campaign. A failing run reports the call sequence that broke the property.",
+      "aiContext": "Build: in test/security/invariant/SampleInvariant.t.sol, write a Foundry invariant test with a handler contract for a sample contract in security/samples/, asserting one real property (e.g. sum of balances == totalSupply) and setting explicit runs and depth. Done when: `forge test --match-contract SampleInvariant` completes those campaign settings with zero invariant violations, and you can explain what the handler restricts the fuzzer to calling.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-foundry-invariant-handler",
+            "purpose": "Build a targeted stateful invariant campaign with handler actions, ghost accounting, and configured runs and depth",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-foundry-invariant-guide",
+                "title": "Foundry Invariant Testing",
+                "url": "https://www.getfoundry.sh/guides/invariant-testing",
+                "format": "documentation",
+                "scope": "Sections Invariant Testing overview, Handler pattern, Ghost variables, and Configuring invariant runs",
+                "estimatedMinutes": 24,
+                "why": "The current official Foundry guide covers stateful call sequences, handler targeting, ghost-variable accounting, and campaign configuration used by the learner's test.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Invariant testing"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
@@ -162,8 +474,31 @@
       "title": "Echidna property-based fuzzing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Echidna is Trail of Bits' Haskell-built property-based fuzzer: you write invariants as Solidity functions returning a bool (by convention prefixed `echidna_`) or as Solidity assertions, point Echidna at the contract, and it generates call sequences trying to make the property false or hit a failing assert. It predates Foundry's invariant testing and is still widely used, especially where its corpus/coverage-guided exploration options go beyond what Foundry exposes. Resources: 📖 https://github.com/crytic/echidna 📖 https://updraft.cyfrin.io/courses/security",
-      "aiContext": "Build: write an `echidna_` property function for the same sample contract you invariant-tested in Foundry, in security/samples/EchidnaSample.sol, and run `echidna security/samples/EchidnaSample.sol --contract EchidnaSample`. Done when: Echidna reports the property held (or, if it fails, you can read the shrunk failing call sequence it prints).",
+      "description": "Echidna is Trail of Bits' property-based smart-contract fuzzer: you write properties as no-argument Solidity functions returning a bool with an `echidna` prefix, or use its assertion testing mode, then point Echidna at the target contract so it can generate call sequences looking for a failure.",
+      "aiContext": "Build: write an `echidna_` property function for the same sample contract you invariant-tested in Foundry, in security/samples/EchidnaSample.sol, and run `echidna security/samples/EchidnaSample.sol --contract EchidnaSample`. Done when: Echidna reports the property held for the bounded campaign or prints a failing call sequence that you can explain.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-echidna-property",
+            "purpose": "Write and execute an Echidna boolean property with the documented contract and campaign interface",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-echidna-test-property",
+                "title": "Echidna: How to Test a Property",
+                "url": "https://secure-contracts.com/program-analysis/echidna/introduction/how-to-test-a-property.html",
+                "format": "documentation",
+                "scope": "Sections Write a Property, Initiate a Contract, and Run Echidna",
+                "estimatedMinutes": 18,
+                "why": "Trail of Bits' maintained tutorial defines property signatures, state-discard semantics during property evaluation, target selection, and the exact CLI exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Foundry invariant testing"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
@@ -171,8 +506,31 @@
       "title": "Medusa parallel fuzzing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Medusa is Trail of Bits' newer fuzzer — written in Go on top of go-ethereum for strong EVM equivalence — that runs many fuzzing workers in parallel across cores and steers exploration with branch-coverage guidance, inspired by Echidna's property/assertion model. Reach for it when you want Echidna-style property testing but need it to scale across a multi-core machine or CI runner. Resources: 📖 https://github.com/crytic/medusa 📖 https://blog.trailofbits.com/2025/02/14/unleashing-medusa-fast-and-scalable-smart-contract-fuzzing/",
-      "aiContext": "Build: configure medusa.json for the same sample contract, run `medusa fuzz`, and in security/notes/echidna-vs-medusa.md record wall-clock time and number of test cases run in a fixed window for both Echidna and Medusa on the same property. Done when: you can state, from your own numbers, which ran more call sequences in the same time budget on your machine.",
+      "description": "Medusa is a Go, go-ethereum-based smart-contract fuzzer inspired by Echidna. It runs property and assertion campaigns across parallel workers, retains coverage-increasing call sequences in a corpus, and mutates that corpus to guide exploration. Its concurrency makes worker count and tool-specific metrics important context for any benchmark.",
+      "aiContext": "Build: configure medusa.json for the same sample contract, run `medusa fuzz`, and in security/notes/echidna-vs-medusa.md record the fixed time window, worker count, and each tool's reported test-call or sequence metric. Done when: you can compare the reported metrics while clearly naming that they are tool-specific rather than assuming identical test-case units.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-medusa-parallel-fuzz",
+            "purpose": "Configure and run Medusa's parallel coverage-guided campaign and interpret its reported metrics carefully",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-medusa-readme",
+                "title": "Medusa README",
+                "url": "https://github.com/crytic/medusa",
+                "format": "documentation",
+                "scope": "Sections Features, Documentation, and Install, plus the linked First Steps page",
+                "estimatedMinutes": 14,
+                "why": "The official maintained repository defines worker parallelism, coverage-guided corpus behavior, and supported property/assertion modes; its linked first-party First Steps page provides `medusa init`, `medusa.json`, and `medusa fuzz` execution.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Echidna property-based fuzzing"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
@@ -180,8 +538,49 @@
       "title": "Writing good invariants",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A good invariant states something that must be true after ANY sequence of allowed calls, in terms an attacker can't route around — 'totalSupply equals the sum of balances', 'a user can never withdraw more than they deposited', 'share price is monotonically non-decreasing except on explicit loss events'. A weak invariant either restates something trivially true regardless of bugs, or is so narrow it only covers the one path you already checked by hand — the fuzzer can only find what your invariant is capable of catching. Resources: 📖 https://book.getfoundry.sh/forge/invariant-testing 📖 https://secure-contracts.com/",
-      "aiContext": "Build: for a sample contract in security/samples/, write 2 invariants in test/security/invariant/ — one about conservation of value (e.g. sum-of-parts equals total) and one about an access-control property (e.g. only role X ever changes Y) — and run both to a few thousand sequences. Done when: you can explain, for each, a bug that WOULD violate it and one that WOULD NOT (its blind spot).",
+      "description": "A good invariant states something that must be true after ANY sequence of allowed calls, in terms an attacker can't route around — 'totalSupply equals the sum of balances', 'a user can never withdraw more than they deposited', 'share price is monotonically non-decreasing except on explicit loss events'. A weak invariant either restates something trivially true regardless of bugs, or is so narrow it only covers the one path you already checked by hand — the fuzzer can only find what your invariant is capable of catching.",
+      "aiContext": "Build: for a sample contract in security/samples/, write 2 invariants in test/security/invariant/ — one about conservation of value (e.g. sum-of-parts equals total) and one about an access-control property (e.g. only role X ever changes Y) — and run both with explicit campaign settings. Done when: you can explain, for each, a bug that WOULD violate it and one that WOULD NOT (its blind spot).",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-invariant-design",
+            "purpose": "Design conservation and access-control properties with explicit security meaning and blind spots",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-ethtrust-properties-invariants",
+                "title": "EEA EthTrust Security Levels Specification Version 3",
+                "url": "https://entethalliance.org/specs/ethtrust-sl/v3/",
+                "format": "documentation",
+                "scope": "Sections 4.3 Fuzzing and 4.7 Properties and Invariants",
+                "estimatedMinutes": 18,
+                "why": "The current EEA standard explains fuzzing properties and invariants as review methodology and distinguishes general properties from system-specific claims.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06a-invariant-implementation",
+            "purpose": "Implement useful state accounting and restrict generated calls to meaningful protocol actions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-foundry-ghost-invariants",
+                "title": "Foundry Invariant Testing",
+                "url": "https://www.getfoundry.sh/guides/invariant-testing",
+                "format": "documentation",
+                "scope": "Sections Handler Ghost Variables and Invariant Targets",
+                "estimatedMinutes": 14,
+                "why": "The official implementation guide shows conservation accounting with ghost variables and narrowing callable targets so the designed properties exercise meaningful state transitions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Medusa parallel fuzzing"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
@@ -189,8 +588,31 @@
       "title": "Stateful vs stateless fuzzing",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Stateless (plain) fuzzing calls one function with random arguments and checks a property on that single call — good for pure functions, parsers, and math (e.g. 'this square-root function never overshoots'). Stateful fuzzing (Foundry invariant tests, Echidna, Medusa in their default mode) executes a random SEQUENCE of calls across the contract's public surface and checks the property after each step, the only way to find bugs that require several transactions in a specific order — most real DeFi exploits are stateful. Resources: 📖 https://book.getfoundry.sh/forge/invariant-testing 📖 https://github.com/crytic/echidna",
+      "description": "Stateless fuzzing resets state between generated transactions, which suits properties that can be checked from one call against the initial state. Stateful fuzzing preserves state across a sequence, so it can reach and test properties that depend on accumulated state or several transactions in a specific order.",
       "aiContext": "Build: in security/notes/stateless-vs-stateful.md, take one bug class you can only trigger with 2+ ordered transactions (e.g. deposit, then a state-changing call, then withdraw) and explain why a stateless fuzz test on any single function couldn't have found it. Done when: you can name the exact 2nd/3rd call your stateless test would be missing.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-stateful-stateless",
+            "purpose": "Explain state reset and multi-call reachability differences between stateless and stateful fuzz campaigns",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-echidna-testing-modes",
+                "title": "Echidna: How to Select the Most Suitable Testing Mode",
+                "url": "https://secure-contracts.com/program-analysis/echidna/basic/testing-modes.html",
+                "format": "documentation",
+                "scope": "Section Stateless vs. Stateful, including Recommendations",
+                "estimatedMinutes": 12,
+                "why": "Trail of Bits directly defines default stateful behavior, `--seqLen 1` stateless behavior, reset semantics, and why ordered-operation bugs can be hidden.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Writing good invariants"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
@@ -199,8 +621,31 @@
       "title": "Severity justification in reports",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A severity rating without justification is an opinion; citing the exact Immunefi tier criterion (or OWASP category) you matched, plus the concrete preconditions (does it need a privileged role? a specific market condition? just a normal user call?), turns 'High' into something a reviewer can check and disagree with on the merits. The justification is also where you note anything that would downgrade a naive impact-only read — required privilege, unusual timing, or a mitigating control elsewhere in the code. Resources: 📖 https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/ 📖 https://updraft.cyfrin.io/courses/security",
+      "description": "A severity rating without justification is an opinion; citing the exact Immunefi impact criterion you matched, plus the concrete preconditions (does it need a privileged role, a specific market condition, or just a normal user call?), turns 'High' into something a reviewer can check and disagree with on the merits. The justification is also where you note anything that could downgrade or disqualify an impact-only read, including required privilege or uncommon user interaction.",
       "aiContext": "Build: take one finding from security/reports/ (or write a new one) and add a 'Severity justification' section naming the exact tier criterion matched and any precondition that affects it. Done when: another reader, given only your justification section, would assign the same tier without seeing the rest of the report.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-report-severity",
+            "purpose": "Justify a report severity with a named impact criterion and explicit exploit preconditions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-immunefi-severity-report",
+                "title": "Immunefi Vulnerability Severity Classification System v2.3",
+                "url": "https://immunefi.com/immunefi-vulnerability-severity-classification-system-v2-3/",
+                "format": "documentation",
+                "scope": "Sections Blockchain/DLT and Smart Contracts, plus the opening classification guidance",
+                "estimatedMinutes": 18,
+                "why": "The canonical scale provides exact impact criteria and the elevated-privilege and uncommon-interaction factors needed for a reproducible severity justification.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": [],
       "parentTitle": "Security Report Writing"
     },
@@ -208,8 +653,31 @@
       "title": "Writing a minimal PoC",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A minimal proof of concept is the smallest Foundry test that reproduces the bug end to end — one setup, the exact call sequence that triggers it, and an assertion showing the bad outcome (funds moved, invariant broken) — with every unrelated setup step, mock, or helper stripped out. Padding a PoC with the whole protocol's deployment script obscures the one thing that matters: what a reviewer must change to make the assertion fail again. Resources: 📖 https://updraft.cyfrin.io/courses/security 📖 https://book.getfoundry.sh/forge/invariant-testing",
-      "aiContext": "Build: for the finding you wrote up in security/reports/, add a Foundry test at test/security/poc/Finding01PoC.t.sol that reproduces it in the fewest lines you can manage, asserting the concrete bad outcome. Done when: `forge test --match-contract Finding01PoC` fails on the vulnerable contract and passes once you apply the fix, with no unrelated setup left in the test.",
+      "description": "A minimal proof of concept is the smallest Foundry test that reproduces the bug end to end — one setup, the exact call sequence that triggers it, and an assertion showing the bad outcome (funds moved, invariant broken) — with every unrelated setup step, mock, or helper stripped out. Padding a PoC with the whole protocol's deployment script obscures the one thing that matters: what a reviewer must change to make the assertion fail again.",
+      "aiContext": "Build: for the finding you wrote up in security/reports/, add a Foundry test at test/security/poc/Finding01PoC.t.sol that reproduces it in the fewest lines you can manage, asserting the concrete bad outcome. Done when: `forge test --match-contract Finding01PoC` passes while asserting the exploit succeeds on the vulnerable contract, then fails or changes to the expected safe outcome after the fix, with no unrelated setup left.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-runnable-poc",
+            "purpose": "Produce a runnable, bounded proof that demonstrates the concrete exploit outcome without unrelated setup",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-immunefi-poc-guide",
+                "title": "How to Submit Bug Reports That Get Paid",
+                "url": "https://immunefi.com/blog/security-guides/how-to-submit-bug-reports-that-get-paid/",
+                "format": "article",
+                "scope": "Section Proof of Concept",
+                "estimatedMinutes": 10,
+                "why": "Immunefi explicitly requires runnable exploit code rather than pseudocode or steps and accepts Foundry tests as a valid PoC form.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Severity justification in reports"],
       "parentTitle": "Security Report Writing"
     },
@@ -217,8 +685,31 @@
       "title": "Actionable recommendations",
       "type": "pattern",
       "domain": "Web3",
-      "description": "A recommendation a developer can act on names the specific change (add a reentrancy guard on `withdraw`; move the external call after the state update; validate `amount > 0` before the transfer) rather than a general principle ('follow checks-effects-interactions') with no pointer to where it's violated. Where there's a real tradeoff (gas cost of a check vs. the risk it prevents), say so explicitly instead of pretending the fix is free. Resources: 📖 https://updraft.cyfrin.io/courses/security 📖 https://secure-contracts.com/",
-      "aiContext": "Build: for the same finding, write the Recommendation section in security/reports/finding-01.md naming the exact function/line to change and the specific fix, plus one sentence on any tradeoff the fix introduces (gas, UX, a new edge case). Done when: a developer reading only the Recommendation could implement the fix without re-reading the Impact or PoC sections.",
+      "description": "A recommendation a developer can act on names the specific change or mitigation, such as adding a guard to `withdraw`, reordering an external call and state update, or validating an amount before transfer, rather than restating a general principle with no pointer to the affected code.",
+      "aiContext": "Build: for the same finding, write the Recommendation section in security/reports/finding-01.md naming the exact function or line to change, the specific fix or mitigation, and how it prevents the PoC outcome. Done when: a developer can identify the code change and rerun the PoC to verify the mitigation.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-actionable-mitigation",
+            "purpose": "Write a specific mitigation tied to the affected code and disclose relevant tradeoffs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-immunefi-recommendation",
+                "title": "How to Submit Bug Reports That Get Paid",
+                "url": "https://immunefi.com/blog/security-guides/how-to-submit-bug-reports-that-get-paid/",
+                "format": "article",
+                "scope": "Sections Recommendation and Proof of Concept",
+                "estimatedMinutes": 8,
+                "why": "Immunefi's reporting guide requires a fix or impact mitigation and connects it to a runnable exploit, keeping the recommendation concrete and verifiable.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Writing a minimal PoC"],
       "parentTitle": "Security Report Writing"
     },
@@ -226,8 +717,31 @@
       "title": "The Solodit checklist as a working reference",
       "type": "pattern",
       "domain": "Web3",
-      "description": "Solodit's checklist distills thousands of real audit findings (Code4rena, Sherlock, Cantina, private reports) into a searchable set of checks organized by category — the closest thing the industry has to 'here is everything auditors have already learned to look for'. Running it as a final pass after your own manual review catches known-pattern misses your mental model didn't happen to flag, and it's also where you go to find real historical write-ups of a bug class before you've seen your first live instance of it. Resources: 🔗 https://solodit.cyfrin.io/checklist",
-      "aiContext": "Build: after reviewing a sample contract in security/samples/, work through the relevant Solodit checklist categories in security/notes/solodit-pass.md, noting any check that surfaces something your manual read + tools missed. Done when: you can name at least one Solodit checklist item that applied to your sample and whether it was already caught or was a genuine miss.",
+      "description": "Solodit provides a live blockchain-security checklist and a searchable aggregation of public findings with filters such as impact, protocol category, tags, and source. A bounded checklist pass after manual review and tooling can surface known patterns to investigate, while linked historical findings provide concrete examples rather than proof that a check applies.",
+      "aiContext": "Build: after reviewing a sample contract in security/samples/, work through the relevant Solodit checklist categories in security/notes/solodit-pass.md, recording each checked item as applicable or not applicable and noting any issue it surfaces. Done when: the notes show the bounded categories reviewed and the disposition of every item checked, even if none reveals a new issue.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06a-solodit-checklist-pass",
+            "purpose": "Run a category-filtered final checklist pass and connect applicable checks to real historical findings",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06a-solodit-checklist",
+                "title": "Solodit Blockchain Security Audit Checklist",
+                "url": "https://solodit.cyfrin.io/checklist",
+                "format": "documentation",
+                "scope": "Sections relevant to the selected sample contract; stop after recording each checked item's disposition (20 min)",
+                "estimatedMinutes": 20,
+                "why": "Cyfrin's live checklist is the exact learner artifact; the bounded category pass prevents an unfinishable whole-site requirement while preserving real-finding lookup.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          }
+        ]
+      },
       "prerequisiteTitles": ["Actionable recommendations"],
       "parentTitle": "Security Report Writing"
     }
@@ -261,25 +775,25 @@
     {
       "topicTitle": "OWASP Smart Contract Top 10 (2026)",
       "promptText": "Where does Reentrancy rank in the OWASP Smart Contract Top 10 (2026), and what pushed it there?",
-      "answerHint": "SC08 — reentrancy is well-understood and largely defended against (checks-effects-interactions and reentrancy guards are now routine), while access control (SC01), business logic (SC02), and oracle/flash-loan attacks (SC03/SC04) account for the larger share of 2025's real losses. Pitfall: a lower rank doesn't mean 'ignore it' — it means the field has broadly learned the classic defense, not that a missed guard stops being exploitable.",
+      "answerHint": "SC08. OWASP's methodology says the 2026 order is primarily driven by practitioner survey mean rank, with 2025 incident data and qualitative input used to validate the result; the published sources do not reduce the placement to a single loss-total explanation. Pitfall: a lower rank is an awareness priority, not evidence that an individual reentrancy finding is low severity.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Immunefi severity classification",
       "promptText": "How does Immunefi's system decide severity, and what can override an impact-based rating?",
-      "answerHint": "Impact first: Critical = direct theft/permanent freeze of funds, High = yield theft/temporary freeze, Medium = griefing without profit motive, Low = no value lost. Likelihood factors — requiring elevated privileges (e.g. a compromised admin key) or unusual user interaction — can justify downgrading the tier even when the raw impact looks severe. Pitfall: 'temporary' vs 'permanent' freezing is the exact line between High and Critical — get the duration/recoverability right before assigning the tier.",
+      "answerHint": "Immunefi classifies largely by successful-exploit impact. Smart-contract examples include Critical for direct theft or permanent freezing of funds, High for theft of unclaimed yield or temporary freezing, Medium for griefing without profit motive, and Low when promised returns fail without value loss. Elevated privileges or uncommon user interaction may downgrade or disqualify a report. Pitfall: use the exact table entry and the program's in-scope impacts, not these examples as an exhaustive tier definition.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "EEA EthTrust levels & the SWC registry's retirement",
       "promptText": "Why is SWC-1xx numbering considered stale in a 2026 audit report, and what should replace it?",
-      "answerHint": "The SWC registry stopped being maintained and no longer tracks current vulnerability classes or terminology; OWASP's Smart Contract Top 10 (category-level) and the EEA EthTrust checklist (check-level, tied to certification tiers) are the maintained references auditors cite instead. Pitfall: some older audit templates and even tool output still print SWC IDs by default — don't treat that as evidence the registry is current.",
+      "answerHint": "The SWC registry says it has not been thoroughly updated since 2020 and may contain errors and crucial omissions. Keep an SWC ID only as a legacy cross-reference and support the finding with current maintained guidance such as the EEA EthTrust requirements or another current standard that actually defines the issue. Pitfall: old templates and tool output can still emit SWC IDs; that does not make the registry current.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Anatomy of a good finding",
       "promptText": "What are the four parts of a well-formed audit finding, in order, and what does each have to do?",
-      "answerHint": "Title (names the exact bug, not a category), Impact (what's lost, in the protocol's terms, to justify severity), PoC (a minimal reproduction, not the whole exploit chain padded out), Recommendation (a specific, implementable fix). Pitfall: an impact statement that says 'this is bad' without naming who loses what and how much reads as unverified opinion, not a finding.",
+      "answerHint": "Title names the vulnerability and impact; Bug Description explains the issue clearly; Impact and Risk Breakdown quantify the consequence and exploitation difficulty; Recommendation gives a concrete fix or mitigation; Proof of Concept supplies runnable exploit code. Pitfall: steps or pseudocode can supplement a report but do not replace the runnable PoC Immunefi requires.",
       "promptKind": "concept"
     },
     {
@@ -300,20 +814,20 @@
     {
       "topicTitle": "Aderyn static analysis",
       "promptText": "Why run both Slither and Aderyn on the same codebase instead of just one?",
-      "answerHint": "They implement different (only partially overlapping) sets of detectors written by different teams, so each catches classes the other's detector set doesn't cover; running one is cheap enough that skipping the second tool trades a few seconds of CI time for blind spots. Pitfall: overlapping findings from both tools aren't 'double-confirmed severity' — they're literally the same bug reported twice.",
+      "answerHint": "They are independently maintained analyzers with their own detector catalogues and report formats, so comparing both outputs can reveal overlap or differences on the code under review. Do not assume each must find a unique bug: record the complete union and triage every result. Pitfall: the same finding from both tools is duplicate evidence to investigate, not automatic confirmation of severity.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "What static analysis catches vs misses",
       "promptText": "Name a bug class static analyzers structurally cannot catch, and explain why.",
-      "answerHint": "A business-logic error where the code is syntactically fine and matches no bad pattern but implements the wrong rule (e.g. an incorrect reward-splitting formula) — the tool has no notion of 'what this protocol is supposed to do', only known-bad code shapes, so a semantically wrong-but-well-formed contract passes clean. Pitfall: multi-transaction/multi-contract state bugs (breaking only after a specific sequence of calls) are also usually out of reach for single-pass static analysis — that's what fuzzing/invariant testing is for.",
+      "answerHint": "A business-logic error where the code is syntactically valid but implements the wrong protocol rule, such as an incorrect reward split, can fall outside detector-defined checks because the intended rule was never encoded. Supply that intent through manual review or an explicit property for dynamic analysis. Pitfall: static analysis can also raise false alarms, so every result still needs code-specific triage.",
       "promptKind": "concept"
     },
 
     {
       "topicTitle": "Foundry invariant testing",
       "promptText": "How does a Foundry invariant test differ from an ordinary fuzz test, and what is the handler contract for?",
-      "answerHint": "A fuzz test calls one function with random inputs and checks a property once; an invariant test calls a random sequence of functions (via a handler contract exposing the allowed entry points) and re-checks the invariant after every call in the sequence, so it can catch bugs that only surface after several specific calls in order. Pitfall: a handler with unbounded/unrealistic inputs (e.g. an unrestricted mint) can 'break' an invariant in a way no real caller could ever trigger — bound the handler to realistic call patterns.",
+      "answerHint": "A fuzz test exercises one test function with generated inputs; an invariant campaign generates sequences of calls and repeatedly checks `invariant_` properties, so it can expose order-dependent state bugs. A handler is an optional targeted layer that constrains actions and tracks ghost state for complex systems. Pitfall: unrealistic handler actions can break a property in a state no real caller can reach.",
       "promptKind": "concept"
     },
     {
@@ -325,7 +839,7 @@
     {
       "topicTitle": "Echidna property-based fuzzing",
       "promptText": "How does Echidna decide a property has failed, and what does it do once it finds a failing sequence?",
-      "answerHint": "An `echidna_`-prefixed function must return true on every call for the property to hold (or a Solidity `assert` must not fire); once Echidna finds inputs/a call sequence that violates either, it shrinks the sequence to the smallest reproduction it can and reports that. Pitfall: echidna_ functions must be pure reads of state, not part of any real user flow — mixing test-only properties into production contracts is a mistake auditors will flag too.",
+      "answerHint": "In property mode, an `echidna`-prefixed function takes no arguments and must return true; Echidna reports a generated transaction sequence that makes it return false or revert and attempts to shrink the sequence. Property-call side effects are discarded, so the function need not be a pure read, but test properties should remain separate from production behavior. Assertion mode instead looks for failing Solidity assertions.",
       "promptKind": "concept"
     },
     {
@@ -349,7 +863,7 @@
     {
       "topicTitle": "Stateful vs stateless fuzzing",
       "promptText": "When is a stateless fuzz test enough, and when do you need stateful (sequence) fuzzing instead?",
-      "answerHint": "Stateless suffices for properties of one call in isolation — a pure math function, an encoder/decoder round-trip, input validation on a single function. Stateful fuzzing is required whenever the bug depends on order or accumulated state across multiple calls (e.g. deposit → price move → withdraw draining more than deposited) — which describes most real-world DeFi exploits, since a single call rarely leaves a contract in an exploitable state by itself. Pitfall: a passing stateless fuzz suite tells you nothing about multi-call ordering bugs — don't treat it as invariant coverage.",
+      "answerHint": "Stateless mode is appropriate for a property of one call from reset state, such as pure math or an encoder/decoder round-trip. Use stateful mode when reachability depends on accumulated state or ordered calls, such as deposit → state change → withdraw. Pitfall: passing stateless tests do not cover multi-call ordering bugs, while stateful campaigns still cover only the properties and reachable actions you supply.",
       "promptKind": "concept"
     },
 
@@ -362,13 +876,13 @@
     {
       "topicTitle": "Writing a minimal PoC",
       "promptText": "What is a minimal PoC trying to isolate, and what's the test for whether you've minimized enough?",
-      "answerHint": "It isolates the exact precondition + call sequence + observable bad outcome that proves the bug, stripped of anything not required to trigger it. The test: could you delete another line/mock/step and have it still fail on the vulnerable code and pass on the fix? If yes, it wasn't minimal yet. Pitfall: a PoC so minimal it no longer represents a realistic caller (e.g. skips an access check a real attacker would also have to pass) can overstate the bug's real-world reachability.",
+      "answerHint": "It isolates the exact precondition, call sequence, and observable bad outcome that proves the bug, stripped of unrelated setup. The exploit test should pass on vulnerable code while asserting that bad outcome; after the fix, the exploit should revert or the assertion should change to the expected safe outcome. Pitfall: removing a real attacker precondition merely to shorten the PoC overstates reachability.",
       "promptKind": "concept"
     },
     {
       "topicTitle": "Actionable recommendations",
       "promptText": "What separates an actionable recommendation from a generic one?",
-      "answerHint": "Actionable: names the exact function/line and the specific change (add a guard here, reorder these two statements, add this check before that transfer). Generic: restates a security principle ('follow CEI', 'use SafeMath') without pointing at where in the code it's violated, leaving the developer to re-derive the fix themselves. Pitfall: a recommendation that ignores a real tradeoff (e.g. a check that materially raises gas cost) reads as naive once the dev pushes back — name the tradeoff yourself.",
+      "answerHint": "Actionable: names the exact function or line, gives a specific fix or impact mitigation, and explains how it blocks the reproduced outcome. Generic: restates a principle such as 'follow CEI' without pointing to the affected code, leaving the developer to derive the change. Pitfall: verify the recommendation against the runnable PoC; plausible prose alone does not show that the impact is mitigated.",
       "promptKind": "concept"
     },
     {

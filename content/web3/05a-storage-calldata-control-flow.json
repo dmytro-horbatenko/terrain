@@ -1,0 +1,976 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Storage gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Persistent storage access is among the EVM's most expensive work, so many gas wins come from touching fewer slots, avoiding redundant loads and stores, and choosing layouts that match access patterns.",
+      "prerequisiteTitles": ["Reading storage slots"],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Calldata & memory gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Calldata is read-only input supplied by the caller, while memory is mutable per-call scratch space. Calldata bytes affect intrinsic transaction gas and expanding memory charges execution gas according to the highest word accessed.",
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Control-flow gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Loops and conditionals can magnify repeated work. Optimize measured compiler output: short-circuit expensive branches, remove only proven redundancy, cache stable values when the compiler does not, and return once the result is known.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Packing variables into slots",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The compiler places state variables contiguously and packs adjacent value types smaller than 32 bytes when they fit. Packing can reduce the number of slots touched when fields are read or written together, but updating one packed value requires a read-modify-write and can cost more than an unpacked value. Optimize the layout for actual access patterns, not slot count alone.",
+      "aiContext": "Build: solve gas/SlotPacking.sol — compare two equivalent layouts, then reorder fields used together so the measured write path touches fewer slots. Done when: forge test passes, storageLayout confirms the slot mapping, and forge snapshot records the before/after gas delta under the same compiler settings.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-slot-packing-rules",
+            "purpose": "Apply Solidity's exact packing rules and account for packed-value read-modify-write costs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-slot-packing-solidity-docs",
+                "title": "Layout of State Variables in Storage and Transient Storage",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections Layout of State Variables in Storage and Transient Storage through the warning about sub-32-byte values, plus JSON Output",
+                "estimatedMinutes": 16,
+                "why": "The canonical compiler documentation defines slot boundaries, lower-order alignment, packed update overhead, and the storageLayout output used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Storage slots & variable packing"],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "Warm vs cold access (EIP-2929)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-2929 charges the first access to a storage key or covered account absent from the transaction-wide accessed sets at the cold rate and later accesses at the warm rate: SLOAD is 2100 cold versus 100 warm, while covered account-access opcodes charge 2600 cold versus 100 warm. The sender, destination, precompiles, and EIP-2930 access-list entries begin warm; access-list entries have their own intrinsic charges.",
+      "aiContext": "Build: solve gas/WarmCold.sol — measure first and repeated accesses to one storage key and one external account, with and without an EIP-2930 access list. Done when: tests preserve behavior and the trace plus transaction gas accounting explains the cold charge, warm charge, and access-list intrinsic charge separately.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-warm-cold-metering",
+            "purpose": "Derive cold and warm storage-key and account-access charges",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-2929-spec",
+                "title": "EIP-2929: Gas cost increases for state access opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2929",
+                "format": "documentation",
+                "scope": "Sections Specification: Parameters, Storage read changes, and SSTORE changes",
+                "estimatedMinutes": 14,
+                "why": "The canonical EIP defines the transaction-wide accessed sets and exact cold and warm costs the trace must explain.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "05a-access-list-accounting",
+            "purpose": "Separate EIP-2930 access-list intrinsic charges from warm execution access",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-2930-spec",
+                "title": "EIP-2930: Optional access lists",
+                "url": "https://eips.ethereum.org/EIPS/eip-2930",
+                "format": "documentation",
+                "scope": "Sections Parameters and Specification through gas cost of the access list",
+                "estimatedMinutes": 10,
+                "why": "The canonical access-list EIP states the per-address and per-storage-key intrinsic charges and warming behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Reading storage slots"],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "Minimizing SLOAD and SSTORE",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "SLOAD pricing depends on warm or cold access, while SSTORE metering depends on the slot's original, current, and new values plus any cold-access surcharge and refund. Accumulating in a local and committing once can remove repeated storage operations, but a no-op guard is worthwhile only when its saved store outweighs the added branch and load on real call distributions.",
+      "aiContext": "Build: solve gas/StorageWrites.sol — change an accumulator loop from repeated storage updates to one final commit, and benchmark a guarded no-op write against the unguarded form. Done when: forge test passes, the trace shows one final SSTORE, and snapshots document both changed-value and same-value paths.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-sstore-net-metering",
+            "purpose": "Account for SSTORE using original, current, and new slot values instead of fixed folklore prices",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-2200-spec",
+                "title": "EIP-2200: Structured Definitions for Net Gas Metering",
+                "url": "https://eips.ethereum.org/EIPS/eip-2200",
+                "format": "documentation",
+                "scope": "Sections Specification and Examples",
+                "estimatedMinutes": 22,
+                "why": "The canonical SSTORE state machine defines no-op, clean, dirty, reset, and refund cases used to interpret the build's traces.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "Caching storage in memory",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Copying a stable storage value into a local can let later uses avoid repeated SLOADs. The local may live on the stack or in memory depending on compiler output, and caching is unsafe across code that can change the underlying state, including relevant external-call reentrancy.",
+      "aiContext": "Build: solve gas/CacheStorage.sol — compare repeated state-variable reads with one local snapshot, including a variant containing an external call. Done when: behavior tests pass, compiler output shows the actual load count, and snapshots quantify the delta without allowing a stale cache across state-changing code.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-cache-storage-compiler",
+            "purpose": "Verify whether the compiler already resolves repeated storage loads before introducing a manual cache",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-solidity-optimizer-load-resolver",
+                "title": "The Optimizer",
+                "url": "https://docs.soliditylang.org/en/latest/internals/optimizer.html",
+                "format": "documentation",
+                "scope": "Sections Benefits of Optimizing Solidity Code, CommonSubexpressionEliminator, and LoadResolver",
+                "estimatedMinutes": 18,
+                "why": "The canonical compiler internals describe when repeated expressions and known storage loads can be eliminated and why intervening writes or calls invalidate that knowledge.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "constant vs immutable for gas",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A constant's expression is replaced where it is used, while an immutable is assigned during construction and its value is copied into reserved locations in runtime code. Neither occupies a normal storage slot, so reads avoid SLOAD; constants suit compile-time expressions and immutables suit deploy-time values.",
+      "aiContext": "Build: solve gas/Immutable.sol — convert a deploy-time fixed storage configuration value into an immutable and compare it with a true compile-time constant. Done when: tests pass, storageLayout and opcode output show no normal storage slot or SLOAD, and snapshots include deployment size and read-path deltas.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-constant-immutable-semantics",
+            "purpose": "Choose constant or immutable from assignment rules and generated runtime representation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-constant-immutable-solidity-docs",
+                "title": "Constant and Immutable State Variables",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html#constant-and-immutable-state-variables",
+                "format": "documentation",
+                "scope": "Sections Constant, Immutable, and the comparison between them",
+                "estimatedMinutes": 12,
+                "why": "The canonical language reference defines allowed assignments, code substitution, reserved runtime-code locations, and deployment implications.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "SSTORE refunds (EIP-3529)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-3529 set the storage-clear refund schedule to 4800 gas, removed the SELFDESTRUCT refund, and limits applied refunds to one fifth of gas used. Whether deleting a slot realizes all 4800 depends on the transaction's refund counter and cap; clearing state still consumes gas before the refund is applied.",
+      "aiContext": "Build: solve gas/Refunds.sol — clear one and then several originally nonzero slots, recording gross gas, the refund counter, the one-fifth cap, and net gas. Done when: tests pass and the measured receipts match a hand calculation for both an uncapped and cap-limited case.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-storage-refund-rules",
+            "purpose": "Calculate the storage-clear refund and determine when the transaction refund cap binds",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-3529-spec",
+                "title": "EIP-3529: Reduction in refunds",
+                "url": "https://eips.ethereum.org/EIPS/eip-3529",
+                "format": "documentation",
+                "scope": "Sections Specification and Rationale through the refund-pairing argument",
+                "estimatedMinutes": 16,
+                "why": "The canonical London EIP defines the 4800 clear schedule, one-fifth cap, and removal of the SELFDESTRUCT refund.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "Transient storage for gas (EIP-1153)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-1153 defines TSTORE and TLOAD at 100 gas each for transaction-scoped state discarded after the transaction. Transient state is shared across a contract's frames under the same ownership rules as persistent storage, so a lock must still be explicitly cleared before returning if later calls in the same transaction should proceed.",
+      "aiContext": "Build: solve gas/TransientLock.sol — implement and test a transient-storage reentrancy guard, including two sequential calls in one transaction and a reverting inner call. Done when: the guard blocks reentry, unlocks on normal return, leaves no durable state, and a trace accounts for each 100-gas TLOAD/TSTORE.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-transient-storage-metering",
+            "purpose": "Use transient storage with its transaction lifetime, ownership, revert, and gas semantics intact",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-1153-spec",
+                "title": "EIP-1153: Transient storage opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-1153",
+                "format": "documentation",
+                "scope": "Sections Specification, the reentrancy-lock use case, and Security Considerations",
+                "estimatedMinutes": 20,
+                "why": "The canonical EIP defines 100-gas TLOAD/TSTORE, frame ownership, rollback, transaction clearing, and the need to release a lock for later same-transaction calls.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Transient storage (EIP-1153)"],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "Packing structs and enums",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Struct members start a new slot and then follow the same contiguous packing rules as state variables; items after a struct also begin a new slot. Current Solidity enums have at most 256 members and occupy one byte in storage. Reordering members can reduce slots, but packed partial updates add read-modify-write work.",
+      "aiContext": "Build: solve gas/StructPacking.sol — compare a deliberately gapped four-field struct with a reordered layout and inspect compiler storageLayout. Done when: tests preserve field values, the optimized layout uses fewer slots for each array or mapping element, and snapshots record whole-struct and single-field update costs.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-struct-enum-layout",
+            "purpose": "Derive struct slot boundaries and enum byte width from compiler-defined layout",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-struct-layout-solidity-docs",
+                "title": "Layout of State Variables in Storage and Transient Storage",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections packing rules, struct boundary rules, and JSON Output member metadata",
+                "estimatedMinutes": 14,
+                "why": "The canonical compiler documentation defines when structs force new slots and exposes each member's offset and byte width for verification.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05a-current-enum-width",
+            "purpose": "Establish the current 256-member limit that makes enum storage width one byte",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-enums-solidity-docs",
+                "title": "Enums",
+                "url": "https://docs.soliditylang.org/en/latest/types.html#enums",
+                "format": "documentation",
+                "scope": "Section Enums, including the 256-member limit and unsigned-integer representation",
+                "estimatedMinutes": 8,
+                "why": "The canonical language reference establishes the current enum range; storageLayout then verifies its one-byte compiler representation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Packing variables into slots"],
+      "parentTitle": "Storage gas"
+    },
+    {
+      "title": "calldata over memory",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Calldata is non-modifiable call input. For read-only reference-type parameters, keeping data in calldata can avoid a memory copy, but the exact generated operations and savings depend on ABI decoding, access patterns, compiler version, optimizer settings, and whether downstream code requires memory.",
+      "aiContext": "Build: solve gas/CalldataArgs.sol — compare equivalent external functions taking a read-only dynamic argument in memory and calldata across several input sizes. Done when: tests match, compiler output identifies any copy avoided, and snapshots record the size-dependent delta under pinned compiler settings.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-calldata-memory-semantics",
+            "purpose": "Choose calldata or memory from mutability, conversion, and lifetime semantics before benchmarking",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-data-location-solidity-docs",
+                "title": "Data location",
+                "url": "https://docs.soliditylang.org/en/latest/types.html#data-location",
+                "format": "documentation",
+                "scope": "Sections Data location and Data location and assignment behavior",
+                "estimatedMinutes": 16,
+                "why": "The canonical language reference defines calldata as non-modifiable input and states when assignments between calldata and memory create independent copies.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Stack / memory / storage / calldata"],
+      "parentTitle": "Calldata & memory gas"
+    },
+    {
+      "title": "Custom errors over require strings",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Custom errors ABI-encode a four-byte selector plus typed arguments and are usually cheaper than string descriptions. They can reduce deployed bytecode and revert-data work, but exact savings depend on the string, arguments, compiler, and optimizer. Solidity supports custom errors with revert and, in current versions, require.",
+      "aiContext": "Build: solve gas/CustomErrors.sol — replace representative require strings with argument-free and parameterized custom errors. Done when: tests assert exact revert data and snapshots compare deployment size plus successful and reverting paths under pinned compiler settings.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-custom-error-encoding",
+            "purpose": "Define and verify custom-error revert data without assuming a universal gas delta",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-custom-errors-solidity-docs",
+                "title": "Custom Errors",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html#custom-errors",
+                "format": "documentation",
+                "scope": "Section Custom Errors, including parameters, ABI encoding, and require support",
+                "estimatedMinutes": 12,
+                "why": "The canonical language reference defines selector-and-argument encoding and explains the efficiency advantage relative to string descriptions.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Calldata & memory gas"
+    },
+    {
+      "title": "Shrinking calldata",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-2028's standard calldata accounting assigns 16 gas per nonzero byte and 4 per zero byte, while EIP-7623 applies a 10-gas-per-token floor that can make data-heavy transactions effectively pay 40 and 10 respectively. Standard ABI arguments still occupy 32-byte words even when their Solidity integer types are narrow, so meaningful shrinking requires fewer arguments or an explicitly compact, unambiguous encoding whose on-chain decode cost and calldata floor are included in the comparison.",
+      "aiContext": "Build: solve gas/ShrinkCalldata.sol — compare standard ABI arguments with one explicitly compact bytes payload over representative values and input counts. Done when: round-trip tests pass and receipt accounting separates the 21000 base, EIP-2028 standard calldata charge, execution/decode gas, and EIP-7623 total-cost floor to identify the break-even point.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-calldata-byte-pricing",
+            "purpose": "Calculate standard calldata gas from zero and nonzero bytes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-2028-spec",
+                "title": "EIP-2028: Transaction data gas cost reduction",
+                "url": "https://eips.ethereum.org/EIPS/eip-2028",
+                "format": "documentation",
+                "scope": "Section Specification and the transaction-data pricing statement",
+                "estimatedMinutes": 8,
+                "why": "The canonical EIP sets nonzero transaction-data bytes to 16 gas while retaining the 4-gas zero-byte price.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "05a-calldata-floor-pricing",
+            "purpose": "Apply the current total-cost floor to data-heavy transactions",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-eip-7623-spec",
+                "title": "EIP-7623: Increase calldata cost",
+                "url": "https://eips.ethereum.org/EIPS/eip-7623",
+                "format": "documentation",
+                "scope": "Sections Specification and Rationale through the 10/40-gas data-heavy transaction pricing",
+                "estimatedMinutes": 12,
+                "why": "The canonical EIP adds the total-cost floor that can dominate EIP-2028's standard calldata charge after execution gas is included.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "05a-standard-abi-width",
+            "purpose": "Distinguish standard 32-byte ABI words from deliberately compact custom encoding",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-abi-argument-encoding",
+                "title": "Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Sections Basic Design, Argument Encoding, and Formal Specification of the Encoding",
+                "estimatedMinutes": 18,
+                "why": "The canonical ABI specification shows that static arguments occupy 32-byte encodings even when their source integer type is narrow.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Calldata & memory gas"
+    },
+    {
+      "title": "Avoiding memory expansion",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EVM memory cost for a high-water mark of a 32-byte words is Cmem(a) = 3a + floor(a² / 512); expansion charges only the difference from the previous high-water mark. Reaching the same final size incrementally does not repeatedly repay prior expansion, so optimization means reducing the highest word touched or avoiding repeated allocation and copying—not merely preallocating the same final range.",
+      "aiContext": "Build: solve gas/MemoryExpansion.sol — compare dense writes, a sparse high-offset write, and repeated allocations that copy data while reaching controlled high-water marks. Done when: tests pass and measured expansion deltas match Cmem(new) - Cmem(old), separating expansion from copy and allocation work.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-memory-cost-equation",
+            "purpose": "Calculate expansion from the EVM memory high-water mark and separate it from copy costs",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-ethereum-yellow-paper-memory",
+                "title": "Ethereum Yellow Paper",
+                "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
+                "format": "article",
+                "scope": "Sections Appendix H.1 Gas Cost (equations 326–328) and Appendix G Fee Schedule (memory constants)",
+                "estimatedMinutes": 20,
+                "why": "The canonical execution specification gives Cmem(a), the floor term, and the incremental expansion charge used by the build's hand calculation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Calldata & memory gas"
+    },
+    {
+      "title": "abi.encodePacked encoding cost",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "abi.encodePacked concatenates direct arguments without standard ABI padding and omits lengths for dynamic values. It can reduce encoded size, but exact gas is compiler- and workload-dependent; with two dynamic arguments the encoding is ambiguous and can create hash collisions. Prefer abi.encode unless a bounded fixed layout makes packed encoding unambiguous and measured savings matter.",
+      "aiContext": "Build: solve gas/EncodePacked.sol — compare abi.encode and abi.encodePacked for fixed-width fields, then demonstrate the documented collision with two dynamic strings. Done when: tests prove the fixed layout is unambiguous, reproduce the dynamic collision, and snapshots record encoded lengths and gas under pinned compiler settings.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-packed-abi-safety",
+            "purpose": "Use non-standard packed encoding only with an unambiguous bounded layout",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-packed-mode-solidity-docs",
+                "title": "Contract ABI Specification: Non-standard Packed Mode",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html#non-standard-packed-mode",
+                "format": "documentation",
+                "scope": "Section Non-standard Packed Mode, including direct-argument padding rules and the dynamic-value collision warning",
+                "estimatedMinutes": 14,
+                "why": "The canonical ABI reference defines packed output precisely and explicitly demonstrates ambiguity when two dynamic arguments are concatenated.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["abi.encode vs encodePacked"],
+      "parentTitle": "Calldata & memory gas"
+    },
+    {
+      "title": "Short-circuit ordering",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Logical && and || short-circuit, so putting a cheap, selective condition first can skip later work. Reordering is semantics-preserving only when evaluation order is not observable: operands must not rely on side effects, reverts, or state changes from the original order.",
+      "aiContext": "Build: solve gas/ShortCircuit.sol — reorder a compound guard so a cheap side-effect-free condition can skip an expensive storage read, and add a counterexample whose operands cannot be reordered. Done when: behavior tests pass and traces plus snapshots show which paths evaluate the SLOAD.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-short-circuit-semantics",
+            "purpose": "Preserve observable evaluation order while using logical short-circuiting",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-expression-order-solidity-docs",
+                "title": "Order of Evaluation of Expressions",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html#order-of-evaluation-of-expressions",
+                "format": "documentation",
+                "scope": "Section Order of Evaluation of Expressions and the short-circuiting note for && and ||",
+                "estimatedMinutes": 8,
+                "why": "The canonical language reference establishes short-circuit behavior while warning that expression evaluation order otherwise is not specified.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Control-flow gas"
+    },
+    {
+      "title": "Unchecked increments",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Solidity arithmetic reverts on overflow by default; an unchecked block restores wrapping arithmetic. A loop increment can be unchecked only when its bound and control flow prove that increment cannot wrap. Any gas delta is compiler- and optimizer-dependent and must be measured rather than assumed.",
+      "aiContext": "Build: solve gas/UncheckedLoop.sol — compare checked and unchecked increments in a bounded loop and document the proof that wrapping is unreachable. Done when: boundary tests cover zero and maximum permitted lengths, compiler output shows the removed check if any, and snapshots record the measured delta.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-unchecked-arithmetic-semantics",
+            "purpose": "Use wrapping arithmetic only where loop bounds prove overflow unreachable",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-unchecked-solidity-docs",
+                "title": "Checked or Unchecked Arithmetic",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html#checked-or-unchecked-arithmetic",
+                "format": "documentation",
+                "scope": "Section Checked or Unchecked Arithmetic, including block scope and non-nesting rules",
+                "estimatedMinutes": 10,
+                "why": "The canonical language reference defines default panic-on-overflow behavior and the exact wrapping semantics introduced by unchecked blocks.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Control-flow gas"
+    },
+    {
+      "title": "++i over i++",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Postfix i++ evaluates to the old value and prefix ++i to the new value, but when that result is unused a current optimizer can produce equivalent code. Do not claim a gas win from syntax alone: inspect optimized output and benchmark the pinned compiler; choose the clearer form when they are identical.",
+      "aiContext": "Build: solve gas/PreIncrement.sol — compile equivalent prefix and postfix loops with pinned optimizer settings and compare IR, bytecode, and snapshots. Done when: behavior matches and the report states whether a measurable difference exists instead of assuming one.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-prefix-postfix-compiler-output",
+            "purpose": "Separate prefix/postfix language semantics from optimizer-dependent generated gas",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-solidity-optimizer-docs",
+                "title": "The Optimizer",
+                "url": "https://docs.soliditylang.org/en/latest/internals/optimizer.html",
+                "format": "documentation",
+                "scope": "Sections Benefits of Optimizing Solidity Code, DataflowAnalyzer, and UnusedPruner",
+                "estimatedMinutes": 14,
+                "why": "The canonical compiler internals explain why an unused expression result can disappear, making source-level increment folklore unreliable without output inspection.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05a-prefix-postfix-semantics",
+            "purpose": "Distinguish the old-value result of postfix increment from the new-value result of prefix increment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-increment-operators-solidity-docs",
+                "title": "Compound and Increment/Decrement Operators",
+                "url": "https://docs.soliditylang.org/en/latest/types.html#compound-and-increment-decrement-operators",
+                "format": "documentation",
+                "scope": "Section Compound and Increment/Decrement Operators",
+                "estimatedMinutes": 8,
+                "why": "The canonical language reference defines the expression value that differs between postfix and prefix forms before optimizer effects are considered.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Unchecked increments"],
+      "parentTitle": "Control-flow gas"
+    },
+    {
+      "title": "Caching array length",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A loop condition that reads a storage array's length may cause repeated warm SLOADs; caching a length that cannot change during the loop can remove them. It is incorrect when the body can change the length, and current compiler optimization must be inspected because it may already hoist some invariant reads.",
+      "aiContext": "Build: solve gas/CacheLength.sol — compare cached and uncached loops over a storage array under pinned optimizer settings, then add a mutation case showing why caching is not always valid. Done when: tests cover both stable and changing lengths and traces plus snapshots show whether repeated length loads remain.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-loop-invariant-length",
+            "purpose": "Verify when an array length is loop-invariant and whether the compiler already hoists it",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-loop-optimizer-solidity-docs",
+                "title": "The Optimizer",
+                "url": "https://docs.soliditylang.org/en/latest/internals/optimizer.html",
+                "format": "documentation",
+                "scope": "Sections DataflowAnalyzer, LoadResolver, and LoopInvariantCodeMotion",
+                "estimatedMinutes": 16,
+                "why": "The canonical compiler internals identify the analyses that retain or invalidate storage knowledge and move invariant expressions out of loops.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Caching storage in memory"],
+      "parentTitle": "Control-flow gas"
+    },
+    {
+      "title": "Removing redundant checks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A check is removable only when the same invariant is enforced on every path by the language, an earlier dominating condition, or a trusted boundary. Solidity address types do not imply nonzero, and external calls can invalidate earlier state assumptions; preserve load-bearing checks and prove redundancy with negative tests.",
+      "aiContext": "Build: solve gas/RedundantChecks.sol — remove one manual overflow check duplicated by Solidity's default checked addition while preserving unrelated input validation. Done when: positive, overflow, and authorization tests pass and compiler output plus snapshots show whether the redundant branch remains.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-redundant-check-proof",
+            "purpose": "Prove a manual arithmetic check duplicates Solidity's default checked behavior before removal",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-checked-arithmetic-solidity-docs",
+                "title": "Checked or Unchecked Arithmetic",
+                "url": "https://docs.soliditylang.org/en/latest/control-structures.html#checked-or-unchecked-arithmetic",
+                "format": "documentation",
+                "scope": "Section Checked or Unchecked Arithmetic and the default overflow panic behavior",
+                "estimatedMinutes": 8,
+                "why": "The canonical language reference supplies the specific default guarantee needed to prove a duplicated manual overflow check redundant.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Control-flow gas"
+    },
+    {
+      "title": "Early return",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Returning once a result is known can skip later reads and computation on that path. The optimization depends on path frequency and compiler output, and an early return must not bypass required state changes, cleanup, authorization, or invariant checks.",
+      "aiContext": "Build: solve gas/EarlyReturn.sol — return on a trivial case before expensive storage work without bypassing authorization or required effects. Done when: tests cover every path and traces plus snapshots confirm the trivial path skips the intended work under pinned compiler settings.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05a-early-return-control-flow",
+            "purpose": "Restructure early exits while preserving every required state effect and validation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05a-return-solidity-docs",
+                "title": "Return Variables",
+                "url": "https://docs.soliditylang.org/en/latest/contracts.html#return-variables",
+                "format": "documentation",
+                "scope": "Section Return Variables, including explicit return and implicit named-variable return",
+                "estimatedMinutes": 8,
+                "why": "The canonical language reference defines how explicit return terminates execution and supplies the semantics needed to audit skipped effects.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Control-flow gas"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Packing variables into slots",
+      "promptText": "How does declaration order of small state variables affect gas, and why?",
+      "answerHint": "Adjacent value types smaller than 32 bytes pack when they fit, so fields used together can require fewer slot accesses. Pitfall: updating only one packed field needs a read-modify-write, and interleaving a full-word field can force another slot.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Packing variables into slots",
+      "promptText": "Write a two-field storage layout (a uint128 and a uint128) that the compiler packs into one slot.",
+      "answerHint": "uint128 a; uint128 b; // declared consecutively, both occupy slot 0 at offsets 0 and 16. Verify with the compiler's storageLayout output rather than inferring opcode count from layout alone.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Packing variables into slots",
+      "promptText": "Solve the storage-packing gas puzzle in the RareSkills gas-puzzles repo.",
+      "answerHint": "Reorder fields so hot ones pack into a single slot; measure with forge snapshot until under target.",
+      "promptKind": "problem",
+      "url": "https://github.com/RareSkills/gas-puzzles",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Warm vs cold access (EIP-2929)",
+      "promptText": "Under EIP-2929, what do cold and warm access cost for a storage slot and for an account?",
+      "answerHint": "Slot: cold SLOAD 2100, warm 100. Covered account access: cold 2600, warm 100. An access is cold only when absent from the transaction-wide accessed sets; the sender, destination, precompiles, and EIP-2930 entries start warm, with access-list entries charged intrinsically.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Warm vs cold access (EIP-2929)",
+      "promptText": "Write a snippet that reads the same storage variable twice so only the first read pays cold cost.",
+      "answerHint": "uint256 x = s; // cold if this key was not prewarmed or touched ... uint256 y = s; // the key is warm afterward. An optimizing compiler may eliminate the second SLOAD, so confirm the intended accesses in a trace.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Warm vs cold access (EIP-2929)",
+      "promptText": "Solve a warm/cold access gas puzzle from the RareSkills gas-puzzles repo.",
+      "answerHint": "Reorder or dedupe accesses so repeat touches are warm (100) not cold (2100/2600); snapshot under target.",
+      "promptKind": "problem",
+      "url": "https://github.com/RareSkills/gas-puzzles",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Minimizing SLOAD and SSTORE",
+      "promptText": "Why can SLOAD be quoted with warm/cold prices while SSTORE needs original, current, and new values?",
+      "answerHint": "EIP-2929 sets SLOAD to 100 warm or 2100 cold. EIP-2200 branches SSTORE metering on original/current/new values, with later fork rules adding cold surcharges and changing refunds; there is no single universal update price.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Minimizing SLOAD and SSTORE",
+      "promptText": "Write a loop that accumulates into a local and writes storage once at the end.",
+      "answerHint": "uint256 sum; for (uint256 i; i < n; ++i) { sum += a[i]; } total = sum; // one SSTORE instead of one per iteration.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Caching storage in memory",
+      "promptText": "Why is caching a storage variable in a local worth it even for warm reads?",
+      "answerHint": "A local snapshot can let the optimizer reuse a value instead of issuing another SLOAD. Exact placement and savings depend on generated code. Pitfall: relevant state can change across an external call, making a cache stale.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Caching storage in memory",
+      "promptText": "Write a loop condition and body that read a state variable `count` only once.",
+      "answerHint": "uint256 c = count; for (uint256 i; i < c; ++i) { ... } // read `count` into c once, use c throughout.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "constant vs immutable for gas",
+      "promptText": "How do `constant` and `immutable` each avoid an SLOAD, and when do you use which?",
+      "answerHint": "A constant expression is substituted at each use; an immutable is assigned during construction and copied into reserved runtime-code locations. Use constant for compile-time values and immutable for deploy-time ones. Neither uses a normal storage slot.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "constant vs immutable for gas",
+      "promptText": "Write an immutable owner set at deploy and a constant fee.",
+      "answerHint": "address public immutable owner; uint256 public constant FEE = 100; constructor() { owner = msg.sender; } // neither read costs an SLOAD.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "SSTORE refunds (EIP-3529)",
+      "promptText": "What does clearing a slot refund, and what did EIP-3529 change?",
+      "answerHint": "Clearing a slot that was originally nonzero to zero adds the 4800 storage-clear refund. EIP-3529 capped applied refunds at 20% of gas used and removed the SELFDESTRUCT refund; other dirty-slot reset cases follow EIP-2200's separate accounting.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "SSTORE refunds (EIP-3529)",
+      "promptText": "Write a function that frees a slot to earn a refund.",
+      "answerHint": "delete balances[user]; // if the slot was nonzero at transaction start, setting it to zero adds the 4800 clear refund, subject to the 20%-of-used cap.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Transient storage for gas (EIP-1153)",
+      "promptText": "Why is a TSTORE/TLOAD reentrancy lock cheaper than an SSTORE-based one?",
+      "answerHint": "TSTORE and TLOAD each cost 100 gas and transaction-scoped state is discarded at transaction end. Pitfall: clear a lock before returning if later calls in the same transaction must proceed; never use it for durable state.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Transient storage for gas (EIP-1153)",
+      "promptText": "Write a reentrancy guard using transient storage (tstore/tload).",
+      "answerHint": "assembly { if tload(0) { revert(0,0) } tstore(0,1) } _; assembly { tstore(0,0) } // each transient opcode costs 100 gas; explicit unlock permits later same-transaction calls.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Packing structs and enums",
+      "promptText": "How do you order struct members to minimize slots, and where do enums fit?",
+      "answerHint": "Order adjacent value types so their byte widths fit each slot, then verify compiler storageLayout. Current Solidity enums occupy one byte. Pitfall: fewer slots can make a single packed-field update more expensive.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Packing structs and enums",
+      "promptText": "Write a struct that packs an address, a uint96, and a bool into two slots.",
+      "answerHint": "struct P { address owner; uint96 amount; bool active; } // owner(20)+amount(12)=32 → slot 0; active → slot 1.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "calldata over memory",
+      "promptText": "Why is a read-only external array argument cheaper as calldata than memory?",
+      "answerHint": "calldata keeps read-only input in its original data area, while a memory parameter needs an independent mutable representation. The exact copy and savings depend on ABI decoding and generated code; inspect the pinned compiler output.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "calldata over memory",
+      "promptText": "Write an external function signature that reads a bytes argument without copying it.",
+      "answerHint": "function f(bytes calldata data) external { ... } // `calldata` avoids the memory copy a `bytes memory` param would force.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Custom errors over require strings",
+      "promptText": "How do custom errors save gas versus require strings?",
+      "answerHint": "A custom error ABI-encodes a 4-byte selector plus typed arguments instead of a string description. It is usually cheaper, but deployment and revert-path savings vary with the error payload and compiler settings.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Custom errors over require strings",
+      "promptText": "Rewrite `require(x > 0, \"zero\")` using a custom error.",
+      "answerHint": "error Zero(); ... if (x == 0) revert Zero(); // current Solidity also supports require(x > 0, Zero()).",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Shrinking calldata",
+      "promptText": "What are the intrinsic gas costs of calldata bytes, and how do you lower them?",
+      "answerHint": "EIP-2028's standard charge is 16 gas per nonzero byte and 4 per zero byte. EIP-7623 can instead make the total-cost floor bind at an effective 40/10 for data-heavy transactions. Narrow Solidity integers still occupy 32-byte standard ABI words; include decoding and the floor when comparing compact encodings.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Shrinking calldata",
+      "promptText": "Write a call that packs two uint8 args into one bytes32 instead of two padded words.",
+      "answerHint": "bytes32 packed = bytes32(uint256(a) << 8 | uint256(b)); // one 32-byte word decoded on-chain vs two padded args.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Avoiding memory expansion",
+      "promptText": "How is memory priced, and why does a large buffer get expensive fast?",
+      "answerHint": "For a high-water mark of a words, Cmem(a) = 3a + floor(a²/512); expansion charges Cmem(new) - Cmem(old). Incremental growth to the same final word does not repay old expansion, though repeated allocation/copying can add work.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Avoiding memory expansion",
+      "promptText": "Write a loop that reuses one preallocated memory buffer instead of allocating each iteration.",
+      "answerHint": "bytes memory buf = new bytes(32); for (uint256 i; i < n; ++i) { /* overwrite buf */ } // allocate once, reuse.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "abi.encodePacked encoding cost",
+      "promptText": "When can abi.encodePacked produce fewer bytes than abi.encode, and when is it unsafe?",
+      "answerHint": "Packed mode omits standard padding for direct arguments and lengths for dynamic values, often producing fewer bytes. Gas still must be measured. Two dynamic values make boundaries ambiguous and can collide; prefer abi.encode unless the layout is provably unambiguous.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "abi.encodePacked encoding cost",
+      "promptText": "Write a collision-safe keccak256 over two fixed-width values using encodePacked.",
+      "answerHint": "keccak256(abi.encodePacked(uint256(a), address(b))); // fixed-width operands make boundaries unambiguous; benchmark before claiming a gas saving over abi.encode.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Short-circuit ordering",
+      "promptText": "How does operand order in `&&`/`||` save gas?",
+      "answerHint": "&& stops at the first false, || at the first true, so put the cheapest/most-decisive operand first (e.g. a calldata compare before a cold SLOAD). Pitfall: only reorder side-effect-free operands, or you change behavior.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Short-circuit ordering",
+      "promptText": "Assume `admin` is immutable; reorder `require(store[id].active && msg.sender == admin)` to gate the storage read.",
+      "answerHint": "require(msg.sender == admin && store[id].active); // the side-effect-free immutable comparison runs first, so the storage read only runs if it passes.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Unchecked increments",
+      "promptText": "Why does `unchecked { ++i; }` save gas, and when is it safe?",
+      "answerHint": "Checked arithmetic panics on overflow; unchecked restores wrapping behavior. It is safe only when bounds and control flow prove the increment cannot wrap. Any gas delta depends on compiler and optimizer output.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Unchecked increments",
+      "promptText": "Write a for-loop whose counter increment is unchecked.",
+      "answerHint": "for (uint256 i; i < n;) { /* body */ unchecked { ++i; } } // i < n < 2^256, so the increment can't overflow.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "++i over i++",
+      "promptText": "When the expression result is unused, can you assume `++i` is cheaper than `i++`?",
+      "answerHint": "No. Prefix returns the new value and postfix the old one, but an optimizer can discard the unused result and emit equivalent code. Compare optimized IR, bytecode, and a benchmark for the pinned compiler.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "++i over i++",
+      "promptText": "Write the cheapest loop-counter increment idiom for an unused return value.",
+      "answerHint": "unchecked { ++i; } // valid only after proving the bound prevents wrap. Prefix is conventional, but verify output rather than claiming it always beats postfix.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Caching array length",
+      "promptText": "Why cache `arr.length` before a loop over a storage array?",
+      "answerHint": "The condition may re-read a storage array's length each iteration; caching a stable length can reduce that to one load. Inspect optimized output because the compiler may already hoist it, and never cache when the body can change the length.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Caching array length",
+      "promptText": "Write a loop over a storage array `items` that reads its length only once.",
+      "answerHint": "uint256 len = items.length; for (uint256 i; i < len;) { ... unchecked { ++i; } }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Removing redundant checks",
+      "promptText": "What makes a check safe to remove, and give an example of a redundant one.",
+      "answerHint": "Remove only checks whose condition is already guaranteed — e.g. SafeMath on top of 0.8's built-in overflow checks, or re-validating an input a modifier already checked. Pitfall: deleting a load-bearing check to save gas is how exploits get introduced — prove redundancy first.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Removing redundant checks",
+      "promptText": "Rewrite `unchecked`-safe addition that drops a redundant SafeMath-style check under solc 0.8.",
+      "answerHint": "uint256 c = a + b; // 0.8 already reverts on overflow — no need for a manual `require(c >= a)`.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Early return",
+      "promptText": "How does returning early lower average gas?",
+      "answerHint": "Returning as soon as the result is known skips the remaining storage reads/loops/computation on the common path. Pitfall: ensure the early path still runs any required state updates before returning.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Early return",
+      "promptText": "Write a function that returns immediately when the amount is zero, before any storage work.",
+      "answerHint": "function f(uint256 amt) external { if (amt == 0) return; /* expensive storage work only for amt > 0 */ }",
+      "promptKind": "code"
+    }
+  ],
+  "noteSummaries": []
+}

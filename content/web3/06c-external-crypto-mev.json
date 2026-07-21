@@ -1,0 +1,802 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "External-call & token-integration attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC06: bugs at the boundary where a contract calls out or integrates a token it doesn't control — unchecked return values, tokens that don't return a bool or take a fee on transfer, ETH force-fed in, and callees that grief the caller's gas. 'It's just an ERC-20' is where these hide.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Signature & cryptography attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Bugs in how contracts verify off-chain signatures and proofs: replayable signatures (no nonce, no chainId, no domain separator), ECDSA malleability and zero-address ecrecover, permit front-running, and Merkle proof forgery. The crypto is sound; the misuse around it is the vulnerability.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Ordering, timing & MEV attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Everything in the public mempool is visible and reorderable before inclusion, so an attacker (or the proposer) can front-run, back-run, or sandwich a victim's transaction, exploit weak on-chain randomness and timestamp dependence, or stuff blocks. Defense is slippage/deadline limits, commit-reveal, and off-chain ordering (private relays).",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Unchecked low-level call returns",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "`address.call`, `send`, and `delegatecall` return a bool on failure rather than reverting; ignoring that bool means a failed transfer or call is treated as success, so the contract updates state as if value moved when it didn't (the 2016 King of the Ether payout bug). Fix: check every low-level return (`(bool ok,) = ...; require(ok)`), or use a wrapper that reverts.",
+      "aiContext": "Build: in security/attacks/unchecked-call/ write a payout function that uses `to.send(amount)` (or .call) and ignores the result, and a test where a reverting recipient makes the contract mark a payment complete without paying; then require the return. Done when: the accounting desyncs pre-fix and reverts post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-unchecked-call-failure-semantics",
+            "purpose": "Explain why external value sends and low-level calls can fail without reverting the caller and must have their status handled",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-solidity-send-call-security",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html#sending-and-receiving-ether",
+                "format": "documentation",
+                "scope": "Sections Sending and Receiving Ether and Call Stack Depth",
+                "estimatedMinutes": 10,
+                "why": "The language's security guide states that sends can fail under recipient control and that return values must be checked.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Missing-return-value tokens & SafeERC20",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Some legacy ERC-20s return no value from transfer/approve, so an ABI call expecting `bool` reverts while decoding empty return data even though the token call itself returned successfully; that caller revert unwinds the whole transaction. Some tokens also require allowance to be set to zero before a new non-zero value. Fix: OpenZeppelin SafeERC20's safeTransfer treats empty return data as success only after a successful call, while forceApprove supports zero-first tokens. This does not erase ERC-20's transaction-ordering allowance race.",
+      "aiContext": "Build: in security/attacks/missing-return/ write a mock legacy token whose transfer returns nothing and a vault that calls `require(token.transfer(...))`, showing the typed call reverts while decoding empty return data and rolls back the transaction; then swap to SafeERC20.safeTransfer. Add a second mock whose approve requires zero-first and exercise forceApprove. Done when: both non-standard behaviors work through the matching SafeERC20 wrappers, and notes keep the separate allowance-ordering race explicit.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-safeerc20-nonstandard-returns",
+            "purpose": "Integrate tokens whose transfer functions return no value and tokens that require zero-first approval",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-safeerc20-api",
+                "title": "OpenZeppelin SafeERC20 API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#SafeERC20",
+                "format": "documentation",
+                "scope": "Sections SafeERC20, safeTransfer, safeIncreaseAllowance, and forceApprove",
+                "estimatedMinutes": 12,
+                "why": "The maintained wrapper contract documents optional-return handling and distinguishes zero-first approval support from allowance updates.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06c-erc20-allowance-ordering",
+            "purpose": "Keep ERC-20's allowance transaction-ordering warning separate from token ABI compatibility",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip20-approve-note",
+                "title": "ERC-20 Token Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-20",
+                "format": "documentation",
+                "scope": "Section Methods: approve and its UI ordering note",
+                "estimatedMinutes": 6,
+                "why": "The canonical standard records the non-zero allowance replacement hazard without claiming SafeERC20 makes transaction ordering disappear.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Unchecked low-level call returns"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Fee-on-transfer & rebasing tokens",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A vault that assumes `received == amount` breaks with fee-on-transfer tokens: it receives less than requested, so nominal credits can exceed real holdings. Rebasing tokens create a different integration risk because balances change without transfers and desynchronize stored nominal accounting. Fix the fee-on-transfer path by measuring the balance delta; make rebasing support explicit and derive share value from the live asset balance or use a documented wrapper. Callback tokens add a separate reentrancy boundary.",
+      "aiContext": "Build: in security/attacks/fee-on-transfer/ write a vault that credits the requested amount, plus a mock token that skims a 1% fee on transfer; a test deposits and shows credited assets exceed what arrived; then switch to before/after balance-delta accounting. Done when: the credited deposit equals the actual received delta after the fix, and notes distinguish that fix from rebasing and callback-token handling.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-fee-token-incident-mechanism",
+            "purpose": "Trace how transfer-fee tokens break accounting that trusts nominal transfer amounts",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-balancer-deflationary-token-incident",
+                "title": "Balancer Update #2: Incident with non-standard ERC20 deflationary tokens",
+                "url": "https://medium.com/balancer-protocol/update-2-incident-with-non-standard-erc20-deflationary-tokens-f3a7cedf6292",
+                "format": "article",
+                "scope": "Entire article (8 min)",
+                "estimatedMinutes": 8,
+                "why": "Balancer's own incident writeup grounds the nominal-versus-received balance mismatch in a real protocol failure.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 730
+              }
+            ]
+          },
+          {
+            "id": "06c-rebase-balance-adjustment",
+            "purpose": "Distinguish automatic rebasing balance changes from fee-on-transfer deltas",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-rebase-accounting-note",
+                "title": "OpenZeppelin Finance API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/finance#VestingWallet",
+                "format": "documentation",
+                "scope": "Section VestingWallet",
+                "estimatedMinutes": 5,
+                "why": "The maintained integration note confirms that rebasing balances require explicit schedule/accounting treatment rather than the transfer-fee fix alone.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Missing-return-value tokens & SafeERC20"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Force-feeding ETH",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A contract with no payable function can still receive ETH: `SELFDESTRUCT` continues to transfer the caller's balance after Cancun even though EIP-6780 usually preserves its code and storage; an address can also receive proposer rewards or be pre-funded before deployment. Any code that equates `address(this).balance` with internal accounting can be griefed or unlocked. Fix: track intentional deposits in state and never require an exact raw-balance invariant.",
+      "aiContext": "Build: in security/attacks/force-feed/ write a game that unlocks when `address(this).balance == target`, and an attacker that selfdestructs ETH into it to skip the intended deposits; then re-implement using an internal deposited-total variable. Done when: the balance-based guard is bypassable pre-fix and the counter-based guard holds post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-force-feed-current-selfdestruct",
+            "purpose": "Apply current SELFDESTRUCT balance-transfer semantics without assuming legacy code deletion",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip6780-selfdestruct",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Abstract and Specification",
+                "estimatedMinutes": 8,
+                "why": "The canonical post-Cancun rule preserves the forced balance transfer while sharply limiting account deletion.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06c-force-challenge-reproduction",
+            "purpose": "Reproduce a forced-balance invariant break against the exact challenge contract",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-ethernaut-force-source",
+                "title": "Ethernaut Force level source",
+                "url": "https://github.com/OpenZeppelin/ethernaut/blob/master/contracts/src/levels/Force.sol",
+                "format": "exercise",
+                "scope": "Entire page (5 min)",
+                "estimatedMinutes": 5,
+                "why": "The official OpenZeppelin challenge is the exact learner artifact and makes the no-payable-entry boundary inspectable before exploitation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Gas griefing & return-bomb",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A callee can weaponize gas: consume its forwarded allotment so a relayed/sub-call fails, or expose enormous returndata so a caller that decodes or stores unbounded `bytes` pays memory-expansion and copy costs — the 'return bomb'. A gas limit on the subcall alone does not cap the caller's returndata-copy cost. Fix: bound forwarded gas for the call's work and separately cap how many returndata bytes are copied, as ExcessivelySafeCall does.",
+      "aiContext": "Build: in security/attacks/return-bomb/ write a router that low-level-calls an untrusted target and uses the returndata, plus a malicious target that returns a huge buffer to OOG the router; then rewrite the call in assembly to cap the copied returndata. Done when: the router OOGs pre-fix and survives the bomb post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-return-data-copy-bound",
+            "purpose": "Cap both forwarded gas and returndata copied from an untrusted callee",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-nomad-excessively-safe-call",
+                "title": "Nomad ExcessivelySafeCall",
+                "url": "https://github.com/nomad-xyz/ExcessivelySafeCall/blob/main/src/ExcessivelySafeCall.sol",
+                "format": "documentation",
+                "scope": "Entire page (14 min)",
+                "estimatedMinutes": 14,
+                "why": "The original maintained library directly demonstrates the two independent limits and the assembly copy pattern required by the Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Unchecked low-level call returns"],
+      "parentTitle": "External-call & token-integration attacks"
+    },
+    {
+      "title": "Signature replay (missing nonce)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A signed authorization with no per-signer nonce (or a nonce that isn't consumed) can be submitted repeatedly: sign once to withdraw 1 ETH, and anyone replays the same signature to withdraw again and again. Fix: include and mark-used a nonce (or a unique request id) in the signed struct, and check it on-chain before acting.",
+      "aiContext": "Build: in security/attacks/sig-replay/ write a payment channel / meta-tx executor that verifies an EIP-712 signature but forgets to consume a nonce, and a test that replays one signature to drain funds; then add a used-nonce mapping. Done when: the second replay succeeds pre-fix and reverts (nonce used) post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-signature-message-replay",
+            "purpose": "Make repeated signed messages reject or behave idempotently at the application layer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip712-replay-security",
+                "title": "EIP-712: Typed structured data hashing and signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections Security Considerations: Replay attacks and Frontrunning attacks",
+                "estimatedMinutes": 8,
+                "why": "The canonical typed-data standard explicitly leaves replay rejection to the application and states the required repeated-message behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Cross-chain replay & missing domain separator",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A signature valid on one contract/chain replays elsewhere unless the signed data is bound to context. For ordinary single-chain authorization, include chainId and verifyingContract in the EIP-712 domain so another chain or deployment produces a different digest, and ensure cached domains follow chain-ID changes. EIP-712 permits applications to choose domain fields, so the verifier must choose and enforce the fields its replay boundary requires.",
+      "aiContext": "Build: in security/attacks/cross-chain-replay/ write a verifier whose signed digest omits chainId/verifyingContract, deploy two instances (or two chainIds via vm.chainId), and replay one signature on the other; then bind a proper EIP-712 domain separator. Done when: the cross-context replay works pre-fix and is rejected post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-eip712-domain-boundary",
+            "purpose": "Bind ordinary authorizations to the intended chain and verifying deployment",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip712-domain-definition",
+                "title": "EIP-712: Typed structured data hashing and signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections Definition of domainSeparator, domain rationale, and Replay attacks",
+                "estimatedMinutes": 12,
+                "why": "The canonical standard defines chainId and verifyingContract as selectable domain fields and explains why otherwise-identical signing contexts need separation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Signature malleability & zero-address ecrecover",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ECDSA on secp256k1 is malleable: for a valid (v, r, s), flipping v and replacing s with n-s yields another valid signature for the same message, which breaks replay keys based on signature bytes. Separately, raw `ecrecover` returns address(0) on malformed input, so a zero/uninitialized trusted signer is dangerous. Fix: enforce lower-half-order s and reject failed recovery; OpenZeppelin ECDSA performs these validations.",
+      "aiContext": "Build: in security/attacks/sig-malleability/ write a contract that keys replay protection on keccak256(signature), and a test that flips s to n-s (and v) to produce a second valid signature that bypasses it; also test a zero-address signer. Done when: the malleable/zero-address bypass works pre-fix and reverts once you use OZ ECDSA (low-s + non-zero) checks.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-ecdsa-high-s-malleability",
+            "purpose": "Derive the alternate high-s signature and understand why the ecrecover precompile still accepts it",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip2-low-s-rule",
+                "title": "EIP-2: Homestead Hard-fork Changes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2",
+                "format": "documentation",
+                "scope": "Sections Specification and Rationale",
+                "estimatedMinutes": 7,
+                "why": "The canonical fork rule gives the exact s-to-n-minus-s and v-flip construction while noting that ecrecover remains permissive.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 730
+              }
+            ]
+          },
+          {
+            "id": "06c-ecdsa-library-validation",
+            "purpose": "Reject upper-half s values and failed zero-address recovery in application authentication",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-ecdsa-api",
+                "title": "OpenZeppelin ECDSA API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography#ECDSA",
+                "format": "documentation",
+                "scope": "Sections ECDSA and Functions",
+                "estimatedMinutes": 8,
+                "why": "The maintained library reference defines the lower-half-order and invalid-recovery checks used by the fixed Build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Permit front-running",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "EIP-2612 permit() is public and consumes the owner's signed nonce, so anyone can submit a visible valid permit first. The intended allowance is still created, but a bundled flow that insists its own permit call succeed can then revert. Treat the signature only as allowance authorization: allow permit to fail and continue to an action that independently checks/pulls the intended amount, while binding the action's owner to msg.sender.",
+      "aiContext": "Build: in security/attacks/permit-frontrun/ write a router that calls token.permit(...) then pulls the fixed action amount from `msg.sender`, and a test where an attacker submits the same permit first, causing the router's permit call to revert and DoS the user; then wrap permit in try/catch without accepting a caller-supplied owner. Done when: the user's tx reverts pre-fix and succeeds (permit-already-set tolerated) post-fix while the action remains bound to `msg.sender`.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-permit-frontrun-semantics",
+            "purpose": "Treat a permit as public allowance authorization rather than exclusive intent to execute a bundled action",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip2612-security",
+                "title": "ERC-2612: Permit Extension for EIP-20 Signed Approvals",
+                "url": "https://eips.ethereum.org/EIPS/eip-2612",
+                "format": "documentation",
+                "scope": "Sections Specification, Rationale nonce discussion, and Security Considerations",
+                "estimatedMinutes": 12,
+                "why": "The canonical permit specification states that anyone may front-run submission and that the signer should receive the same allowance effect.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06c-permit-tolerant-integration",
+            "purpose": "Implement a permit-assisted action that tolerates an already-consumed valid permit without widening signer intent",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-permit-pattern",
+                "title": "OpenZeppelin ERC20Permit Security Considerations",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#ERC20Permit",
+                "format": "documentation",
+                "scope": "Section ERC20Permit Security Considerations and recommended doThingWithPermit pattern",
+                "estimatedMinutes": 8,
+                "why": "The maintained implementation guide supplies the exact try/catch pattern and msg.sender binding exercised by the fixed router.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Signature replay (missing nonce)"],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Merkle proof forgery & second-preimage",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "In a commutative keccak Merkle tree, a 64-byte raw leaf preimage can be confused with the concatenation of two 32-byte internal nodes: hashing that preimage reproduces an internal-node hash and can prove data that was never intended as a leaf. Fix by domain-separating or double-hashing leaves (OpenZeppelin's standard tree does this). Double-claim prevention is separate stateful accounting, commonly keyed by a stable leaf index or identifier.",
+      "aiContext": "Build: in security/attacks/merkle-forgery/ build a commutative keccak tree whose claim function hashes arbitrary raw leaf bytes once, and test a 64-byte concatenation of two internal-node children as the leaf preimage; then double-hash/domain-separate leaf data and add claim tracking. Done when: the node-as-leaf proof succeeds pre-fix, fails post-fix, and a valid claim cannot execute twice.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-merkle-node-leaf-ambiguity",
+            "purpose": "Reproduce and eliminate the 64-byte leaf preimage versus internal-node concatenation ambiguity",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-merkleproof-warning",
+                "title": "OpenZeppelin MerkleProof API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography#MerkleProof",
+                "format": "documentation",
+                "scope": "Section MerkleProof",
+                "estimatedMinutes": 9,
+                "why": "The maintained verifier documentation states the exact 64-byte preimage ambiguity and separately defines its commutative sorted-pair convention.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06c-merkle-safe-tree-construction",
+            "purpose": "Generate domain-separated leaves and track claims independently of proof validity",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-openzeppelin-standard-merkle-tree",
+                "title": "OpenZeppelin Standard Merkle Tree",
+                "url": "https://github.com/OpenZeppelin/merkle-tree#standard-merkle-trees",
+                "format": "documentation",
+                "scope": "Section Standard Merkle Trees",
+                "estimatedMinutes": 7,
+                "why": "The official generator documents double-hashed leaves and the standard construction recommended by the verifier warning.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Signature & cryptography attacks"
+    },
+    {
+      "title": "Front-running & back-running",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Transactions broadcast through a public mempool reveal their calldata before inclusion. Front-running places an action before a target; back-running places one immediately after a known state change. Searchers can bid for ordering, but builders/proposers determine the final block order. Defenses depend on the mechanism: hide information until commitment, use protected order flow, enforce user bounds, or remove the ordering profit entirely.",
+      "aiContext": "Build: in security/attacks/frontrun/ write a 'claim the secret for a reward' contract and a test where a second signer with a higher gas price mines first (simulate ordering) to steal the reward; then redesign with commit-reveal. Done when: the naive reveal is front-runnable pre-fix and the commit-reveal version isn't.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-mev-ordering-mechanics",
+            "purpose": "Distinguish front-running, back-running, and sandwich placement in a builder-controlled transaction order",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-uniswap-mev-overview",
+                "title": "Uniswap Labs: What is Maximal Extractable Value?",
+                "url": "https://blog.uniswap.org/maximal-extractable-value-mev",
+                "format": "article",
+                "scope": "Sections Who captures MEV? and How MEV is captured, including Frontrunning, Sandwich attacks, and Backrunning",
+                "estimatedMinutes": 10,
+                "why": "The protocol developer's current explainer maps each ordering position to concrete AMM execution while distinguishing searchers from final block construction.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Sandwich attacks & missing slippage/deadline",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A swap with no meaningful minimum-output bound can be sandwiched: the attacker trades before the victim to move the AMM price, the victim accepts the worse fill, and the attacker trades back after it. A deadline addresses a separate stale-execution risk; it does not itself prevent a sandwich. Fix: derive a user-acceptable amountOutMin from a quote and bounded slippage, and use a near-term deadline.",
+      "aiContext": "Build: in security/attacks/sandwich/ deploy a constant-product pool and simulate front-run buy → victim swap (minOut=0) → back-run sell, measuring the victim's loss; then re-run with a tight amountOutMin so the victim's tx reverts instead of executing at the sandwiched price. Done when: the sandwich profits pre-fix and the slippage bound prevents the bad fill post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-sandwich-price-path",
+            "purpose": "Trace the attacker-before, victim, attacker-after AMM price path and victim loss",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-uniswap-mev-sandwich",
+                "title": "Uniswap Labs: What is Maximal Extractable Value?",
+                "url": "https://blog.uniswap.org/maximal-extractable-value-mev",
+                "format": "article",
+                "scope": "Section How MEV is captured, including Sandwich attacks",
+                "estimatedMinutes": 7,
+                "why": "The AMM protocol developer's explainer directly grounds the three-transaction sequence implemented by the learner.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06c-swap-user-bounds",
+            "purpose": "Keep minimum output and deadline as separate router guarantees",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-uniswap-v2-router-bounds",
+                "title": "Uniswap V2 SDK: Trading",
+                "url": "https://developers.uniswap.org/docs/sdks/v2/guides/swapping",
+                "format": "documentation",
+                "scope": "Section Sending a Transaction to the Router, from the Solidity interface through deadline",
+                "estimatedMinutes": 6,
+                "why": "The current official guide derives amountOutMin from bounded slippage and defines deadline independently on the router call.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Front-running & back-running"],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Weak randomness & timestamp dependence",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Block values are public at execution time and some are proposer-influenced, so lotteries or games built from `block.timestamp`, recent `blockhash`, or same-transaction mixes are predictable or biasable. Use a verifiable randomness flow such as VRF and follow its request/fulfillment rules. Timestamps are appropriate for ordinary time gates with tolerance, but exact-boundary outcomes or randomness must not depend on a proposer-adjustable timestamp.",
+      "aiContext": "Build: in security/attacks/bad-randomness/ write a coin-flip/lottery seeded from blockhash/timestamp and an attacker contract that computes the same value and only enters on a win; then integrate a mock VRF. Done when: the attacker wins deterministically pre-fix and cannot predict the VRF-seeded outcome post-fix.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-block-value-randomness-warning",
+            "purpose": "Separate predictable or proposer-influenced block values from ordinary tolerant timestamp gating",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-solidity-block-randomness-warning",
+                "title": "Solidity Units and Globally Available Variables",
+                "url": "https://docs.soliditylang.org/en/latest/units-and-global-variables.html#block-and-transaction-properties",
+                "format": "documentation",
+                "scope": "Section Block and Transaction Properties notes for block.timestamp and blockhash",
+                "estimatedMinutes": 8,
+                "why": "The language reference gives the exact block-value availability and manipulation warnings without declaring timestamp-based scheduling categorically unsafe.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06c-prevrandao-security-properties",
+            "purpose": "Distinguish PREVRANDAO's beacon randomness from secrecy and account for its bounded proposer influence",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-eip4399-prevrandao-security",
+                "title": "EIP-4399: Supplant DIFFICULTY opcode with PREVRANDAO",
+                "url": "https://eips.ethereum.org/EIPS/eip-4399",
+                "format": "documentation",
+                "scope": "Sections Biasability, Predictability, and Tips for application developers under Security Considerations",
+                "estimatedMinutes": 8,
+                "why": "The canonical opcode specification defines PREVRANDAO's proposer influence, predictability limits, and safe-lookahead guidance instead of treating it as secret same-transaction entropy.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06c-vrf-consumer-security",
+            "purpose": "Replace same-transaction pseudo-randomness with a request-and-fulfillment flow that preserves request ordering and cannot be rerolled",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-chainlink-vrf-security",
+                "title": "Chainlink VRF Security Considerations",
+                "url": "https://docs.chain.link/vrf/v2-5/security",
+                "format": "documentation",
+                "scope": "Entire page (12 min)",
+                "estimatedMinutes": 12,
+                "why": "The oracle's official guide defines the consumer-side ordering, confirmation, and non-reversion rules a mock VRF Build must preserve.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "06c-coinflip-challenge-mechanism",
+            "purpose": "Inspect and reproduce the exact previous-block-hash prediction used by the assigned challenge",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-ethernaut-coinflip-source",
+                "title": "Ethernaut Coin Flip level source",
+                "url": "https://github.com/OpenZeppelin/ethernaut/blob/master/contracts/src/levels/CoinFlip.sol",
+                "format": "exercise",
+                "scope": "Entire page (5 min)",
+                "estimatedMinutes": 5,
+                "why": "The official challenge source supplies the exact deterministic computation and one-flip-per-block constraint required by the problem card.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    },
+    {
+      "title": "Commit-reveal absence & JIT liquidity",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A value disclosed before it is irrevocably bound can be copied or ordered against, so auctions and guessing games often separate commit(hash) from a later reveal(value, salt), with explicit deadlines and non-reveal handling. JIT liquidity is a different public-ordering strategy: an LP observes a pending swap, mints concentrated liquidity immediately before it, earns fees, burns immediately after, and usually hedges inventory elsewhere. Uniswap's study found JIT rare and generally beneficial to swap execution, not risk-free theft.",
+      "aiContext": "Build: in security/attacks/commit-reveal/ implement a sealed-bid auction as (a) a naive plaintext bid and (b) commit(hash(value, salt, bidder)) then reveal(value, salt) in a later phase; test copied plaintext bidding, early/late reveal, and non-reveal handling. Done when: the naive bid is order-exploitable, the phased version binds each bidder before disclosure, and notes contrast commit-reveal with JIT liquidity's mint-swap-burn bundle and hedging tradeoff.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06c-commit-reveal-auction-lifecycle",
+            "purpose": "Bind a bidder and hidden value before disclosure, then handle phase deadlines and withheld reveals",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-solidity-blind-auction",
+                "title": "Solidity by Example: Blind Auction",
+                "url": "https://docs.soliditylang.org/en/latest/solidity-by-example.html#blind-auction",
+                "format": "documentation",
+                "scope": "Section BlindAuction contract from bid commitment through reveal and auctionEnd",
+                "estimatedMinutes": 18,
+                "why": "The language's official example demonstrates bidder-bound blinded bids, separate phases, refunds, fake bids, and non-reveal consequences.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06c-jit-liquidity-evidence",
+            "purpose": "Describe the mint-swap-burn bundle, hedge, competitive alternatives, and observed trader effect without labeling JIT riskless theft",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06c-uniswap-jit-study",
+                "title": "Uniswap Labs: Just-In-Time Liquidity on the Uniswap Protocol",
+                "url": "https://blog.uniswap.org/jit-liquidity",
+                "format": "article",
+                "scope": "Sections Summary, What is JIT?, Opportunity Cost / Other MEV Opportunities, and Conclusion",
+                "estimatedMinutes": 16,
+                "why": "Uniswap Labs' primary empirical study defines the bundle and reports rarity, hedging economics, competition with sandwiches, and price improvement.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Front-running & back-running"],
+      "parentTitle": "Ordering, timing & MEV attacks"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Unchecked low-level call returns",
+      "promptText": "Why is ignoring the boolean from `send`/`call`/`delegatecall` dangerous?",
+      "answerHint": "These low-level calls return false on failure instead of reverting, so if you don't check it a failed transfer/call is treated as success and the contract updates state (marks a payout done, credits a balance) though nothing moved. Fix: `(bool ok, ) = to.call{value: x}(\"\"); require(ok);` or a reverting wrapper. Pitfall: `transfer`/`send` also cap gas at 2300, which can fail for contract recipients — prefer checked `call`, guarded against reentrancy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Missing-return-value tokens & SafeERC20",
+      "promptText": "Why does `require(usdt.transfer(...))` break, and what does SafeERC20 do about it plus the approve race?",
+      "answerHint": "Some legacy tokens return no bool, so ABI decoding empty return data reverts even though the token call returned successfully; that caller revert rolls back the whole transaction. SafeERC20.safeTransfer first requires the call itself to succeed, then accepts empty return data or decodes returned data as true. forceApprove supports tokens that require zero before a new non-zero allowance; it does not remove ERC-20's separate transaction-ordering allowance race. Pitfall: choose safeIncreaseAllowance/safeDecreaseAllowance or an application-specific allowance flow for that race.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Fee-on-transfer & rebasing tokens",
+      "promptText": "Why does `received == amount` accounting break for fee-on-transfer or rebasing tokens?",
+      "answerHint": "A fee-on-transfer token delivers less than `amount`, so crediting the request overstates received assets; measure balance before/after transferFrom and credit the delta. A rebasing token changes balances without a transfer, so stored nominal asset accounting desynchronizes; support it explicitly with live-balance-based share valuation or a wrapper. Callback tokens are a separate reentrancy boundary. Pitfall: one integration fix does not automatically cover all three token behaviors.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Force-feeding ETH",
+      "promptText": "Name three ways to send ETH to a contract with no payable function, and what that breaks.",
+      "answerHint": "SELFDESTRUCT transfers its balance to the beneficiary (after Cancun it usually no longer deletes code/storage); an address can receive proposer rewards; and it can be pre-funded before deployment. These break logic equating raw balance with intentional deposits. Fix: track deposits in state and avoid exact raw-balance gates. Pitfall: EIP-6780 changed deletion semantics, not the ordinary balance transfer to a different beneficiary.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Force-feeding ETH",
+      "promptText": "Ethernaut — Force: send ETH to a contract that has no payable function and no receive/fallback.",
+      "answerHint": "Deploy an attacker holding some ETH and call `selfdestruct(payable(target))` — selfdestruct forwards its balance to the target unconditionally, bypassing the absence of any payable entry point, so the target's balance becomes non-zero.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Gas griefing & return-bomb",
+      "promptText": "What is a return-bomb, and how do you defend a router that low-level-calls untrusted targets?",
+      "answerHint": "A malicious callee exposes enormous returndata; a caller that binds unbounded `bytes memory` pays to expand memory and copy it, potentially exhausting its retained gas. Defense: separately cap forwarded gas and the number of returndata bytes copied, as ExcessivelySafeCall does. Pitfall: a subcall gas limit alone does not cap returndata-copy cost, and an inner failure must still be handled explicitly.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature replay (missing nonce)",
+      "promptText": "Why does a signed authorization without a consumed nonce enable replay?",
+      "answerHint": "Nothing on-chain records that the signature was already used, so the exact same (v,r,s) over the same message verifies again and again — sign once to withdraw, replay to withdraw repeatedly. Fix: include a per-signer nonce (or unique id) in the signed struct and mark it used on execution. Pitfall: incrementing a nonce but not INCLUDING it in the signed digest doesn't help — the nonce must be part of what was signed and checked.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature replay (missing nonce)",
+      "promptText": "DeFiVulnLabs SignatureReplay: reproduce a replayable signed withdrawal and add the nonce fix.",
+      "answerHint": "Port the DeFiVulnLabs SignatureReplay PoC: a function verifies an ECDSA signature over (to, amount) but never consumes a nonce, so the same signature is submitted twice to double-withdraw; fix by signing over and consuming a nonce mapping.",
+      "promptKind": "problem",
+      "url": "https://github.com/SunWeb3Sec/DeFiVulnLabs",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Cross-chain replay & missing domain separator",
+      "promptText": "What does an EIP-712 domain separator bind, and which omission enables cross-chain vs cross-contract replay?",
+      "answerHint": "EIP-712 defines optional domain fields; for ordinary single-chain authorization, include chainId to separate chains and verifyingContract to separate deployments, alongside any name/version boundary the app needs. The verifier must enforce the chosen domain and handle chain-ID changes if it caches the separator. Pitfall: EIP-712 itself does not consume messages—include and consume a nonce or make the action idempotent too.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature malleability & zero-address ecrecover",
+      "promptText": "Explain ECDSA malleability and the zero-address ecrecover trap, and the single library that fixes both.",
+      "answerHint": "For a valid (v, r, s), flipping v and replacing s with n-s yields another signature for the same message, so signature bytes are not a unique replay key. Raw ecrecover returns address(0) on malformed input, making a zero trusted signer dangerous. OpenZeppelin ECDSA rejects upper-half s and failed recovery. Pitfall: consume a message nonce/id rather than hashing signature bytes for replay protection.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Signature malleability & zero-address ecrecover",
+      "promptText": "Given (v, r, s), write the malleable counterpart signature.",
+      "answerHint": "uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141; // secp256k1 order\\nbytes32 s2 = bytes32(n - uint256(s)); uint8 v2 = v == 27 ? 28 : 27; // (v2, r, s2) verifies the same message",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Permit front-running",
+      "promptText": "How is EIP-2612 permit() front-run, and why is it a DoS rather than theft?",
+      "answerHint": "permit() is public and consumes the user's off-chain approval signature (and its nonce); an attacker submits the victim's permit first, so the approval is set but the victim's own `permit + action` bundle then reverts because the nonce is already used. No funds are stolen — the approval still goes to the intended spender — but the user's transaction fails (griefing/DoS). Fix: tolerate permit failure with try/catch, bind the owner to msg.sender, and independently pull the intended amount.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Merkle proof forgery & second-preimage",
+      "promptText": "How does a second-preimage attack forge Merkle membership, and how is it prevented?",
+      "answerHint": "In a commutative keccak tree, a raw 64-byte leaf preimage can equal two concatenated child hashes; hashing it reproduces an internal-node hash, so a proof may accept unintended data. Domain-separate or double-hash leaves; OpenZeppelin's StandardMerkleTree does so. Track claims separately by a stable index or identifier. Pitfall: sorted pairs are a tree convention, not the vulnerability—the ambiguity is between raw leaf preimages and internal-node preimages.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Front-running & back-running",
+      "promptText": "What makes a transaction front-runnable, and what's the difference between front- and back-running?",
+      "answerHint": "A transaction broadcast publicly reveals actionable calldata before inclusion. Front-running places an action before it; back-running places one after its state change. Searchers can bid for position, but final order is builder/proposer controlled. Defense: commit-reveal for secrets, protected order flow, user bounds, or a mechanism where reordering is unprofitable. Pitfall: a higher priority fee is an ordering bid, not a security property.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Front-running & back-running",
+      "promptText": "solidity-by-example Front Running: steal the reward from a naive commit-the-answer contract.",
+      "answerHint": "The contract pays whoever submits the preimage of a stored hash in plaintext; watch the mempool for the honest solver's reveal tx and submit the same answer with a higher gas price to be ordered first. The fix is commit-reveal so the answer isn't exposed before it's locked in.",
+      "promptKind": "problem",
+      "url": "https://solidity-by-example.org/hacks/front-running/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Sandwich attacks & missing slippage/deadline",
+      "promptText": "Walk through a sandwich attack on an AMM swap and the two parameters that defend against it.",
+      "answerHint": "Attacker front-runs a buy to push the price up, the victim's swap executes at the inflated price (worse fill), then the attacker back-runs a sell to profit the spread. Defenses: a real amountOutMin (slippage bound) so the victim's tx reverts instead of accepting the bad price, and a near-term deadline so a stuck tx can't execute later at an even worse price. Pitfall: `amountOutMin = 0` and `deadline = type(uint).max` (common in naive integrations) disable both protections entirely.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Weak randomness & timestamp dependence",
+      "promptText": "Why is any randomness derived from block variables exploitable, and what's the safe source?",
+      "answerHint": "block.timestamp, historical blockhashes, block.prevrandao, and address/nonce mixes are readable at execution time; timestamp and PREVRANDAO also admit bounded proposer influence. An attacker can compute same-transaction outcomes and participate only when favorable. Use VRF or a carefully designed future-randomness/commit-reveal flow. Pitfall: tolerant time gates may use timestamps, but exact-boundary value outcomes and randomness must not; PREVRANDAO is not secret and needs application-specific lookahead and value-at-risk analysis.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Weak randomness & timestamp dependence",
+      "promptText": "Ethernaut — Coin Flip: win 10 flips in a row against a blockhash-seeded guess.",
+      "answerHint": "The target derives its side from blockhash(block.number - 1) divided by a fixed factor; an attacker contract computes the same value in the same transaction and submits the matching guess. Both contracts see the same previous-block hash, so the guess is deterministic. The level also rejects two flips in one block, so execute across ten blocks.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "Commit-reveal absence & JIT liquidity",
+      "promptText": "Why does a value revealed in the same window it's used need commit-reveal, and what is JIT liquidity?",
+      "answerHint": "If a bid/answer is disclosed before it is bound, observers can copy or order against it; commit hash(value, salt, bidder), then reveal in a later phase with deadlines and non-reveal handling. JIT liquidity is different: an LP mints before a visible swap, earns fees, burns after, and generally hedges inventory elsewhere. Uniswap found it rare and typically price-improving for swappers. Pitfall: commit-reveal still needs bidder binding, phase separation, and a policy for withheld reveals.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

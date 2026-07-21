@@ -1,0 +1,614 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Proxy, storage & DoS attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC10 plus denial-of-service: upgradeable-contract hazards (storage-slot collisions, selector clashes, uninitialized implementations, delegatecall to untrusted code that rewrites your storage) and availability attacks (unbounded loops, push-payment reverts, block stuffing).",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Business-logic & misc attacks",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "OWASP SC02 business-logic vulnerabilities arise when code runs as written but implements an unsafe rule — a broken accounting invariant, a skippable state machine, unvalidated input, a bypassable EXTCODESIZE check, CREATE2 address reuse, or an outright honeypot. Find them by understanding intent, stating invariants, and testing adversarial sequences.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 6 — Security & Auditing"
+    },
+    {
+      "title": "Storage-slot collision in proxies",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A delegatecall proxy and its implementation share ONE storage layout; if the proxy keeps its own variables (admin, implementation) in low slots that the logic contract also uses for different variables, a write to one silently overwrites the other. Fix: ERC-1967 puts proxy internals in keccak-derived slots that Solidity's compiler will not allocate for ordinary state variables; upgrades must also preserve the implementation's storage layout.",
+      "aiContext": "Build: in security/attacks/storage-collision/ write a proxy that stores `admin` in slot 0 and a logic contract whose slot 0 is a different variable, and a test where calling the logic overwrites the proxy's admin; then move the admin to ERC-1967's specified admin slot. Done when: the collision hijacks control pre-fix and the ERC-1967 admin slot prevents accidental compiler-allocated overlap post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-storage-collision-slots",
+            "purpose": "Explain why proxy state and implementation writes collide, then isolate proxy metadata from compiler-allocated slots",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-erc1967-proxy-slots",
+                "title": "ERC-1967: Proxy Storage Slots",
+                "url": "https://eips.ethereum.org/EIPS/eip-1967",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification through Admin address, and Rationale",
+                "estimatedMinutes": 16,
+                "why": "The canonical ERC defines delegatecall proxy state, the keccak-derived implementation and admin slots, and the collision rationale exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Function selector clash",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A proxy forwards unknown 4-byte selectors to its implementation; if a proxy-level function shares a selector with an implementation function, the proxy's own function wins and the call never reaches the implementation. Because selectors are only 4 bytes, collisions are brute-forceable. Fix: transparent admin-versus-user routing, and reject already-mapped selectors when adding diamond facets.",
+      "aiContext": "Build: in security/attacks/selector-clash/ construct two functions with colliding 4-byte selectors (brute-force names), put one in a proxy and one in the implementation, and a test showing a call meant for one hits the other; then apply transparent-proxy routing. Done when: the misroute is demonstrable pre-fix and blocked post-fix.",
+      "prerequisiteTitles": ["Storage-slot collision in proxies"],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-selector-clash-mechanism",
+            "purpose": "Demonstrate how a four-byte proxy selector intercepts a call intended for its implementation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-erc1967-selector-rationale",
+                "title": "ERC-1967: Proxy Storage Slots",
+                "url": "https://eips.ethereum.org/EIPS/eip-1967",
+                "format": "documentation",
+                "scope": "Section Rationale, from proxy public functions through four-byte selector clashes",
+                "estimatedMinutes": 8,
+                "why": "The canonical ERC states that differently named functions can share a four-byte selector and that the proxy's match bypasses implementation code.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06d-selector-clash-routing",
+            "purpose": "Apply transparent caller-based routing without claiming that every added proxy function is automatically safe",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-oz-transparent-proxy",
+                "title": "OpenZeppelin Proxy API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+                "format": "documentation",
+                "scope": "Section TransparentUpgradeableProxy, from the two routing rules through the warning against adding external functions",
+                "estimatedMinutes": 10,
+                "why": "The maintained implementation reference defines admin-versus-user dispatch and explicitly bounds the protection when a proxy is extended.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Uninitialized implementation & delegatecall to untrusted",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "delegatecall runs the CALLEE's code in the CALLER's context (its storage, msg.sender, address(this)), so delegatecalling untrusted code lets it rewrite caller storage. An implementation left initializable is also directly callable: an attacker can initialize and control it; historical pre-EIP-6780 UUPS exploits then used delegated SELFDESTRUCT to delete the implementation and brick its proxies. Fix: _disableInitializers() in the implementation constructor; never delegatecall attacker-controlled targets.",
+      "aiContext": "Build: in security/attacks/delegatecall-untrusted/ write a wallet that delegatecalls a user-supplied library address and an attacker library that overwrites `owner`; then write an implementation left initializable and claim it directly. In a local pre-Cancun EVM only, reproduce the historical delegated-SELFDESTRUCT brick, and document why EIP-6780 prevents that deletion on current Ethereum. Done when: the storage takeover and initializer claim succeed pre-fix, fail after target restriction and _disableInitializers(), and the fork-dependent brick is accurately bounded.",
+      "prerequisiteTitles": ["Storage-slot collision in proxies"],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-delegatecall-context",
+            "purpose": "Trace untrusted code executing against the caller's address, balance, storage, and original message context",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-solidity-delegatecall",
+                "title": "Solidity: Introduction to Smart Contracts",
+                "url": "https://docs.soliditylang.org/en/latest/introduction-to-smart-contracts.html",
+                "format": "documentation",
+                "scope": "Section Delegatecall and Libraries",
+                "estimatedMinutes": 8,
+                "why": "The language reference defines exactly which caller context delegatecall preserves and which target code it executes.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06d-implementation-initialization",
+            "purpose": "Lock an implementation contract so direct callers cannot claim its initializer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-oz-disable-initializers",
+                "title": "OpenZeppelin Proxy API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy",
+                "format": "documentation",
+                "scope": "Section Initializable, from Avoid leaving a contract uninitialized through _disableInitializers",
+                "estimatedMinutes": 10,
+                "why": "The maintained OpenZeppelin reference says both proxies and implementations can be taken over and gives the constructor lock used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06d-selfdestruct-fork-boundary",
+            "purpose": "Bound the historical implementation-bricking exercise to pre-Cancun deletion semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-eip6780-selfdestruct",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Abstract and Specification",
+                "estimatedMinutes": 8,
+                "why": "The canonical EIP establishes that current Ethereum does not delete existing implementation code when SELFDESTRUCT runs in a later transaction.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Unbounded loops & gas-limit DoS",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A function that loops over an array anyone can grow can eventually exceed the block gas limit and become uncallable, freezing whatever that path gates (distributing to all users, clearing a queue). The attacker adds entries until the transaction no longer fits. Fix: pull-over-push, pagination or bounded batches, and caps on attacker-growable collections.",
+      "aiContext": "Build: in security/attacks/unbounded-loop/ write a rewards distributor that loops over all participants in one call, and a test where an attacker registers many addresses until distribute() exceeds the block gas limit; then refactor to a pull-based claim. Done when: distribute() is bricked pre-fix and the pull version is unaffected by list size post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-unbounded-loop-gas",
+            "purpose": "Relate attacker-controlled iteration growth to the per-transaction block gas ceiling",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-solidity-gas-loops",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Section Gas Limit and Loops",
+                "estimatedMinutes": 8,
+                "why": "The language's security guide directly warns that storage-dependent iteration can outgrow the block gas limit and stall a contract path.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Push-payment reverts & revert griefing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Pushing ETH to a recipient inside a critical flow lets a malicious recipient revert and block everyone — the King-of-the-Ether / auction-refund bug: if the previous leader is a contract whose receive() always reverts, no new bid that must refund them can succeed. Fix: record what each party is owed and let them withdraw separately, so one reverting party cannot stall the rest.",
+      "aiContext": "Build: in security/attacks/push-pull/ write an auction that refunds the previous bidder by push inside bid(), and an attacker contract that reverts on receive() to freeze the auction; then convert refunds to a pending-withdrawals mapping. Done when: the auction is stuck pre-fix and the pull-based refunds keep it live post-fix.",
+      "prerequisiteTitles": ["Unbounded loops & gas-limit DoS"],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-push-revert-withdrawal",
+            "purpose": "Reproduce a recipient-controlled revert that freezes leader replacement, then isolate refunds behind withdrawals",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-solidity-withdrawal-pattern",
+                "title": "Solidity Common Patterns",
+                "url": "https://docs.soliditylang.org/en/latest/common-patterns.html",
+                "format": "documentation",
+                "scope": "Section Withdrawal from Contracts, including WithdrawalContract and SendContract",
+                "estimatedMinutes": 12,
+                "why": "The canonical example uses the same richest-party flow, demonstrates the reverting-recipient stall, and contrasts it with pending withdrawals.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Block stuffing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An attacker can pay to fill consecutive blocks and suppress competing transactions until a deadline passes — the historical Fomo3D winner used block stuffing to remain the last buyer. It attacks time-critical liveness when short-lived censorship has a larger payoff than its cost. Fix the incentive and failure mode: avoid winner-take-all deadlines, widen or randomize action windows where appropriate, and use redundant actors rather than a single required transaction.",
+      "aiContext": "Build: in security/attacks/block-stuffing/ write a last-actor-wins deadline game. Use vm.warp to model an honest action being absent through the censorship window; explicitly note that Foundry does not simulate mempool ordering or real block packing. Compare the attacker's measured historical gas spend with the prize, then redesign so suppressing one actor for a short window does not decide the payout. Done when: the test demonstrates only the deadline/liveness assumption, the notes separate that model from actual block stuffing, and the mitigation removes the single-transaction deadline dependency.",
+      "prerequisiteTitles": ["Unbounded loops & gas-limit DoS"],
+      "parentTitle": "Proxy, storage & DoS attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-block-stuffing-incident",
+            "purpose": "Separate historical Fomo3D block inclusion suppression from a local deadline-liveness model",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-secbit-fomo3d-analysis",
+                "title": "How the winner got Fomo3D prize — A Detailed Explanation",
+                "url": "https://secbit.io/blog/en/2018/08/23/how-the-winner-got-fomo3d-prize-a-detailed-explanation/",
+                "format": "article",
+                "scope": "Sections A Series of Abnormal Blocks and Transactions, What had the mysterious contract ever done?, and Other techniques and details",
+                "estimatedMinutes": 14,
+                "why": "SECBIT Labs' contemporaneous incident analysis identifies the blocks, failed gas-consuming transactions, fee-priority incentive, and finite suppression window without pretending a unit test simulates the mempool.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Accounting & invariant violations",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The core of business-logic bugs: a protocol invariant that should always hold (sum of user balances == totalSupply; debt remains within collateral limits; shares are priced consistently) is broken by some path — a double-count, forgotten decrement, or duplicated fee. State the economic property and exercise adversarial call sequences with invariant tests; static pattern matching alone does not know the intended rule.",
+      "aiContext": "Build: in security/attacks/accounting/ write a mini lending/vault contract with a deliberate accounting leak (e.g. deposit credits twice on a specific path), state the conservation invariant, and let a Foundry invariant test find the sequence that breaks it. Done when: the invariant test fails on the buggy path and passes after the accounting is corrected.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-accounting-business-rule",
+            "purpose": "Translate intended accounting into an economic invariant enforced across every state transition",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-owasp-business-logic",
+                "title": "OWASP SC02: Business Logic Vulnerabilities",
+                "url": "https://scs.owasp.org/sctop10/SC02-BusinessLogicVulnerabilities/",
+                "format": "documentation",
+                "scope": "Sections Description, Example (Vulnerable Lending Logic), and Example (Fixed: Invariant-Based Borrow Logic)",
+                "estimatedMinutes": 12,
+                "why": "The current OWASP entry distinguishes unsafe protocol rules from low-level bugs and grounds them in collateral and debt invariants.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "06d-accounting-stateful-testing",
+            "purpose": "Exercise the stated accounting property across generated call sequences",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-foundry-invariant-guide",
+                "title": "Foundry Invariant Testing",
+                "url": "https://getfoundry.sh/forge/invariant-testing",
+                "format": "documentation",
+                "scope": "Sections Open Testing, Handler-Based Testing through Handler Functions, and Handler Ghost Variables",
+                "estimatedMinutes": 18,
+                "why": "The official testing guide supplies the stateful sequence, handler, and accounting instrumentation needed by the learner's build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "State-machine & sequencing errors",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Protocols with phases (created → funded → active → settled) break when a function can be called in the wrong phase, twice, or in an unintended order — claiming before finalize, initializing after use, repeating a one-shot step, or skipping a transition. Fix: model explicit states and guard every phase-sensitive entry point; use one-shot state where a step must run exactly once.",
+      "aiContext": "Build: in security/attacks/state-machine/ write a crowdsale/escrow with phases but missing guards on one function, and a test that calls it out of order (e.g. withdraw before the sale ends) to extract value; then add an enum-based state guard. Done when: the out-of-order call succeeds pre-fix and reverts (wrong state) post-fix.",
+      "prerequisiteTitles": ["Accounting & invariant violations"],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-state-machine-guards",
+            "purpose": "Model protocol phases explicitly and reject calls made in the wrong phase",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-solidity-state-machine",
+                "title": "Solidity Common Patterns",
+                "url": "https://docs.soliditylang.org/en/latest/common-patterns.html",
+                "format": "documentation",
+                "scope": "Section State Machine and its Example through modifier ordering",
+                "estimatedMinutes": 12,
+                "why": "The canonical language example uses an enum and stage modifiers to enforce exactly the transition boundary exercised by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Insufficient input validation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "OWASP SC05: processing caller-supplied values without the protocol's required bounds — a zero address that bricks a role, mismatched arrays, a fee above its maximum, or an unapproved token or target. Validate untrusted external inputs at each reachable boundary before using them, including privileged configuration inputs.",
+      "aiContext": "Build: in security/attacks/input-validation/ write a function that sets a fee and a recipient with no bounds/zero checks, and tests that set fee > 100% or recipient = address(0) to break the protocol; then add the require guards. Done when: the malformed inputs are accepted pre-fix and rejected post-fix.",
+      "prerequisiteTitles": ["Accounting & invariant violations"],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-input-boundary-validation",
+            "purpose": "Derive explicit address and fee bounds, then test both rejected and accepted boundary values",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-owasp-input-validation",
+                "title": "OWASP SC05: Lack of Input Validation",
+                "url": "https://scs.owasp.org/sctop10/SC05-LackOfInputValidation/",
+                "format": "documentation",
+                "scope": "Sections Description, Vulnerable Parameter Handling, Fixed Version with Strong Validation, and Best Practices & Mitigations",
+                "estimatedMinutes": 14,
+                "why": "The current OWASP entry covers fee bounds, zero and unsafe values, privileged configuration, and negative property tests at external boundaries.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Contract-size (EXTCODESIZE) checks",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Using `extcodesize(addr) == 0` (or address.code.length) to reject contracts is bypassable: during a contract's constructor its runtime code is not deployed, so a call from that constructor passes the 'EOA-only' check. `tx.origin == msg.sender` is not a sound replacement. Fix: do not base authorization on caller code presence; use the actual permission or protocol property you need.",
+      "aiContext": "Build: in security/attacks/contract-size/ write a reward gated by extcodesize(msg.sender)==0, and an attacker whose constructor calls it (code size 0) to bypass the check; then replace caller-type guessing with an explicit eligibility allowlist. Done when: the constructor bypass claims the reward pre-fix, the unauthorized attacker is rejected post-fix, and an authorized claimant still succeeds.",
+      "prerequisiteTitles": ["Insufficient input validation"],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-extcodesize-constructor-bypass",
+            "purpose": "Bypass caller-code authorization from a constructor and replace it with an explicit permission rule",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-owasp-extcodesize",
+                "title": "OWASP SCWE-144: Bypassable Contract Existence Check via extcodesize",
+                "url": "https://scs.owasp.org/SCWE/SCSVS-CODE/SCWE-144/",
+                "format": "documentation",
+                "scope": "Sections Description, Remediation, and Examples",
+                "estimatedMinutes": 10,
+                "why": "The current OWASP weakness entry gives the exact constructor bypass and replaces EOA guessing with an allowlist-based property.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "create2 address reuse & metamorphic contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "CREATE2 derives an address from the deployer, salt, and hash of init code. Under pre-EIP-6780 deletion semantics, a fixed piece of metamorphic init code could be reused after SELFDESTRUCT while returning different runtime bytecode, so one address served different code over time. EIP-6780 now prevents later-transaction SELFDESTRUCT from deleting code on Ethereum; counterfactual addresses funded before first deployment remain a separate trust risk.",
+      "aiContext": "Build: in security/attacks/create2-reuse/ use a local pre-Cancun EVM to deploy fixed metamorphic init code via CREATE2, make the resulting contract SELFDESTRUCT, change the runtime code returned by that same init code, and redeploy with the same deployer and salt. Then run the same lifecycle under Cancun semantics and show EIP-6780 prevents deletion and redeployment. Done when: the legacy test serves two runtime bytecodes at one address, the current-EVM test cannot replace the code, and notes explain that changing the init-code hash would change the CREATE2 address.",
+      "prerequisiteTitles": ["Insufficient input validation"],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-create2-address-derivation",
+            "purpose": "Hold deployer, salt, and init-code hash constant when reasoning about address reuse",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-eip1014-create2",
+                "title": "EIP-1014: Skinny CREATE2",
+                "url": "https://eips.ethereum.org/EIPS/eip-1014",
+                "format": "documentation",
+                "scope": "Sections Specification and Clarifications",
+                "estimatedMinutes": 8,
+                "why": "The canonical EIP defines the address preimage, distinguishes init code from runtime code, and states collision and same-transaction recreation rules.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06d-create2-current-selfdestruct",
+            "purpose": "Compare legacy metamorphic redeployment with current Ethereum code-retention semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-eip6780-code-retention",
+                "title": "EIP-6780: SELFDESTRUCT only in same transaction",
+                "url": "https://eips.ethereum.org/EIPS/eip-6780",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, and Backwards Compatibility",
+                "estimatedMinutes": 9,
+                "why": "The canonical fork change explains why existing code is no longer deleted and explicitly identifies CREATE2 redeployment contracts as broken behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Honeypots & tx.origin phishing",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Not every victim is a protocol — some contracts are bait. A honeypot appears exploitable but hides a second mechanism that makes the attempt fail after the victim commits funds. tx.origin phishing is a separate social-engineering pattern: lure a privileged user into calling an attacker contract so the downstream victim still sees that user as tx.origin. Analyze unfamiliar exploit targets in a local sandbox and authorize with msg.sender, not tx.origin.",
+      "aiContext": "Build: in security/attacks/honeypot/ implement one disclosed honeypot technique and write a test where the would-be exploiter commits value and loses it, plus notes on the exact trap. Separately, write a wallet authorized by tx.origin and a phishing intermediary, then change wallet authorization to msg.sender. Done when: the honeypot victim loses ETH for the documented reason, the phishing call drains the tx.origin wallet pre-fix, and the intermediary is rejected post-fix.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Business-logic & misc attacks",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "06d-honeypot-trap-taxonomy",
+            "purpose": "Implement a disclosed honeypot mechanism whose apparent exploit fails only after the victim commits value",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-honeybadger-paper",
+                "title": "The Art of The Scam: Demystifying Honeypots in Ethereum Smart Contracts",
+                "url": "https://www.usenix.org/system/files/sec19-torres.pdf",
+                "format": "article",
+                "scope": "Sections 3.1 Honeypots and 3.2 Taxonomy of Honeypots, selecting one complete technique example",
+                "estimatedMinutes": 18,
+                "why": "The primary peer-reviewed study defines the bait/victim sequence and supplies concrete, named trap mechanisms instead of an invented generic honeypot.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "06d-tx-origin-phishing",
+            "purpose": "Trace a privileged user's tx.origin through an attacker intermediary and authorize the victim by immediate caller instead",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "06d-solidity-tx-origin",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Section tx.origin, including TxUserWallet and TxAttackWallet",
+                "estimatedMinutes": 8,
+                "why": "The canonical language security guide demonstrates the exact phishing call chain and the msg.sender correction used by the build.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Storage-slot collision in proxies",
+      "promptText": "How do proxy and implementation storage collide, and how does EIP-1967 prevent it?",
+      "answerHint": "delegatecall makes implementation code write into the PROXY's storage, so low proxy slots can overlap unrelated implementation variables and one write clobbers the other. ERC-1967 uses specified keccak-derived slots that Solidity's compiler will not allocate for ordinary state variables. That prevents accidental proxy-metadata overlap, not deliberate writes to arbitrary slots. Pitfall: upgrades must separately preserve implementation layout; adding a base variable can shift inherited slots.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Storage-slot collision in proxies",
+      "promptText": "Ethernaut — Preservation: hijack the contract via a delegatecall library that writes colliding slots.",
+      "answerHint": "Preservation delegatecalls a 'library' whose setTime writes slot 0; in Preservation slot 0 is the library address, not a timestamp — so the first call overwrites the library pointer to your contract, and a second call runs YOUR code by delegatecall to write slot 2 (owner) to yourself. Classic storage-slot collision.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "medium"
+    },
+    {
+      "topicTitle": "Function selector clash",
+      "promptText": "What is a proxy function-selector clash, and why are selectors brute-forceable?",
+      "answerHint": "A proxy's own function is selected before fallback, so a matching four-byte selector intercepts a call that the user expected to reach the implementation. Selectors are only the first 4 bytes of keccak(signature), so a different colliding signature can be brute-forced. Transparent proxies separate admin dispatch from user forwarding; a diamond Add must revert if a selector is already mapped. Pitfall: OpenZeppelin warns that adding external functions to its transparent proxy can reintroduce clashes.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uninitialized implementation & delegatecall to untrusted",
+      "promptText": "Why is delegatecall to untrusted code catastrophic, and why must a UUPS implementation disable initializers?",
+      "answerHint": "delegatecall executes target code with the caller's address, balance, storage, msg.sender, and msg.value, so an untrusted target can overwrite owner or other state. A directly callable implementation also needs its initializer locked with _disableInitializers(). Historically, after claiming a vulnerable UUPS implementation, an attacker could make it delegatecall SELFDESTRUCT and delete its code; EIP-6780 prevents that later-transaction deletion on current Ethereum. Pitfall: test the implementation address as well as the proxy.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Uninitialized implementation & delegatecall to untrusted",
+      "promptText": "Ethernaut — Motorbike: take over and brick the UUPS engine implementation.",
+      "answerHint": "In the historical Ethernaut environment, initialize the Engine implementation directly to become upgrader, then use upgradeToAndCall so attacker code runs by delegatecall and SELFDESTRUCT deletes Engine code. Proxies that rely on that implementation then cannot execute it. This deletion step requires pre-EIP-6780 semantics; current Ethereum retains code when an existing contract selfdestructs in a later transaction.",
+      "promptKind": "problem",
+      "url": "https://ethernaut.openzeppelin.com/",
+      "problemDifficulty": "hard"
+    },
+    {
+      "topicTitle": "Unbounded loops & gas-limit DoS",
+      "promptText": "How does an attacker-growable loop become a permanent denial of service?",
+      "answerHint": "A function that iterates over attacker-growable storage can eventually need more gas than one transaction may consume, so that path reverts whenever it tries to process the whole collection. If the collection cannot shrink and no alternate path exists, the gated operation remains unavailable. Fix: pull-over-push, bounded batches with progress, or hard caps. Pitfall: a loop is safe only when its maximum work is actually bounded.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Push-payment reverts & revert griefing",
+      "promptText": "Why does pushing a refund inside bid() let one actor freeze an auction, and what's the fix?",
+      "answerHint": "If bid() refunds the previous leader by a direct ETH send, a leader contract whose receive() always reverts makes every subsequent bid revert too (each must refund it), permanently stalling the auction — the King-of-the-Ether bug. Fix: the pull pattern — record pendingReturns[bidder] and let each withdraw() separately, so one reverting party only blocks itself. Pitfall: the same applies to any batch payout — never let an untrusted recipient's revert gate other users' outcomes.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Block stuffing",
+      "promptText": "What is block stuffing, and what kind of design is vulnerable to it?",
+      "answerHint": "An attacker spams high-gas transactions to fill whole blocks, pricing out everyone else's transactions for several blocks so a specific action can't be included before a deadline — Fomo3D's winner used it to be the last buyer before the timer ended. Vulnerable designs are time-critical ones where blocking a single tx for a few blocks yields a large payoff (last-buyer wins, unliquidated positions). Fix: avoid winner-take-all-at-deadline mechanics; add grace periods and redundant keepers. Pitfall: raising the gas needed to stuff (bigger blocks) only raises the attacker's cost, not the vulnerability's existence.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Accounting & invariant violations",
+      "promptText": "Why do accounting/invariant bugs evade static analysis, and how are they actually found?",
+      "answerHint": "Generic pattern matching does not know the intended economic property, such as conservation of balances or collateralization across every path. State that property explicitly, enforce it on each transition, and exercise generated call sequences with invariant tests; specification-aware analysis can then reason about it too. Pitfall: a weak invariant that remains true regardless of the accounting bug proves nothing.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "State-machine & sequencing errors",
+      "promptText": "What class of bug comes from missing phase guards, and how do you prevent it?",
+      "answerHint": "Functions callable in the wrong phase/order or more than once — claim before finalize, initialize after use, re-run a one-shot step, skip a required transition — extract value or corrupt state the author assumed couldn't be reached that way. Fix: an explicit state enum with a require() gate on every phase-sensitive reachable entry point and one-shot flags for steps that must run exactly once. Pitfall: enforcing order in the happy-path UI is not enforcement — the contract must reject out-of-order calls itself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Insufficient input validation",
+      "promptText": "Give examples of missing input validation and why each small omission has outsized impact.",
+      "answerHint": "Examples include a zero critical address, mismatched arrays, a fee outside its documented basis-point range, or an unapproved token or target. The impact comes from how that value participates in authorization or accounting, so derive bounds from the protocol rule and test both sides of each boundary. Pitfall: a check on one entry point is ineffective if a sibling path reaches the same state change without it.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Contract-size (EXTCODESIZE) checks",
+      "promptText": "Why is `extcodesize(msg.sender) == 0` a broken way to enforce 'EOA only'?",
+      "answerHint": "A contract's runtime code is not deployed while its constructor runs, so a constructor call makes extcodesize(msg.sender) or msg.sender.code.length appear zero. tx.origin is not a replacement: it enables phishing when used for authorization and does not express a reliable caller-capability boundary. Use the actual rule you need, such as explicit authorization or an allowlist. Pitfall: 'no contracts' is usually a proxy for an unstated security assumption.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Contract-size (EXTCODESIZE) checks",
+      "promptText": "solidity-by-example Contract Size: bypass an extcodesize-based EOA check.",
+      "answerHint": "Put the call to the protected function inside your attacker contract's constructor — during construction address(this).code.length / extcodesize is 0, so the `require(codesize == 0)` guard treats you as an EOA and lets the call through. Demonstrates the check is worthless.",
+      "promptKind": "problem",
+      "url": "https://solidity-by-example.org/hacks/contract-size/",
+      "problemDifficulty": "easy"
+    },
+    {
+      "topicTitle": "create2 address reuse & metamorphic contracts",
+      "promptText": "How can the same create2 address serve different bytecode, and why is that dangerous?",
+      "answerHint": "CREATE2 fixes the address from deployer, salt, and init-code hash. A legacy metamorphic design reused the SAME init code after SELFDESTRUCT, but that init code returned different runtime bytecode based on external state; changing the init code itself would change the address. EIP-6780 now keeps an existing contract's code after later-transaction SELFDESTRUCT, so classic cross-transaction replacement no longer works on current Ethereum. Counterfactual addresses funded before first deployment remain a separate trust risk.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Honeypots & tx.origin phishing",
+      "promptText": "What is a honeypot contract, and how does tx.origin phishing complement it?",
+      "answerHint": "A honeypot looks exploitable — an obvious 'free money' bug — but hides a trap (a fake/overstated balance, a hidden owner-only revert, or malicious code behind an external call) so the would-be attacker loses whatever they send; recognizing them protects you when replaying 'vulnerable' contracts. tx.origin phishing is the social-engineering companion: lure a privileged user into calling your contract so their tx.origin passes an auth check and drains their funds. Pitfall: when studying exploits, run untrusted 'vulnerable' contracts only in a fork/sandbox — some are baited to reverse the trap on you.",
+      "promptKind": "concept"
+    }
+  ],
+  "noteSummaries": []
+}

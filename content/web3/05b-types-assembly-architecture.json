@@ -1,0 +1,902 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Types & layout gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The EVM is a 256-bit machine, so type and data-structure choices have non-obvious gas effects: smaller types can cost more when they do not reduce storage slots, bitmaps compact indexed flags, and mappings suit keyed access.",
+      "prerequisiteTitles": ["Storage gas"],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Assembly & Yul gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "Inline assembly exposes EVM operations and memory or storage locations directly. It can remove work on measured hot paths, but the author must preserve Solidity's memory, type-cleaning, call-failure, and storage-layout invariants.",
+      "prerequisiteTitles": ["Assembly & Yul intro"],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Architecture-level gas",
+      "type": "concept",
+      "domain": "Web3",
+      "description": "The biggest wins can be structural: deploy clones instead of full contracts, share a singleton where its coupling is acceptable, batch calls, verify compact off-chain commitments, and use withdrawal-based payments to isolate recipients.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Phase 5 — Gas Optimization"
+    },
+    {
+      "title": "Word-size choices",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "The EVM operates on 256-bit words. A narrow integer only saves storage gas when layout packing reduces the number of slots; otherwise Solidity may need extra operations to clean or mask it. Treat `uint256` as the baseline for standalone arithmetic and loop counters, use narrow storage fields deliberately for packing, and compare optimized bytecode or gas measurements instead of assuming the type name determines cost.",
+      "aiContext": "Build: solve gas/WordSize.sol — compare optimized `uint8` and `uint256` standalone counters, then pack two narrow storage fields and explain the different result. Done when: forge test passes and forge snapshot records both comparisons without assuming a compiler-independent numeric threshold.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-word-size-storage-layout",
+            "purpose": "Relate integer width to actual storage-slot packing and read-modify-write cost",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-word-size-solidity-layout",
+                "title": "Solidity Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections Layout of State Variables in Storage and Transient Storage through Mappings and Dynamic Arrays",
+                "estimatedMinutes": 10,
+                "why": "The compiler's canonical layout documentation states when narrow values share a slot and why sub-word operations can cost more.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-word-size-cleanup",
+            "purpose": "Understand when the compiler cleans narrow values before using them",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-word-size-cleanup-docs",
+                "title": "Solidity Cleaning Up Variables",
+                "url": "https://docs.soliditylang.org/en/latest/internals/variable_cleanup.html",
+                "format": "documentation",
+                "scope": "Section Cleaning Up Variables, cleanup-timing paragraphs through the cleanup-rules table and integer examples",
+                "estimatedMinutes": 8,
+                "why": "The official compiler internals page explains the masking or sign-extension operations behind the measured narrow-integer case.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Types & layout gas"
+    },
+    {
+      "title": "bytes32 over string",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A `bytes32` value is a fixed-size value type with direct equality and no runtime length. Solidity packs a `string` or `bytes` value of at most 31 bytes together with its encoded length in one storage slot, while longer values use a length marker plus data starting at a hashed location. Use `bytes32` for truly fixed, byte-oriented identifiers; use `string` for variable-length UTF-8 text. The short forms may occupy the same number of storage slots, so measure the operations that matter.",
+      "aiContext": "Build: solve gas/Bytes32Label.sol — compare store, read, and equality paths for the same short label as `bytes32` and `string`. Done when: forge test passes, snapshot results are recorded, and the explanation notes that both short values can occupy one storage slot while their operations differ.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-bytes32-type-choice",
+            "purpose": "Choose fixed-size bytes versus variable raw bytes or UTF-8 strings by semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bytes32-solidity-types",
+                "title": "Solidity Types",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Sections Fixed-size byte arrays and bytes and string as Arrays",
+                "estimatedMinutes": 10,
+                "why": "The canonical type reference distinguishes fixed bytes, arbitrary raw bytes, and UTF-8 string semantics and costs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-bytes32-storage-encoding",
+            "purpose": "Explain the one-slot short encoding and hashed long encoding for bytes and string",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bytes32-storage-layout",
+                "title": "Solidity Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Section bytes and string",
+                "estimatedMinutes": 7,
+                "why": "The official layout specification corrects the common misconception that every short string needs a separate length slot.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Types & layout gas"
+    },
+    {
+      "title": "Bitmaps for boolean flags",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A bitmap addresses 256 indexed flags inside each `uint256` storage word. It is especially compact compared with `mapping(uint256 => bool)`, whose independently hashed entries occupy distinct slots; contiguous declared `bool` fields and array elements may already be packed by Solidity. Bitmap updates still perform a read-modify-write on the containing word, so the saving depends on flag density and access patterns.",
+      "aiContext": "Build: solve gas/Bitmap.sol — replace a `mapping(uint256 => bool)` claim tracker with word-index and bit-mask addressing. Done when: forge test passes for unset, set, duplicate, and word-boundary indices, and forge snapshot compares first and subsequent writes without claiming that one SSTORE sets 256 flags at once.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-bitmap-addressing",
+            "purpose": "Derive word and bit positions and preserve neighboring flags",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bitmap-openzeppelin-api",
+                "title": "OpenZeppelin BitMaps API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils#BitMaps",
+                "format": "documentation",
+                "scope": "Section BitMaps, including get, set, unset, and setTo",
+                "estimatedMinutes": 9,
+                "why": "The current canonical implementation documents the exact indexed-bit operations and the mapping-bool comparison.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-bitmap-storage-baseline",
+            "purpose": "Compare bitmap words with Solidity's native packing rules",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bitmap-storage-layout",
+                "title": "Solidity Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Sections Layout of State Variables in Storage and Transient Storage and Mappings and Dynamic Arrays",
+                "estimatedMinutes": 10,
+                "why": "The compiler layout specification distinguishes packed contiguous values from separately hashed mapping entries.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Packing variables into slots"],
+      "parentTitle": "Types & layout gas"
+    },
+    {
+      "title": "Mappings vs arrays",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Mappings provide direct keyed access but have no length, key set, or enumeration order. Dynamic arrays provide indexed access, length, ordering, and iteration; `push` updates their length, while indexed reads are also constant-time rather than linear scans. Choose by required semantics: use a mapping for a known key, an array for ordered enumeration, or both only when the product needs both capabilities.",
+      "aiContext": "Build: solve gas/MappingVsArray.sol — replace an application-level linear search by record id with a mapping, while retaining an array only if enumeration is required. Done when: forge test preserves the required lookup and enumeration behavior and forge snapshot compares mapping lookup, direct array indexing, and linear search honestly.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-mapping-array-semantics",
+            "purpose": "Choose mappings or arrays from lookup, length, ordering, and enumeration requirements",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-mapping-array-types",
+                "title": "Solidity Types",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Sections Arrays, Array Members, and Mapping Types",
+                "estimatedMinutes": 14,
+                "why": "The language reference defines the capabilities and limits that should drive this data-structure choice.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-mapping-array-layout",
+            "purpose": "Trace mapping keys and dynamic-array elements to their storage locations",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-mapping-array-storage-layout",
+                "title": "Solidity Storage Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html",
+                "format": "documentation",
+                "scope": "Section Mappings and Dynamic Arrays",
+                "estimatedMinutes": 10,
+                "why": "The compiler specification shows the distinct hashed layout and array length-slot mechanics without implying indexed arrays are linear-time.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Types & layout gas"
+    },
+    {
+      "title": "Cheap hashing in assembly",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "For two full-word values, inline assembly can write at `0x00` and `0x20` and hash the 64-byte scratch region with `keccak256(0x00, 0x40)`, avoiding a separate ABI-encoded dynamic object. Solidity reserves `0x00`–`0x3f` as scratch space between statements and stores the free-memory pointer at `0x40`; code must not overwrite memory outside the promised region or rely on scratch contents surviving another statement.",
+      "aiContext": "Build: solve gas/AsmHash.sol — compute `keccak256(abi.encode(a, b))` equivalently from the 64-byte scratch region. Done when: forge test compares hashes across fuzzed words, a memory-safety test preserves the free-memory pointer, and forge snapshot records rather than presupposes the compiler-dependent delta.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-asm-hash-memory-contract",
+            "purpose": "Use only Solidity's documented scratch region without corrupting the free-memory pointer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-asm-hash-memory-layout",
+                "title": "Solidity Memory Layout",
+                "url": "https://docs.soliditylang.org/en/latest/internals/layout_in_memory.html",
+                "format": "documentation",
+                "scope": "Sections Layout in Memory and Differences to Layout in Storage",
+                "estimatedMinutes": 7,
+                "why": "The compiler's memory contract precisely identifies scratch space, the free-memory pointer, and the zero slot.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-asm-hash-equivalence",
+            "purpose": "Relate scratch-space hashing to Solidity's ABI encoding and keccak operation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-asm-hash-yul-docs",
+                "title": "Solidity Yul",
+                "url": "https://docs.soliditylang.org/en/latest/yul.html",
+                "format": "documentation",
+                "scope": "Section EVM Dialect, instruction-table entries keccak256, mstore, and mload",
+                "estimatedMinutes": 14,
+                "why": "The official Yul EVM dialect defines the memory store, load, and keccak operations used by the two-word hash implementation.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Storage & memory access in assembly"],
+      "parentTitle": "Assembly & Yul gas"
+    },
+    {
+      "title": "Direct storage slots in assembly",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Inline assembly can read and write an explicitly chosen storage slot with `sload` and `sstore`, outside Solidity's declared-variable layout. ERC-7201 standardizes NatSpec annotations and the formula `keccak256(keccak256(id) - 1) & ~0xff` for aligned namespaced roots. A wrong or overlapping slot silently corrupts unrelated state, so use a specified layout formula, inspect compiler storage layout, and test collision boundaries.",
+      "aiContext": "Build: solve gas/AsmSlot.sol — store a guard flag at an ERC-7201-formula namespace root via `sstore`/`sload`. Done when: forge test proves the guard works and declared state remains unchanged, and the namespace annotation and computed root agree with ERC-7201; record gas without an impossible cold zero-to-nonzero threshold.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-direct-slot-namespace",
+            "purpose": "Derive and annotate an ERC-7201 namespace root exactly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-direct-slot-eip7201",
+                "title": "ERC-7201 Namespaced Storage Layout",
+                "url": "https://eips.ethereum.org/EIPS/eip-7201",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, and Formula",
+                "estimatedMinutes": 12,
+                "why": "The canonical ERC defines both the annotation and full aligned root formula, preventing the common keccak-minus-one shortcut error.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "05b-direct-slot-assembly-access",
+            "purpose": "Use storage slots and offsets correctly from inline assembly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-direct-slot-assembly-docs",
+                "title": "Solidity Inline Assembly",
+                "url": "https://docs.soliditylang.org/en/latest/assembly.html",
+                "format": "documentation",
+                "scope": "Section Access to External Variables, Functions and Libraries, storage variables subsection",
+                "estimatedMinutes": 8,
+                "why": "The compiler documentation defines `.slot` and `.offset` and the limits of assembly access to storage references.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Storage & memory access in assembly"],
+      "parentTitle": "Assembly & Yul gas"
+    },
+    {
+      "title": "Low-level calls in Yul",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Yul exposes `call`, `staticcall`, and `delegatecall` directly, including input/output memory regions, forwarded gas, value, and the success flag. This control can avoid unused return-data handling on a measured path, but it also removes Solidity's typed return decoding and automatic failure behavior. Correct code checks success, copies and bubbles revert data when required, validates any expected return shape, and treats calls to addresses without code according to the application's contract.",
+      "aiContext": "Build: solve gas/AsmCall.sol — perform an external call in assembly only for a stated return-data contract. Done when: forge tests cover success, empty return, malformed return, bubbled revert, and no-code target behavior, and forge snapshot compares the complete safe wrapper with the high-level path without a fixed 200-gas promise.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-yul-call-semantics",
+            "purpose": "Handle the call success flag, return-data buffer, and revert propagation explicitly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-yul-call-yul-docs",
+                "title": "Solidity Yul",
+                "url": "https://docs.soliditylang.org/en/latest/yul.html",
+                "format": "documentation",
+                "scope": "Section EVM Dialect, instruction-table entries call through revert plus the return-data note",
+                "estimatedMinutes": 16,
+                "why": "The official Yul EVM dialect defines raw-call operands, success results, return-data copying, and revert behavior.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-yul-call-safe-baseline",
+            "purpose": "Compare a hand-written call wrapper with current contract-code and revert checks",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-yul-call-openzeppelin-address",
+                "title": "OpenZeppelin Address API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils#Address",
+                "format": "documentation",
+                "scope": "Section Address, functions functionCall through verifyCallResult",
+                "estimatedMinutes": 10,
+                "why": "The maintained canonical wrapper makes the safety behavior that raw call omits concrete.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Assembly & Yul gas"
+    },
+    {
+      "title": "Bit masking",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Shift a packed field down and apply a width-accurate mask to extract it; clear that field's mask and OR a bounded replacement to update it without changing neighbors. Solidity does not guarantee that high bits outside a narrow type are clean in every assembly-visible context, so mask narrow values before depending on them. The same operations are available in Solidity itself; assembly is warranted only when measurement and layout control justify it.",
+      "aiContext": "Build: solve gas/Masking.sol — read and update one packed field with shift, clear-mask, bounded replacement, and OR. Done when: boundary and fuzz tests prove neighboring fields are unchanged and oversized input cannot leak into them; forge snapshot compares Solidity and assembly implementations without a fixed threshold.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-bit-mask-operators",
+            "purpose": "Construct width-correct masks and shifts using Solidity's integer semantics",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bit-mask-solidity-types",
+                "title": "Solidity Types",
+                "url": "https://docs.soliditylang.org/en/latest/types.html",
+                "format": "documentation",
+                "scope": "Section Integers, including bit operations and shifts",
+                "estimatedMinutes": 8,
+                "why": "The language reference defines the exact bitwise and shift semantics used before any assembly optimization.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-bit-mask-cleanliness",
+            "purpose": "Clean narrow assembly-visible values before comparisons or packed writes",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-bit-mask-assembly-docs",
+                "title": "Solidity Inline Assembly",
+                "url": "https://docs.soliditylang.org/en/latest/assembly.html",
+                "format": "documentation",
+                "scope": "Section Conventions in Solidity, subsection Values of Typed Variables",
+                "estimatedMinutes": 7,
+                "why": "The official assembly warning explicitly requires masking or sign extension for sub-256-bit values.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
+      "parentTitle": "Assembly & Yul gas"
+    },
+    {
+      "title": "Function selector optimization",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "An external function selector is the first four bytes of the Keccak-256 hash of its canonical signature, and compiler-generated dispatch code routes calldata by that selector. Selector value alone does not create a portable source-level gas guarantee: dispatch structure can change with compiler version, optimizer pipeline, and interface size. Mine or rename selectors only after inspecting the exact compiled bytecode and benchmarking a genuinely hot entrypoint, while preserving ABI and readability costs.",
+      "aiContext": "Build: solve gas/Selector.sol — compile the same interface under the project's exact compiler and optimizer settings, inspect its dispatcher, and test whether a mined hot-function name changes measured call gas. Done when: ABI changes are explicit, behavior tests pass, bytecode evidence explains the result, and no compiler-independent 50-gas claim is made.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-selector-definition",
+            "purpose": "Compute selectors from canonical function signatures and recognize ABI consequences of renaming",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-selector-abi-spec",
+                "title": "Solidity Contract ABI Specification",
+                "url": "https://docs.soliditylang.org/en/latest/abi-spec.html",
+                "format": "documentation",
+                "scope": "Sections Function Selector and Function Overloading",
+                "estimatedMinutes": 8,
+                "why": "The canonical ABI specification defines exactly what is hashed and makes the compatibility cost of renaming visible.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-selector-measure-compiler",
+            "purpose": "Inspect and measure the exact optimized dispatcher instead of assuming an ordering algorithm",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-selector-optimizer-docs",
+                "title": "Solidity Optimizer",
+                "url": "https://docs.soliditylang.org/en/latest/internals/optimizer.html",
+                "format": "documentation",
+                "scope": "Sections Benefits of Optimizing Solidity Code and The Optimizer",
+                "estimatedMinutes": 12,
+                "why": "The compiler internals show why output depends on optimizer/codegen settings and support an evidence-first exercise rather than folklore.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Assembly & Yul gas"
+    },
+    {
+      "title": "Minimal-proxy clones for gas (EIP-1167)",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ERC-1167 standardizes a minimal 45-byte runtime proxy that delegates calls to one fixed implementation and returns or reverts with its returndata. Clones avoid redeploying the implementation bytecode for every instance, but each call pays delegation overhead and executes against the clone's storage. Per-instance state therefore needs a protected initializer or immutable-arguments design rather than the implementation's constructor.",
+      "aiContext": "Build: solve gas/Clones.sol — deploy initialized instances with OpenZeppelin `Clones` and compare them with full `new` deployments. Done when: forge tests cover initialization exactly once, isolated clone storage, delegation, and implementation behavior, and forge snapshot records both deployment and steady-state call costs.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-clones-runtime-spec",
+            "purpose": "Explain the minimal proxy bytecode's fixed implementation and delegate-return behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-clones-eip1167",
+                "title": "ERC-1167 Minimal Proxy Contract",
+                "url": "https://eips.ethereum.org/EIPS/eip-1167",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, and Rationale",
+                "estimatedMinutes": 14,
+                "why": "The canonical standard defines the 45-byte runtime and its returndata and revert guarantees.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          },
+          {
+            "id": "05b-clones-safe-factory",
+            "purpose": "Deploy regular or deterministic clones with a maintained library and initialize state safely",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-clones-openzeppelin-api",
+                "title": "OpenZeppelin Clones API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/proxy#Clones",
+                "format": "documentation",
+                "scope": "Section Clones, including clone, cloneDeterministic, and prediction functions",
+                "estimatedMinutes": 12,
+                "why": "The current canonical implementation exposes the supported factory choices and their deterministic-address constraints.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Proxies & Upgradeability"],
+      "parentTitle": "Architecture-level gas"
+    },
+    {
+      "title": "Singleton contracts",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A singleton can hold many logical instances behind one deployed contract, keyed by an identifier rather than one address per instance. Uniswap v4's PoolManager uses this architecture for pools and supports flash accounting across actions. It removes repeated deployments and can share warmed state, but concentrates trust, upgrade, accounting, and access-control boundaries; choose it for cross-instance benefits, not as a universal replacement for isolated contracts.",
+      "aiContext": "Build: solve gas/Singleton.sol — model two logical instances in one keyed manager and compare lifecycle costs with two deployments. Done when: tests prove state and authorization are isolated by id, invalid cross-instance actions fail, and snapshots include registration plus steady-state calls rather than promising a sub-5000-gas storage write.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-singleton-pool-manager",
+            "purpose": "Study a production singleton's keyed-state and flash-accounting motivation",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-singleton-uniswap-v4",
+                "title": "Uniswap v4 PoolManager",
+                "url": "https://developers.uniswap.org/docs/protocols/v4/concepts/poolmanager",
+                "format": "documentation",
+                "scope": "Sections Architecture and Flash accounting",
+                "estimatedMinutes": 14,
+                "why": "The protocol's official documentation grounds singleton and flash-accounting claims in an implemented architecture.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 90
+              }
+            ]
+          },
+          {
+            "id": "05b-singleton-transient-accounting",
+            "purpose": "Understand the transient-storage primitive used to settle multi-action accounting",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-singleton-eip1153",
+                "title": "EIP-1153 Transient Storage Opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-1153",
+                "format": "documentation",
+                "scope": "Sections Abstract, Motivation, and Specification",
+                "estimatedMinutes": 13,
+                "why": "The canonical EIP defines transient storage's transaction lifetime and call-frame ownership, bounding flash-accounting designs.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Architecture-level gas"
+    },
+    {
+      "title": "Batching and multicall",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A batch entrypoint or multicall amortizes per-transaction intrinsic gas across several operations. Within one transaction, later accesses to the same account or storage key use the warm-access schedule introduced by EIP-2929. The batch still pays loop, calldata, and dispatch costs, and its atomicity must be explicit: either bubble a failure and revert the whole batch or deliberately represent per-item results.",
+      "aiContext": "Build: solve gas/Multicall.sol — execute five operations through one batch and compare total transaction gas with five separate transactions under the same state. Done when: tests establish chosen failure atomicity and caller/value semantics, and snapshots separate intrinsic-gas amortization from warm-access savings without a universal 84000-gas cap.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-batching-call-contract",
+            "purpose": "Implement batching with explicit caller, value, and failure behavior",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-batching-openzeppelin-multicall",
+                "title": "OpenZeppelin Multicall API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils#Multicall",
+                "format": "documentation",
+                "scope": "Section Multicall, including the multicall function",
+                "estimatedMinutes": 8,
+                "why": "The maintained implementation provides a concrete delegatecall-based semantic baseline and its value-forwarding warning.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-batching-warm-access",
+            "purpose": "Attribute repeated-access savings to the transaction-scoped warm set",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-batching-eip2929",
+                "title": "EIP-2929 Gas Cost Increases for State Access Opcodes",
+                "url": "https://eips.ethereum.org/EIPS/eip-2929",
+                "format": "documentation",
+                "scope": "Sections Parameters and Storage read changes",
+                "estimatedMinutes": 13,
+                "why": "The canonical gas-schedule EIP defines accessed-address and accessed-storage-key sets and their transaction scope.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Warm vs cold access (EIP-2929)"],
+      "parentTitle": "Architecture-level gas"
+    },
+    {
+      "title": "Pull over push payments",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A push loop invokes every recipient during distribution, grows with recipient count, and can let one reverting recipient block an atomic batch. The withdrawal pattern records each recipient's credit and lets recipients claim separately, isolating external calls and moving withdrawal gas to each claimer. Crediting N recipients still requires N accounting updates unless a compact commitment is used, and withdrawal must zero credit before the external call to prevent reentrancy.",
+      "aiContext": "Build: solve gas/PullPayments.sol — convert an external-call push loop into credit-then-withdraw. Done when: tests prove one reverting recipient cannot block others, credit is cleared before interaction, reentrancy cannot double-withdraw, and snapshot compares distribution and per-recipient withdrawal without an impossible 30000-gas cap for five fresh credits.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-pull-withdrawal-pattern",
+            "purpose": "Separate accounting from recipient-controlled external calls",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-pull-solidity-pattern",
+                "title": "Solidity Withdrawal Pattern",
+                "url": "https://docs.soliditylang.org/en/latest/common-patterns.html#withdrawal-from-contracts",
+                "format": "documentation",
+                "scope": "Section Withdrawal from Contracts",
+                "estimatedMinutes": 11,
+                "why": "The language's canonical pattern demonstrates why a rejecting recipient can block push payments and how withdrawals isolate it.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-pull-interaction-safety",
+            "purpose": "Apply checks-effects-interactions and account for forwarding gas",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-pull-solidity-security",
+                "title": "Solidity Security Considerations",
+                "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+                "format": "documentation",
+                "scope": "Sections Reentrancy and Sending and Receiving Ether",
+                "estimatedMinutes": 12,
+                "why": "The official security guide supplies the non-negotiable ordering and gas-forwarding constraints for a safe withdrawal.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Architecture-level gas"
+    },
+    {
+      "title": "Off-chain compute, on-chain verify",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A contract can verify an off-chain commitment instead of storing or recomputing the full dataset. A Merkle root commits to leaves and an inclusion proof supplies a logarithmic hash path; EIP-712 signs typed structured data bound to a domain. These tools reduce some on-chain state or computation but introduce proof construction, replay protection, leaf-encoding, trusted-input, and data-availability responsibilities; they do not make every verification cheaper than a direct lookup.",
+      "aiContext": "Build: solve gas/MerkleClaim.sol — commit eligibility in one Merkle root, verify a domain-specific leaf, and mark claims one-shot. Done when: tests cover valid, invalid, replayed, and differently encoded leaves, the tree-generation encoding matches the contract exactly, and snapshot compares total root setup plus claims with the mapping baseline.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "05b-offchain-merkle-proof",
+            "purpose": "Verify inclusion safely with an encoding that matches the off-chain tree",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-offchain-openzeppelin-merkle",
+                "title": "OpenZeppelin MerkleProof API",
+                "url": "https://docs.openzeppelin.com/contracts/5.x/api/utils/cryptography#MerkleProof",
+                "format": "documentation",
+                "scope": "Section MerkleProof, including verify, processProof, and warnings",
+                "estimatedMinutes": 13,
+                "why": "The maintained canonical verifier documents proof processing and unsafe leaf/hash combinations that the build must avoid.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "05b-offchain-typed-authorization",
+            "purpose": "Bind signed structured data to a domain and handle replay at the application layer",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "05b-offchain-eip712",
+                "title": "EIP-712 Typed Structured Data Hashing and Signing",
+                "url": "https://eips.ethereum.org/EIPS/eip-712",
+                "format": "documentation",
+                "scope": "Sections Abstract, Specification, and Security Considerations",
+                "estimatedMinutes": 18,
+                "why": "The canonical signing standard defines domain separation and explicitly leaves replay protection to implementations.",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "Architecture-level gas"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Word-size choices",
+      "promptText": "Why can a standalone `uint8` cost more gas than a `uint256`?",
+      "answerHint": "The EVM works on 256-bit words, so a narrow unpacked type may require cleanup without reducing storage slots. Pitfall: optimizer results vary — use uint256 as a baseline, pack narrow storage fields deliberately, and measure the exact build.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Word-size choices",
+      "promptText": "Write the cheaper type choice for a standalone counter and say why.",
+      "answerHint": "uint256 i; // full-word baseline; compile and measure against uint8 because optimizer output, not the spelling alone, decides the result.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "bytes32 over string",
+      "promptText": "When is bytes32 a better fit than string, and what storage misconception should you avoid?",
+      "answerHint": "bytes32 is a fixed value type with direct equality; a short string of at most 31 bytes also packs data and length into one slot, while longer strings spill to hashed storage. Choose bytes32 for fixed byte-oriented data, not variable UTF-8 text, and measure the operations instead of assuming a short string always takes more slots.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "bytes32 over string",
+      "promptText": "Write a mapping from a bytes32 key to a value instead of a string key.",
+      "answerHint": "mapping(bytes32 => uint256) public byKey; // fixed-size key with direct value semantics; use string only when variable UTF-8 identity is required.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Bitmaps for boolean flags",
+      "promptText": "How can a bitmap compact 256 keyed bool mapping entries, and what's the cost?",
+      "answerHint": "Each word addresses 256 indexed flags, so dense mapping-bool entries can share storage. Each update still read-modify-writes the containing word. Cost: shift/mask arithmetic; pitfall: declared bool fields and array elements may already pack, and boundary bugs can corrupt neighboring flags.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bitmaps for boolean flags",
+      "promptText": "Write set-bit and test-bit for a uint256 bitmap `bits` at index i (i < 256).",
+      "answerHint": "bits |= (1 << i);  // set   bool isSet = ((bits >> i) & 1) == 1; // test; parentheses avoid equality-precedence ambiguity",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Mappings vs arrays",
+      "promptText": "When is a mapping cheaper than an array, and when do you still need an array?",
+      "answerHint": "Mapping: direct access for a known key but no length or enumeration. Array: direct numeric indexing plus length/order/iteration. Pitfall: arrays are not inherently linear-time — only an application-level search is; keep both structures only if both semantics are required.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mappings vs arrays",
+      "promptText": "Write a keyed record store using a mapping instead of a scanned array.",
+      "answerHint": "mapping(uint256 => Record) public records; // O(1) records[id] lookup vs an O(n) array scan.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Cheap hashing in assembly",
+      "promptText": "How do you compute a mapping slot's keccak256 cheaply in assembly?",
+      "answerHint": "Write key and slot to scratch space (0x00 and 0x20) and call keccak256(0x00, 0x40) — skips abi.encode's memory allocation; keccak is 30 + 6/word. Pitfall: don't overflow past 0x40 into the free-memory area or you corrupt it.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Cheap hashing in assembly",
+      "promptText": "Write assembly that hashes two 32-byte words via scratch space.",
+      "answerHint": "assembly { mstore(0x00, a) mstore(0x20, b) let h := keccak256(0x00, 0x40) }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Direct storage slots in assembly",
+      "promptText": "Why use sload/sstore on a fixed slot, and how do you avoid collisions?",
+      "answerHint": "Fixed-slot assembly supports specified layouts such as ERC-7201. For ERC-7201 use keccak256(keccak256(id) - 1) & ~0xff and annotate the namespace. Pitfall: a wrong or overlapping slot silently corrupts unrelated storage.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Direct storage slots in assembly",
+      "promptText": "Write assembly to read and write a value at a fixed namespaced slot.",
+      "answerHint": "bytes32 slot = keccak256(abi.encode(uint256(keccak256(bytes(\"my.namespace\"))) - 1)) & ~bytes32(uint256(0xff)); assembly { let v := sload(slot) sstore(slot, add(v, 1)) } // a production constant can use the precomputed audited value",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Low-level calls in Yul",
+      "promptText": "What does calling in Yul save, and what must you handle yourself?",
+      "answerHint": "It controls gas, value, and input/output memory directly and can avoid copying return data you truly do not need. You must check success, bubble or interpret returndata, validate expected return shape, and define no-code-target behavior yourself.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Low-level calls in Yul",
+      "promptText": "Write a Yul call that reverts if the callee fails.",
+      "answerHint": "assembly { let ok := call(gas(), target, 0, add(data,0x20), mload(data), 0, 0) if iszero(ok) { returndatacopy(0,0,returndatasize()) revert(0, returndatasize()) } }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Bit masking",
+      "promptText": "How do you read one packed field out of a slot with shift and mask?",
+      "answerHint": "Shift the field down (shr) then AND with a mask sized exactly to the field (e.g. 0xff for 8 bits). Pitfall: a mask wider than the field reads neighboring bits — match the mask to the field width exactly.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Bit masking",
+      "promptText": "Write assembly to extract the low byte of a word `x`.",
+      "answerHint": "assembly { let b := and(x, 0xff) } // isolates bits 0–7; use shr first to read a higher field.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Function selector optimization",
+      "promptText": "How can function naming reduce dispatch gas?",
+      "answerHint": "A suffix changes keccak256(canonicalSignature) and therefore the selector, which may alter the exact compiled dispatcher. There is no portable low-selector-first guarantee: inspect bytecode and benchmark the pinned compiler/optimizer, then weigh the ABI/readability cost.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Function selector optimization",
+      "promptText": "Show how a mined name suffix changes a function's selector.",
+      "answerHint": "bytes4 sel = bytes4(keccak256(\"transfer_hot(address,uint256)\")); // proves the selector changed; inspect the compiled dispatcher before claiming it routes earlier.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Minimal-proxy clones for gas (EIP-1167)",
+      "promptText": "Why is deploying an EIP-1167 clone so much cheaper than a full contract?",
+      "answerHint": "A clone has a 45-byte runtime that delegatecalls shared implementation code, avoiding redeploying that full runtime per instance. Pitfall: deployment is not merely a few thousand gas; initialize clone storage exactly once and measure delegation overhead too.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Minimal-proxy clones for gas (EIP-1167)",
+      "promptText": "Write a clone-factory deploy using OpenZeppelin Clones.",
+      "answerHint": "address c = Clones.clone(implementation); IInit(c).initialize(args); // compare total clone+initialization gas with `new Impl()` and guard re-initialization.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Singleton contracts",
+      "promptText": "How does a singleton architecture cut gas versus a contract per instance?",
+      "answerHint": "One deployed contract holds all instances keyed by id, as Uniswap v4's PoolManager does for pools, removing per-instance deploy cost and enabling shared optimizations like transient flash accounting. Pitfall: one contract mediating all instances, concentrating risk and complicating access control.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Singleton contracts",
+      "promptText": "Write a singleton state layout keyed by an instance id.",
+      "answerHint": "mapping(bytes32 => Pool) internal pools; // one contract, per-id state, no per-instance deployment.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Batching and multicall",
+      "promptText": "What costs does batching many operations into one tx amortize?",
+      "answerHint": "It amortizes intrinsic transaction gas; repeated accesses to the same account/key later in that transaction can also be warm. Pitfall: define failure atomicity plus msg.sender and msg.value semantics — silent skips hide failures.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Batching and multicall",
+      "promptText": "Write a multicall that executes an array of encoded self-calls.",
+      "answerHint": "function multicall(bytes[] calldata calls) external { for (uint256 i; i < calls.length;) { (bool ok,) = address(this).delegatecall(calls[i]); require(ok); unchecked { ++i; } } }",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Pull over push payments",
+      "promptText": "How does pull-payment isolate recipient failures and shift gas compared with pushing in a loop?",
+      "answerHint": "Push loops make recipient calls during distribution and one revert can block an atomic batch. Pull records each credit, then each claimant pays for an isolated withdrawal. It is not a universal total-gas saving: N credits still need N accounting updates; clear credit before the external call.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Pull over push payments",
+      "promptText": "Write credit-then-withdraw functions replacing a push loop.",
+      "answerHint": "function credit(address u, uint256 a) internal { owed[u] += a; } function withdraw() external { uint256 a = owed[msg.sender]; owed[msg.sender] = 0; (bool ok,) = payable(msg.sender).call{value:a}(\"\"); require(ok); } // CEI; add a reentrancy guard when surrounding state needs it.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Off-chain compute, on-chain verify",
+      "promptText": "How does a merkle airdrop save gas over storing every claim on-chain?",
+      "answerHint": "Store only a 32-byte root; each claimant submits an ~log(n)-hash proof the contract verifies, instead of an SSTORE-set per eligible address at setup. Pitfall: still track claimed status (a bitmap) so a valid proof can't be replayed.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Off-chain compute, on-chain verify",
+      "promptText": "Write the on-chain verify step for a merkle-proof-gated claim.",
+      "answerHint": "bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount)); require(MerkleProof.verify(proof, root, leaf)); // then mark claimed in a bitmap.",
+      "promptKind": "code"
+    }
+  ],
+  "noteSummaries": []
+}
