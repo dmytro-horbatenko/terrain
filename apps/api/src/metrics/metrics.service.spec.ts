@@ -402,6 +402,70 @@ describe('MetricsService', () => {
   });
 
   describe('nextUp', () => {
+    it('prefers the latest imported next focus when it is startable', async () => {
+      prisma.sessionExport.findFirst.mockResolvedValue({
+        nextFocusTitle: 'Mnemonics & HD wallets',
+      });
+      prisma.topic.findMany.mockResolvedValue([
+        { id: 'transaction', prerequisites: [], children: [] },
+        { id: 'mnemonics', prerequisites: [], children: [] },
+      ]);
+      prisma.topic.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.title
+            ? {
+                id: 'mnemonics',
+                title: 'Mnemonics & HD wallets',
+                status: 'planned',
+                parentId: null,
+                sourcePlan: null,
+              }
+            : {
+                id: 'transaction',
+                title: 'Transaction anatomy',
+                status: 'planned',
+                parentId: null,
+                sourcePlan: null,
+              },
+        ),
+      );
+
+      const result = await service.nextUp('userA');
+
+      expect(result?.topic.id).toBe('mnemonics');
+      expect(prisma.sessionExport.findFirst).toHaveBeenCalledWith({
+        where: { userId: 'userA', importedAt: { not: null }, nextFocusTitle: { not: null } },
+        orderBy: { importedAt: 'desc' },
+        select: { nextFocusTitle: true },
+      });
+      expect(prisma.topic.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['transaction', 'mnemonics'] },
+          userId: 'userA',
+          title: { equals: 'Mnemonics & HD wallets', mode: 'insensitive' },
+        },
+      });
+    });
+
+    it('trims an imported next focus before resolving it', async () => {
+      prisma.sessionExport.findFirst.mockResolvedValue({
+        nextFocusTitle: '  Mnemonics & HD wallets  ',
+      });
+      prisma.topic.findMany.mockResolvedValue([
+        { id: 'transaction', prerequisites: [], children: [] },
+        { id: 'mnemonics', prerequisites: [], children: [] },
+      ]);
+      prisma.topic.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.title?.equals === 'Mnemonics & HD wallets'
+            ? { id: 'mnemonics', title: 'Mnemonics & HD wallets', parentId: null }
+            : { id: 'transaction', title: 'Transaction anatomy', parentId: null },
+        ),
+      );
+
+      expect((await service.nextUp('userA'))?.topic.id).toBe('mnemonics');
+    });
+
     it.each([
       [null, { requiredCount: 0, estimatedMinutes: 0, hasExpired: false }],
       [

@@ -284,9 +284,25 @@ export class MetricsService {
    */
   async nextUp(userId: string, domain?: string, now = new Date()): Promise<NextUp | null> {
     const disabled = await this.disabledDomains(userId);
-    const [firstId] = await this.startablePlannedIds(userId, domain, disabled);
+    const startableIds = await this.startablePlannedIds(userId, domain, disabled);
+    const [firstId] = startableIds;
     if (!firstId) return null;
-    const topic = await this.prisma.topic.findFirst({ where: { id: firstId, userId } });
+    const suggested = await this.prisma.sessionExport.findFirst({
+      where: { userId, importedAt: { not: null }, nextFocusTitle: { not: null } },
+      orderBy: { importedAt: 'desc' },
+      select: { nextFocusTitle: true },
+    });
+    const suggestedTopic = suggested?.nextFocusTitle
+      ? await this.prisma.topic.findFirst({
+          where: {
+            id: { in: startableIds },
+            userId,
+            title: { equals: suggested.nextFocusTitle.trim(), mode: 'insensitive' },
+          },
+        })
+      : null;
+    const topic =
+      suggestedTopic ?? (await this.prisma.topic.findFirst({ where: { id: firstId, userId } }));
     if (!topic) return null;
     const stats = sourcePlanStats(parseStoredSourcePlan(topic.sourcePlan), topic.status, now);
     if (!topic.parentId)
