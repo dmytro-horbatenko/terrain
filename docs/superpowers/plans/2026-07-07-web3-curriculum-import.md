@@ -365,22 +365,27 @@ Expected: exit 0, 0 failures. If any anchor 404s, replace it with the correct cu
 **Files:**
 - Create: `content/web3/01-fundamentals.json`
 
-This file is the exemplar every later authoring task imitates for JSON structure, the description/aiContext split, resource anchoring, and card phrasing. Phase 1 is ~30 leaves grouped under 7 sub-chapters. **Author all of them**, but the four fully-worked topics below define the pattern; the rest follow identically from the Phase-1 topic table.
+This file is the exemplar every later authoring task imitates for JSON structure, the description/aiContext split, resource anchoring, and card phrasing. Phase 1 is ~35 leaves grouped under 7 sub-chapters. **Author all of them**, but the fully-worked topics below define the pattern; the rest follow identically from the Phase-1 topic table.
 
 **Phase 1 sub-chapters** (concept nodes, parent = `Phase 1 — Blockchain & Ethereum Fundamentals`):
 Blockchain basics · Accounts, transactions & gas · EVM execution model · Consensus (PoS) · L2s & rollups · Account abstraction · 2025–26 protocol state.
 
-**Phase 1 leaf table** (leaf · parent sub-chapter · primary resource · Build one-liner). Theory-heavy phase, so Builds are mostly explainers/CLI, not contracts:
+**Phase 1 leaf table** (leaf · parent sub-chapter · primary resource · Build one-liner). Consensus/scaling may use explainers; cryptography, serialization, RPC, hashing, and EVM fundamentals require runnable code plus negative checks:
 
 | Leaf | Sub-chapter | Resource anchor | Build |
 |---|---|---|---|
 | What a blockchain is | Blockchain basics | Updraft Blockchain Basics §1 | Write a 1-page explainer: blocks, hashes, immutability |
-| Public-key cryptography & wallets | Blockchain basics | ethereum.org/developers/docs/accounts | Generate a keypair with `cast wallet new`; explain address derivation |
+| Public-key cryptography & wallets | Blockchain basics | ethereum.org/developers/docs/accounts | Generate a keypair with `cast wallet new`; explain custody and the derivation overview |
+| SEC1 public-key serialization & address derivation | Blockchain basics | SEC 1 §2.3.3 + ethereum.org accounts | Emit compressed/uncompressed keys; hash raw x\|\|y; assert address and wrong-hash pitfalls |
+| ECDSA signing, verification & recovery | Blockchain basics | SEC 1 §4.1 + EIP-191 | Sign fixed bytes; verify/recover; assert mutation, domain, low-s, and parity boundaries |
+| Mnemonic-to-seed & child-key derivation | Blockchain basics | BIP-39 + BIP-32 | Reproduce official seed and child vectors plus two Ethereum addresses |
 | Nodes, clients & JSON-RPC | Blockchain basics | ethereum.org/developers/docs/nodes-and-clients | Query a public RPC with `cast block latest` |
+| Raw Ethereum JSON-RPC | Blockchain basics | ethereum.org JSON-RPC | Call Anvil with built-in fetch; validate id/result/error, quantities, timeouts, and block tags |
 | EOAs vs contract accounts | Accounts, transactions & gas | ethereum.org/developers/docs/accounts | Diagram both account types + their fields |
 | Transaction anatomy | Accounts, transactions & gas | ethereum.org/developers/docs/transactions | Decode a real tx with `cast tx <hash>` |
+| RLP & typed transaction serialization | Accounts, transactions & gas | ethereum.org RLP + EIP-1559 | Implement the required RLP subset and type-2 signing/broadcast payload |
 | Gas & the fee market (EIP-1559) | Accounts, transactions & gas | ethereum.org/developers/docs/gas | Explain base fee vs priority fee from a real block |
-| The EVM as a state machine | EVM execution model | noxx EVM Deep Dives pt.1 | Explain world state → account state → storage trie |
+| The EVM as a state machine | EVM execution model | noxx EVM Deep Dives pt.1 | Implement and test a tiny gas-metered interpreter with REVERT rollback |
 | Stack / memory / storage / calldata | EVM execution model | evm.codes | Annotate where each data location lives + costs |
 | Opcodes & the interpreter loop | EVM execution model | evm.codes | Trace a tiny bytecode snippet on evm.codes |
 | Proof-of-Stake basics | Consensus (PoS) | ethereum.org/developers/docs/consensus-mechanisms/pos | Explain validators, attestations, finality |
