@@ -415,7 +415,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       <PromptsPanel topicId={t.id} prompts={t.prompts} />
 
       {/* relations */}
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="grid topic-relations-grid">
         <div className="col gap-1">
           <span className="card-title" style={{ margin: 0 }}>
             Prerequisites
