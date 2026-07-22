@@ -16,7 +16,7 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
   const showLearn = !!nextUp || counts.planned > 0;
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+    <div className="grid dashboard-today-grid">
       {/* ---- review track ---- */}
       <Card title="Review">
         <div className="col gap-3">

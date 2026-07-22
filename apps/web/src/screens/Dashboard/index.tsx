@@ -72,7 +72,7 @@ export default function Dashboard() {
         <TodayCard dash={dash} />
 
         {/* ---- KPI row ---- */}
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <div className="grid dashboard-kpi-grid">
           <Card>
             <div className="kpi" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span aria-hidden>🔥</span>
@@ -115,7 +115,7 @@ export default function Dashboard() {
         </div>
 
         {/* ---- struggle + library ---- */}
-        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="grid dashboard-analysis-grid">
           <Card title="Struggle ratio (7d)">
             <Gauge value={dash.struggleRatio7d} />
             <p className="muted" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.5 }}>
