@@ -82,7 +82,7 @@ export default function Topics() {
 
   return (
     <div className="page">
-      <div className="row" style={{ marginBottom: 16 }}>
+      <div className="row page-header" style={{ marginBottom: 16 }}>
         <h1 className="page-title" style={{ margin: 0 }}>
           Topics
         </h1>
@@ -108,7 +108,7 @@ export default function Topics() {
       ) : (
         <>
           {/* Filters */}
-          <div className="row wrap gap-3" style={{ marginBottom: 14 }}>
+          <div className="row wrap gap-3 topic-filters" style={{ marginBottom: 14 }}>
             <input
               className="input"
               style={{ maxWidth: 260 }}

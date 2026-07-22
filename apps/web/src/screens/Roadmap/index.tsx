@@ -398,16 +398,7 @@ export default function Roadmap() {
           />
         </div>
       ) : (
-        <div
-          style={{
-            height: 'calc(100vh - 120px)',
-            width: '100%',
-            marginTop: 12,
-            border: '1px solid var(--line, #e5e7eb)',
-            borderRadius: 12,
-            overflow: 'hidden',
-          }}
-        >
+        <div className="roadmap-canvas">
           <ReactFlow
             nodes={nodes}
             edges={edges}

@@ -37,7 +37,10 @@ function CourseCard({ course }: { course: Course }) {
   return (
     <Card title={course.title} actions={<span className="pill">{course.domain}</span>}>
       <p className="muted">{course.description}</p>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        className="row course-actions"
+        style={{ justifyContent: 'space-between', alignItems: 'center' }}
+      >
         <span className="muted">{course.topicCount} topics</span>
         <div className="row gap-2">
           {course.imported && (
@@ -76,7 +79,7 @@ export default function CoursesScreen() {
   if (error) return <ErrorBox error={error} />;
 
   return (
-    <div className="col gap-3">
+    <div className="page col gap-3">
       <h1>Courses</h1>
       <p className="muted">
         Pre-authored curricula you can import into your own roadmap with one click.
