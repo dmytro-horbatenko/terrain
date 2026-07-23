@@ -62,6 +62,108 @@
       }
     },
     {
+      "title": "SEC1 public-key serialization & address derivation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "A secp256k1 public key is a curve point (x,y), not an ECDSA operation. SEC1 encodes it as 33-byte compressed 02/03||x or 65-byte uncompressed 04||x||y; Ethereum derives an address from Keccak-256 of the raw 64-byte x||y, excluding 04, then keeps the final 20 bytes. Confusing bits with hex characters, SHA3-256 with Keccak-256, or hashing the SEC1 prefix produces the wrong address.",
+      "aiContext": "Build: in scripts/phase01/address-derivation.ts, use a fixed non-secret 32-byte scalar and an established secp256k1 primitive to emit compressed and uncompressed SEC1 keys, validate their 33/65-byte prefixes and lengths, strip 04, Keccak-hash x||y, and slice the final 20 bytes; compare with `cast wallet address --private-key`. Reject 0 and scalars >= curve order, and assert that SHA3-256 or hashing 04||x||y disagrees. Done when: one command runs deterministic assertions for the expected address, representations, invalid-scalar boundaries, and both deliberate wrong-hash cases.",
+      "prerequisiteTitles": ["Public-key cryptography & wallets"],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "sec1-point-encoding",
+            "purpose": "Reconstruct compressed and uncompressed elliptic-curve point encodings byte for byte",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sec1-standard-point-encoding",
+                "title": "SEC 1: Elliptic Curve Cryptography",
+                "url": "https://www.secg.org/sec1-v2.pdf",
+                "format": "book",
+                "scope": "Section 2.3.3 Elliptic-Curve-Point-to-Octet-String Conversion",
+                "estimatedMinutes": 16,
+                "why": "Defines the exact 02, 03, and 04 prefixes and coordinate byte layout instead of relying on wallet-library conventions.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "ethereum-address-bytes",
+            "purpose": "Verify the exact public-key bytes Ethereum hashes and truncates into an address",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "address-ethereum-account-creation",
+                "title": "Ethereum accounts",
+                "url": "https://ethereum.org/developers/docs/accounts/",
+                "format": "documentation",
+                "scope": "Section \"Account creation\"",
+                "estimatedMinutes": 8,
+                "why": "States Ethereum's Keccak and rightmost-20-byte construction and supplies an official worked account example.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "ECDSA signing, verification & recovery",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "ECDSA signs a message digest with a private scalar and lets verifiers check authorization with the public point; Ethereum also carries recovery parity so the signer can be recovered. A valid signature proves authorization of exact bytes, not safety or intent. Nonce reuse, high-s malleability, missing domain separation, ambiguous message prefixes, and accepting a recovered zero address are practical failure modes.",
+      "aiContext": "Build: in scripts/phase01/sign-recover.ts, hash a fixed message with and without the EIP-191 prefix, sign locally, split r/s/recovery parity, recover the address, and verify it equals the address-derivation lab; mutate one message byte and assert failure. Add assertions for low-s normalization and domain separation, and never print a real secret. Done when: deterministic checks prove exact-byte authorization, recovery, mutation failure, prefix mismatch, and the low-s boundary.",
+      "prerequisiteTitles": ["SEC1 public-key serialization & address derivation"],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "ecdsa-sign-and-verify",
+            "purpose": "Trace ECDSA signing and verification inputs, outputs, and nonce safety",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "sec1-ecdsa-operations",
+                "title": "SEC 1: Elliptic Curve Cryptography",
+                "url": "https://www.secg.org/sec1-v2.pdf",
+                "format": "book",
+                "scope": "Sections 4.1 ECDSA Signature Generation and Verification",
+                "estimatedMinutes": 22,
+                "why": "Defines the actual scalar equations, validity ranges, and per-message secret that explain verification and nonce-reuse failure.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "ethereum-signed-message-domain",
+            "purpose": "Distinguish Ethereum signed-message domains from raw transaction or typed-data signatures",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip191-signed-data",
+                "title": "EIP-191: Signed Data Standard",
+                "url": "https://eips.ethereum.org/EIPS/eip-191",
+                "format": "documentation",
+                "scope": "Sections \"Specification\" and \"Version 0x45\"",
+                "estimatedMinutes": 12,
+                "why": "Defines the prefix and version byte that keep signed messages from being mistaken for valid Ethereum transactions.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "title": "Transaction anatomy",
       "type": "pattern",
       "domain": "Web3",
@@ -105,6 +207,58 @@
                 "scope": "Sections \"Abstract\" and \"Specification\"",
                 "estimatedMinutes": 18,
                 "why": "Normatively lists chain ID, fee fields, access list, and y-parity/r/s so legacy and typed signatures are not conflated.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "RLP & typed transaction serialization",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "RLP encodes byte strings and nested lists with length prefixes; integers are minimally encoded big-endian byte strings, so zero is the empty byte string rather than byte 00. EIP-2718 typed transactions prepend a type byte to an opaque payload, and a type-2 signing hash covers 0x02||rlp(unsigned fields) while the broadcast form appends yParity, r, and s. One wrong field order, integer encoding, or signed/unsigned boundary changes the hash and signer.",
+      "aiContext": "Build: in scripts/phase01/type2-transaction.ts, implement the small RLP subset needed for one fixed EIP-1559 transaction using only byte/string primitives; encode its unsigned signing payload, Keccak-hash it, sign it, append yParity/r/s, and recover the sender. Compare every hex result with `cast mktx --offline` or a maintained client library. Done when: deterministic assertions cover single-byte, short-string, long-length, zero-integer, nested-list, type-byte, field-order, signing-hash, raw-transaction, and recovered-sender cases.",
+      "prerequisiteTitles": ["Transaction anatomy", "ECDSA signing, verification & recovery"],
+      "parentTitle": "Accounts, transactions & gas",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "rlp-canonical-encoding",
+            "purpose": "Derive canonical string and list encodings including integer and length-prefix edge cases",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "ethereum-rlp-reference",
+                "title": "Recursive-length prefix serialization",
+                "url": "https://ethereum.org/developers/docs/data-structures-and-encoding/rlp/",
+                "format": "documentation",
+                "scope": "Sections \"Definition\" through \"Examples\"",
+                "estimatedMinutes": 20,
+                "why": "Provides the canonical byte thresholds, long-length rules, integer convention, and examples required by the encoder lab.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-12",
+                "recheckAfterDays": 180
+              }
+            ]
+          },
+          {
+            "id": "type2-signing-envelope",
+            "purpose": "Verify the exact unsigned and signed EIP-1559 payload boundaries and field order",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "eip1559-payload-specification",
+                "title": "EIP-1559: Fee market change",
+                "url": "https://eips.ethereum.org/EIPS/eip-1559",
+                "format": "documentation",
+                "scope": "Section \"Specification\"",
+                "estimatedMinutes": 18,
+                "why": "Normatively defines the 0x02 envelope, signing hash, ordered fields, and appended signature values used by the exercise.",
                 "paid": false,
                 "language": "en"
               }
@@ -278,7 +432,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "keccak256 is Ethereum's workhorse hash: deterministic, one-way, collision-resistant, fixed 32-byte output. Merkle trees hash data in pairs up to a single root, so one 32-byte root commits to a whole set and any member is provable with a log-sized branch. Block headers and state use this to make tampering detectable.",
-      "aiContext": "Build: in contracts/phase01/hashing-merkle.md, compute a hash with `cast keccak \"hello\"` and sketch a 4-leaf Merkle tree by hand, showing the proof path for leaf 2. Done when: you can state why a Merkle proof needs only ~log2(n) hashes to verify membership.",
+      "aiContext": "Build: in scripts/phase01/merkle.ts, hash four fixed leaves with Ethereum Keccak-256, define and document pair ordering, compute the root, generate a proof for every leaf, and implement verification; compare one hash with `cast keccak`. Add negative checks for a mutated leaf, wrong sibling order, odd leaf count policy, SHA3-256 substitution, and ambiguous packed concatenation. Done when: deterministic assertions verify every membership proof, reject every mutation, and show proof length grows as ceil(log2(n)) under the documented duplication rule.",
       "prerequisiteTitles": [],
       "parentTitle": "Blockchain basics",
       "sourcePlan": {
@@ -410,6 +564,59 @@
       }
     },
     {
+      "title": "Mnemonic-to-seed & child-key derivation",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "BIP-39 maps entropy plus checksum bits to word indices, then uses PBKDF2-HMAC-SHA512 with NFKD-normalized mnemonic and salt `mnemonic` plus passphrase to produce a 64-byte seed. BIP-32 uses HMAC-SHA512 chain codes and scalar arithmetic for child keys; hardened derivation includes the private key and cannot be reproduced from an extended public key. A passphrase creates a valid but different wallet, and path, normalization, endian, or hardened-index mistakes silently produce different accounts.",
+      "aiContext": "Build: in scripts/phase01/hd-derivation.ts, reproduce one official BIP-39 vector from entropy through checksum/word indices and PBKDF2 seed, then derive Ethereum paths m/44'/60'/0'/0/0 and /1 with a maintained BIP-32 primitive. Assert the seed and both addresses against vectors and `cast wallet derive-private-key`; add a passphrase and show that it deterministically changes the root. Done when: tests catch a bad checksum, wrong NFKD/salt, wrong endian index, omitted hardened bit, and changed final address index.",
+      "prerequisiteTitles": [
+        "Mnemonics & HD wallets",
+        "SEC1 public-key serialization & address derivation"
+      ],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "bip39-byte-pipeline",
+            "purpose": "Implement and verify the entropy, checksum, normalization, and PBKDF2 seed pipeline",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "bip39-spec-and-vectors",
+                "title": "BIP-39: Mnemonic code for generating deterministic keys",
+                "url": "https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki",
+                "format": "documentation",
+                "scope": "Sections \"Generating the mnemonic\", \"From mnemonic to seed\", and \"Test vectors\"",
+                "estimatedMinutes": 18,
+                "why": "Defines every bit count, normalization rule, PBKDF2 parameter, and official vector needed for deterministic assertions.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          },
+          {
+            "id": "bip32-child-derivation",
+            "purpose": "Trace hardened and normal child derivation through HMAC output, chain code, and scalar addition",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "bip32-ckd-functions",
+                "title": "BIP-32: Hierarchical Deterministic Wallets",
+                "url": "https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki",
+                "format": "documentation",
+                "scope": "Sections \"Child key derivation functions\" and \"Test vectors\"",
+                "estimatedMinutes": 22,
+                "why": "Specifies the exact HMAC inputs, hardened index boundary, invalid-child cases, and vectors behind child key derivation.",
+                "paid": false,
+                "language": "en"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "title": "Nodes, clients & JSON-RPC",
       "type": "pattern",
       "domain": "Web3",
@@ -453,6 +660,40 @@
                 "scope": "Sections \"Conventions\", \"eth_getBalance\", \"eth_call\", and \"eth_sendRawTransaction\"",
                 "estimatedMinutes": 18,
                 "why": "Provides canonical request shapes and separates historical state reads, local call simulation, and network-changing raw transaction broadcast.",
+                "paid": false,
+                "language": "en",
+                "verifiedAt": "2026-07-11",
+                "recheckAfterDays": 180
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Raw Ethereum JSON-RPC",
+      "type": "pattern",
+      "domain": "Web3",
+      "description": "Ethereum JSON-RPC is a transport-neutral request/response boundary: a client sends jsonrpc 2.0, an id, method, and positional parameters, then receives exactly one result or error. Quantities use minimal 0x-prefixed hex while byte data preserves even-length bytes; block tags change the state snapshot being queried. HTTP success does not imply RPC success, eth_call simulates without committing, and eth_sendRawTransaction accepts already-signed bytes rather than custody of a private key.",
+      "aiContext": "Build: in scripts/phase01/raw-rpc.ts, use Node's built-in fetch to call a local Anvil node directly—no viem/ethers wrapper—for eth_chainId, eth_getBalance, eth_getBlockByNumber, eth_call, and a deliberately invalid method. Validate id correlation and result-versus-error, parse hex quantities as bigint, keep DATA as bytes, and abort on timeout. Done when: one command starts from a configurable RPC URL and assertions cover success, RPC error under HTTP 200, malformed response, timeout, latest versus fixed block tags, and no floating-point balance conversion.",
+      "prerequisiteTitles": ["Nodes, clients & JSON-RPC"],
+      "parentTitle": "Blockchain basics",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "jsonrpc-wire-contract",
+            "purpose": "Implement the JSON-RPC envelope, Ethereum encoding conventions, and error boundary directly",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "ethereum-jsonrpc-conventions",
+                "title": "Ethereum JSON-RPC API",
+                "url": "https://ethereum.org/developers/docs/apis/json-rpc/",
+                "format": "documentation",
+                "scope": "Sections \"Conventions\", \"eth_getBalance\", \"eth_call\", and \"eth_sendRawTransaction\"",
+                "estimatedMinutes": 24,
+                "why": "Defines the exact request envelopes, quantity/data encodings, block parameters, call simulation, and raw submission boundary.",
                 "paid": false,
                 "language": "en",
                 "verifiedAt": "2026-07-11",
@@ -664,7 +905,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The EVM is a deterministic state machine: a transaction maps the pre-state (world state = mapping of address → account state, each with balance/nonce/code/storage) to a post-state, gas-metered every step. All nodes re-running the same transaction with the same state and block context reach the same result.",
-      "aiContext": "Build: in contracts/phase01/evm-state-machine.md, draw world state → account state → storage trie and describe how one tx transitions it. Done when: you can explain why execution must be deterministic across every node: block-context values are explicit inputs, not live wall-clock time, external I/O, or nondeterministic randomness.",
+      "aiContext": "Build: in scripts/phase01/evm-trace.ts, implement a deliberately tiny interpreter for PUSH1, ADD, MSTORE, MLOAD, SSTORE, SLOAD, STOP, and REVERT with program counter, 256-bit wrapping stack values, memory, persistent storage, and a gas counter. Execute fixed bytecode step by step and emit a trace; assert identical input yields identical post-state and REVERT discards state writes. Done when: tests catch stack underflow, invalid opcode, out-of-gas, 2^256 overflow, memory expansion, and reverted storage while a successful run matches `cast run --trace` or evm.codes.",
       "prerequisiteTitles": [],
       "parentTitle": "EVM execution model",
       "sourcePlan": {
@@ -960,6 +1201,78 @@
       "promptText": "What does the block header's stateRoot commit to, and why does it matter?",
       "answerHint": "stateRoot commits to the account trie. An account proof authenticates the account and its storageRoot against stateRoot; a separate storage proof authenticates the slot against that storageRoot along the slot key's hashed-nibble path. Changing a slot changes the storage root and ultimately stateRoot.",
       "promptKind": "concept"
+    },
+    {
+      "topicTitle": "SEC1 public-key serialization & address derivation",
+      "promptText": "Compare compressed and uncompressed SEC1 public keys and identify the exact bytes Ethereum hashes for an address.",
+      "answerHint": "Compressed is 33 bytes: 02/03 plus x, with the prefix encoding y parity. Uncompressed is 65 bytes: 04||x||y. Ethereum hashes the raw 64-byte x||y without 04 using Keccak-256, then takes the final 20 bytes. Pitfalls: 256 bits = 64 hex characters, and SHA3-256 is not Ethereum Keccak-256.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "SEC1 public-key serialization & address derivation",
+      "promptText": "Write the byte pipeline that derives and validates an Ethereum address from a 32-byte private scalar.",
+      "answerHint": "Reject scalar 0 or >= secp256k1 order; derive point (x,y) with an audited curve primitive; serialize 04||x||y; hash x||y with Keccak-256; slice bytes 12..31; compare against a client/cast vector. Include wrong-prefix and SHA3 negative assertions.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "ECDSA signing, verification & recovery",
+      "promptText": "What does a valid Ethereum signature prove, and which practical boundaries can still fail?",
+      "answerHint": "It proves control of the signing scalar authorized the exact digest. It does not prove safety or human intent. Boundaries include nonce reuse, wrong message prefix/domain, high-s malleability, parity/recovery mistakes, and accepting a zero recovered address.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "ECDSA signing, verification & recovery",
+      "promptText": "Implement a deterministic sign-and-recover check for a fixed EIP-191 message.",
+      "answerHint": "Construct the EIP-191-prefixed digest, sign locally, enforce low-s, carry recovery parity, recover the public key/address, and assert it equals the independently derived address. Mutating one byte or omitting the prefix must not recover the expected signer.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Mnemonic-to-seed & child-key derivation",
+      "promptText": "Trace a BIP-39 mnemonic into Ethereum child key m/44'/60'/0'/0/0 and name the silent divergence hazards.",
+      "answerHint": "Entropy+checksum bits map to 11-bit word indices; NFKD mnemonic enters PBKDF2-HMAC-SHA512 with salt `mnemonic`+NFKD passphrase to make a 64-byte seed; BIP-32 HMAC chain codes derive hardened and normal children; BIP-44 path selects Ethereum. Wrong normalization, endian index, hardened bit, passphrase, or path yields a valid different wallet.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Mnemonic-to-seed & child-key derivation",
+      "promptText": "Write deterministic checks for one BIP-39 vector and the first two Ethereum BIP-44 addresses.",
+      "answerHint": "Assert entropy checksum and word indices, PBKDF2 seed, root/child derivation, m/44'/60'/0'/0/0 and /1 addresses, checksum rejection, passphrase divergence, and hardened-index encoding against official vectors and cast.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "RLP & typed transaction serialization",
+      "promptText": "What bytes are signed and broadcast for an EIP-1559 type-2 transaction?",
+      "answerHint": "Signing digest = keccak256(0x02 || rlp([chainId, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to, value, data, accessList])). Broadcast bytes append yParity, r, s inside the RLP list. Integers are minimal big-endian bytes; zero is the empty byte string.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "RLP & typed transaction serialization",
+      "promptText": "Implement the RLP subset and type-2 signing pipeline for one fixed transaction vector.",
+      "answerHint": "Cover single bytes <0x80, short/long strings and lists, minimal integer encoding, nested access lists, leading type byte, unsigned field order, signing digest, appended signature, and recovered sender; compare complete hex with cast or a maintained client.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Raw Ethereum JSON-RPC",
+      "promptText": "Separate the HTTP, JSON-RPC, and Ethereum-encoding boundaries in a raw node request.",
+      "answerHint": "HTTP 200 can still contain a JSON-RPC error. Match response id; require exactly result or error. QUANTITY is minimal hex parsed as bigint; DATA is even-length bytes. A block tag selects state. eth_call simulates; eth_sendRawTransaction submits signed bytes.",
+      "promptKind": "concept"
+    },
+    {
+      "topicTitle": "Raw Ethereum JSON-RPC",
+      "promptText": "Write a dependency-free Node JSON-RPC caller that safely returns an Ethereum quantity.",
+      "answerHint": "POST jsonrpc/id/method/params with built-in fetch and AbortSignal timeout; validate status, JSON shape, matching id, and result XOR error; validate 0x quantity syntax and convert with BigInt. Test an RPC error under HTTP 200, malformed response, timeout, and a value above Number.MAX_SAFE_INTEGER.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "Hashing & Merkle trees",
+      "promptText": "Implement and adversarially test a four-leaf Keccak Merkle tree.",
+      "answerHint": "Specify leaf encoding, pair ordering, and odd-node policy; build levels, return sibling+side proofs, recompute root in verify, and reject mutated leaf/order/proof. Assert Ethereum Keccak differs from SHA3-256 and avoid ambiguous packed concatenation.",
+      "promptKind": "code"
+    },
+    {
+      "topicTitle": "The EVM as a state machine",
+      "promptText": "Implement the minimum interpreter needed to demonstrate deterministic execution and REVERT rollback.",
+      "answerHint": "Track pc, stack, byte-addressed memory, journaled storage, remaining gas, and halt status for PUSH1/ADD/MLOAD/MSTORE/SLOAD/SSTORE/STOP/REVERT. Wrap arithmetic modulo 2^256; reject underflow/invalid opcode/out-of-gas; commit storage only on successful halt.",
+      "promptKind": "code"
     }
   ],
   "noteSummaries": []
