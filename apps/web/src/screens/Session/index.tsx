@@ -63,10 +63,10 @@ export default function SessionWizard() {
     }
   }, [dash, isMode, mode, gen, toast]);
 
-  // Auto-preview once the pasted text contains a learning-os fence.
+  // Auto-preview once the pasted text contains a learning-os fence or JSON.
   useEffect(() => {
     if (step !== 'paste') return;
-    if (!/```\s*learning-os/.test(pasted) || pasted === lastPreviewed.current) return;
+    if (!/^\s*(?:```\s*learning-os|\{)/.test(pasted) || pasted === lastPreviewed.current) return;
     const t = setTimeout(() => runPreview(pasted), 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
