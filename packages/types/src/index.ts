@@ -203,7 +203,7 @@ export class LearningOsParseError extends Error {
 }
 
 export function parseLearningOs(raw: string): LearningOsV2 {
-  const block = extractLearningOsBlock(raw);
+  const block = extractLearningOsBlock(raw) ?? (raw.trimStart().startsWith('{') ? raw : null);
   if (!block) throw new LearningOsParseError('no-block', 'no learning-os block found');
   let json: unknown;
   try {

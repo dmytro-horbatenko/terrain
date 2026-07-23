@@ -130,6 +130,11 @@ describe('parseLearningOs (v2)', () => {
     expect(out.noteSummaries).toEqual([]);
   });
 
+  it('parses a bare v2 JSON object', () => {
+    const out = parseLearningOs(minimalV2.replace(/^```learning-os\n|\n```$/g, ''));
+    expect(out.version).toBe(2);
+  });
+
   it('review with promptId only is valid', () => {
     const block = `\`\`\`learning-os
 {
