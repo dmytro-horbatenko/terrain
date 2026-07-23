@@ -38,11 +38,11 @@ export default function ImportScreen() {
     [importPreview.mutate],
   );
 
-  // Auto-preview: once the pasted text contains a learning-os block, the
+  // Auto-preview: once the pasted text contains a learning-os block or JSON, the
   // deterministic read-only diff runs on its own; the button stays for
   // manual re-runs.
   useEffect(() => {
-    if (!/```\s*learning-os/.test(text) || text === lastPreviewed.current) return;
+    if (!/^\s*(?:```\s*learning-os|\{)/.test(text) || text === lastPreviewed.current) return;
     const t = setTimeout(() => runPreview(text), 600);
     return () => clearTimeout(t);
   }, [text, runPreview]);
@@ -63,8 +63,7 @@ export default function ImportScreen() {
     <div className="page">
       <h1 className="page-title">Import session</h1>
       <p className="page-sub">
-        Paste the Claude session output (it contains a fenced{' '}
-        <span className="mono">learning-os</span> block), preview the deterministic diff, then
+        Paste the Claude session output or its JSON block, preview the deterministic diff, then
         confirm to apply.
       </p>
 
