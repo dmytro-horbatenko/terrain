@@ -72,5 +72,15 @@
     "flash loan",
     "erc-4626",
     "eigenlayer"
+  ],
+  "phase1_implementation_depth": [
+    "compressed SEC1",
+    "raw 64-byte x||y",
+    "low-s normalization",
+    "PBKDF2-HMAC-SHA512",
+    "0x02 || rlp",
+    "HTTP 200 can still contain a JSON-RPC error",
+    "generate a proof for every leaf",
+    "REVERT discards state writes"
   ]
 }
