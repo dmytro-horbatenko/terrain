@@ -4,6 +4,7 @@ import { sessionRoute } from '../../app/router';
 import { useDashboard, useGenerateExport, useImportApply, useImportPreview } from '../../api/hooks';
 import { Card, ErrorBox, Loading, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
+import { SourceIssuesPanel } from '../Import/sections';
 import { initialStep } from './initialStep';
 
 type Step = 'copy' | 'paste' | 'review' | 'done';
@@ -279,6 +280,7 @@ export default function SessionWizard() {
                 ))}
               </div>
             ) : null}
+            <SourceIssuesPanel issues={plan.sourceIssues ?? []} />
             <div className="row gap-2">
               <button
                 className="btn btn-primary"
