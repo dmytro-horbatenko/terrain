@@ -155,13 +155,25 @@ adversary, not lecturer.
 
 Each phase = a chapter; each ends in a milestone project (Section "Milestones").
 
-**Phase 1 — Blockchain & Ethereum fundamentals (~30 topics).**
+**Phase 1 — Blockchain & Ethereum fundamentals (~35 topics).**
 Blockchain basics · accounts/tx/gas · EVM execution model · consensus (PoS) ·
 L2s/rollups (L2Beat trust framework) · account abstraction (ERC-4337 + EIP-7702)
 · 2025–26 protocol state (Pectra/Fusaka). Resources: Updraft *Blockchain
 Basics*, ethereum.org concepts, Mastering Ethereum 2e (selected ch.), noxx EVM
-deep-dives 1–3 + evm.codes. Mostly theory; BUILD = wallet/tx from CLI + written
-explainers.
+deep-dives 1–3 + evm.codes. Fundamentals are implementation-level, not
+overview-only: learners serialize SEC1 keys, derive addresses byte for byte,
+sign/verify/recover ECDSA messages, reproduce mnemonic-to-seed and child-key
+vectors, encode a typed transaction, issue raw JSON-RPC, verify Merkle proofs,
+and trace a small EVM interpreter. Consensus and scaling leaves may use written
+explainers where no honest local implementation surface exists.
+
+Phase 1 builds must teach failure boundaries as executable negative checks:
+bits versus hex characters; compressed versus uncompressed keys; Ethereum
+Keccak-256 versus SHA3-256; the excluded `04` public-key prefix; invalid private
+scalars; signature nonce reuse, recovery parity, low-s normalization and domain
+separation; mnemonic normalization/passphrase/path/hardened-index divergence;
+RLP minimal integers and field order; JSON-RPC result/error and quantity/data
+encoding; Merkle pair ordering; EVM underflow, overflow, gas, and rollback.
 
 **Phase 2 — Solidity language, exhaustive (~45 topics).**
 Types/data locations · functions/visibility/modifiers · storage layout ·
