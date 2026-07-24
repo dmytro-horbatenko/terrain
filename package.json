@@ -21,6 +21,8 @@
     "dev": "yarn db:up && concurrently -n api,web -c blue,green \"yarn dev:api\" \"yarn dev:web\""
   },
   "devDependencies": {
+    "@noble/curves": "2.2.0",
+    "@types/node": "26.1.1",
     "concurrently": "^9.1.2",
     "husky": "9.1.7",
     "lint-staged": "17.0.8",
