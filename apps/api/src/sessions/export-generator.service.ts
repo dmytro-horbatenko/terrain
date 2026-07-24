@@ -172,7 +172,11 @@ Note system: ${user?.noteSystem ?? ''}`;
       throw new NotFoundException(`Topic ${focusId} not found`);
     }
 
-    const goal: string[] = [`## LEARNING GOAL`, `Topic: ${focus.title} [${focus.topicType}]`];
+    const goal: string[] = [
+      `## LEARNING GOAL`,
+      `Topic: ${focus.title}`,
+      `Type: ${focus.topicType}`,
+    ];
     goal.push(`Exposure: ${this.exposureLabel(focus)}`);
     if (focus.description) goal.push(`Description: ${focus.description}`);
     if (focus.aiContext) goal.push(`AI context: ${focus.aiContext}`);

@@ -948,7 +948,7 @@ describe('ExportGeneratorService', () => {
 
       expect(md).toContain('Export: learn');
       expect(md).toContain('## LEARNING GOAL');
-      expect(md).toContain('Topic: Prefix sums [pattern]');
+      expect(md).toContain('Topic: Prefix sums\nType: pattern');
       expect(md).not.toContain('in this chapter started');
       expect(md).toContain(
         '- Hashing fundamentals — **Key insight:** buckets trade memory for time.',

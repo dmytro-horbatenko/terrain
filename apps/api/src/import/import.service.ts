@@ -27,6 +27,10 @@ import {
 } from '../sources/source-plan';
 
 const norm = (s: string) => s.trim().toLowerCase();
+const topicRefKeys = (title: string, topicType: string) => [
+  norm(title),
+  norm(`${title} [${topicType}]`),
+];
 const DAY = 86_400_000;
 // Same day-rounding formula as sr-apply.ts's reviewCreate.intervalBefore/After
 // — kept local (not exported there) since it's only needed here for a
@@ -309,7 +313,9 @@ export class ImportService {
         throw new ConflictException('This session export was already imported.');
 
       const idByNorm = new Map<string, string>();
-      for (const t of existing) idByNorm.set(norm(t.title), t.id);
+      for (const t of existing) {
+        for (const key of topicRefKeys(t.title, t.topicType)) idByNorm.set(key, t.id);
+      }
 
       // a. create new topics (+ register type) for those that don't already exist
       const topicsCreated: string[] = [];
@@ -334,7 +340,7 @@ export class ImportService {
             status: 'planned',
           },
         });
-        idByNorm.set(norm(nt.title), created.id);
+        for (const key of topicRefKeys(nt.title, nt.topicType)) idByNorm.set(key, created.id);
         topicsCreated.push(created.id);
       }
 
@@ -562,11 +568,12 @@ export class ImportService {
     const now = this.now();
     const byNorm = new Map<string, Topic[]>();
     for (const t of existing) {
-      const k = norm(t.title);
-      (byNorm.get(k) ?? byNorm.set(k, []).get(k)!).push(t);
+      for (const key of topicRefKeys(t.title, t.topicType)) {
+        (byNorm.get(key) ?? byNorm.set(key, []).get(key)!).push(t);
+      }
     }
     const titleById = new Map(existing.map((t) => [t.id, t.title] as const));
-    const batchNorm = new Set(parsed.proposedTopics.map((p) => norm(p.title)));
+    const batchNorm = new Set(parsed.proposedTopics.flatMap((p) => topicRefKeys(p.title, p.type)));
     const unresolved: Unresolved[] = [];
 
     const resolveExisting = (title: string): { id: string | null; ambiguous: boolean } => {

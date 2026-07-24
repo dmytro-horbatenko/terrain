@@ -796,6 +796,66 @@ describe('ImportService.apply (transaction)', () => {
     return mod.get(ImportService);
   }
 
+  it('accepts exported "title [type]" labels as references to an existing topic', async () => {
+    const tx = txMock();
+    tx.topic.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: {
+        findMany: jest.fn().mockResolvedValue([
+          TOPIC({
+            title: 'EIP-712 typed structured authorization',
+            status: 'planned',
+            sourcePlan: { policy: 'none', rationale: 'Session-led topic' },
+          }),
+        ]),
+      },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    };
+    const service = await svcWithTx(prisma);
+    const label = 'EIP-712 typed structured authorization [pattern]';
+    const result = await service.apply(
+      'userA',
+      fence(
+        v2({
+          reviews: [{ topicTitle: label, grade: 'good' }],
+          proposedTopics: [
+            {
+              title: 'Smart contract accounts and account abstraction',
+              type: 'pattern',
+              domain: 'Blockchain',
+              prerequisiteTitles: [label],
+              parentTitle: label,
+            },
+          ],
+          proposedPrompts: [{ topicTitle: label, promptText: 'What is EIP-712?' }],
+          noteSummaries: [{ topicTitle: label, keyInsight: 'Typed structured authorization.' }],
+          studiedTopics: [label],
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      reviewsApplied: 1,
+      noteSummariesApplied: 1,
+      topicsActivated: 1,
+    });
+    expect(tx.prompt.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ topicId: 't1', promptText: 'What is EIP-712?' }),
+    });
+    expect(tx.topic.update).toHaveBeenCalledWith({
+      where: { id: 'new-Smart contract accounts and account abstraction' },
+      data: { parentId: 't1' },
+    });
+    expect(tx.prerequisite.create).toHaveBeenCalledWith({
+      data: {
+        topicId: 'new-Smart contract accounts and account abstraction',
+        prerequisiteId: 't1',
+      },
+    });
+  });
+
   it('claims atomically, dedupes prereqs, normalizes blank focus to null', async () => {
     const tx = txMock();
     const prisma: any = {
