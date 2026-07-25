@@ -137,6 +137,170 @@ export type SourceEvidence = z.infer<typeof sourceEvidenceSchema>;
 export const GRADES = ['again', 'hard', 'good', 'easy'] as const;
 export type Grade = (typeof GRADES)[number];
 
+export const LEARNING_APPROACHES = ['guided', 'source-first'] as const;
+export type LearningApproach = (typeof LEARNING_APPROACHES)[number];
+
+const topicStatusSchema = z.enum(['planned', 'active', 'mastered', 'archived']);
+const knowledgeLevelSchema = z.enum(['unseen', 'introduced', 'practicing', 'mastered']);
+
+const evidenceSchema = z
+  .object({
+    recentGrades: z.array(z.enum(GRADES)).max(3),
+    lastReviewedAt: z.string().datetime().nullable(),
+    sourceTitles: z.array(z.string()),
+    applicationCount: z.number().int().nonnegative(),
+    latestApplication: z.string().nullable(),
+  })
+  .strict();
+
+const knowledgeContextSchema = z
+  .object({
+    id: z.string().uuid(),
+    title: z.string(),
+    status: topicStatusSchema,
+    level: knowledgeLevelSchema,
+    reason: z.string(),
+    summary: z.string().nullable(),
+    evidence: evidenceSchema,
+  })
+  .strict();
+
+type PrerequisiteContextShape = {
+  id: string;
+  title: string;
+  status: TopicStatus;
+  satisfied: boolean;
+  reason: string;
+  learnedLeaves: number;
+  totalLeaves: number;
+  summary: string | null;
+  evidence: z.infer<typeof evidenceSchema>;
+  children: PrerequisiteContextShape[];
+};
+
+const prerequisiteContextSchema: z.ZodType<PrerequisiteContextShape> = z.lazy(() =>
+  z
+    .object({
+      id: z.string().uuid(),
+      title: z.string(),
+      status: topicStatusSchema,
+      satisfied: z.boolean(),
+      reason: z.string(),
+      learnedLeaves: z.number().int().nonnegative(),
+      totalLeaves: z.number().int().nonnegative(),
+      summary: z.string().nullable(),
+      evidence: evidenceSchema,
+      children: z.array(prerequisiteContextSchema),
+    })
+    .strict(),
+);
+
+export const learningContextSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    generatedAt: z.string().datetime(),
+    learner: z
+      .object({
+        role: z.string().nullable(),
+        learningStyle: z.string().nullable(),
+        codeStyle: z.string().nullable(),
+        noteSystem: z.string().nullable(),
+      })
+      .strict(),
+    target: z
+      .object({
+        id: z.string().uuid(),
+        title: z.string(),
+        domain: z.string(),
+        topicType: z.string(),
+        kind: z.enum(['leaf', 'group']),
+        sessionEligible: z.boolean(),
+        status: topicStatusSchema,
+        description: z.string().nullable(),
+        sourcePlan: sourcePlanSchema.nullable(),
+        chapter: z
+          .object({
+            id: z.string().uuid(),
+            title: z.string(),
+            learnedLeaves: z.number().int().nonnegative(),
+            totalLeaves: z.number().int().nonnegative(),
+          })
+          .strict()
+          .nullable(),
+        approach: z
+          .object({
+            recommended: z.enum(LEARNING_APPROACHES),
+            reasons: z.array(z.string().min(1)).min(1),
+          })
+          .strict(),
+        prompts: z.array(
+          z
+            .object({
+              id: z.string().uuid(),
+              kind: z.enum(['concept', 'code', 'problem']),
+              text: z.string(),
+              state: z.enum(['new', 'learning', 'review', 'relearning']),
+              difficulty: z.number().nullable(),
+              stability: z.number().nullable(),
+              lastGrade: z.enum(GRADES).nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict()
+      .nullable(),
+    selection: z
+      .object({
+        source: z.enum(['explicit', 'imported-focus', 'authored-order', 'none']),
+        importedFocus: z
+          .object({
+            title: z.string(),
+            accepted: z.boolean(),
+            reason: z.string(),
+          })
+          .strict()
+          .nullable(),
+        learnableAlternatives: z.array(
+          z
+            .object({
+              id: z.string().uuid(),
+              title: z.string(),
+              chapterTitle: z.string().nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+    prerequisites: z.array(prerequisiteContextSchema),
+    mayRelyOn: z.array(knowledgeContextSchema),
+    doNotAssume: z.array(knowledgeContextSchema),
+    blockers: z.array(
+      z
+        .object({
+          topicId: z.string().uuid(),
+          title: z.string(),
+          reason: z.string(),
+          learnedLeaves: z.number().int().nonnegative().optional(),
+          totalLeaves: z.number().int().nonnegative().optional(),
+          unfinishedLeaves: z
+            .array(
+              z
+                .object({
+                  id: z.string().uuid(),
+                  title: z.string(),
+                  status: topicStatusSchema,
+                })
+                .strict(),
+            )
+            .optional(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
+export type LearningContext = z.infer<typeof learningContextSchema>;
+
 const reviewV2Schema = z
   .object({
     promptId: z.string().uuid().optional(),
