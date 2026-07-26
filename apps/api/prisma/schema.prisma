@@ -69,27 +69,35 @@ enum ExportMode {
   learn
 }
 
+enum LearningApproach {
+  guided
+  source_first
+}
+
 model User {
-  id             String             @id @default(uuid())
-  email          String             @unique
-  passwordHash   String
-  name           String
-  headline       String?
-  learningStyle  String?
-  codeStyle      String?
-  noteSystem     String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  topics         Topic[]
-  reviews        Review[]
-  appEvents      ApplicationEvent[]
-  sessionExports SessionExport[]
-  streakState    StreakState?
-  settings       Settings?
-  dailyLogs      DailyLog[]
-  topicTypes     TopicType[]
-  courseImports  CourseImport[]
-  sourceEvidence SourceEvidence[]
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  passwordHash          String
+  name                  String
+  headline              String?
+  learningStyle         String?
+  codeStyle             String?
+  noteSystem            String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  topics                Topic[]
+  reviews               Review[]
+  appEvents             ApplicationEvent[]
+  sessionExports        SessionExport[]
+  streakState           StreakState?
+  settings              Settings?
+  dailyLogs             DailyLog[]
+  topicTypes            TopicType[]
+  courseImports         CourseImport[]
+  sourceEvidence        SourceEvidence[]
+  mcpAuthorizationCodes McpAuthorizationCode[]
+  mcpRefreshTokens      McpRefreshToken[]
+  mcpOAuthGrants        McpOAuthGrant[]
 }
 
 // Case-insensitive title identity per user is enforced by a raw unique
@@ -202,13 +210,14 @@ model ApplicationEvent {
 }
 
 model SessionExport {
-  id                String           @id @default(uuid())
+  id                String            @id @default(uuid())
   userId            String
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generatedAt       DateTime         @default(now())
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedAt       DateTime          @default(now())
   mode              ExportMode
   domain            String?
   focusTopicId      String?
+  approach          LearningApproach?
   exportMd          String
   importedAt        DateTime?
   importedOutputRaw String?
@@ -298,4 +307,54 @@ model CourseImport {
   importedAt DateTime @default(now())
 
   @@unique([userId, courseId])
+}
+
+model McpAuthorizationCode {
+  id            String    @id @default(uuid())
+  codeHash      String    @unique
+  grantId       String
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String
+  redirectUri   String
+  codeChallenge String
+  scopes        String[]
+  resource      String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, clientId])
+  @@index([expiresAt])
+}
+
+model McpRefreshToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  familyId  String
+  grantId   String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  scopes    String[]
+  resource  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, clientId])
+  @@index([familyId])
+  @@index([expiresAt])
+}
+
+model McpOAuthGrant {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  scopes    String[]
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@unique([userId, clientId])
 }
