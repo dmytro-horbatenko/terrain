@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { Prompt, Topic } from '@prisma/client';
+import type { LearningApproach } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseStoredSourcePlan, sourcePlanStats } from '../sources/source-plan';
+import { LearningContextService } from '../learning/learning-context.service';
+import { buildRoadmapPolicy } from '../learning/roadmap-policy';
 import { estimateMinutes } from '../telegram/telegram.messages';
 import { interleaveQueue, type SessionQueueItem } from './interleave';
 
@@ -25,7 +27,10 @@ function localDateKey(d: Date): string {
 
 @Injectable()
 export class MetricsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private learning: LearningContextService,
+  ) {}
 
   private async disabledDomains(userId: string): Promise<string[]> {
     const settings = await this.prisma.settings.findUnique({
@@ -43,17 +48,11 @@ export class MetricsService {
     return disabledDomains.length ? { domain: { notIn: disabledDomains } } : {};
   }
 
-  topicLabels(input: {
-    status: string;
-    cards: { reps: number }[];
-    prerequisiteStatuses: string[];
-  }): {
+  topicLabels(input: { status: string; cards: { reps: number }[]; blocked: boolean }): {
     blocked: boolean;
     reviewing: boolean;
   } {
-    const blocked =
-      input.status === 'planned' &&
-      input.prerequisiteStatuses.some((s) => s !== 'mastered' && s !== 'active');
+    const blocked = input.status === 'planned' && input.blocked;
     const reviewing = input.status === 'active' && input.cards.some((c) => c.reps > 0);
     return { blocked, reviewing };
   }
@@ -225,34 +224,38 @@ export class MetricsService {
   }
 
   /**
-   * IDs of planned topics whose direct prerequisites are all started
-   * (active or mastered) — the startable frontier, in creation order.
-   * Topics with children are category/chapter nodes (organizational, per the
-   * same hasChildren convention as the web roadmap projection), not
-   * reviewable units — they're excluded so a category can't outrank its own
-   * leaves just for being created first.
+   * IDs of learnable planned leaves in creation order. Policy evaluation sees
+   * the whole owned graph before the candidate domain is filtered.
    */
   private async startablePlannedIds(
     userId: string,
     domain: string | undefined,
     disabledDomains: string[],
   ): Promise<string[]> {
-    const planned = await this.prisma.topic.findMany({
-      where: { userId, status: 'planned', ...this.domainFilter(domain, disabledDomains) },
+    const topics = await this.prisma.topic.findMany({
+      where: { userId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
-        prerequisites: { select: { prerequisite: { select: { status: true } } } },
-        children: { select: { id: true }, take: 1 },
+        domain: true,
+        parentId: true,
+        status: true,
+        prerequisites: { select: { prerequisiteId: true } },
       },
     });
-    return planned
-      .filter((t) => t.children.length === 0)
-      .filter((t) =>
-        t.prerequisites.every(
-          (p) => p.prerequisite.status === 'active' || p.prerequisite.status === 'mastered',
-        ),
+    const policy = buildRoadmapPolicy(
+      topics.map((topic) => ({
+        id: topic.id,
+        parentId: topic.parentId,
+        status: topic.status,
+        prerequisiteIds: topic.prerequisites.map((edge) => edge.prerequisiteId),
+      })),
+    );
+    return topics
+      .filter((topic) =>
+        domain ? topic.domain === domain : !disabledDomains.includes(topic.domain),
       )
+      .filter((topic) => policy.get(topic.id)?.learnable)
       .map((t) => t.id);
   }
 
@@ -283,45 +286,7 @@ export class MetricsService {
    * topics are candidates — starting one commits it (web-side).
    */
   async nextUp(userId: string, domain?: string, now = new Date()): Promise<NextUp | null> {
-    const disabled = await this.disabledDomains(userId);
-    const startableIds = await this.startablePlannedIds(userId, domain, disabled);
-    const [firstId] = startableIds;
-    if (!firstId) return null;
-    const suggested = await this.prisma.sessionExport.findFirst({
-      where: { userId, importedAt: { not: null }, nextFocusTitle: { not: null } },
-      orderBy: { importedAt: 'desc' },
-      select: { nextFocusTitle: true },
-    });
-    const suggestedTopic = suggested?.nextFocusTitle
-      ? await this.prisma.topic.findFirst({
-          where: {
-            id: { in: startableIds },
-            userId,
-            title: { equals: suggested.nextFocusTitle.trim(), mode: 'insensitive' },
-          },
-        })
-      : null;
-    const topic =
-      suggestedTopic ?? (await this.prisma.topic.findFirst({ where: { id: firstId, userId } }));
-    if (!topic) return null;
-    const stats = sourcePlanStats(parseStoredSourcePlan(topic.sourcePlan), topic.status, now);
-    if (!topic.parentId)
-      return { topic, chapterTitle: null, chapterProgress: null, sourcePlanStats: stats };
-    const parent = await this.prisma.topic.findFirst({
-      where: { id: topic.parentId, userId },
-      select: { title: true, children: { select: { status: true } } },
-    });
-    if (!parent)
-      return { topic, chapterTitle: null, chapterProgress: null, sourcePlanStats: stats };
-    const started = parent.children.filter(
-      (c) => c.status === 'active' || c.status === 'mastered',
-    ).length;
-    return {
-      topic,
-      chapterTitle: parent.title,
-      chapterProgress: { started, total: parent.children.length },
-      sourcePlanStats: stats,
-    };
+    return this.learning.nextUp(userId, domain, now);
   }
 
   /**
@@ -332,7 +297,16 @@ export class MetricsService {
   private async pendingSessions(
     userId: string,
     now: Date,
-  ): Promise<{ id: string; mode: 'repeat' | 'learn'; generatedAt: Date }[]> {
+  ): Promise<
+    {
+      id: string;
+      mode: 'repeat' | 'learn';
+      generatedAt: Date;
+      focusTopicId: string | null;
+      topicTitle: string | null;
+      approach: LearningApproach | null;
+    }[]
+  > {
     const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     const modes = ['repeat', 'learn'] as const;
     const latest = await Promise.all(
@@ -340,15 +314,36 @@ export class MetricsService {
         this.prisma.sessionExport.findFirst({
           where: { userId, mode },
           orderBy: { generatedAt: 'desc' },
-          select: { id: true, mode: true, generatedAt: true, importedAt: true },
+          select: {
+            id: true,
+            mode: true,
+            generatedAt: true,
+            importedAt: true,
+            focusTopicId: true,
+            approach: true,
+          },
         }),
       ),
     );
-    return latest.flatMap((row) =>
-      row && row.importedAt === null && row.generatedAt >= cutoff
-        ? [{ id: row.id, mode: row.mode as 'repeat' | 'learn', generatedAt: row.generatedAt }]
-        : [],
+    const pending = latest.flatMap((row) =>
+      row && row.importedAt === null && row.generatedAt >= cutoff ? [row] : [],
     );
+    const focusIds = pending.flatMap((row) => (row.focusTopicId ? [row.focusTopicId] : []));
+    const topics = focusIds.length
+      ? await this.prisma.topic.findMany({
+          where: { userId, id: { in: focusIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const titleById = new Map(topics.map((topic) => [topic.id, topic.title]));
+    return pending.map((row) => ({
+      id: row.id,
+      mode: row.mode as 'repeat' | 'learn',
+      generatedAt: row.generatedAt,
+      focusTopicId: row.focusTopicId,
+      topicTitle: row.focusTopicId ? (titleById.get(row.focusTopicId) ?? null) : null,
+      approach: row.approach === 'source_first' ? 'source-first' : row.approach,
+    }));
   }
 
   async dashboard(userId: string, now: Date, domain?: string) {

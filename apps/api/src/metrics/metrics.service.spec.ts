@@ -1,10 +1,21 @@
 import { Test } from '@nestjs/testing';
+import { LearningContextService } from '../learning/learning-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from './metrics.service';
+
+const roadmapTopic = (overrides: Record<string, unknown> = {}) => ({
+  id: 'topic',
+  domain: 'DSA',
+  parentId: null,
+  status: 'planned',
+  prerequisites: [],
+  ...overrides,
+});
 
 describe('MetricsService', () => {
   let service: MetricsService;
   let prisma: any;
+  let learning: { nextUp: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -21,8 +32,17 @@ describe('MetricsService', () => {
       sessionExport: { findFirst: jest.fn().mockResolvedValue(null) },
       settings: { findUnique: jest.fn().mockResolvedValue(null) },
     };
+    learning = {
+      nextUp: jest.fn((userId, domain, now) =>
+        new LearningContextService(prisma).nextUp(userId, domain, now),
+      ),
+    };
     const mod = await Test.createTestingModule({
-      providers: [MetricsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        MetricsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: LearningContextService, useValue: learning },
+      ],
     }).compile();
     service = mod.get(MetricsService);
   });
@@ -146,11 +166,19 @@ describe('MetricsService', () => {
   it('struggleRatio7d scopes reviews to the user', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma: any = { review: { findMany } };
-    const svc = new MetricsService(prisma);
+    const svc = new MetricsService(prisma, learning as any);
     await svc.struggleRatio7d('userA', new Date('2026-07-01T00:00:00Z'));
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: 'userA' }) }),
     );
+  });
+
+  it('requires the canonical learning service in Nest dependency injection', async () => {
+    await expect(
+      Test.createTestingModule({
+        providers: [MetricsService, { provide: PrismaService, useValue: prisma }],
+      }).compile(),
+    ).rejects.toThrow(/LearningContextService/);
   });
 
   it('heatmap emits a dense oldest-first series counting reviews per local day', async () => {
@@ -208,50 +236,22 @@ describe('MetricsService', () => {
     );
   });
 
-  it('topicLabels: planned with an active prerequisite is NOT blocked (started gate)', () => {
-    expect(
-      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['active'] }),
-    ).toEqual({ blocked: false, reviewing: false });
-  });
-  it('topicLabels: planned with a planned prerequisite is blocked', () => {
-    expect(
-      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['planned'] }),
-    ).toEqual({ blocked: true, reviewing: false });
-  });
-  it('topicLabels: planned with an archived prerequisite is blocked', () => {
-    expect(
-      service.topicLabels({ status: 'planned', cards: [], prerequisiteStatuses: ['archived'] }),
-    ).toEqual({ blocked: true, reviewing: false });
-  });
-  it('topicLabels: one unstarted prerequisite among started ones still blocks', () => {
-    expect(
-      service.topicLabels({
-        status: 'planned',
-        cards: [],
-        prerequisiteStatuses: ['mastered', 'active', 'planned'],
-      }),
-    ).toEqual({ blocked: true, reviewing: false });
-  });
-  it('topicLabels: a non-planned topic is never blocked', () => {
-    expect(
-      service.topicLabels({ status: 'active', cards: [], prerequisiteStatuses: ['planned'] }),
-    ).toEqual({ blocked: false, reviewing: false });
-  });
-  it('topicLabels: planned with all prereqs mastered is not blocked', () => {
-    expect(
-      service.topicLabels({
-        status: 'planned',
-        cards: [],
-        prerequisiteStatuses: ['mastered', 'mastered'],
-      }),
-    ).toEqual({ blocked: false, reviewing: false });
+  it('topicLabels uses the policy-derived blocked value', () => {
+    expect(service.topicLabels({ status: 'planned', cards: [], blocked: true })).toEqual({
+      blocked: true,
+      reviewing: false,
+    });
+    expect(service.topicLabels({ status: 'active', cards: [], blocked: true })).toEqual({
+      blocked: false,
+      reviewing: false,
+    });
   });
   it('topicLabels: reviewing when any card has reps > 0', () => {
     expect(
       service.topicLabels({
         status: 'active',
         cards: [{ reps: 0 }, { reps: 3 }],
-        prerequisiteStatuses: [],
+        blocked: false,
       }),
     ).toEqual({ blocked: false, reviewing: true });
   });
@@ -260,12 +260,12 @@ describe('MetricsService', () => {
       service.topicLabels({
         status: 'active',
         cards: [{ reps: 0 }, { reps: 0 }],
-        prerequisiteStatuses: [],
+        blocked: false,
       }),
     ).toEqual({ blocked: false, reviewing: false });
   });
   it('topicLabels: not reviewing when cards array is empty', () => {
-    expect(service.topicLabels({ status: 'active', cards: [], prerequisiteStatuses: [] })).toEqual({
+    expect(service.topicLabels({ status: 'active', cards: [], blocked: false })).toEqual({
       blocked: false,
       reviewing: false,
     });
@@ -297,25 +297,16 @@ describe('MetricsService', () => {
   });
 
   it('newCardsCount includes startable planned topics and excludes blocked ones', async () => {
-    prisma.topic.findMany.mockImplementation(({ where }: any) =>
-      Promise.resolve(
-        where?.status === 'planned'
-          ? [
-              {
-                id: 'startable',
-                prerequisites: [{ prerequisite: { status: 'active' } }],
-                children: [],
-              },
-              { id: 'zero-prereq', prerequisites: [], children: [] },
-              {
-                id: 'blocked',
-                prerequisites: [{ prerequisite: { status: 'planned' } }],
-                children: [],
-              },
-            ]
-          : [],
-      ),
-    );
+    prisma.topic.findMany.mockResolvedValue([
+      roadmapTopic({ id: 'started-prerequisite', status: 'active' }),
+      roadmapTopic({
+        id: 'startable',
+        prerequisites: [{ prerequisiteId: 'started-prerequisite' }],
+      }),
+      roadmapTopic({ id: 'zero-prereq' }),
+      roadmapTopic({ id: 'blocked-prerequisite' }),
+      roadmapTopic({ id: 'blocked', prerequisites: [{ prerequisiteId: 'blocked-prerequisite' }] }),
+    ]);
     prisma.prompt.count.mockResolvedValue(3);
     const result = await service.newCardsCount('userA', 'DSA');
     expect(result).toBe(3);
@@ -326,17 +317,21 @@ describe('MetricsService', () => {
         topic: { userId: 'userA', domain: 'DSA' },
         OR: [
           { topic: { status: { in: ['active', 'mastered'] } } },
-          { topicId: { in: ['startable', 'zero-prereq'] } },
+          { topicId: { in: ['startable', 'zero-prereq', 'blocked-prerequisite'] } },
         ],
       },
     });
   });
-  it('newCardsCount queries planned topics in creation order scoped to the user', async () => {
+  it('newCardsCount loads the owned topology in creation order', async () => {
     await service.newCardsCount('userA');
     expect(prisma.topic.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'userA', status: 'planned' },
+        where: { userId: 'userA' },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: expect.objectContaining({
+          parentId: true,
+          prerequisites: { select: { prerequisiteId: true } },
+        }),
       }),
     );
   });
@@ -348,14 +343,14 @@ describe('MetricsService', () => {
     expect(prisma.prompt.findMany).not.toHaveBeenCalled();
   });
 
-  it('newCardsCount excludes disabled domains from both the startable-planned query and the count query', async () => {
+  it('newCardsCount filters disabled domains after loading the owned topology', async () => {
     prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
     prisma.prompt.count.mockResolvedValue(2);
     const result = await service.newCardsCount('userA');
     expect(result).toBe(2);
     expect(prisma.topic.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'userA', status: 'planned', domain: { notIn: ['DSA'] } },
+        where: { userId: 'userA' },
       }),
     );
     expect(prisma.prompt.count).toHaveBeenCalledWith(
@@ -374,12 +369,12 @@ describe('MetricsService', () => {
     const now = new Date('2026-01-08T12:00:00Z');
     prisma.topic.findMany.mockImplementation(({ where }: any) =>
       Promise.resolve(
-        where?.status === 'planned'
-          ? []
-          : [
+        where?.status === 'active'
+          ? [
               { nextReviewAt: new Date('2026-01-05T00:00:00Z') }, // overdue in every timezone
               { nextReviewAt: now }, // >= startOfToday in every timezone => dueToday
-            ],
+            ]
+          : [],
       ),
     );
     prisma.prompt.count.mockResolvedValue(7);
@@ -402,13 +397,75 @@ describe('MetricsService', () => {
   });
 
   describe('nextUp', () => {
+    it('delegates canonical selection without querying Prisma itself', async () => {
+      const now = new Date('2026-07-24T12:00:00Z');
+      const expected = { topic: { id: 'canonical' } };
+      learning.nextUp.mockResolvedValueOnce(expected);
+
+      await expect(service.nextUp('userA', 'DSA', now)).resolves.toBe(expected);
+
+      expect(learning.nextUp).toHaveBeenCalledWith('userA', 'DSA', now);
+      expect(prisma.topic.findMany).not.toHaveBeenCalled();
+      expect(prisma.sessionExport.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('nextUp does not cross an incomplete prerequisite chapter', async () => {
+      prisma.topic.findMany.mockResolvedValue([
+        {
+          id: 'basics',
+          title: 'Blockchain basics',
+          parentId: null,
+          status: 'active',
+          createdAt: new Date('2026-01-01'),
+          prerequisites: [],
+          children: Array.from({ length: 13 }, (_, i) => ({ id: `basic-${i + 1}` })),
+        },
+        ...Array.from({ length: 13 }, (_, i) => ({
+          id: `basic-${i + 1}`,
+          title: `Basic ${i + 1}`,
+          parentId: 'basics',
+          status: i < 5 ? 'active' : 'planned',
+          createdAt: new Date(`2026-01-${String(i + 2).padStart(2, '0')}`),
+          prerequisites: [],
+          children: [],
+        })),
+        {
+          id: 'accounts',
+          title: 'Accounts, transactions & gas',
+          parentId: null,
+          status: 'planned',
+          createdAt: new Date('2026-02-01'),
+          prerequisites: [{ prerequisiteId: 'basics' }],
+          children: [],
+        },
+      ]);
+      prisma.topic.findFirst
+        .mockResolvedValueOnce({
+          id: 'basic-6',
+          title: 'Basic 6',
+          parentId: 'basics',
+          status: 'planned',
+          sourcePlan: null,
+        })
+        .mockResolvedValueOnce({
+          title: 'Blockchain basics',
+          children: Array.from({ length: 13 }, (_, i) => ({
+            status: i < 5 ? 'active' : 'planned',
+          })),
+        });
+
+      expect(await service.nextUp('userA')).toMatchObject({
+        topic: { id: 'basic-6', title: 'Basic 6' },
+      });
+    });
+
     it('prefers the latest imported next focus when it is startable', async () => {
       prisma.sessionExport.findFirst.mockResolvedValue({
         nextFocusTitle: 'Mnemonics & HD wallets',
       });
       prisma.topic.findMany.mockResolvedValue([
-        { id: 'transaction', prerequisites: [], children: [] },
-        { id: 'mnemonics', prerequisites: [], children: [] },
+        roadmapTopic({ id: 'transaction', title: 'Transaction anatomy' }),
+        roadmapTopic({ id: 'mnemonics', title: 'Mnemonics & HD wallets' }),
       ]);
       prisma.topic.findFirst.mockImplementation(({ where }: any) =>
         Promise.resolve(
@@ -438,13 +495,7 @@ describe('MetricsService', () => {
         orderBy: { importedAt: 'desc' },
         select: { nextFocusTitle: true },
       });
-      expect(prisma.topic.findFirst).toHaveBeenCalledWith({
-        where: {
-          id: { in: ['transaction', 'mnemonics'] },
-          userId: 'userA',
-          title: { equals: 'Mnemonics & HD wallets', mode: 'insensitive' },
-        },
-      });
+      expect(prisma.topic.findFirst).not.toHaveBeenCalled();
     });
 
     it('trims an imported next focus before resolving it', async () => {
@@ -452,8 +503,8 @@ describe('MetricsService', () => {
         nextFocusTitle: '  Mnemonics & HD wallets  ',
       });
       prisma.topic.findMany.mockResolvedValue([
-        { id: 'transaction', prerequisites: [], children: [] },
-        { id: 'mnemonics', prerequisites: [], children: [] },
+        roadmapTopic({ id: 'transaction', title: 'Transaction anatomy' }),
+        roadmapTopic({ id: 'mnemonics', title: 'Mnemonics & HD wallets' }),
       ]);
       prisma.topic.findFirst.mockImplementation(({ where }: any) =>
         Promise.resolve(
@@ -473,7 +524,9 @@ describe('MetricsService', () => {
         { requiredCount: 0, estimatedMinutes: 0, hasExpired: false },
       ],
     ])('returns zero source timing for plan %p', async (sourcePlan, expected) => {
-      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 't1', title: 'Stack', sourcePlan }),
+      ]);
       prisma.topic.findFirst.mockResolvedValue({
         id: 't1',
         title: 'Stack',
@@ -486,58 +539,61 @@ describe('MetricsService', () => {
     });
 
     it('returns minimum required source count and intake time', async () => {
-      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      const sourcePlan = {
+        policy: 'required',
+        requirements: [
+          {
+            id: 'concept',
+            purpose: 'Learn the concept',
+            requiredWhen: 'always',
+            options: [
+              {
+                id: 'course',
+                title: 'Course',
+                url: 'https://example.com/course',
+                format: 'course',
+                scope: 'Module',
+                estimatedMinutes: 25,
+                why: 'Complete',
+              },
+              {
+                id: 'notes',
+                title: 'Notes',
+                url: 'https://example.com/notes',
+                format: 'article',
+                scope: 'Article',
+                estimatedMinutes: 10,
+                why: 'Concise',
+              },
+            ],
+          },
+          {
+            id: 'implementation',
+            purpose: 'See an implementation',
+            requiredWhen: 'first_exposure',
+            options: [
+              {
+                id: 'repo',
+                title: 'Repository',
+                url: 'https://example.com/repo',
+                format: 'documentation',
+                scope: 'Example',
+                estimatedMinutes: 15,
+                why: 'Concrete',
+              },
+            ],
+          },
+        ],
+      };
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 't1', title: 'Stack', sourcePlan }),
+      ]);
       prisma.topic.findFirst.mockResolvedValue({
         id: 't1',
         title: 'Stack',
         status: 'planned',
         parentId: null,
-        sourcePlan: {
-          policy: 'required',
-          requirements: [
-            {
-              id: 'concept',
-              purpose: 'Learn the concept',
-              requiredWhen: 'always',
-              options: [
-                {
-                  id: 'course',
-                  title: 'Course',
-                  url: 'https://example.com/course',
-                  format: 'course',
-                  scope: 'Module',
-                  estimatedMinutes: 25,
-                  why: 'Complete',
-                },
-                {
-                  id: 'notes',
-                  title: 'Notes',
-                  url: 'https://example.com/notes',
-                  format: 'article',
-                  scope: 'Article',
-                  estimatedMinutes: 10,
-                  why: 'Concise',
-                },
-              ],
-            },
-            {
-              id: 'implementation',
-              purpose: 'See an implementation',
-              requiredWhen: 'first_exposure',
-              options: [
-                {
-                  id: 'repo',
-                  title: 'Repository',
-                  url: 'https://example.com/repo',
-                  format: 'documentation',
-                  scope: 'Example',
-                  estimatedMinutes: 15,
-                  why: 'Concrete',
-                },
-              ],
-            },
-          ],
-        },
+        sourcePlan,
       });
 
       expect((await service.nextUp('userA'))?.sourcePlanStats).toEqual({
@@ -548,35 +604,38 @@ describe('MetricsService', () => {
     });
 
     it('uses the request clock for source expiry', async () => {
-      prisma.topic.findMany.mockResolvedValue([{ id: 't1', prerequisites: [], children: [] }]);
+      const sourcePlan = {
+        policy: 'required',
+        requirements: [
+          {
+            id: 'current',
+            purpose: 'Read current documentation',
+            requiredWhen: 'always',
+            options: [
+              {
+                id: 'docs',
+                title: 'Documentation',
+                url: 'https://example.com/docs',
+                format: 'documentation',
+                scope: 'Guide',
+                estimatedMinutes: 10,
+                why: 'Authoritative',
+                verifiedAt: '2026-06-01',
+                recheckAfterDays: 30,
+              },
+            ],
+          },
+        ],
+      };
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 't1', title: 'Stack', sourcePlan }),
+      ]);
       prisma.topic.findFirst.mockResolvedValue({
         id: 't1',
         title: 'Stack',
         status: 'planned',
         parentId: null,
-        sourcePlan: {
-          policy: 'required',
-          requirements: [
-            {
-              id: 'current',
-              purpose: 'Read current documentation',
-              requiredWhen: 'always',
-              options: [
-                {
-                  id: 'docs',
-                  title: 'Documentation',
-                  url: 'https://example.com/docs',
-                  format: 'documentation',
-                  scope: 'Guide',
-                  estimatedMinutes: 10,
-                  why: 'Authoritative',
-                  verifiedAt: '2026-06-01',
-                  recheckAfterDays: 30,
-                },
-              ],
-            },
-          ],
-        },
+        sourcePlan,
       });
 
       const result = await service.nextUp('userA', undefined, new Date('2026-06-15T00:00:00Z'));
@@ -585,31 +644,26 @@ describe('MetricsService', () => {
     });
 
     it('returns the first startable planned topic in creation order, skipping blocked ones', async () => {
-      prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(
-          where?.status === 'planned'
-            ? [
-                {
-                  id: 't-blocked',
-                  prerequisites: [{ prerequisite: { status: 'planned' } }],
-                  children: [],
-                },
-                {
-                  id: 't-startable',
-                  prerequisites: [{ prerequisite: { status: 'active' } }],
-                  children: [],
-                },
-              ]
-            : [],
-        ),
-      );
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 'prerequisite', status: 'active' }),
+        roadmapTopic({
+          id: 't-blocked',
+          prerequisites: [{ prerequisiteId: 'blocked-prerequisite' }],
+        }),
+        roadmapTopic({ id: 'blocked-prerequisite', status: 'archived' }),
+        roadmapTopic({
+          id: 't-startable',
+          title: 'Stack',
+          prerequisites: [{ prerequisiteId: 'prerequisite' }],
+        }),
+      ]);
       prisma.topic.findFirst.mockResolvedValue({
         id: 't-startable',
         title: 'Stack',
         parentId: null,
       });
       const result = await service.nextUp('userA');
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         topic: { id: 't-startable', title: 'Stack', parentId: null },
         chapterTitle: null,
         chapterProgress: null,
@@ -618,18 +672,19 @@ describe('MetricsService', () => {
       // ordering is delegated to SQL — assert it, and that aiProposed is NOT filtered
       expect(prisma.topic.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'userA', status: 'planned' },
+          where: { userId: 'userA' },
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         }),
       );
     });
 
     it('attaches chapter title and started/total progress when the topic has a parent', async () => {
-      prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(
-          where?.status === 'planned' ? [{ id: 't1', prerequisites: [], children: [] }] : [],
-        ),
-      );
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 'chapter-1', title: 'Arrays & Hashing', status: 'active' }),
+        roadmapTopic({ id: 't1', title: 'Two Sum', parentId: 'chapter-1' }),
+        roadmapTopic({ id: 't2', parentId: 'chapter-1', status: 'active' }),
+        roadmapTopic({ id: 't3', parentId: 'chapter-1', status: 'mastered' }),
+      ]);
       prisma.topic.findFirst
         .mockResolvedValueOnce({ id: 't1', title: 'Two Sum', parentId: 'chapter-1' })
         .mockResolvedValueOnce({
@@ -642,19 +697,11 @@ describe('MetricsService', () => {
     });
 
     it('returns null when every planned topic is blocked', async () => {
-      prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(
-          where?.status === 'planned'
-            ? [
-                {
-                  id: 't1',
-                  prerequisites: [{ prerequisite: { status: 'planned' } }],
-                  children: [],
-                },
-              ]
-            : [],
-        ),
-      );
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 'prerequisite', status: 'active' }),
+        roadmapTopic({ id: 'archived-leaf', parentId: 'prerequisite', status: 'archived' }),
+        roadmapTopic({ id: 't1', prerequisites: [{ prerequisiteId: 'prerequisite' }] }),
+      ]);
       expect(await service.nextUp('userA')).toBeNull();
       expect(prisma.topic.findFirst).not.toHaveBeenCalled();
     });
@@ -664,58 +711,47 @@ describe('MetricsService', () => {
       expect(await service.nextUp('userA')).toBeNull();
     });
 
-    it('skips a category/chapter topic (has children) even when otherwise startable, preferring its leaf', async () => {
-      prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(
-          where?.status === 'planned'
-            ? [
-                { id: 'chapter', prerequisites: [], children: [{ id: 'leaf' }] },
-                { id: 'leaf', prerequisites: [], children: [] },
-              ]
-            : [],
-        ),
-      );
+    it('skips a category/chapter topic, preferring its leaf', async () => {
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 'chapter' }),
+        roadmapTopic({ id: 'leaf', parentId: 'chapter' }),
+      ]);
       prisma.topic.findFirst.mockResolvedValue({ id: 'leaf', title: 'Leaf', parentId: null });
       const result = await service.nextUp('userA');
       expect(result?.topic.id).toBe('leaf');
     });
 
-    it('returns null when the only startable planned topics are category/chapter nodes', async () => {
-      prisma.topic.findMany.mockImplementation(({ where }: any) =>
-        Promise.resolve(
-          where?.status === 'planned'
-            ? [{ id: 'chapter', prerequisites: [], children: [{ id: 'leaf' }] }]
-            : [],
-        ),
-      );
+    it('returns null when the only planned topic is a chapter with learned leaves', async () => {
+      prisma.topic.findMany.mockResolvedValue([
+        roadmapTopic({ id: 'chapter' }),
+        roadmapTopic({ id: 'leaf', parentId: 'chapter', status: 'active' }),
+      ]);
       expect(await service.nextUp('userA')).toBeNull();
       expect(prisma.topic.findFirst).not.toHaveBeenCalled();
     });
 
-    it('scopes the candidate query by domain', async () => {
+    it('filters domain candidates after querying the owned topology', async () => {
       prisma.topic.findMany.mockResolvedValue([]);
       await service.nextUp('userA', 'DSA');
       expect(prisma.topic.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId: 'userA', status: 'planned', domain: 'DSA' } }),
+        expect.objectContaining({ where: { userId: 'userA' } }),
       );
     });
 
-    it('excludes disabled domains from the candidate query', async () => {
+    it('loads disabled-domain prerequisites before filtering candidates', async () => {
       prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
       prisma.topic.findMany.mockResolvedValue([]);
       await service.nextUp('userA');
       expect(prisma.topic.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'userA', status: 'planned', domain: { notIn: ['DSA'] } },
+          where: { userId: 'userA' },
         }),
       );
     });
   });
 
   it('dashboard includes nextUp (null when nothing is startable)', async () => {
-    prisma.topic.findMany.mockImplementation(({ where }: any) =>
-      Promise.resolve(where?.status === 'planned' ? [] : []),
-    );
+    prisma.topic.findMany.mockResolvedValue([]);
     const result = await service.dashboard('userA', new Date('2026-01-08T12:00:00Z'));
     expect(result.nextUp).toBeNull();
   });
@@ -856,7 +892,7 @@ describe('MetricsService', () => {
   describe('pendingSessions (via dashboard)', () => {
     const now = new Date('2026-07-03T10:00:00Z');
 
-    it('reports the latest un-imported repeat/learn export within 48h', async () => {
+    it('reports a pending learn export with its owned focus and normalized approach', async () => {
       prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
         Promise.resolve(
           where.mode === 'learn'
@@ -865,20 +901,104 @@ describe('MetricsService', () => {
                 mode: 'learn',
                 generatedAt: new Date('2026-07-03T08:00:00Z'),
                 importedAt: null,
+                focusTopicId: 'focus-1',
+                approach: 'source_first',
               }
             : {
                 id: 'se1',
                 mode: 'repeat',
                 generatedAt: new Date('2026-07-02T09:00:00Z'),
                 importedAt: new Date('2026-07-02T10:00:00Z'),
+                focusTopicId: null,
+                approach: null,
               },
         ),
       );
+      prisma.topic.findMany.mockImplementation(({ select }: any) =>
+        select && Object.keys(select).length === 2 && select.title
+          ? Promise.resolve([{ id: 'focus-1', title: 'Owned focus' }])
+          : Promise.resolve([]),
+      );
+
       const dash = await service.dashboard('u1', now);
-      // repeat's latest was imported → excluded; learn is pending → included
+
       expect(dash.pendingSessions).toEqual([
-        { id: 'se2', mode: 'learn', generatedAt: new Date('2026-07-03T08:00:00Z') },
+        {
+          id: 'se2',
+          mode: 'learn',
+          generatedAt: new Date('2026-07-03T08:00:00Z'),
+          focusTopicId: 'focus-1',
+          topicTitle: 'Owned focus',
+          approach: 'source-first',
+        },
       ]);
+      expect(prisma.topic.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', id: { in: ['focus-1'] } },
+        select: { id: true, title: true },
+      });
+    });
+
+    it.each([
+      ['guided', 'guided'],
+      [null, null],
+    ])('preserves a stored %s approach', async (stored, expected) => {
+      prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.mode === 'learn'
+            ? {
+                id: 'se2',
+                mode: 'learn',
+                generatedAt: new Date('2026-07-03T08:00:00Z'),
+                importedAt: null,
+                focusTopicId: null,
+                approach: stored,
+              }
+            : null,
+        ),
+      );
+
+      const dash = await service.dashboard('u1', now);
+
+      expect(dash.pendingSessions[0]).toMatchObject({
+        focusTopicId: null,
+        topicTitle: null,
+        approach: expected,
+      });
+    });
+
+    it('does not resolve a pending focus title outside the current user', async () => {
+      const secret = 'FOREIGN TOPIC SECRET';
+      prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.mode === 'learn'
+            ? {
+                id: 'se2',
+                mode: 'learn',
+                generatedAt: new Date('2026-07-03T08:00:00Z'),
+                importedAt: null,
+                focusTopicId: 'foreign-focus',
+                approach: 'guided',
+              }
+            : null,
+        ),
+      );
+      prisma.topic.findMany.mockImplementation(({ where, select }: any) =>
+        select && Object.keys(select).length === 2 && select.title && where.userId !== 'u1'
+          ? Promise.resolve([{ id: 'foreign-focus', title: secret }])
+          : Promise.resolve([]),
+      );
+
+      const dash = await service.dashboard('u1', now);
+
+      expect(dash.pendingSessions[0]).toMatchObject({
+        focusTopicId: 'foreign-focus',
+        topicTitle: null,
+      });
+      expect(JSON.stringify(dash.pendingSessions)).not.toContain(secret);
+      expect(prisma.topic.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', id: { in: ['foreign-focus'] } },
+        select: { id: true, title: true },
+      });
     });
 
     it('ignores un-imported exports older than 48h', async () => {
