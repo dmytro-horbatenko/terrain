@@ -5,10 +5,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type TopicStatus } from '@prisma/client';
 import { sourcePlanSchema } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { buildRoadmapPolicy, type RoadmapEligibility } from '../learning/roadmap-policy';
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
 import { CreateAppEventDto, CreateTopicDto, UpdateTopicDto } from './dto';
 
@@ -37,6 +38,48 @@ export class TopicsService {
       update: {},
       create: { userId, key, label },
     });
+  }
+
+  private blockers(
+    targetId: string,
+    eligibility: RoadmapEligibility | undefined,
+    policy: Map<string, RoadmapEligibility>,
+    topicById: Map<string, { id: string; title: string; status: TopicStatus }>,
+  ) {
+    if (!eligibility) return [];
+    const blockers = eligibility.blockerIds.map((blockerId) => {
+      const blocker = topicById.get(blockerId)!;
+      const blockerPolicy = policy.get(blockerId)!;
+      return {
+        id: blocker.id,
+        title: blocker.title,
+        learnedLeaves: blockerPolicy.learnedLeaves,
+        totalLeaves: blockerPolicy.totalLeaves,
+        unfinishedLeaves: blockerPolicy.unfinishedLeafIds.map((id) => {
+          const leaf = topicById.get(id)!;
+          return { id: leaf.id, title: leaf.title, status: leaf.status };
+        }),
+      };
+    });
+    if (eligibility.unavailablePrerequisite) {
+      blockers.push({
+        id: targetId,
+        title: 'Unavailable prerequisite',
+        learnedLeaves: 0,
+        totalLeaves: 0,
+        unfinishedLeaves: [],
+      });
+    }
+    if (eligibility.malformedParent) {
+      blockers.push({
+        id: targetId,
+        title: 'Unavailable parent',
+        learnedLeaves: 0,
+        totalLeaves: 0,
+        unfinishedLeaves: [],
+      });
+    }
+    return blockers;
   }
 
   async create(userId: string, dto: CreateTopicDto) {
@@ -81,20 +124,30 @@ export class TopicsService {
         prompts: { select: { reps: true } },
       },
     });
-    const statusById = new Map(topics.map((t) => [t.id, t.status]));
+    const policy = buildRoadmapPolicy(
+      topics.map((topic) => ({
+        id: topic.id,
+        parentId: topic.parentId,
+        status: topic.status,
+        prerequisiteIds: topic.prerequisites.map((edge) => edge.prerequisiteId),
+      })),
+    );
+    const topicById = new Map(topics.map((topic) => [topic.id, topic]));
     return topics.map(({ prerequisites, prompts, ...topic }) => {
-      const prerequisiteIds = prerequisites.map((p) => p.prerequisiteId);
-      const prerequisiteStatuses = prerequisiteIds
-        .map((pid) => statusById.get(pid))
-        .filter((s): s is NonNullable<typeof s> => s != null);
+      const prerequisiteIds = prerequisites
+        .map((p) => p.prerequisiteId)
+        .filter((prerequisiteId) => topicById.has(prerequisiteId));
+      const eligibility = policy.get(topic.id)!;
       return {
         ...topic,
+        parentId: topic.parentId && topicById.has(topic.parentId) ? topic.parentId : null,
         prerequisiteIds,
         labels: this.metrics.topicLabels({
           status: topic.status,
           cards: prompts.map((p) => ({ reps: p.reps })),
-          prerequisiteStatuses,
+          blocked: topic.status === 'planned' && eligibility.learnable === false,
         }),
+        blockers: this.blockers(topic.id, eligibility, policy, topicById),
       };
     });
   }
@@ -103,12 +156,9 @@ export class TopicsService {
     const topic = await this.prisma.topic.findFirst({
       where: { id, userId },
       include: {
-        parent: { select: { id: true, title: true, status: true } },
-        children: { select: { id: true, title: true, status: true } },
-        prerequisites: {
-          include: { prerequisite: { select: { id: true, title: true, status: true } } },
-        },
-        dependents: { include: { topic: { select: { id: true, title: true, status: true } } } },
+        children: { select: { id: true } },
+        prerequisites: { select: { prerequisiteId: true } },
+        dependents: { select: { topicId: true } },
         reviews: { orderBy: { reviewedAt: 'desc' } },
         appEvents: { orderBy: { appliedAt: 'desc' } },
         prompts: { orderBy: { createdAt: 'asc' } },
@@ -116,9 +166,38 @@ export class TopicsService {
       },
     });
     if (!topic) throw new NotFoundException(`Topic ${id} not found`);
-    const { parent, children, prerequisites, dependents, reviews, appEvents, prompts, ...scalars } =
-      topic;
-    const prerequisiteTopics = prerequisites.map((p) => p.prerequisite);
+    const topology = await this.prisma.topic.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        title: true,
+        parentId: true,
+        status: true,
+        prerequisites: { select: { prerequisiteId: true } },
+      },
+    });
+    const policy = buildRoadmapPolicy(
+      topology.map((node) => ({
+        id: node.id,
+        parentId: node.parentId,
+        status: node.status,
+        prerequisiteIds: node.prerequisites.map((edge) => edge.prerequisiteId),
+      })),
+    );
+    const eligibility = policy.get(id);
+    const topicById = new Map(topology.map((node) => [node.id, node]));
+    const { children, prerequisites, dependents, reviews, appEvents, prompts, ...scalars } = topic;
+    const reference = (topicId: string) => {
+      const owned = topicById.get(topicId);
+      return owned ? { id: owned.id, title: owned.title, status: owned.status } : null;
+    };
+    const prerequisiteIds = prerequisites
+      .map((p) => p.prerequisiteId)
+      .filter((prerequisiteId) => topicById.has(prerequisiteId));
+    const prerequisiteTopics = prerequisiteIds.flatMap((prerequisiteId) => {
+      const prerequisite = reference(prerequisiteId);
+      return prerequisite ? [prerequisite] : [];
+    });
     const cards = prompts.map((p) => ({
       stability: p.stability,
       suspended: p.suspended,
@@ -126,11 +205,18 @@ export class TopicsService {
     }));
     return {
       ...scalars,
-      prerequisiteIds: prerequisiteTopics.map((p) => p.id),
+      parentId: scalars.parentId && topicById.has(scalars.parentId) ? scalars.parentId : null,
+      prerequisiteIds,
       prerequisites: prerequisiteTopics,
-      dependents: dependents.map((d) => d.topic),
-      parent: parent ?? null,
-      children,
+      dependents: dependents.flatMap((d) => {
+        const dependent = reference(d.topicId);
+        return dependent ? [dependent] : [];
+      }),
+      parent: scalars.parentId ? reference(scalars.parentId) : null,
+      children: children.flatMap((child) => {
+        const owned = reference(child.id);
+        return owned ? [owned] : [];
+      }),
       reviews,
       appEvents,
       appEventCount: appEvents.length,
@@ -138,8 +224,9 @@ export class TopicsService {
       labels: this.metrics.topicLabels({
         status: scalars.status,
         cards,
-        prerequisiteStatuses: prerequisiteTopics.map((p) => p.status),
+        blocked: scalars.status === 'planned' && eligibility?.learnable === false,
       }),
+      blockers: this.blockers(id, eligibility, policy, topicById),
       mastery: this.metrics.masteryStatus({
         cards,
         appEventCount: appEvents.length,

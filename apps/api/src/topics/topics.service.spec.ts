@@ -6,6 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { LearningContextService } from '../learning/learning-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { starterCardText } from '../prompts/starter-card';
@@ -82,7 +83,12 @@ describe('TopicsService', () => {
       ),
     };
     const mod = await Test.createTestingModule({
-      providers: [TopicsService, MetricsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        TopicsService,
+        MetricsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: LearningContextService, useValue: { nextUp: jest.fn() } },
+      ],
     }).compile();
     service = mod.get(TopicsService);
   });
@@ -171,19 +177,36 @@ describe('TopicsService', () => {
     ).rejects.toThrow('a topic with this title already exists');
   });
 
-  it('findAll derives prerequisiteIds and labels (blocked planned + reviewing active)', async () => {
+  it('findAll derives chapter blockers and labels from the roadmap policy', async () => {
     prisma.topic.findMany.mockResolvedValue([
-      { id: 'p', title: 'Prereq', status: 'planned', prompts: [], prerequisites: [] },
       {
-        id: 't1',
-        title: 'Blocked',
+        id: 'basics',
+        title: 'Blockchain basics',
+        parentId: null,
+        status: 'active',
+        prompts: [],
+        prerequisites: [],
+      },
+      ...Array.from({ length: 13 }, (_, i) => ({
+        id: `basic-${i + 1}`,
+        title: `Basic ${i + 1}`,
+        parentId: 'basics',
+        status: i < 5 ? 'active' : 'planned',
+        prompts: [],
+        prerequisites: [],
+      })),
+      {
+        id: 'accounts',
+        title: 'Accounts, transactions & gas',
+        parentId: null,
         status: 'planned',
         prompts: [],
-        prerequisites: [{ prerequisiteId: 'p' }],
+        prerequisites: [{ prerequisiteId: 'basics' }],
       },
       {
         id: 't2',
         title: 'Reviewing',
+        parentId: null,
         status: 'active',
         prompts: [{ reps: 3 }],
         prerequisites: [],
@@ -200,27 +223,65 @@ describe('TopicsService', () => {
         },
       }),
     );
-    const blocked = result.find((t) => t.id === 't1')!;
-    expect(blocked.prerequisiteIds).toEqual(['p']);
-    expect(blocked.labels).toEqual({ blocked: true, reviewing: false });
-    expect((blocked as any).prerequisites).toBeUndefined();
-    expect((blocked as any).prompts).toBeUndefined();
+    const accounts = result.find((t) => t.id === 'accounts')!;
+    expect(accounts.prerequisiteIds).toEqual(['basics']);
+    expect(accounts.labels).toEqual({ blocked: true, reviewing: false });
+    expect((accounts as any).blockers).toEqual([
+      {
+        id: 'basics',
+        title: 'Blockchain basics',
+        learnedLeaves: 5,
+        totalLeaves: 13,
+        unfinishedLeaves: expect.arrayContaining([
+          expect.objectContaining({ id: 'basic-6', status: 'planned' }),
+        ]),
+      },
+    ]);
+    expect((accounts as any).prerequisites).toBeUndefined();
+    expect((accounts as any).prompts).toBeUndefined();
     const reviewing = result.find((t) => t.id === 't2')!;
     expect(reviewing.prerequisiteIds).toEqual([]);
     expect(reviewing.labels).toEqual({ blocked: false, reviewing: true });
+  });
+
+  it('findAll removes malformed foreign edge identifiers and adds owned generic blockers', async () => {
+    const foreignParent = 'foreign-parent-marker';
+    const foreignPrerequisite = 'foreign-prerequisite-marker';
+    prisma.topic.findMany.mockResolvedValue([
+      {
+        id: 'accounts',
+        title: 'Accounts, transactions & gas',
+        parentId: foreignParent,
+        status: 'planned',
+        prompts: [],
+        prerequisites: [{ prerequisiteId: foreignPrerequisite }],
+      },
+    ]);
+
+    const [accounts] = await service.findAll('userA');
+
+    expect(accounts.labels.blocked).toBe(true);
+    expect(accounts.parentId).toBeNull();
+    expect(accounts.prerequisiteIds).toEqual([]);
+    expect((accounts as any).blockers).toEqual([
+      expect.objectContaining({ id: 'accounts', title: 'Unavailable prerequisite' }),
+      expect.objectContaining({ id: 'accounts', title: 'Unavailable parent' }),
+    ]);
+    expect(JSON.stringify(accounts)).not.toContain(foreignParent);
+    expect(JSON.stringify(accounts)).not.toContain(foreignPrerequisite);
   });
 
   it('getDetail maps prerequisites/dependents/parent/children/mastery', async () => {
     prisma.topic.findFirst.mockResolvedValue({
       id: 't1',
       title: 'T1',
+      parentId: 'pa',
       status: 'active',
       noteRef: 'ref',
       summary: null,
-      parent: { id: 'pa', title: 'Parent', status: 'active' },
-      children: [{ id: 'c1', title: 'Child', status: 'planned' }],
-      prerequisites: [{ prerequisite: { id: 'pr', title: 'Prereq', status: 'mastered' } }],
-      dependents: [{ topic: { id: 'dp', title: 'Dependent', status: 'planned' } }],
+      children: [{ id: 'c1' }],
+      prerequisites: [{ prerequisiteId: 'pr' }],
+      dependents: [{ topicId: 'dp' }],
       reviews: [{ id: 'r1' }],
       appEvents: [
         { id: 'ae1', kind: 'problem_solved', description: 'd1' },
@@ -228,6 +289,19 @@ describe('TopicsService', () => {
       ],
       prompts: [{ id: 'pr1', stability: 45, suspended: false, reps: 3 }],
     });
+    prisma.topic.findMany.mockResolvedValue([
+      {
+        id: 't1',
+        title: 'T1',
+        parentId: 'pa',
+        status: 'active',
+        prerequisites: [{ prerequisiteId: 'pr' }],
+      },
+      { id: 'pa', title: 'Parent', parentId: null, status: 'active', prerequisites: [] },
+      { id: 'c1', title: 'Child', parentId: 't1', status: 'planned', prerequisites: [] },
+      { id: 'pr', title: 'Prereq', parentId: null, status: 'mastered', prerequisites: [] },
+      { id: 'dp', title: 'Dependent', parentId: null, status: 'planned', prerequisites: [] },
+    ]);
     const result = await service.getDetail('userA', 't1');
     expect(result.prerequisiteIds).toEqual(['pr']);
     expect(result.prerequisites).toEqual([{ id: 'pr', title: 'Prereq', status: 'mastered' }]);
@@ -246,6 +320,50 @@ describe('TopicsService', () => {
       eligible: true,
     });
     expect((result as any).prerequisites[0].prerequisite).toBeUndefined();
+  });
+
+  it('getDetail removes malformed foreign identifiers and adds owned generic blockers', async () => {
+    const secret = 'FOREIGN TOPIC SECRET';
+    prisma.topic.findFirst.mockResolvedValue({
+      id: 't1',
+      title: 'Owned topic',
+      parentId: 'foreign-parent',
+      status: 'planned',
+      noteRef: null,
+      summary: null,
+      children: [{ id: 'foreign-child' }],
+      prerequisites: [{ prerequisiteId: 'foreign-prerequisite' }],
+      dependents: [{ topicId: 'foreign-dependent' }],
+      reviews: [],
+      appEvents: [],
+      prompts: [],
+      sourceEvidence: [],
+    });
+    prisma.topic.findMany.mockResolvedValue([
+      {
+        id: 't1',
+        title: 'Owned topic',
+        parentId: 'foreign-parent',
+        status: 'planned',
+        prerequisites: [{ prerequisiteId: 'foreign-prerequisite' }],
+      },
+    ]);
+
+    const result = await service.getDetail('userA', 't1');
+
+    expect(JSON.stringify(result)).not.toContain(secret);
+    expect(result.parent).toBeNull();
+    expect(result.parentId).toBeNull();
+    expect(result.children).toEqual([]);
+    expect(result.dependents).toEqual([]);
+    expect(result.prerequisiteIds).toEqual([]);
+    expect(result.prerequisites).toEqual([]);
+    expect(result.blockers).toEqual([
+      expect.objectContaining({ id: 't1', title: 'Unavailable prerequisite' }),
+      expect.objectContaining({ id: 't1', title: 'Unavailable parent' }),
+    ]);
+    expect(result.labels.blocked).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('foreign-');
   });
 
   it("getDetail includes the topic's cards (prompts) with FSRS fields", async () => {
