@@ -1,19 +1,17 @@
-import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma, Prompt, Topic } from '@prisma/client';
+import type { LearningApproach, LearningContext } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildRoadmapPolicy, type RoadmapEligibility } from '../learning/roadmap-policy';
 import { MetricsService } from '../metrics/metrics.service';
 import { OUTPUT_CONTRACT } from './output-contract';
 import { estimateMinutes } from '../telegram/telegram.messages';
-import { LEARN_CONDUCT, REPEAT_CONDUCT } from './session-conduct';
-import {
-  applicableRequirements,
-  isSourceExpired,
-  parseStoredSourcePlan,
-} from '../sources/source-plan';
+import { GUIDED_CONDUCT, REPEAT_CONDUCT, SOURCE_FIRST_CONDUCT } from './session-conduct';
+import { applicableRequirements, isSourceExpired } from '../sources/source-plan';
 
 type TopicWithPrereqs = Prisma.TopicGetPayload<{
   include: {
-    prerequisites: { include: { prerequisite: { select: { status: true } } } };
+    prerequisites: { select: { prerequisiteId: true } };
     prompts: { select: { reps: true; stability: true; suspended: true } };
   };
 }>;
@@ -33,17 +31,30 @@ export class ExportGeneratorService {
   }): Promise<string> {
     const mode = opts.mode ?? 'full';
     if (mode === 'repeat') return this.generateRepeat(opts.userId, opts.now);
-    if (mode === 'learn') return this.generateLearn(opts.userId, opts.now, opts.focusTopicId);
+    if (mode === 'learn') {
+      throw new UnprocessableEntityException('Learning exports require resolved context.');
+    }
     const domainFilter = mode.startsWith('domain:') ? mode.slice('domain:'.length) : null;
 
-    const topics = await this.prisma.topic.findMany({
-      where: { userId: opts.userId, ...(domainFilter ? { domain: domainFilter } : {}) },
+    const allTopics = await this.prisma.topic.findMany({
+      where: { userId: opts.userId },
       orderBy: [{ domain: 'asc' }, { createdAt: 'asc' }],
       include: {
-        prerequisites: { include: { prerequisite: { select: { status: true } } } },
+        prerequisites: { select: { prerequisiteId: true } },
         prompts: { select: { reps: true, stability: true, suspended: true } },
       },
     });
+    const policy = buildRoadmapPolicy(
+      allTopics.map((topic) => ({
+        id: topic.id,
+        parentId: topic.parentId,
+        status: topic.status,
+        prerequisiteIds: topic.prerequisites.map((edge) => edge.prerequisiteId),
+      })),
+    );
+    const topics = domainFilter
+      ? allTopics.filter((topic) => topic.domain === domainFilter)
+      : allTopics;
 
     const sections: string[] = [];
     sections.push(this.header(mode, opts.now));
@@ -52,7 +63,12 @@ export class ExportGeneratorService {
     // here so parked ideas (aiProposed && archived) aren't double-listed — they
     // appear solely under PARKED IDEAS below. The tree walk is orphan-safe, so a
     // child whose parent was filtered out is treated as a root.
-    sections.push(this.roadmap(topics.filter((t) => t.status !== 'archived')));
+    sections.push(
+      this.roadmap(
+        topics.filter((t) => t.status !== 'archived'),
+        policy,
+      ),
+    );
     const parked = this.parkedIdeas(topics);
     if (parked) sections.push(parked);
     sections.push(await this.due(opts.userId, opts.now, domainFilter));
@@ -85,6 +101,166 @@ export class ExportGeneratorService {
     if (recent) sections.push(recent);
     sections.push(OUTPUT_CONTRACT);
     return sections.join('\n\n');
+  }
+
+  generateLearnContext(context: LearningContext, approach: LearningApproach, now: Date): string {
+    const target = context.target;
+    if (!target) throw new UnprocessableEntityException('No startable topic.');
+    const learner = `## WHO I AM (stable)
+Role: ${context.learner.role ?? ''}
+Learning style: ${context.learner.learningStyle ?? ''}
+Code style: ${context.learner.codeStyle ?? ''}
+Note system: ${context.learner.noteSystem ?? ''}`;
+    const imported = context.selection.importedFocus
+      ? `\nImported focus: ${context.selection.importedFocus.title} — ${
+          context.selection.importedFocus.accepted ? 'accepted' : 'rejected'
+        }: ${context.selection.importedFocus.reason}`
+      : '';
+    const alternatives = context.selection.learnableAlternatives.length
+      ? `\nAlternatives:\n${context.selection.learnableAlternatives
+          .map((topic) => `- ${topic.title}${topic.chapterTitle ? ` (${topic.chapterTitle})` : ''}`)
+          .join('\n')}`
+      : '';
+    const selection = `## SELECTION
+Resolved by: ${context.selection.source}${imported}${alternatives}`;
+    const prompts = target.prompts.length
+      ? `\nExisting cards (do not duplicate):\n${target.prompts
+          .map(
+            (prompt) =>
+              `- card ${prompt.id} [${prompt.kind}] (${prompt.state}${
+                prompt.lastGrade ? `; last grade ${prompt.lastGrade}` : ''
+              }; difficulty ${prompt.difficulty ?? 'unrated'}; stability ${
+                prompt.stability ?? 'unrated'
+              }) ${prompt.text}`,
+          )
+          .join('\n')}`
+      : '';
+    const chapter = target.chapter
+      ? `\nChapter: ${target.chapter.title} (${target.chapter.learnedLeaves}/${target.chapter.totalLeaves} leaves learned)`
+      : '';
+    const exposure =
+      target.status === 'planned'
+        ? 'not yet studied — treat this as first exposure, start from fundamentals'
+        : target.status === 'mastered'
+          ? 'mastered — this is a deliberate re-review'
+          : target.status === 'active'
+            ? 'in progress — you have studied this before, teach it as a review'
+            : 'archived — this topic is not session eligible';
+    const goal = `## LEARNING GOAL
+Topic: ${target.title}
+Domain: ${target.domain}
+Type: ${target.topicType}
+Status: ${target.status}
+Exposure: ${exposure}
+Chosen approach: ${approach}
+Recommended approach: ${target.approach.recommended}
+Recommendation reasons: ${target.approach.reasons.join('; ')}${chapter}${
+      target.description ? `\nDescription: ${target.description}` : ''
+    }${prompts}`;
+    const prerequisiteLines = context.prerequisites.flatMap((prerequisite) =>
+      this.prerequisiteLines(prerequisite),
+    );
+    const prerequisites = `## PREREQUISITES
+${prerequisiteLines.length ? prerequisiteLines.join('\n') : '- (none)'}`;
+    const knowledge = (
+      heading: string,
+      topics: LearningContext['mayRelyOn'] | LearningContext['doNotAssume'],
+    ) =>
+      `## ${heading}\n${
+        topics.length
+          ? topics
+              .map(
+                (topic) =>
+                  `- ${topic.title} [${topic.level}] — ${topic.reason}${
+                    topic.summary ? ` Summary: ${topic.summary}` : ''
+                  }\n  Evidence: grades ${topic.evidence.recentGrades.join(', ') || 'none'}; ` +
+                  `last reviewed ${topic.evidence.lastReviewedAt ?? 'never'}; Sources: ${
+                    topic.evidence.sourceTitles.join(', ') || 'none'
+                  }; applications ${topic.evidence.applicationCount}` +
+                  (topic.evidence.latestApplication
+                    ? `; Latest application: ${topic.evidence.latestApplication}`
+                    : ''),
+              )
+              .join('\n')
+          : '- (none)'
+      }`;
+    const blockers = `## BLOCKERS
+${
+  context.blockers.length
+    ? context.blockers.map((blocker) => `- ${blocker.title} — ${blocker.reason}`).join('\n')
+    : '- (none)'
+}`;
+    return [
+      this.header('learn', now),
+      learner,
+      selection,
+      this.learningSourcePlan(target, approach, now),
+      goal,
+      prerequisites,
+      knowledge('MAY RELY ON', context.mayRelyOn),
+      knowledge('DO NOT ASSUME', context.doNotAssume),
+      blockers,
+      approach === 'guided' ? GUIDED_CONDUCT : SOURCE_FIRST_CONDUCT,
+      OUTPUT_CONTRACT,
+    ].join('\n\n');
+  }
+
+  private learningSourcePlan(
+    target: NonNullable<LearningContext['target']>,
+    approach: LearningApproach,
+    now: Date,
+  ): string {
+    const plan = target.sourcePlan;
+    const lines = ['## SOURCE PLAN'];
+    if (!plan) {
+      lines.push(
+        approach === 'guided'
+          ? 'No curated source plan is stored. Guided learning may proceed without a source gate.'
+          : target.status === 'planned'
+            ? 'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.'
+            : 'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
+      );
+      return lines.join('\n');
+    }
+    if (plan.policy === 'none') {
+      lines.push(`No required sources: ${plan.rationale}`);
+      return lines.join('\n');
+    }
+    for (const requirement of applicableRequirements(plan, target.status)) {
+      lines.push(
+        `Requirement ${requirement.id} (${requirement.requiredWhen}): ${requirement.purpose}`,
+      );
+      for (const option of requirement.options) {
+        const expired = isSourceExpired(option, now) ? ' [EXPIRED — verify live before use]' : '';
+        lines.push(
+          `- ${option.id}${expired}: ${option.title} [${option.format}]\n` +
+            `  URL: ${option.url}\n` +
+            `  Scope: ${option.scope}\n` +
+            `  Time: ${option.estimatedMinutes} min\n` +
+            `  Why: ${option.why}\n` +
+            `  Paid: ${option.paid ?? false}; Language: ${option.language ?? 'unspecified'}` +
+            (option.verifiedAt
+              ? `\n  Verified at: ${option.verifiedAt}\n  Recheck after: ${option.recheckAfterDays} days`
+              : ''),
+        );
+      }
+    }
+    return lines.join('\n');
+  }
+
+  private prerequisiteLines(
+    prerequisite: LearningContext['prerequisites'][number],
+    depth = 0,
+  ): string[] {
+    const line = `${'  '.repeat(depth)}- ${prerequisite.title} [${
+      prerequisite.satisfied ? 'satisfied' : 'blocked'
+    }] (${prerequisite.learnedLeaves}/${prerequisite.totalLeaves}) — ${prerequisite.reason}${
+      prerequisite.summary ? ` Summary: ${prerequisite.summary}` : ''
+    }`;
+    return [
+      line,
+      ...prerequisite.children.flatMap((child) => this.prerequisiteLines(child, depth + 1)),
+    ];
   }
 
   private async whoIAm(userId: string): Promise<string> {
@@ -133,198 +309,12 @@ Note system: ${user?.noteSystem ?? ''}`;
     return sections.join('\n\n');
   }
 
-  /** Learning context for one topic (default: Next Up): where it sits in the
-   *  roadmap, what it builds on (prerequisites with their note summaries as
-   *  the elaborative bridge), existing cards, and a teaching script. */
-  private async generateLearn(userId: string, now: Date, focusTopicId?: string): Promise<string> {
-    let focusId = focusTopicId;
-    if (!focusId) {
-      const next = await this.metrics.nextUp(userId, undefined, now);
-      if (!next) {
-        throw new UnprocessableEntityException(
-          'No startable topic — pass focusTopicId or start something from the roadmap.',
-        );
-      }
-      focusId = next.topic.id;
-    }
-    const focus = await this.prisma.topic.findFirst({
-      where: { id: focusId, userId },
-      include: {
-        parent: {
-          select: {
-            id: true,
-            title: true,
-            prerequisites: { include: { prerequisite: { select: { id: true } } } },
-          },
-        },
-        prerequisites: {
-          include: { prerequisite: { select: { title: true, status: true, summary: true } } },
-        },
-        prompts: {
-          where: { suspended: false },
-          orderBy: { createdAt: 'asc' },
-          select: { id: true, promptKind: true, promptText: true, reps: true },
-        },
-        sourceEvidence: { orderBy: { createdAt: 'desc' }, select: { sourceTitle: true }, take: 5 },
-      },
-    });
-    if (!focus || focus.status === 'archived') {
-      throw new NotFoundException(`Topic ${focusId} not found`);
-    }
-
-    const goal: string[] = [
-      `## LEARNING GOAL`,
-      `Topic: ${focus.title}`,
-      `Type: ${focus.topicType}`,
-    ];
-    goal.push(`Exposure: ${this.exposureLabel(focus)}`);
-    if (focus.description) goal.push(`Description: ${focus.description}`);
-    if (focus.aiContext) goal.push(`AI context: ${focus.aiContext}`);
-    if (focus.prerequisites.length > 0) {
-      const lines = focus.prerequisites.map(({ prerequisite: p }) =>
-        p.summary ? `- ${p.title} — ${p.summary}` : `- ${p.title}`,
-      );
-      goal.push(`Builds on (your existing knowledge):\n${lines.join('\n')}`);
-    }
-    if (focus.prompts.length > 0) {
-      const lines = focus.prompts.map((c) => `- card ${c.id} [${c.promptKind}] ${c.promptText}`);
-      goal.push(`Existing cards (do not duplicate):\n${lines.join('\n')}`);
-    }
-
-    const sections = [this.header('learn', now), await this.whoIAm(userId)];
-
-    if (focus.parent) {
-      const prereqChapterIds = focus.parent.prerequisites.map((p) => p.prerequisite.id);
-      const chapterTopics = await this.prisma.topic.findMany({
-        where: {
-          userId,
-          status: { not: 'archived' },
-          OR: [{ parentId: focus.parent.id }, { id: { in: prereqChapterIds } }],
-        },
-        include: {
-          prerequisites: { include: { prerequisite: { select: { status: true } } } },
-          prompts: { select: { reps: true, stability: true, suspended: true } },
-        },
-      });
-      const siblings = chapterTopics.filter(
-        (t) => t.parentId === focus.parent!.id && t.id !== focus.id,
-      );
-      const prereqChapters = chapterTopics.filter((t) => prereqChapterIds.includes(t.id));
-      sections.push(this.chapterContext(focus.parent.title, siblings, prereqChapters));
-    }
-
-    const settings = await this.prisma.settings.findUnique({ where: { userId } });
-    sections.push(
-      this.sourcePlan(focus, settings, now),
-      goal.join('\n'),
-      LEARN_CONDUCT,
-      OUTPUT_CONTRACT,
-    );
-    return sections.join('\n\n');
-  }
-
-  private sourcePlan(
-    focus: {
-      status: 'planned' | 'active' | 'mastered' | 'archived';
-      sourcePlan: unknown;
-      sourceEvidence: { sourceTitle: string }[];
-    },
-    settings: {
-      preferredSourceFormats: string[];
-      sourceTimeBudgetMinutes: number | null;
-      sourceLanguage: string | null;
-      allowPaidSources: boolean;
-    } | null,
-    now: Date,
-  ): string {
-    const plan = parseStoredSourcePlan(focus.sourcePlan);
-    const lines = ['## SOURCE PLAN'];
-    if (!plan) {
-      if (focus.status === 'planned') {
-        lines.push(
-          'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.',
-          'STOP: this topic must be curated before strict source-grounded learning can proceed.',
-          'Do not invent requirementId or sourceId.',
-          'Emit no sourceEvidence for this topic and do not add it to studiedTopics.',
-        );
-      } else {
-        lines.push(
-          'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
-          'Do not invent requirementId or sourceId, and emit no sourceEvidence for this topic.',
-        );
-      }
-    } else if (plan.policy === 'none') lines.push(`No required sources: ${plan.rationale}`);
-    else {
-      const requirements = applicableRequirements(plan, focus.status);
-      const minutes = requirements.reduce(
-        (sum, requirement) =>
-          sum + Math.min(...requirement.options.map((option) => option.estimatedMinutes)),
-        0,
-      );
-      lines.push(`Estimated required intake: ${requirements.length} sources · ${minutes} min`);
-      for (const requirement of requirements) {
-        lines.push(
-          `Requirement ${requirement.id} (${requirement.requiredWhen}): ${requirement.purpose}`,
-        );
-        for (const option of requirement.options) {
-          const expired = isSourceExpired(option, now) ? ' [EXPIRED — verify live before use]' : '';
-          lines.push(
-            `- ${option.id}${expired}: ${option.title} [${option.format}]\n` +
-              `  URL: ${option.url}\n` +
-              `  Scope: ${option.scope}\n` +
-              `  Time: ${option.estimatedMinutes} min\n` +
-              `  Why: ${option.why}\n` +
-              `  Paid: ${option.paid ?? false}; Language: ${option.language ?? 'unspecified'}` +
-              (option.verifiedAt
-                ? `\n  Verified at: ${option.verifiedAt}\n  Recheck after: ${option.recheckAfterDays} days`
-                : ''),
-          );
-        }
-      }
-    }
-    lines.push(
-      `Preferred formats: ${settings?.preferredSourceFormats.join(', ') || 'none specified'}`,
-      `Source time budget: ${settings?.sourceTimeBudgetMinutes ?? 'none specified'} min`,
-      `Preferred language: ${settings?.sourceLanguage ?? 'none specified'}`,
-      `Paid sources allowed: ${settings?.allowPaidSources ?? false}`,
-    );
-    if (focus.sourceEvidence.length) {
-      lines.push(
-        `Prior source evidence: ${focus.sourceEvidence.map((e) => e.sourceTitle).join(', ')}`,
-      );
-    }
-    return lines.join('\n');
-  }
-
-  private prereqStatuses(t: TopicWithPrereqs): string[] {
-    return (t.prerequisites ?? []).map((p) => p.prerequisite.status);
-  }
-
-  /** Explicit prior-exposure state for the focus topic, so the model doesn't
-   *  have to infer (or worse, recall from outside this document) whether
-   *  this is a first pass or a review. */
-  private exposureLabel(focus: {
-    status: string;
-    prerequisites: { prerequisite: { status: string } }[];
-    prompts: { reps: number }[];
-  }): string {
-    if (focus.status === 'mastered') return 'mastered — this is a deliberate re-review';
-    const { blocked, reviewing } = this.metrics.topicLabels({
-      status: focus.status,
-      cards: focus.prompts,
-      prerequisiteStatuses: focus.prerequisites.map((p) => p.prerequisite.status),
-    });
-    if (blocked) return 'blocked — prerequisites incomplete';
-    if (reviewing) return 'in progress — you have studied this before, teach it as a review';
-    return 'not yet studied — treat this as first exposure, start from fundamentals';
-  }
-
-  private glyph(t: TopicWithPrereqs): string {
+  private glyph(t: TopicWithPrereqs, policy: Map<string, RoadmapEligibility>): string {
     if (t.status === 'mastered') return '✓';
     const { blocked } = this.metrics.topicLabels({
       status: t.status,
       cards: t.prompts.map((p) => ({ reps: p.reps })),
-      prerequisiteStatuses: this.prereqStatuses(t),
+      blocked: t.status === 'planned' && policy.get(t.id)?.learnable === false,
     });
     if (blocked) return '✗';
     if (t.status === 'active') return '●';
@@ -335,7 +325,7 @@ Note system: ${user?.noteSystem ?? ''}`;
     const { reviewing } = this.metrics.topicLabels({
       status: t.status,
       cards: t.prompts.map((p) => ({ reps: p.reps })),
-      prerequisiteStatuses: this.prereqStatuses(t),
+      blocked: false,
     });
     return reviewing ? ' (reviewing)' : '';
   }
@@ -346,21 +336,7 @@ Note system: ${user?.noteSystem ?? ''}`;
     return `${'  '.repeat(depth + 1)}↳ AI context: ${t.aiContext}`;
   }
 
-  private chapterContext(
-    chapterTitle: string,
-    siblings: TopicWithPrereqs[],
-    prereqChapters: TopicWithPrereqs[],
-  ): string {
-    const line = (t: TopicWithPrereqs) => `${this.glyph(t)} ${t.title}${this.reviewingTag(t)}`;
-    const siblingBlock = siblings.length > 0 ? siblings.map(line).join('\n') : '- (none yet)';
-    const parts = [`In this chapter (${chapterTitle}):\n${siblingBlock}`];
-    if (prereqChapters.length > 0) {
-      parts.push(`Builds on (chapters):\n${prereqChapters.map(line).join('\n')}`);
-    }
-    return `## CHAPTER CONTEXT\n${parts.join('\n\n')}`;
-  }
-
-  private roadmap(topics: TopicWithPrereqs[]): string {
+  private roadmap(topics: TopicWithPrereqs[], policy: Map<string, RoadmapEligibility>): string {
     const byDomain = new Map<string, TopicWithPrereqs[]>();
     for (const t of topics) {
       const arr = byDomain.get(t.domain) ?? [];
@@ -378,7 +354,7 @@ Note system: ${user?.noteSystem ?? ''}`;
         if (visited.has(t.id)) return '';
         visited.add(t.id);
         const prefix = depth === 0 ? '' : '  '.repeat(depth) + '├─ ';
-        const head = `${prefix}${this.glyph(t)} ${t.title}${this.reviewingTag(t)}`;
+        const head = `${prefix}${this.glyph(t, policy)} ${t.title}${this.reviewingTag(t)}`;
         const annotation = this.aiAnnotation(t, depth);
         const headBlock = annotation ? `${head}\n${annotation}` : head;
         const kids = childrenOf(t.id)

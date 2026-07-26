@@ -1,0 +1,595 @@
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { CardState, PromptKind, ReviewGrade, Topic, TopicStatus } from '@prisma/client';
+import { learningContextSchema, type Grade, type LearningContext } from '@terrain/types';
+import type { NextUp } from '../metrics/metrics.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { parseStoredSourcePlan, sourcePlanStats } from '../sources/source-plan';
+import { recommendApproach } from './approach';
+import { buildRoadmapPolicy, type RoadmapEligibility } from './roadmap-policy';
+
+type LoadedPrompt = {
+  id: string;
+  promptKind: PromptKind;
+  promptText: string;
+  state: CardState;
+  difficulty: number | null;
+  stability: number | null;
+  suspended: boolean;
+};
+
+type LoadedTopic = Topic & {
+  prerequisites: { prerequisiteId: string }[];
+  prompts: LoadedPrompt[];
+};
+
+type Selection = {
+  targetId: string | null;
+  source: LearningContext['selection']['source'];
+  importedFocus: LearningContext['selection']['importedFocus'];
+  graph: LoadedTopic[];
+  policy: Map<string, RoadmapEligibility>;
+  scopeIds: Set<string>;
+};
+
+type ReviewEvidence = {
+  topicId: string;
+  grade: ReviewGrade;
+  reviewedAt: Date;
+  promptId: string | null;
+};
+
+type CompactEvidence = LearningContext['mayRelyOn'][number]['evidence'];
+
+const normalizeTitle = (value: string) => value.trim().toLowerCase();
+const learned = (status: TopicStatus) => status === 'active' || status === 'mastered';
+
+@Injectable()
+export class LearningContextService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async select(userId: string, topic?: string, domain?: string): Promise<Selection> {
+    const [settings, graph, imported] = await Promise.all([
+      this.prisma.settings.findUnique({
+        where: { userId },
+        select: { disabledDomains: true },
+      }),
+      this.prisma.topic.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          domain: true,
+          topicType: true,
+          status: true,
+          description: true,
+          summary: true,
+          noteRef: true,
+          parentId: true,
+          nextReviewAt: true,
+          learnedAt: true,
+          aiProposed: true,
+          aiContext: true,
+          sourcePlan: true,
+          createdAt: true,
+          updatedAt: true,
+          prerequisites: { select: { prerequisiteId: true } },
+          prompts: {
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            select: {
+              id: true,
+              promptKind: true,
+              promptText: true,
+              state: true,
+              difficulty: true,
+              stability: true,
+              suspended: true,
+            },
+          },
+        },
+      }),
+      topic
+        ? Promise.resolve(null)
+        : this.prisma.sessionExport.findFirst({
+            where: {
+              userId,
+              importedAt: { not: null },
+              nextFocusTitle: { not: null },
+            },
+            orderBy: { importedAt: 'desc' },
+            select: { nextFocusTitle: true },
+          }),
+    ]);
+    const policy = buildRoadmapPolicy(
+      graph.map((node) => ({
+        id: node.id,
+        parentId: node.parentId,
+        status: node.status,
+        prerequisiteIds: node.prerequisites.map((edge) => edge.prerequisiteId),
+      })),
+    );
+    const disabledDomains = domain ? [] : (settings?.disabledDomains ?? []);
+    const inScope = (candidate: LoadedTopic) =>
+      domain ? candidate.domain === domain : !disabledDomains.includes(candidate.domain);
+    const scopeIds = new Set(graph.filter(inScope).map(({ id }) => id));
+
+    if (topic) {
+      const byId = graph.find((candidate) => candidate.id === topic);
+      const matches = byId
+        ? [byId]
+        : graph.filter((candidate) => normalizeTitle(candidate.title) === normalizeTitle(topic));
+      if (matches.length > 1) {
+        throw new ConflictException('More than one owned topic matches this title');
+      }
+      if (matches.length === 0) throw new NotFoundException(`Topic ${topic} not found`);
+      return {
+        targetId: matches[0].id,
+        source: 'explicit',
+        importedFocus: null,
+        graph,
+        policy,
+        scopeIds,
+      };
+    }
+
+    const candidates = graph.filter(
+      (candidate) => inScope(candidate) && policy.get(candidate.id)?.learnable,
+    );
+    const importedTitle = imported?.nextFocusTitle?.trim();
+    if (importedTitle) {
+      const matches = graph.filter(
+        (candidate) => normalizeTitle(candidate.title) === normalizeTitle(importedTitle),
+      );
+      const accepted = matches.length === 1 && candidates.some(({ id }) => id === matches[0].id);
+      if (accepted) {
+        return {
+          targetId: matches[0].id,
+          source: 'imported-focus',
+          importedFocus: {
+            title: importedTitle,
+            accepted: true,
+            reason: 'Accepted as a learnable planned leaf.',
+          },
+          graph,
+          policy,
+          scopeIds,
+        };
+      }
+      const reason =
+        matches.length === 1
+          ? this.rejectionReason(matches[0], graph, policy, inScope)
+          : matches.length > 1
+            ? 'The imported title is ambiguous in owned legacy data.'
+            : 'No owned topic matches the imported title.';
+      return {
+        targetId: candidates[0]?.id ?? null,
+        source: candidates.length ? 'authored-order' : 'none',
+        importedFocus: {
+          title: importedTitle,
+          accepted: false,
+          reason,
+        },
+        graph,
+        policy,
+        scopeIds,
+      };
+    }
+    return {
+      targetId: candidates[0]?.id ?? null,
+      source: candidates.length ? 'authored-order' : 'none',
+      importedFocus: null,
+      graph,
+      policy,
+      scopeIds,
+    };
+  }
+
+  private rejectionReason(
+    topic: LoadedTopic,
+    graph: LoadedTopic[],
+    policy: Map<string, RoadmapEligibility>,
+    inScope: (topic: LoadedTopic) => boolean,
+  ): string {
+    if (!inScope(topic)) return `${topic.title} is outside the enabled domain scope.`;
+    const eligibility = policy.get(topic.id);
+    if (eligibility?.cycle) return `${topic.title} belongs to a hierarchy cycle.`;
+    if (eligibility?.malformedParent) return `${topic.title} has an unavailable parent.`;
+    if (eligibility?.unavailablePrerequisite) {
+      return `${topic.title} has an unavailable prerequisite.`;
+    }
+    if (topic.status !== 'planned') return `${topic.title} is ${topic.status}, not planned.`;
+    if (eligibility?.kind === 'group') return `${topic.title} is a group, not a leaf.`;
+    const blockerId = eligibility?.blockerIds[0];
+    if (blockerId) {
+      const blocker = policy.get(blockerId);
+      const title =
+        graph.find((candidate) => candidate.id === blockerId)?.title ?? 'Unavailable prerequisite';
+      return blocker
+        ? `${title} is incomplete (${blocker.learnedLeaves}/${blocker.totalLeaves} leaves learned).`
+        : `${title} is unavailable.`;
+    }
+    return `${topic.title} is not currently learnable.`;
+  }
+
+  async nextUp(userId: string, domain?: string, now = new Date()): Promise<NextUp | null> {
+    const selection = await this.select(userId, undefined, domain);
+    const topic = selection.graph.find(({ id }) => id === selection.targetId);
+    if (!topic) return null;
+    const { prerequisites: _prerequisites, prompts: _prompts, ...topicScalars } = topic;
+    const sourcePlan = parseStoredSourcePlan(topic.sourcePlan);
+    const sourceStats = sourcePlanStats(sourcePlan, topic.status, now);
+    const parent = topic.parentId
+      ? selection.graph.find(({ id }) => id === topic.parentId)
+      : undefined;
+    if (!parent) {
+      return {
+        topic: topicScalars,
+        chapterTitle: null,
+        chapterProgress: null,
+        sourcePlanStats: sourceStats,
+      };
+    }
+    const children = selection.graph.filter(({ parentId }) => parentId === parent.id);
+    return {
+      topic: topicScalars,
+      chapterTitle: parent.title,
+      chapterProgress: {
+        started: children.filter(({ status }) => learned(status)).length,
+        total: children.length,
+      },
+      sourcePlanStats: sourceStats,
+    };
+  }
+
+  async context(
+    userId: string,
+    options: { topic?: string; domain?: string; now?: Date } = {},
+  ): Promise<LearningContext> {
+    const now = options.now ?? new Date();
+    const selection = await this.select(userId, options.topic, options.domain);
+    const byId = new Map(selection.graph.map((topic) => [topic.id, topic]));
+    const target = selection.targetId ? byId.get(selection.targetId) : undefined;
+    const relevantIds = target ? this.relevantIds(target, selection.policy) : [];
+    const [learner, reviewGroups, sourceEvidence, applicationEvents] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          headline: true,
+          learningStyle: true,
+          codeStyle: true,
+          noteSystem: true,
+        },
+      }),
+      Promise.all(
+        relevantIds.map((topicId) =>
+          this.prisma.review.findMany({
+            where: { userId, topicId },
+            orderBy: { reviewedAt: 'desc' },
+            take: 3,
+            select: {
+              topicId: true,
+              grade: true,
+              reviewedAt: true,
+              promptId: true,
+            },
+          }),
+        ),
+      ),
+      this.prisma.sourceEvidence.findMany({
+        where: { userId, topicId: { in: relevantIds } },
+        orderBy: { createdAt: 'desc' },
+        select: { topicId: true, sourceTitle: true },
+      }),
+      this.prisma.applicationEvent.findMany({
+        where: { userId, topicId: { in: relevantIds } },
+        orderBy: { appliedAt: 'desc' },
+        select: { topicId: true, description: true },
+      }),
+    ]);
+    const reviews = reviewGroups.flat() as ReviewEvidence[];
+    const evidenceFor = (topicId: string): CompactEvidence => {
+      const topicReviews = reviews.filter((review) => review.topicId === topicId);
+      const topicSources = sourceEvidence.filter((row) => row.topicId === topicId);
+      const applications = applicationEvents.filter((row) => row.topicId === topicId);
+      return {
+        recentGrades: topicReviews.map((review) => review.grade as Grade),
+        lastReviewedAt: topicReviews[0]?.reviewedAt.toISOString() ?? null,
+        sourceTitles: [...new Set(topicSources.map((row) => row.sourceTitle))],
+        applicationCount: applications.length,
+        latestApplication: applications[0]?.description ?? null,
+      };
+    };
+    const prerequisiteIds = target ? this.prerequisiteIds(target.id, selection.policy) : [];
+    const knowledge = prerequisiteIds.flatMap((id) => {
+      const prerequisite = byId.get(id);
+      if (!prerequisite) return [];
+      const evidence = evidenceFor(id);
+      const level = this.knowledgeLevel(prerequisite, evidence);
+      return [
+        {
+          id,
+          title: prerequisite.title,
+          status: prerequisite.status,
+          level,
+          reason: this.knowledgeReason(level, prerequisite.status),
+          summary: prerequisite.summary,
+          evidence,
+        },
+      ];
+    });
+    const result: LearningContext = {
+      schemaVersion: 1,
+      generatedAt: now.toISOString(),
+      learner: {
+        role: learner?.headline ?? null,
+        learningStyle: learner?.learningStyle ?? null,
+        codeStyle: learner?.codeStyle ?? null,
+        noteSystem: learner?.noteSystem ?? null,
+      },
+      target: target ? this.targetContext(target, selection, reviews, byId, now) : null,
+      selection: {
+        source: selection.source,
+        importedFocus: selection.importedFocus,
+        learnableAlternatives: selection.graph.flatMap((candidate) => {
+          if (
+            candidate.id === selection.targetId ||
+            !selection.scopeIds.has(candidate.id) ||
+            !selection.policy.get(candidate.id)?.learnable
+          ) {
+            return [];
+          }
+          const parent = candidate.parentId ? byId.get(candidate.parentId) : undefined;
+          return [
+            {
+              id: candidate.id,
+              title: candidate.title,
+              chapterTitle: parent?.title ?? null,
+            },
+          ];
+        }),
+      },
+      prerequisites: target
+        ? (selection.policy.get(target.id)?.effectivePrerequisiteIds ?? []).flatMap(
+            (prerequisiteId) => {
+              const prerequisite = this.prerequisiteContext(
+                prerequisiteId,
+                selection,
+                evidenceFor,
+                new Set([target.id]),
+              );
+              return prerequisite ? [prerequisite] : [];
+            },
+          )
+        : [],
+      mayRelyOn: knowledge.filter(({ level }) => level === 'practicing' || level === 'mastered'),
+      doNotAssume: knowledge.filter(({ level }) => level === 'unseen' || level === 'introduced'),
+      blockers: target ? this.blockers(target, selection) : this.noTargetBlockers(selection),
+    };
+    return learningContextSchema.parse(result);
+  }
+
+  private relevantIds(target: LoadedTopic, policy: Map<string, RoadmapEligibility>): string[] {
+    return [target.id, ...this.prerequisiteIds(target.id, policy)];
+  }
+
+  private prerequisiteIds(targetId: string, policy: Map<string, RoadmapEligibility>): string[] {
+    const result: string[] = [];
+    const visited = new Set<string>([targetId]);
+    const visit = (id: string) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      const topicPolicy = policy.get(id);
+      if (!topicPolicy) return;
+      result.push(id);
+      for (const prerequisiteId of topicPolicy.effectivePrerequisiteIds) visit(prerequisiteId);
+    };
+    for (const prerequisiteId of policy.get(targetId)?.effectivePrerequisiteIds ?? []) {
+      visit(prerequisiteId);
+    }
+    return result;
+  }
+
+  private knowledgeLevel(
+    topic: LoadedTopic,
+    evidence: CompactEvidence,
+  ): LearningContext['mayRelyOn'][number]['level'] {
+    if (topic.status === 'mastered') return 'mastered';
+    if (topic.status === 'planned' || topic.status === 'archived') return 'unseen';
+    return evidence.recentGrades.length ||
+      evidence.sourceTitles.length ||
+      topic.summary ||
+      evidence.applicationCount
+      ? 'practicing'
+      : 'introduced';
+  }
+
+  private knowledgeReason(
+    level: LearningContext['mayRelyOn'][number]['level'],
+    status: TopicStatus,
+  ): string {
+    if (level === 'mastered') return 'Recorded as mastered; it may be relied on.';
+    if (level === 'practicing') return 'Recorded evidence shows active practice.';
+    if (level === 'introduced') return 'Active but unevidenced; verify it before relying on it.';
+    return status === 'archived'
+      ? 'Archived; verify or reteach it before relying on it.'
+      : 'Not yet learned; teach it before relying on it.';
+  }
+
+  private targetContext(
+    target: LoadedTopic,
+    selection: Selection,
+    reviews: ReviewEvidence[],
+    byId: Map<string, LoadedTopic>,
+    now: Date,
+  ): NonNullable<LearningContext['target']> {
+    const targetPolicy = selection.policy.get(target.id)!;
+    const directIds = new Set([target.id, ...targetPolicy.effectivePrerequisiteIds]);
+    const approachReviews = reviews.filter((review) => directIds.has(review.topicId));
+    const activePrompts = target.prompts.filter(({ suspended }) => !suspended);
+    const parent = target.parentId ? byId.get(target.parentId) : undefined;
+    const parentPolicy = parent ? selection.policy.get(parent.id) : undefined;
+    return {
+      id: target.id,
+      title: target.title,
+      domain: target.domain,
+      topicType: target.topicType,
+      kind: targetPolicy.kind,
+      sessionEligible:
+        targetPolicy.kind === 'leaf' &&
+        (targetPolicy.learnable || target.status === 'active' || target.status === 'mastered'),
+      status: target.status,
+      description: target.description,
+      sourcePlan: parseStoredSourcePlan(target.sourcePlan),
+      chapter:
+        parent && parentPolicy
+          ? {
+              id: parent.id,
+              title: parent.title,
+              learnedLeaves: parentPolicy.learnedLeaves,
+              totalLeaves: parentPolicy.totalLeaves,
+            }
+          : null,
+      approach: recommendApproach({
+        plan: parseStoredSourcePlan(target.sourcePlan),
+        status: target.status,
+        now,
+        recentGrades: approachReviews.map((review) => review.grade as Grade),
+        promptKinds: activePrompts.map((prompt) => prompt.promptKind),
+      }),
+      prompts: activePrompts.map((prompt) => ({
+        id: prompt.id,
+        kind: prompt.promptKind,
+        text: prompt.promptText,
+        state: prompt.state,
+        difficulty: prompt.difficulty,
+        stability: prompt.stability,
+        lastGrade:
+          (reviews.find((review) => review.promptId === prompt.id)?.grade as Grade | undefined) ??
+          null,
+      })),
+    };
+  }
+
+  private prerequisiteContext(
+    id: string,
+    selection: Selection,
+    evidenceFor: (topicId: string) => CompactEvidence,
+    path: Set<string>,
+  ): LearningContext['prerequisites'][number] | null {
+    const topic = selection.graph.find((candidate) => candidate.id === id);
+    const policy = selection.policy.get(id);
+    if (!topic || !policy) return null;
+    const cycle = path.has(id);
+    const nextPath = new Set(path).add(id);
+    return {
+      id: topic.id,
+      title: topic.title,
+      status: topic.status,
+      satisfied: !cycle && policy.satisfied,
+      reason: cycle
+        ? 'Prerequisite cycle detected; do not rely on this topic.'
+        : policy.unavailablePrerequisite
+          ? 'Prerequisite roadmap data is unavailable; do not rely on this topic.'
+          : policy.malformedParent
+            ? 'Prerequisite parent data is unavailable; do not rely on this topic.'
+            : policy.satisfied
+              ? 'This prerequisite is satisfied.'
+              : `${policy.unfinishedLeafIds.length} prerequisite leaves remain unfinished.`,
+      learnedLeaves: policy.learnedLeaves,
+      totalLeaves: policy.totalLeaves,
+      summary: topic.summary,
+      evidence: evidenceFor(id),
+      children: cycle
+        ? []
+        : policy.effectivePrerequisiteIds.flatMap((prerequisiteId) => {
+            const child = this.prerequisiteContext(
+              prerequisiteId,
+              selection,
+              evidenceFor,
+              nextPath,
+            );
+            return child ? [child] : [];
+          }),
+    };
+  }
+
+  private blockers(target: LoadedTopic, selection: Selection): LearningContext['blockers'] {
+    const policy = selection.policy.get(target.id)!;
+    if (policy.cycle) {
+      return [
+        {
+          topicId: target.id,
+          title: target.title,
+          reason: 'The topic hierarchy contains a cycle.',
+        },
+      ];
+    }
+    const blockers: LearningContext['blockers'] = [];
+    if (policy.unavailablePrerequisite) {
+      blockers.push({
+        topicId: target.id,
+        title: 'Unavailable prerequisite',
+        reason: 'A prerequisite is unavailable in the owned roadmap.',
+      });
+    }
+    if (policy.malformedParent) {
+      blockers.push({
+        topicId: target.id,
+        title: 'Unavailable parent',
+        reason: 'The parent is unavailable in the owned roadmap.',
+      });
+    }
+    if (policy.kind === 'group') {
+      blockers.push({
+        topicId: target.id,
+        title: target.title,
+        reason: 'Groups are diagnostic only; choose a learnable leaf.',
+        learnedLeaves: policy.learnedLeaves,
+        totalLeaves: policy.totalLeaves,
+      });
+    }
+    if (target.status === 'archived') {
+      blockers.push({
+        topicId: target.id,
+        title: target.title,
+        reason: 'Archived topics are not session eligible.',
+      });
+    }
+    blockers.push(...policy.blockerIds.map((blockerId) => this.blocker(blockerId, selection)));
+    return blockers;
+  }
+
+  private blocker(blockerId: string, selection: Selection): LearningContext['blockers'][number] {
+    const topic = selection.graph.find((candidate) => candidate.id === blockerId)!;
+    const policy = selection.policy.get(blockerId)!;
+    return {
+      topicId: topic.id,
+      title: topic.title,
+      reason: policy.cycle
+        ? 'The prerequisite hierarchy contains a cycle.'
+        : policy.unavailablePrerequisite
+          ? 'Prerequisite roadmap data is unavailable.'
+          : policy.malformedParent
+            ? 'Prerequisite parent data is unavailable.'
+            : `${policy.unfinishedLeafIds.length} prerequisite leaves remain unfinished.`,
+      learnedLeaves: policy.learnedLeaves,
+      totalLeaves: policy.totalLeaves,
+      unfinishedLeaves: policy.unfinishedLeafIds.flatMap((id) => {
+        const leaf = selection.graph.find((candidate) => candidate.id === id);
+        return leaf ? [{ id: leaf.id, title: leaf.title, status: leaf.status }] : [];
+      }),
+    };
+  }
+
+  private noTargetBlockers(selection: Selection): LearningContext['blockers'] {
+    return selection.graph
+      .filter(
+        (topic) =>
+          topic.status === 'planned' &&
+          selection.scopeIds.has(topic.id) &&
+          !selection.policy.get(topic.id)?.learnable,
+      )
+      .flatMap((topic) => this.blockers(topic, selection));
+  }
+}

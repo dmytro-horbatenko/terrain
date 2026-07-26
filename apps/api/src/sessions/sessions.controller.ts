@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -11,8 +11,21 @@ export class SessionsController {
     @CurrentUser() userId: string,
     @Query('mode') mode?: string | string[],
     @Query('focusTopicId') focusTopicId?: string | string[],
+    @Query('approach') approach?: string | string[],
   ) {
     const one = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v);
-    return this.service.createExport(userId, { mode: one(mode), focusTopicId: one(focusTopicId) });
+    const learningApproach = one(approach);
+    if (
+      learningApproach !== undefined &&
+      learningApproach !== 'guided' &&
+      learningApproach !== 'source-first'
+    ) {
+      throw new BadRequestException('approach must be guided or source-first');
+    }
+    return this.service.createExport(userId, {
+      mode: one(mode),
+      focusTopicId: one(focusTopicId),
+      approach: learningApproach,
+    });
   }
 }

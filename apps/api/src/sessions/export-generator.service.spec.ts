@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import type { LearningContext } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { ExportGeneratorService } from './export-generator.service';
@@ -18,7 +19,7 @@ function makeUserMock() {
 }
 
 function makeMetrics(prisma: any) {
-  const real = new MetricsService(prisma as any);
+  const real = new MetricsService(prisma as any, { nextUp: jest.fn() } as any);
   return {
     dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
     dueCards: jest.fn().mockResolvedValue([]),
@@ -173,20 +174,44 @@ describe('ExportGeneratorService', () => {
     expect(md).toContain('TopicC');
   });
 
-  it('blocked glyph: planned topic with unmastered prereq renders ✗', async () => {
+  it('blocked glyph: planned topic stays blocked until its prerequisite chapter is complete', async () => {
     const prisma3 = {
       topic: {
         findMany: jest.fn().mockResolvedValue([
           {
-            id: 'X',
-            title: 'BlockedTopic',
+            id: 'basics',
+            title: 'Blockchain basics',
+            domain: 'Web3',
+            status: 'active',
+            nextReviewAt: null,
+            noteRef: null,
+            summary: null,
+            parentId: null,
+            prerequisites: [],
+            prompts: [],
+          },
+          ...Array.from({ length: 13 }, (_, i) => ({
+            id: `basic-${i + 1}`,
+            title: `Basic ${i + 1}`,
+            domain: 'Web3',
+            status: i < 5 ? 'active' : 'planned',
+            nextReviewAt: null,
+            noteRef: null,
+            summary: null,
+            parentId: 'basics',
+            prerequisites: [],
+            prompts: [],
+          })),
+          {
+            id: 'accounts',
+            title: 'Accounts, transactions & gas',
             domain: 'DSA',
             status: 'planned',
             nextReviewAt: null,
             noteRef: null,
             summary: null,
             parentId: null,
-            prerequisites: [{ prerequisite: { status: 'planned' } }],
+            prerequisites: [{ prerequisiteId: 'basics' }],
             prompts: [],
           },
         ]),
@@ -208,8 +233,8 @@ describe('ExportGeneratorService', () => {
     }).compile();
     const svc3 = mod3.get(ExportGeneratorService);
     const md = await svc3.generate({ now: new Date('2026-01-08T09:00:00Z'), userId: 'userA' });
-    expect(md).toContain('✗');
-    expect(md).toContain('BlockedTopic');
+    expect(md).toContain('✗ Accounts, transactions & gas');
+    expect(md).toContain('○ Basic 6');
   });
 
   it('reviewing tag: active topic with a reviewed card renders (reviewing)', async () => {
@@ -702,378 +727,272 @@ describe('ExportGeneratorService', () => {
     });
   });
 
-  describe('mode=learn', () => {
-    const NOW = new Date('2026-07-03T10:00:00Z');
-
-    function focusTopic(overrides: Record<string, unknown> = {}) {
-      return {
-        id: 'focus-1',
+  describe('canonical learn context', () => {
+    const NOW = new Date('2026-07-24T10:00:00Z');
+    const evidence: LearningContext['mayRelyOn'][number]['evidence'] = {
+      recentGrades: ['good'],
+      lastReviewedAt: '2026-07-23T10:00:00.000Z',
+      sourceTitles: ['Canonical docs'],
+      applicationCount: 1,
+      latestApplication: 'Implemented the mechanism',
+    };
+    const context = {
+      schemaVersion: 1,
+      generatedAt: NOW.toISOString(),
+      learner: {
+        role: 'TypeScript developer',
+        learningStyle: 'Socratic',
+        codeStyle: 'Readable',
+        noteSystem: 'Obsidian',
+      },
+      target: {
+        id: '11111111-1111-4111-8111-111111111111',
         title: 'Prefix sums',
-        topicType: 'pattern',
         domain: 'DSA',
+        topicType: 'pattern',
+        kind: 'leaf',
+        sessionEligible: true,
         status: 'planned',
-        description: 'Running cumulative totals for O(1) range queries.',
-        aiContext: null,
-        parentId: 'chap-1',
-        parent: {
-          id: 'chap-1',
-          title: 'Arrays & Hashing',
-          prerequisites: [],
-        },
-        prerequisites: [
-          {
-            prerequisite: {
-              title: 'Hashing fundamentals',
-              status: 'active',
-              summary: '**Key insight:** buckets trade memory for time.',
+        description: 'Running cumulative totals.',
+        sourcePlan: {
+          policy: 'required',
+          requirements: [
+            {
+              id: 'canonical',
+              purpose: 'Ground the invariant',
+              requiredWhen: 'first_exposure',
+              options: [
+                {
+                  id: 'docs',
+                  title: 'Prefix sum guide',
+                  url: 'https://example.com/prefix-sums',
+                  format: 'article',
+                  scope: 'Construction and range queries',
+                  estimatedMinutes: 10,
+                  why: 'Concise worked examples',
+                  paid: false,
+                  language: 'en',
+                  verifiedAt: '2026-01-01',
+                  recheckAfterDays: 30,
+                },
+              ],
             },
+          ],
+        },
+        chapter: {
+          id: '22222222-2222-4222-8222-222222222222',
+          title: 'Arrays & Hashing',
+          learnedLeaves: 2,
+          totalLeaves: 5,
+        },
+        approach: { recommended: 'guided', reasons: ['contains a code prompt'] },
+        prompts: [
+          {
+            id: '33333333-3333-4333-8333-333333333333',
+            kind: 'code',
+            text: 'Implement a prefix-sum query.',
+            state: 'learning',
+            difficulty: 4,
+            stability: 2,
+            lastGrade: 'hard',
           },
-          { prerequisite: { title: 'Arrays 101', status: 'mastered', summary: null } },
         ],
-        prompts: [{ id: 'c1', promptKind: 'concept', promptText: 'Define a prefix-sum array.' }],
-        sourcePlan: null,
-        sourceEvidence: [],
-        ...overrides,
-      };
-    }
-
-    it('renders the applicable source plan before the learning goal with preferences and history', async () => {
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(
-        focusTopic({
-          sourcePlan: {
-            policy: 'required',
-            requirements: [
-              {
-                id: 'account-model',
-                purpose: 'Understand Ethereum accounts',
-                requiredWhen: 'first_exposure',
-                options: [
-                  {
-                    id: 'canonical-account-model',
-                    title: 'Ethereum accounts',
-                    url: 'https://ethereum.org/accounts',
-                    format: 'documentation',
-                    scope: 'Externally-owned accounts',
-                    estimatedMinutes: 12,
-                    why: 'Canonical account model',
-                    paid: false,
-                    language: 'en',
-                  },
-                ],
-              },
-              {
-                id: 'execution',
-                purpose: 'See transaction execution',
-                requiredWhen: 'always',
-                options: [
-                  {
-                    id: 'execution-video',
-                    title: 'Transaction execution',
-                    url: 'https://example.com/execution',
-                    format: 'video',
-                    scope: 'Lifecycle walkthrough',
-                    estimatedMinutes: 15,
-                    why: 'Visual sequence',
-                  },
-                ],
-              },
-            ],
+      },
+      selection: {
+        source: 'authored-order',
+        importedFocus: {
+          title: 'Blocked topic',
+          accepted: false,
+          reason: 'Prerequisite chapter is incomplete.',
+        },
+        learnableAlternatives: [
+          {
+            id: '44444444-4444-4444-8444-444444444444',
+            title: 'Two Sum',
+            chapterTitle: 'Arrays & Hashing',
           },
-          sourceEvidence: [{ sourceTitle: 'Earlier account overview' }],
-        }),
-      );
-      prisma.settings.findUnique.mockResolvedValue({
-        preferredSourceFormats: ['documentation', 'video'],
-        sourceTimeBudgetMinutes: 30,
-        sourceLanguage: 'en',
-        allowPaidSources: false,
-      });
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
+        ],
+      },
+      prerequisites: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          title: 'Arrays',
+          status: 'active',
+          satisfied: true,
+          reason: 'This prerequisite is satisfied.',
+          learnedLeaves: 1,
+          totalLeaves: 1,
+          summary: 'Contiguous indexed storage.',
+          evidence,
+          children: [
+            {
+              id: '66666666-6666-4666-8666-666666666666',
+              title: 'Index arithmetic',
+              status: 'active',
+              satisfied: true,
+              reason: 'This prerequisite is satisfied.',
+              learnedLeaves: 1,
+              totalLeaves: 1,
+              summary: null,
+              evidence,
+              children: [],
+            },
+          ],
+        },
+      ],
+      mayRelyOn: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          title: 'Arrays',
+          status: 'active',
+          level: 'practicing',
+          reason: 'Recorded evidence shows active practice.',
+          summary: 'Contiguous indexed storage.',
+          evidence,
+        },
+      ],
+      doNotAssume: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          title: 'Algebraic invariants',
+          status: 'active',
+          level: 'introduced',
+          reason: 'Verify it before relying on it.',
+          summary: null,
+          evidence: { ...evidence, recentGrades: [], applicationCount: 0 },
+        },
+      ],
+      blockers: [
+        {
+          topicId: '88888888-8888-4888-8888-888888888888',
+          title: 'Optional advanced branch',
+          reason: 'Not required for this target.',
+        },
+      ],
+    } satisfies LearningContext;
 
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
+    it('renders guided learning only from the canonical context and keeps the output contract last', () => {
+      const md = service.generateLearnContext(context, 'guided', NOW);
 
-      expect(md.indexOf('## SOURCE PLAN')).toBeLessThan(md.indexOf('## LEARNING GOAL'));
-      expect(md).toContain('canonical-account-model');
-      expect(md).toContain('Ethereum accounts');
-      expect(md).toContain('Scope: Externally-owned accounts');
-      expect(md).toContain('Estimated required intake: 2 sources · 27 min');
-      expect(md).toContain('Preferred formats: documentation, video');
-      expect(md).toContain('Earlier account overview');
+      expect(md).toContain('## WHO I AM');
+      expect(md).toContain('Role: TypeScript developer');
+      expect(md).toContain('## SELECTION');
+      expect(md).toContain('Prerequisite chapter is incomplete.');
+      expect(md).toContain('## LEARNING GOAL');
+      expect(md).toContain('Chapter: Arrays & Hashing (2/5 leaves learned)');
+      expect(md).toContain('## SOURCE PLAN');
+      expect(md).toContain('Prefix sum guide');
+      expect(md).toContain('Paid: false; Language: en');
+      expect(md).toContain('Verified at: 2026-01-01');
+      expect(md).toContain('EXPIRED');
+      expect(md).toContain('## PREREQUISITES');
+      expect(md).toContain('  - Index arithmetic');
+      expect(md).toContain('## MAY RELY ON');
+      expect(md).toContain('Arrays [practicing]');
+      expect(md).toContain('Sources: Canonical docs');
+      expect(md).toContain('Latest application: Implemented the mechanism');
+      expect(md).toContain('## DO NOT ASSUME');
+      expect(md).toContain('Algebraic invariants [introduced]');
+      expect(md).toContain('## BLOCKERS');
+      expect(md).toContain('## SESSION CONDUCT — guided learning');
+      expect(md).toContain('- card 33333333-3333-4333-8333-333333333333 [code]');
+      expect(md).toContain('difficulty 4; stability 2');
+      expect(md.endsWith(OUTPUT_CONTRACT)).toBe(true);
+      expect(prisma.topic.findFirst).not.toHaveBeenCalled();
+      expect(prisma.topic.findMany).not.toHaveBeenCalled();
     });
 
-    it('renders a source-plan policy with no required sources', async () => {
-      const sourcePlan = { policy: 'none', rationale: 'Practice only' };
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ sourcePlan }));
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-      expect(md).toContain('No required sources: Practice only');
-    });
+    it('selects the source-first conduct script without changing the canonical sections', () => {
+      const md = service.generateLearnContext(context, 'source-first', NOW);
 
-    it('blocks a planned legacy first-exposure session', async () => {
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-
+      expect(md).toContain('## SESSION CONDUCT — source-first learning');
+      expect(md).toContain('1. SELECT');
+      expect(md).toContain('2. CONSUME');
+      expect(md).toContain('3. RECONSTRUCT');
+      expect(md).toContain('Do not teach the topic before required source reconstruction');
       expect(md).toContain(
-        [
-          'LEGACY FIRST EXPOSURE BLOCKED — no source plan is stored for this topic.',
-          'STOP: this topic must be curated before strict source-grounded learning can proceed.',
-          'Do not invent requirementId or sourceId.',
-          'Emit no sourceEvidence for this topic and do not add it to studiedTopics.',
-        ].join('\n'),
+        'Exposure: not yet studied — treat this as first exposure, start from fundamentals',
+      );
+      expect(md).toContain('Chosen approach: source-first');
+      expect(md).toContain('Recommended approach: guided');
+      expect(md).toContain('Recommendation reasons: contains a code prompt');
+      expect(md).not.toContain('Approach: source-first\nWhy: contains a code prompt');
+      expect(md).toContain('## MAY RELY ON');
+      expect(md.endsWith(OUTPUT_CONTRACT)).toBe(true);
+    });
+
+    it('does not turn a missing source plan into a gate for guided learning', () => {
+      const guidedContext = {
+        ...context,
+        target: { ...context.target, sourcePlan: null },
+      } satisfies LearningContext;
+
+      const md = service.generateLearnContext(guidedContext, 'guided', NOW);
+
+      expect(md).toContain('Guided learning may proceed without a source gate.');
+      expect(md).not.toContain('LEGACY FIRST EXPOSURE BLOCKED');
+    });
+
+    it.each([
+      ['planned', 'LEGACY FIRST EXPOSURE BLOCKED'],
+      ['active', 'LEGACY COMPATIBILITY MODE'],
+    ] as const)('keeps source-first legacy handling for a %s target', (status, expected) => {
+      const legacyContext = {
+        ...context,
+        target: { ...context.target, status, sourcePlan: null },
+      } satisfies LearningContext;
+
+      expect(service.generateLearnContext(legacyContext, 'source-first', NOW)).toContain(expected);
+    });
+
+    it('renders an explicit no-source policy', () => {
+      const noSourceContext = {
+        ...context,
+        target: {
+          ...context.target,
+          sourcePlan: { policy: 'none', rationale: 'Practice only' },
+        },
+      } satisfies LearningContext;
+
+      expect(service.generateLearnContext(noSourceContext, 'guided', NOW)).toContain(
+        'No required sources: Practice only',
       );
     });
 
-    it('labels an active legacy topic as compatibility mode', async () => {
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ status: 'active' }));
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-
-      expect(md).toContain(
-        [
-          'LEGACY COMPATIBILITY MODE — no source plan is stored for this previously studied topic.',
-          'Do not invent requirementId or sourceId, and emit no sourceEvidence for this topic.',
-        ].join('\n'),
-      );
-      expect(md.slice(md.indexOf('## SOURCE PLAN'), md.indexOf('## LEARNING GOAL'))).not.toContain(
-        'LEGACY FIRST EXPOSURE BLOCKED',
-      );
-    });
-
-    it('marks expired options and omits first-exposure requirements for active topics', async () => {
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(
-        focusTopic({
+    it('renders only source requirements applicable to the target status', () => {
+      const activeContext = {
+        ...context,
+        target: {
+          ...context.target,
           status: 'active',
           sourcePlan: {
             policy: 'required',
             requirements: [
+              ...context.target.sourcePlan.requirements,
               {
-                id: 'intro',
-                purpose: 'First pass',
-                requiredWhen: 'first_exposure',
-                options: [
-                  {
-                    id: 'omit-me',
-                    title: 'Intro',
-                    url: 'https://example.com/intro',
-                    format: 'article',
-                    scope: 'Intro',
-                    estimatedMinutes: 5,
-                    why: 'Basics',
-                  },
-                ],
-              },
-              {
-                id: 'always',
-                purpose: 'Current reference',
+                id: 'current',
+                purpose: 'Current behavior',
                 requiredWhen: 'always',
                 options: [
                   {
-                    id: 'expired-source',
-                    title: 'Old docs',
-                    url: 'https://example.com/old',
+                    id: 'current-docs',
+                    title: 'Current docs',
+                    url: 'https://example.com/current',
                     format: 'documentation',
-                    scope: 'API',
-                    estimatedMinutes: 10,
-                    why: 'Reference',
-                    verifiedAt: '2026-01-01',
-                    recheckAfterDays: 1,
+                    scope: 'Current behavior',
+                    estimatedMinutes: 5,
+                    why: 'Authoritative reference',
                   },
                 ],
               },
             ],
           },
-        }),
-      );
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-      expect(md).not.toContain('omit-me');
-      expect(md).toContain('expired-source');
-      expect(md).toContain('EXPIRED');
-      expect(md).toContain('Verified at: 2026-01-01');
-      expect(md).toContain('Recheck after: 1 days');
-    });
-
-    it('renders learning goal, prereq summaries, existing cards, conduct, and chapter context siblings', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
-      // chapter-context query returns the focus topic itself (must be excluded)
-      // plus one real sibling
-      prisma.topic.findMany = jest.fn().mockResolvedValue([
-        focusTopic(),
-        {
-          id: 'sib-1',
-          title: 'Two Sum / complement lookup',
-          domain: 'DSA',
-          status: 'planned',
-          parentId: 'chap-1',
-          prerequisites: [],
-          prompts: [],
         },
-      ]);
+      } satisfies LearningContext;
 
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-
-      expect(md).toContain('Export: learn');
-      expect(md).toContain('## LEARNING GOAL');
-      expect(md).toContain('Topic: Prefix sums\nType: pattern');
-      expect(md).not.toContain('in this chapter started');
-      expect(md).toContain(
-        '- Hashing fundamentals — **Key insight:** buckets trade memory for time.',
-      );
-      expect(md).toContain('- Arrays 101');
-      expect(md).toContain('Existing cards (do not duplicate):');
-      expect(md).toContain('- card c1 [concept] Define a prefix-sum array.');
-      expect(md).toContain('## SESSION CONDUCT — learning');
-      expect(md).toContain('## OUTPUT CONTRACT');
-      expect(md).not.toContain('## MASTERY CONDITIONS');
-
-      const ctxStart = md.indexOf('## CHAPTER CONTEXT');
-      const ctxEnd = md.indexOf('## LEARNING GOAL');
-      expect(ctxStart).toBeGreaterThan(-1);
-      const chapterContext = md.slice(ctxStart, ctxEnd);
-      expect(chapterContext).toContain('In this chapter (Arrays & Hashing):');
-      expect(chapterContext).toContain('○ Two Sum / complement lookup');
-      expect(chapterContext).not.toContain('Prefix sums');
-      expect(chapterContext).not.toContain('Builds on (chapters)');
-
-      expect(prisma.topic.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId: 'u1',
-            status: { not: 'archived' },
-            OR: [{ parentId: 'chap-1' }, { id: { in: [] } }],
-          },
-        }),
-      );
-    });
-
-    it('lists prerequisite chapters under Builds on (chapters), with a placeholder when the chapter itself has no siblings yet', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(
-        focusTopic({
-          parent: {
-            id: 'chap-1',
-            title: 'Two Pointers',
-            prerequisites: [{ prerequisite: { id: 'chap-0' } }],
-          },
-        }),
-      );
-      prisma.topic.findMany = jest.fn().mockResolvedValue([
-        {
-          id: 'chap-0',
-          title: 'Arrays & Hashing',
-          domain: 'DSA',
-          status: 'mastered',
-          parentId: null,
-          prerequisites: [],
-          prompts: [],
-        },
-      ]);
-
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-
-      const ctxStart = md.indexOf('## CHAPTER CONTEXT');
-      const ctxEnd = md.indexOf('## LEARNING GOAL');
-      const chapterContext = md.slice(ctxStart, ctxEnd);
-      expect(chapterContext).toContain('In this chapter (Two Pointers):');
-      expect(chapterContext).toContain('- (none yet)');
-      expect(chapterContext).toContain('Builds on (chapters):');
-      expect(chapterContext).toContain('✓ Arrays & Hashing');
-
-      expect(prisma.topic.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            userId: 'u1',
-            status: { not: 'archived' },
-            OR: [{ parentId: 'chap-1' }, { id: { in: ['chap-0'] } }],
-          },
-        }),
-      );
-    });
-
-    it('omits CHAPTER CONTEXT entirely when the focus topic has no parent chapter', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
-      prisma.topic.findFirst = jest
-        .fn()
-        .mockResolvedValue(focusTopic({ parentId: null, parent: null }));
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-
-      const md = await service.generate({
-        mode: 'learn',
-        focusTopicId: 'focus-1',
-        now: NOW,
-        userId: 'u1',
-      });
-
-      expect(md).not.toContain('## CHAPTER CONTEXT');
-      expect(prisma.topic.findMany).not.toHaveBeenCalled();
-    });
-
-    it('defaults the focus to Next Up when focusTopicId is omitted', async () => {
-      prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
-      metrics.nextUp = jest.fn().mockResolvedValue({ topic: { id: 'focus-1' } });
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic());
-      prisma.topic.findMany = jest.fn().mockResolvedValue([]);
-
-      const md = await service.generate({ mode: 'learn', now: NOW, userId: 'u1' });
-      expect(md).toContain('Topic: Prefix sums');
-      expect(prisma.topic.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ id: 'focus-1', userId: 'u1' }),
-        }),
-      );
-    });
-
-    it('422s when there is no startable topic and no explicit focus', async () => {
-      metrics.nextUp = jest.fn().mockResolvedValue(null);
-      await expect(service.generate({ mode: 'learn', now: NOW, userId: 'u1' })).rejects.toThrow(
-        'No startable topic — pass focusTopicId or start something from the roadmap.',
-      );
-    });
-
-    it('404s on an archived focus topic', async () => {
-      prisma.topic.findFirst = jest.fn().mockResolvedValue(focusTopic({ status: 'archived' }));
-      await expect(
-        service.generate({ mode: 'learn', focusTopicId: 'focus-1', now: NOW, userId: 'u1' }),
-      ).rejects.toThrow('not found');
+      const md = service.generateLearnContext(activeContext, 'source-first', NOW);
+      expect(md).not.toContain('Requirement canonical');
+      expect(md).toContain('Requirement current');
     });
   });
 });

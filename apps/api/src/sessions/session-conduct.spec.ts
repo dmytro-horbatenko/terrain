@@ -1,30 +1,43 @@
-import { LEARN_CONDUCT, REPEAT_CONDUCT } from './session-conduct';
+import { GUIDED_CONDUCT, REPEAT_CONDUCT, SOURCE_FIRST_CONDUCT } from './session-conduct';
 
 describe('session conduct scripts', () => {
-  it('LEARN forces teach-back and doing', () => {
-    expect(LEARN_CONDUCT.toLowerCase()).toContain('explain');
-    expect(LEARN_CONDUCT.toLowerCase()).toContain('in my own words');
-    expect(LEARN_CONDUCT).toContain('applicationEvents');
-    expect(LEARN_CONDUCT).toContain('Obsidian');
-    expect(LEARN_CONDUCT).toContain('Do not teach the topic before required source reconstruction');
-    expect(LEARN_CONDUCT).toContain('do not edit files, execute the task, or write my answer');
-    expect(LEARN_CONDUCT).toContain('Do not list the topic in studiedTopics');
-    expect(LEARN_CONDUCT).toContain('Pause while I leave the chat');
-    expect(LEARN_CONDUCT.indexOf('1. SELECT')).toBeLessThan(LEARN_CONDUCT.indexOf('2. CONSUME'));
-    expect(LEARN_CONDUCT.indexOf('2. CONSUME')).toBeLessThan(
-      LEARN_CONDUCT.indexOf('3. RECONSTRUCT'),
+  it('GUIDED follows the approved teach-probe-do ritual without writing the answer', () => {
+    expect(GUIDED_CONDUCT).toContain('1. Calibrate');
+    expect(GUIDED_CONDUCT).toContain('2. Explain incrementally');
+    expect(GUIDED_CONDUCT).toContain('5. Do');
+    expect(GUIDED_CONDUCT).toContain('must not write my answer');
+  });
+
+  it('SOURCE FIRST forces source reconstruction, teach-back, and doing', () => {
+    expect(SOURCE_FIRST_CONDUCT.toLowerCase()).toContain('explain');
+    expect(SOURCE_FIRST_CONDUCT.toLowerCase()).toContain('in my own words');
+    expect(SOURCE_FIRST_CONDUCT).toContain('applicationEvents');
+    expect(SOURCE_FIRST_CONDUCT).toContain('Obsidian');
+    expect(SOURCE_FIRST_CONDUCT).toContain(
+      'Do not teach the topic before required source reconstruction',
     );
-    expect(LEARN_CONDUCT.indexOf('3. RECONSTRUCT')).toBeLessThan(
-      LEARN_CONDUCT.indexOf('5. CLOSED-SOURCE TEACH-BACK'),
+    expect(SOURCE_FIRST_CONDUCT).toContain(
+      'do not edit files, execute the task, or write my answer',
     );
-    expect(LEARN_CONDUCT.indexOf('5. CLOSED-SOURCE TEACH-BACK')).toBeLessThan(
-      LEARN_CONDUCT.indexOf('7. DO'),
+    expect(SOURCE_FIRST_CONDUCT).toContain('Do not list the topic in studiedTopics');
+    expect(SOURCE_FIRST_CONDUCT).toContain('Pause while I leave the chat');
+    expect(SOURCE_FIRST_CONDUCT.indexOf('1. SELECT')).toBeLessThan(
+      SOURCE_FIRST_CONDUCT.indexOf('2. CONSUME'),
+    );
+    expect(SOURCE_FIRST_CONDUCT.indexOf('2. CONSUME')).toBeLessThan(
+      SOURCE_FIRST_CONDUCT.indexOf('3. RECONSTRUCT'),
+    );
+    expect(SOURCE_FIRST_CONDUCT.indexOf('3. RECONSTRUCT')).toBeLessThan(
+      SOURCE_FIRST_CONDUCT.indexOf('5. CLOSED-SOURCE TEACH-BACK'),
+    );
+    expect(SOURCE_FIRST_CONDUCT.indexOf('5. CLOSED-SOURCE TEACH-BACK')).toBeLessThan(
+      SOURCE_FIRST_CONDUCT.indexOf('7. DO'),
     );
   });
 
-  it('LEARN stops a blocked legacy first-exposure session', () => {
-    expect(LEARN_CONDUCT).toContain('LEGACY FIRST EXPOSURE BLOCKED');
-    expect(LEARN_CONDUCT).toContain('STOP');
+  it('SOURCE FIRST stops a blocked legacy first-exposure session', () => {
+    expect(SOURCE_FIRST_CONDUCT).toContain('LEGACY FIRST EXPOSURE BLOCKED');
+    expect(SOURCE_FIRST_CONDUCT).toContain('STOP');
   });
 
   it('REPEAT keeps self-grading and forces elaboration on misses', () => {

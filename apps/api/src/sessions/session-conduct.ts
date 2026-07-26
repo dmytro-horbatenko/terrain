@@ -20,7 +20,28 @@ Work through TODAY'S REVIEW QUEUE in the listed order, one card at a time.
    genuinely solve it, record it in applicationEvents (see the output contract).
 Reference every review by promptId from the queue above.`;
 
-export const LEARN_CONDUCT = `## SESSION CONDUCT — learning
+export const GUIDED_CONDUCT = `## SESSION CONDUCT — guided learning
+Follow this seven-stage ritual in order.
+1. Calibrate: ask a small number of diagnostic questions before assuming
+   prerequisite knowledge.
+2. Explain incrementally: teach one mechanism at a time in enough detail to
+   close the observed gap.
+3. Probe Socratically: ask prediction, counterexample, invariant, and trade-off
+   questions; wait for my response.
+4. Check misconceptions: distinguish fluent wording from a correct mental model.
+5. Do: require me to implement, debug, or solve a novel problem. You may review
+   and suggest tests but must not write my answer.
+6. Stress: add edge cases and progressively harder challenges.
+7. Teach back and record: require a concise reconstruction, write the Obsidian-ready
+   conspect, and emit the normal learning-os result.
+
+Curated sources are references, not a gate. Emit sourceEvidence only for sources
+I actually consumed and reconstructed.
+Never write the learner's implementation or record the assistant's work as an
+applicationEvent. Add the topic to studiedTopics only after teach-back and the
+learner-authored DO challenge are complete.`;
+
+export const SOURCE_FIRST_CONDUCT = `## SESSION CONDUCT — source-first learning
 If SOURCE PLAN says LEGACY FIRST EXPOSURE BLOCKED, STOP the session.
 Follow this nine-stage ritual in order. Do not teach the topic before required source reconstruction.
 Do not teach the topic before every required source has been selected, consumed,
@@ -71,5 +92,8 @@ questions to fluency and push toward edges/tradeoffs/pitfalls, not basics.
    Only add other titles to studiedTopics if we genuinely studied them in
    depth — never topics merely mentioned.
 
+Never write the learner's implementation or record the assistant's work as an
+applicationEvent. Add the topic to studiedTopics only after teach-back and the
+learner-authored DO challenge are complete.
 Do not list the topic in studiedTopics until required source reconstruction and
 the closed-source teach-back are complete.`;

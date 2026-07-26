@@ -1,25 +1,42 @@
 import { Test } from '@nestjs/testing';
+import { LearningContextService } from '../learning/learning-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExportGeneratorService } from './export-generator.service';
+import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 
 describe('SessionsService.createExport', () => {
   let service: SessionsService;
   let create: jest.Mock;
   let update: jest.Mock;
+  let learning: { context: jest.Mock };
+  let generator: { generate: jest.Mock; generateLearnContext: jest.Mock };
 
   beforeEach(async () => {
     create = jest.fn().mockResolvedValue({ id: 'sess-1' });
     update = jest.fn().mockResolvedValue({});
     const prisma = { sessionExport: { create, update } };
-    const generator = {
+    generator = {
       generate: jest.fn().mockResolvedValue('header Session: <set-on-persist>\n\nbody'),
+      generateLearnContext: jest
+        .fn()
+        .mockResolvedValue('header Session: <set-on-persist>\n\nlearn body'),
+    };
+    learning = {
+      context: jest.fn().mockResolvedValue({
+        target: {
+          id: 't1',
+          sessionEligible: true,
+          approach: { recommended: 'guided' },
+        },
+      }),
     };
     const mod = await Test.createTestingModule({
       providers: [
         SessionsService,
         { provide: PrismaService, useValue: prisma },
         { provide: ExportGeneratorService, useValue: generator },
+        { provide: LearningContextService, useValue: learning },
       ],
     }).compile();
     service = mod.get(SessionsService);
@@ -70,5 +87,100 @@ describe('SessionsService.createExport', () => {
     const data = create.mock.calls[0][0].data;
     expect(data.mode).toBe(expected);
     expect(data.domain).toBe(domain);
+  });
+
+  it('persists the resolved focus and recommended approach for a default learn export', async () => {
+    await service.createExport('userA', { mode: 'learn' });
+
+    expect(learning.context).toHaveBeenCalledWith('userA', {
+      topic: undefined,
+      now: expect.any(Date),
+    });
+    expect(learning.context.mock.calls[0][1].now).toBe(
+      generator.generateLearnContext.mock.calls[0][2],
+    );
+    expect(generator.generateLearnContext).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ id: 't1' }) }),
+      'guided',
+      expect.any(Date),
+    );
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'userA',
+        mode: 'learn',
+        focusTopicId: 't1',
+        approach: 'guided',
+      }),
+    });
+  });
+
+  it('persists an explicit source-first override using the Prisma enum spelling', async () => {
+    await service.createExport('userA', {
+      mode: 'learn',
+      focusTopicId: 'requested-topic',
+      approach: 'source-first',
+    });
+
+    expect(learning.context).toHaveBeenCalledWith('userA', {
+      topic: 'requested-topic',
+      now: expect.any(Date),
+    });
+    expect(generator.generateLearnContext).toHaveBeenCalledWith(
+      expect.any(Object),
+      'source-first',
+      expect.any(Date),
+    );
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        focusTopicId: 't1',
+        approach: 'source_first',
+      }),
+    });
+  });
+
+  it('rejects a context whose target cannot start a session', async () => {
+    learning.context.mockResolvedValue({
+      target: {
+        id: 'blocked',
+        sessionEligible: false,
+        approach: { recommended: 'guided' },
+      },
+    });
+
+    await expect(
+      service.createExport('userA', { mode: 'learn', focusTopicId: 'blocked' }),
+    ).rejects.toThrow('No startable topic.');
+    expect(generator.generateLearnContext).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe('SessionsController.export', () => {
+  it('uses the first query value and passes an exact learning approach', () => {
+    const createExport = jest.fn();
+    const controller = new SessionsController({ createExport } as unknown as SessionsService);
+
+    controller.export(
+      'userA',
+      ['learn', 'full'],
+      ['topic-1', 'topic-2'],
+      ['source-first', 'guided'],
+    );
+
+    expect(createExport).toHaveBeenCalledWith('userA', {
+      mode: 'learn',
+      focusTopicId: 'topic-1',
+      approach: 'source-first',
+    });
+  });
+
+  it('rejects an approach outside guided and source-first', () => {
+    const controller = new SessionsController({
+      createExport: jest.fn(),
+    } as unknown as SessionsService);
+
+    expect(() => controller.export('userA', 'learn', 'topic-1', ['other', 'guided'])).toThrow(
+      'approach must be guided or source-first',
+    );
   });
 });
