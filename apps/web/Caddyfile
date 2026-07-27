@@ -28,6 +28,14 @@
 	# apps/api has no global route prefix (routes are /auth/*, /topics/*, ...),
 	# so strip the leading /api before forwarding — mirrors the Vite dev-server
 	# proxy in apps/web/vite.config.ts.
+	handle /.well-known/oauth-protected-resource {
+		reverse_proxy api:3000
+	}
+
+	handle /.well-known/oauth-authorization-server {
+		reverse_proxy api:3000
+	}
+
 	handle_path /api/* {
 		reverse_proxy api:3000
 	}
