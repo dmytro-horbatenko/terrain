@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import type { LearningApproach } from '@terrain/types';
 import { sessionRoute } from '../../app/router';
-import { useDashboard, useGenerateExport, useImportApply, useImportPreview } from '../../api/hooks';
+import {
+  useDashboard,
+  useGenerateExport,
+  useImportApply,
+  useImportPreview,
+  useLearningContext,
+} from '../../api/hooks';
 import { Card, ErrorBox, Loading, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
 import { SourceIssuesPanel } from '../Import/sections';
-import { initialStep } from './initialStep';
+import {
+  chooseInitialApproach,
+  matchingPendingSession,
+  needsLocalWizardReset,
+  sessionQueriesReady,
+} from './sessionChoice';
 
 type Step = 'copy' | 'paste' | 'review' | 'done';
 
@@ -26,9 +38,13 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 export default function SessionWizard() {
   const { mode } = sessionRoute.useParams();
+  const { topic, approach: approachOverride } = sessionRoute.useSearch();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data: dash } = useDashboard();
+  const isMode = mode === 'repeat' || mode === 'learn';
+  const dashboard = useDashboard();
+  const dash = dashboard.data;
+  const learningContext = useLearningContext(topic, mode === 'learn');
 
   const gen = useGenerateExport();
   const preview = useImportPreview();
@@ -40,19 +56,53 @@ export default function SessionWizard() {
   const [pasted, setPasted] = useState('');
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [chosenApproach, setChosenApproach] = useState<LearningApproach | null>(null);
+  const [initialized, setInitialized] = useState(false);
   const didInit = useRef(false);
   const lastPreviewed = useRef<string | null>(null);
 
-  const isMode = mode === 'repeat' || mode === 'learn';
+  const target = learningContext.data?.target ?? null;
+  const focusTopicId = mode === 'learn' ? (target?.id ?? null) : null;
+  const pendingSession =
+    dash && isMode ? matchingPendingSession(dash.pendingSessions, mode, focusTopicId) : undefined;
+  const initialApproach = target
+    ? chooseInitialApproach(approachOverride, target.approach.recommended)
+    : null;
+  const approachChoices: LearningApproach[] = initialApproach
+    ? [initialApproach, initialApproach === 'guided' ? 'source-first' : 'guided']
+    : [];
+  const queriesReady = isMode
+    ? sessionQueriesReady(
+        mode,
+        { hasData: !!dash, isFetching: dashboard.isFetching },
+        {
+          hasData: !!learningContext.data,
+          isFetching: learningContext.isFetching,
+        },
+      )
+    : false;
 
   // Initialise once the dashboard (pendingSessions) is available: resume to
-  // paste if a session for this mode is in flight, else generate a fresh export.
+  // paste if this exact session is in flight. Repeat still generates
+  // automatically; learn waits for an explicit approach click.
   useEffect(() => {
-    if (didInit.current || !dash || !isMode) return;
+    if (
+      didInit.current ||
+      !dash ||
+      !isMode ||
+      !queriesReady ||
+      dashboard.error ||
+      (mode === 'learn' && (!learningContext.data || learningContext.error))
+    ) {
+      return;
+    }
     didInit.current = true;
-    const start = initialStep(dash.pendingSessions, mode);
-    setStep(start);
-    if (start === 'copy') {
+    const pending = matchingPendingSession(dash.pendingSessions, mode, focusTopicId);
+    if (pending) {
+      setChosenApproach(pending.approach);
+      setStep('paste');
+    } else if (mode === 'repeat') {
+      setStep('copy');
       gen.mutate(
         { mode },
         {
@@ -61,8 +111,23 @@ export default function SessionWizard() {
             toast(e instanceof Error ? e.message : 'Could not build context', 'error'),
         },
       );
+    } else {
+      setStep('copy');
     }
-  }, [dash, isMode, mode, gen, toast]);
+    setInitialized(true);
+  }, [
+    dash,
+    isMode,
+    initialized,
+    mode,
+    focusTopicId,
+    queriesReady,
+    dashboard.error,
+    learningContext.data,
+    learningContext.error,
+    gen,
+    toast,
+  ]);
 
   // Auto-preview once the pasted text contains a learning-os fence or JSON.
   useEffect(() => {
@@ -79,9 +144,29 @@ export default function SessionWizard() {
 
   const title = mode === 'repeat' ? 'Review session' : 'Learning session';
 
-  function regenerate() {
+  function startLearning(approach: LearningApproach) {
+    if (!target?.sessionEligible) {
+      toast('This topic is not available for a learning session', 'error');
+      return;
+    }
+    setChosenApproach(approach);
     gen.mutate(
-      { mode },
+      { mode: 'learn', focusTopicId: target.id, approach },
+      {
+        onSuccess: (r) => setExportMd(r.exportMd),
+        onError: (e) => toast(e instanceof Error ? e.message : 'Could not build context', 'error'),
+      },
+    );
+  }
+
+  function regenerate() {
+    const approach = chosenApproach ?? pendingSession?.approach ?? initialApproach;
+    if (mode === 'learn' && (!target?.sessionEligible || !approach)) {
+      toast('This topic is not available for a learning session', 'error');
+      return;
+    }
+    gen.mutate(
+      mode === 'learn' ? { mode, focusTopicId: target!.id, approach: approach! } : { mode },
       {
         onSuccess: async (r) => {
           setExportMd(r.exportMd);
@@ -130,6 +215,22 @@ export default function SessionWizard() {
     });
   }
 
+  function resetWizard() {
+    setStep('copy');
+    setExportMd(null);
+    setRawFallback(false);
+    setPasted('');
+    setPlan(null);
+    setResult(null);
+    setChosenApproach(null);
+    setInitialized(false);
+    didInit.current = false;
+    lastPreviewed.current = null;
+    gen.reset();
+    preview.reset();
+    apply.reset();
+  }
+
   return (
     <div className="page" style={{ maxWidth: 720 }}>
       <h1 className="page-title">{title}</h1>
@@ -142,15 +243,62 @@ export default function SessionWizard() {
               quiz you, ask for an implementation, and have you solve problems. When you&apos;re
               done, come back and paste Claude&apos;s final message.
             </p>
-            {mode === 'learn' && dash?.nextUp && dash.nextUp.sourcePlanStats.requiredCount > 0 && (
-              <div className="faint" style={{ fontSize: 12.5 }}>
-                {dash.nextUp.sourcePlanStats.requiredCount} required source
-                {dash.nextUp.sourcePlanStats.requiredCount === 1 ? '' : 's'} · ~
-                {dash.nextUp.sourcePlanStats.estimatedMinutes} min intake
-                {dash.nextUp.sourcePlanStats.hasExpired ? ' · verification needed' : ''}
-              </div>
-            )}
-            {gen.isPending && !exportMd ? (
+            {mode === 'learn' &&
+              dash?.nextUp &&
+              target?.id === dash.nextUp.topic.id &&
+              dash.nextUp.sourcePlanStats.requiredCount > 0 && (
+                <div className="faint" style={{ fontSize: 12.5 }}>
+                  {dash.nextUp.sourcePlanStats.requiredCount} required source
+                  {dash.nextUp.sourcePlanStats.requiredCount === 1 ? '' : 's'} · ~
+                  {dash.nextUp.sourcePlanStats.estimatedMinutes} min intake
+                  {dash.nextUp.sourcePlanStats.hasExpired ? ' · verification needed' : ''}
+                </div>
+              )}
+            {dashboard.error ? (
+              <ErrorBox error={dashboard.error} />
+            ) : mode === 'learn' && learningContext.error ? (
+              <ErrorBox error={learningContext.error} />
+            ) : !initialized ? (
+              <Loading
+                label={
+                  mode === 'learn' && !learningContext.data
+                    ? 'Loading learning context…'
+                    : 'Checking for an existing session…'
+                }
+              />
+            ) : mode === 'learn' && !exportMd ? (
+              !target ? (
+                <ErrorBox error="No topic is available for learning." />
+              ) : !target.sessionEligible ? (
+                <ErrorBox error="This topic is blocked, archived, or a group." />
+              ) : gen.isPending ? (
+                <Loading label="Building your context…" />
+              ) : (
+                <div className="col gap-3">
+                  <div className="col gap-1">
+                    <b>
+                      Recommended:{' '}
+                      {target.approach.recommended === 'guided'
+                        ? 'Guided deep dive'
+                        : 'Source first'}
+                    </b>
+                    <span className="muted">Because: {target.approach.reasons.join('; ')}</span>
+                  </div>
+                  <div className="row wrap gap-2">
+                    {approachChoices.map((approach, index) => (
+                      <button
+                        key={approach}
+                        className={index === 0 ? 'btn btn-primary' : 'btn'}
+                        onClick={() => startLearning(approach)}
+                      >
+                        {index === 0 ? 'Start' : 'Use'}{' '}
+                        {approach === 'guided' ? 'guided deep dive' : 'source first'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : gen.isPending && !exportMd ? (
               <Loading label="Building your context…" />
             ) : (
               <>
@@ -324,13 +472,17 @@ export default function SessionWizard() {
                 <button
                   className="btn btn-primary"
                   onClick={() => {
-                    // reset and start a fresh learn session for the new next-up topic
-                    setResult(null);
-                    setPlan(null);
-                    setPasted('');
-                    setExportMd(null);
-                    didInit.current = false;
-                    setStep('copy');
+                    const nextTopic = dash.nextUp!.topic.id;
+                    if (needsLocalWizardReset(topic, approachOverride, nextTopic)) {
+                      resetWizard();
+                      return;
+                    }
+                    navigate({
+                      to: '/session/$mode',
+                      params: { mode: 'learn' },
+                      search: { topic: nextTopic },
+                      replace: true,
+                    });
                   }}
                 >
                   Learn next: {dash.nextUp.topic.title}

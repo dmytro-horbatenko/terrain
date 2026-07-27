@@ -12,7 +12,11 @@ import { Card } from '../../components';
 export default function TodayCard({ dash }: { dash: Dashboard }) {
   const { nextUp, counts, sessionQueueCount, sessionQueueMinutes, pendingSessions } = dash;
   const repeatPending = pendingSessions.some((s) => s.mode === 'repeat');
-  const learnPending = pendingSessions.some((s) => s.mode === 'learn');
+  const learnPending =
+    !!nextUp &&
+    pendingSessions.some(
+      (session) => session.mode === 'learn' && session.focusTopicId === nextUp.topic.id,
+    );
   const showLearn = !!nextUp || counts.planned > 0;
 
   return (
@@ -80,7 +84,12 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
                   </span>
                 )}
               </div>
-              <Link to="/session/$mode" params={{ mode: 'learn' }} className="btn btn-primary">
+              <Link
+                to="/session/$mode"
+                params={{ mode: 'learn' }}
+                search={{ topic: nextUp.topic.id }}
+                className="btn btn-primary"
+              >
                 {learnPending ? 'Continue learning' : 'Start learning'}
               </Link>
               {learnPending && (
