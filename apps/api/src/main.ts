@@ -5,6 +5,9 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { loadMcpConfig } from './mcp/mcp.config';
+import { registerNonMcpBodyParsers } from './mcp/mcp.module';
+import { OAuthTokenBoundaryFilter } from './mcp/oauth.controller';
 
 const isProd = process.env.NODE_ENV === 'production';
 const KNOWN_DEV_SECRETS = new Set(['dev-only-change-in-prod', 'changeme', 'secret']);
@@ -47,8 +50,12 @@ function corsOrigins(): string[] {
 
 async function bootstrap() {
   assertJwtSecret();
+  loadMcpConfig();
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+  app.useGlobalFilters(new OAuthTokenBoundaryFilter(app.getHttpAdapter()));
 
   // Trusting X-Forwarded-* only makes sense when a stripping reverse proxy
   // (Caddy, per docker-compose.prod.yml) actually sits in front of this
@@ -65,6 +72,7 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: corsOrigins(), credentials: true });
   app.use(cookieParser());
+  registerNonMcpBodyParsers(app);
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
