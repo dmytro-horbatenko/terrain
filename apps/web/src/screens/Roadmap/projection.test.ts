@@ -20,6 +20,7 @@ function topic(over: Partial<TopicWithMeta> & { id: string; title: string }): To
     updatedAt: '2026-07-02T00:00:00Z',
     prerequisiteIds: [],
     labels: { blocked: false, reviewing: false },
+    blockers: [],
     ...over,
   };
 }
