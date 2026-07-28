@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { api, type ApiError } from '../../api/client';
 import {
   useMe,
   useUpdateProfile,
@@ -40,6 +42,12 @@ export default function Settings() {
   const updateSettings = useUpdateSettings();
   const linkToken = useTelegramLinkToken();
   const unlink = useTelegramUnlink();
+  const grants = useQuery({
+    queryKey: ['oauth-grants'],
+    queryFn: api.getOAuthGrants,
+    retry: false,
+  });
+  const disconnect = useMutation({ mutationFn: api.revokeOAuthGrant });
   const [notif, setNotif] = useState({
     timezone: 'UTC',
     digestHour: '9',
@@ -84,6 +92,7 @@ export default function Settings() {
     [formats[from], formats[to]] = [formats[to], formats[from]];
     setSources({ ...sources, preferredSourceFormats: formats });
   };
+  const oauthUnavailable = (grants.error as ApiError | null)?.status === 404;
 
   if (me.isLoading) return <Loading label="Loading…" />;
   const field = (k: keyof typeof form, label: string) => (
@@ -328,6 +337,53 @@ export default function Settings() {
             </button>
           </div>
         </Card>
+        {!oauthUnavailable && (
+          <Card title="Connected AI clients">
+            {grants.isLoading ? (
+              <span className="muted">Loading connections…</span>
+            ) : grants.isError ? (
+              <div className="errorbox">Could not load connected clients.</div>
+            ) : grants.data?.length ? (
+              <div className="col gap-3">
+                {grants.data.map((grant) => (
+                  <div className="row gap-3" key={grant.clientId}>
+                    <div className="col gap-1 grow">
+                      <b>{grant.clientName}</b>
+                      <span className="muted mono">{grant.clientId}</span>
+                      <span className="muted">
+                        {grant.scopes.join(', ')} · connected{' '}
+                        {new Date(grant.connectedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <button
+                      className="btn btn-danger"
+                      disabled={disconnect.isPending}
+                      onClick={() =>
+                        disconnect.mutate(grant.clientId, {
+                          onSuccess: () => {
+                            void grants.refetch();
+                            toast(`${grant.clientName} disconnected`, 'success');
+                          },
+                          onError: (error) =>
+                            toast(
+                              error instanceof Error ? error.message : 'Disconnect failed',
+                              'error',
+                            ),
+                        })
+                      }
+                    >
+                      {disconnect.isPending && disconnect.variables === grant.clientId
+                        ? 'Disconnecting…'
+                        : 'Disconnect'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="muted">No AI clients connected.</span>
+            )}
+          </Card>
+        )}
         <Card title="Account">
           <button className="btn" onClick={() => logout.mutate()}>
             Log out
