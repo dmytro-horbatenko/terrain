@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SourcePlan } from '@terrain/types';
+import { Link } from '@tanstack/react-router';
 import { useSettings, useTopic, useUpdateTopic } from '../api/hooks';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
@@ -248,6 +249,8 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
 
   const due = dueLabel(t.nextReviewAt);
   const noteHref = noteRefHref(t.noteRef, settings?.obsidianVault);
+  const isLeaf = t.children.length === 0;
+  const blocker = t.blockers[0];
 
   const cardsTotal = t.prompts.length;
   const cardsNew = t.prompts.filter((p) => p.state === 'new' && !p.suspended).length;
@@ -298,6 +301,42 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
           </p>
         )}
       </div>
+
+      {isLeaf && t.status === 'planned' && t.labels.blocked && blocker && (
+        <div className="card card-pad col gap-1">
+          <b>
+            {blocker.title} · {blocker.learnedLeaves} of {blocker.totalLeaves} learned
+          </b>
+          <span className="faint" style={{ fontSize: 12 }}>
+            {blocker.unfinishedLeaves.length} unfinished topic
+            {blocker.unfinishedLeaves.length === 1 ? '' : 's'}
+          </span>
+        </div>
+      )}
+
+      {isLeaf && t.status === 'planned' && !t.labels.blocked && (
+        <Link
+          to="/session/$mode"
+          params={{ mode: 'learn' }}
+          search={{ topic: t.id }}
+          className="btn btn-primary"
+          style={{ alignSelf: 'flex-start' }}
+        >
+          Learn this
+        </Link>
+      )}
+
+      {isLeaf && (t.status === 'active' || t.status === 'mastered') && (
+        <Link
+          to="/session/$mode"
+          params={{ mode: 'learn' }}
+          search={{ topic: t.id }}
+          className="btn btn-primary"
+          style={{ alignSelf: 'flex-start' }}
+        >
+          Deepen this
+        </Link>
+      )}
 
       {/* editable fields */}
       <div className="col gap-2">

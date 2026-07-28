@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   CreateAppEventInput,
   CreateTopicInput,
+  ExportOptions,
   LoginInput,
   RegisterInput,
   UpdateProfileInput,
@@ -22,6 +23,7 @@ export const qk = {
   settings: ['settings'] as const,
   topicTypes: ['topic-types'] as const,
   courses: ['courses'] as const,
+  learningContext: (topic?: string) => ['learning-context', topic ?? null] as const,
 };
 
 // ---- queries ----
@@ -50,6 +52,14 @@ export function useDashboard(domain?: string) {
   return useQuery({
     queryKey: qk.dashboard(domain),
     queryFn: () => api.getDashboard(domain),
+  });
+}
+
+export function useLearningContext(topic?: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.learningContext(topic),
+    queryFn: () => api.getLearningContext(topic),
+    enabled,
   });
 }
 
@@ -94,21 +104,25 @@ export function useTopicTypes() {
 /** Invalidate everything that derives from topic / review / streak state. */
 function useInvalidateAll() {
   const qc = useQueryClient();
-  return (topicId?: string) => {
-    qc.invalidateQueries({ queryKey: qk.topics });
-    qc.invalidateQueries({ queryKey: ['dashboard'] });
-    qc.invalidateQueries({ queryKey: ['heatmap'] });
-    qc.invalidateQueries({ queryKey: qk.streak });
-    qc.invalidateQueries({ queryKey: qk.topicTypes });
-    if (topicId) {
-      qc.invalidateQueries({ queryKey: qk.topic(topicId) });
-      qc.invalidateQueries({ queryKey: qk.reviews(topicId) });
-      qc.invalidateQueries({ queryKey: qk.nextPrompt(topicId) });
-    } else {
-      qc.invalidateQueries({ queryKey: ['topic'] });
-      qc.invalidateQueries({ queryKey: ['reviews'] });
-    }
-  };
+  return (topicId?: string) =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: qk.topics }),
+      qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      qc.invalidateQueries({ queryKey: ['heatmap'] }),
+      qc.invalidateQueries({ queryKey: qk.streak }),
+      qc.invalidateQueries({ queryKey: qk.topicTypes }),
+      qc.invalidateQueries({ queryKey: ['learning-context'] }),
+      ...(topicId
+        ? [
+            qc.invalidateQueries({ queryKey: qk.topic(topicId) }),
+            qc.invalidateQueries({ queryKey: qk.reviews(topicId) }),
+            qc.invalidateQueries({ queryKey: qk.nextPrompt(topicId) }),
+          ]
+        : [
+            qc.invalidateQueries({ queryKey: ['topic'] }),
+            qc.invalidateQueries({ queryKey: ['reviews'] }),
+          ]),
+    ]);
 }
 
 export function useCreateTopic() {
@@ -190,7 +204,7 @@ export function useSkipStreak() {
 export function useGenerateExport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (opts: { mode?: string; focusTopicId?: string }) => api.getExport(opts),
+    mutationFn: (opts: ExportOptions) => api.getExport(opts),
     // A new SessionExport row may change the dashboard's pendingSessions.
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
   });

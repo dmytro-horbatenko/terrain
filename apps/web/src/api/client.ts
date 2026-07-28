@@ -5,14 +5,18 @@ import type {
   CourseImportSummary,
   CreateAppEventInput,
   Dashboard,
+  ExportOptions,
   ExportResult,
   HeatmapCell,
   ImportPlan,
   ImportResult,
+  LearningContext,
   CreateTopicInput,
   LoginInput,
   LogReviewInput,
   NextPromptPayload,
+  OAuthAuthorizationDecision,
+  OAuthGrant,
   Prompt,
   RegisterInput,
   Review,
@@ -50,6 +54,10 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       const m = (body as { message?: unknown })?.message;
       if (Array.isArray(m)) message = m.join(', ');
       else if (typeof m === 'string') message = m;
+      else {
+        const description = (body as { error_description?: unknown })?.error_description;
+        if (typeof description === 'string') message = description;
+      }
     } catch {
       /* non-JSON error body */
     }
@@ -113,17 +121,27 @@ export const api = {
     req<{ url: string }>('/settings/telegram/link-token', { method: 'POST' }),
   unlinkTelegram: () => req<Settings>('/settings/telegram/unlink', { method: 'POST' }),
 
+  // OAuth clients
+  authorizeOAuth: (input: OAuthAuthorizationDecision) =>
+    req<{ redirectUrl: string }>('/oauth/authorize', { method: 'POST', ...json(input) }),
+  getOAuthGrants: () => req<OAuthGrant[]>('/oauth/grants'),
+  revokeOAuthGrant: (clientId: string) =>
+    req<void>(`/oauth/grants/${encodeURIComponent(clientId)}`, { method: 'DELETE' }),
+
   // topic types
   getTopicTypes: () => req<TopicType[]>('/topic-types'),
 
   // sessions export
-  getExport: (opts: { mode?: string; focusTopicId?: string }) => {
+  getExport: (opts: ExportOptions) => {
     const q = new URLSearchParams();
     if (opts.mode) q.set('mode', opts.mode);
     if (opts.focusTopicId) q.set('focusTopicId', opts.focusTopicId);
+    if (opts.approach) q.set('approach', opts.approach);
     const qs = q.toString();
     return req<ExportResult>(`/sessions/export${qs ? `?${qs}` : ''}`);
   },
+  getLearningContext: (topic?: string) =>
+    req<LearningContext>(`/learning/context${topic ? `?topic=${encodeURIComponent(topic)}` : ''}`),
 
   // import
   importPreview: (raw: string) =>

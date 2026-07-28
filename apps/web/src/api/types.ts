@@ -1,4 +1,6 @@
-import type { SourceEvidence, SourcePlan } from '@terrain/types';
+import type { LearningApproach, LearningContext, SourceEvidence, SourcePlan } from '@terrain/types';
+
+export type { LearningApproach, LearningContext };
 
 // Mirrors of the NestJS API response shapes. Kept in sync by hand with
 // apps/api (see docs/superpowers/specs/2026-06-30-terrain-design.md §3, §6, §7).
@@ -13,6 +15,14 @@ export const TOPIC_STATUSES: TopicStatus[] = ['planned', 'active', 'mastered', '
 export interface TopicLabels {
   blocked: boolean;
   reviewing: boolean;
+}
+
+export interface TopicBlocker {
+  id: string;
+  title: string;
+  learnedLeaves: number;
+  totalLeaves: number;
+  unfinishedLeaves: TopicRef[];
 }
 
 /** Full Topic scalar row (every column). */
@@ -39,6 +49,7 @@ export interface Topic {
 export interface TopicWithMeta extends Topic {
   prerequisiteIds: string[];
   labels: TopicLabels;
+  blockers: TopicBlocker[];
 }
 
 export interface TopicRef {
@@ -127,6 +138,28 @@ export interface UpdateSettingsInput {
   sourceTimeBudgetMinutes?: number | null;
   sourceLanguage?: string | null;
   allowPaidSources?: boolean;
+}
+
+export interface OAuthAuthorizationRequest {
+  response_type: string;
+  client_id: string;
+  redirect_uri: string;
+  scope: string;
+  state: string;
+  code_challenge: string;
+  code_challenge_method: string;
+  resource: string;
+}
+
+export interface OAuthAuthorizationDecision extends OAuthAuthorizationRequest {
+  approved: boolean;
+}
+
+export interface OAuthGrant {
+  clientId: string;
+  clientName: string;
+  scopes: string[];
+  connectedAt: string;
 }
 
 export interface HeatmapCell {
@@ -237,6 +270,9 @@ export interface PendingSession {
   id: string;
   mode: 'repeat' | 'learn';
   generatedAt: string; // ISO over JSON
+  focusTopicId: string | null;
+  topicTitle: string | null;
+  approach: LearningApproach | null;
 }
 
 export interface Dashboard {
@@ -268,6 +304,12 @@ export interface TopicType {
 export interface ExportResult {
   id: string;
   exportMd: string;
+}
+
+export interface ExportOptions {
+  mode?: string;
+  focusTopicId?: string;
+  approach?: LearningApproach;
 }
 
 // ---- Import flow (POST /sessions/import/preview and /sessions/import) ----
