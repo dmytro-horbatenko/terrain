@@ -54,6 +54,101 @@ cp apps/api/.env.example apps/api/.env
 # NODE_ENV=production
 ```
 
+### Read-only MCP connections (optional)
+
+Terrain exposes one read-only remote MCP tool at
+`https://<your-domain>/api/mcp`. ChatGPT and Claude connect from their cloud
+services, so the URL must be reachable over public HTTPS; a server running only
+on localhost cannot be connected directly.
+
+Availability depends on the client account and workspace:
+
+- ChatGPT custom MCP apps use developer mode. The account/workspace must permit
+  custom apps, and workspace roles or RBAC may restrict who can create, test,
+  or publish one. Check the current
+  [ChatGPT developer mode requirements](https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt-beta)
+  rather than assuming a particular plan has access.
+- Claude must show custom remote connectors for the account. On Team and
+  Enterprise, an Owner or Primary Owner must add the connector before members
+  connect it; follow Anthropic's
+  [remote MCP connector instructions](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+
+Configure each client as follows:
+
+1. Start creating the custom app/connector with the remote server URL
+   `https://<your-domain>/api/mcp`, choose OAuth, and copy the **exact callback
+   URL displayed by that client**. Do not guess or normalize it.
+2. Generate three independent values. Never reuse `JWT_SECRET`,
+   `MCP_TOKEN_SECRET`, or a client secret:
+
+   ```bash
+   openssl rand -hex 32 # MCP_TOKEN_SECRET
+   openssl rand -hex 32 # ChatGPT OAuth client secret
+   openssl rand -hex 32 # Claude OAuth client secret
+   ```
+
+3. Set the following in `apps/api/.env`. Paste the separately generated value
+   into the `MCP_TOKEN_SECRET` setting. Keep `MCP_OAUTH_CLIENTS` on one line and
+   replace every `$...` placeholder with its generated value or exact callback:
+
+   ```dotenv
+   MCP_PUBLIC_API_URL=https://<your-domain>/api
+   WEB_BASE_URL=https://<your-domain>
+   MCP_TOKEN_SECRET=
+   MCP_OAUTH_CLIENTS=[{"id":"chatgpt","name":"ChatGPT","secret":"$CHATGPT_CLIENT_SECRET","redirectUris":["$EXACT_CHATGPT_CALLBACK_URL"]},{"id":"claude","name":"Claude","secret":"$CLAUDE_CLIENT_SECRET","redirectUris":["$EXACT_CLAUDE_CALLBACK_URL"]}]
+   MCP_ALLOWED_ORIGINS=
+   ```
+
+   `MCP_PUBLIC_API_URL` is the public API URL ending in `/api`, not the MCP
+   endpoint itself. `WEB_BASE_URL` is the public web origin used for the
+   browser approval redirect. Leave `MCP_ALLOWED_ORIGINS` empty unless a client
+   actually sends an `Origin`; server-to-server clients normally omit it.
+4. In each client's advanced OAuth settings, enter its matching client ID
+   (`chatgpt` or `claude`) and matching generated client secret. The callback
+   configured in Terrain must remain byte-for-byte identical to the callback
+   shown by that client.
+5. Complete the client setup. Terrain's discovery metadata advertises
+   `offline_access`, and the authorization request must include it for durable
+   connectivity. Terrain then issues a rotating refresh token; advertising the
+   scope without actually issuing a refresh token is insufficient.
+6. Rebuild/restart the stack, then apply the pending migration
+   non-destructively:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+   docker compose -f docker-compose.prod.yml exec api \
+     ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+   docker compose -f docker-compose.prod.yml exec api \
+     ../../node_modules/.bin/prisma migrate status --schema prisma/schema.prisma
+   ```
+
+   Confirm `20260724000002_mcp_oauth` is applied. Never use `migrate reset`.
+
+After authorization, **Settings → AI connections** lists the client grant.
+Disconnecting there revokes that client's grant and its refresh-token families;
+already-issued access tokens and old refresh tokens stop working immediately.
+Removing the app only in ChatGPT or Claude does not replace server-side
+revocation.
+
+Verify the deployed connection before relying on it:
+
+```bash
+curl -fsS https://<your-domain>/.well-known/oauth-protected-resource
+curl -fsS https://<your-domain>/.well-known/oauth-authorization-server
+curl -i https://<your-domain>/api/mcp \
+  -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}'
+```
+
+The discovery documents must name the public issuer, `/api/oauth/*` endpoints,
+`learning:read`, and `offline_access`. The unauthenticated MCP request must
+return `401` with `resource_metadata` and `scope="learning:read"`. Then complete
+OAuth in each permitted client, confirm `tools/list` exposes only
+`get_learning_context`, and compare calls with no topic and with
+`Accounts, transactions & gas` against the same user's
+`/api/learning/context` REST responses. Finally disconnect in Terrain Settings
+and confirm the old access and refresh credentials can no longer reconnect.
+
 ## 3. Bring the stack up
 
 ```bash
