@@ -110,6 +110,25 @@ describe('source evidence', () => {
   });
 });
 
+describe('proposed topic topology', () => {
+  it('rejects using a parent as the proposed child topic prerequisite', () => {
+    expect(
+      learningOsV2Schema.safeParse({
+        version: 2,
+        proposedTopics: [
+          {
+            title: 'Extended public keys',
+            type: 'pattern',
+            domain: 'Web3',
+            parentTitle: ' Mnemonics & HD wallets ',
+            prerequisiteTitles: ['mnemonics & hd WALLETS'],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+});
+
 const minimalV2 = `\`\`\`learning-os
 {
   "version": 2,

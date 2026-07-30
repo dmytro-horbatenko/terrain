@@ -83,7 +83,17 @@ const proposedTopicSchema = z
     aiContext: z.string().max(2000).optional(),
     sourcePlan: sourcePlanSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((topic, ctx) => {
+    const parent = topic.parentTitle?.trim().toLowerCase();
+    if (parent && topic.prerequisiteTitles.some((title) => title.trim().toLowerCase() === parent)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['prerequisiteTitles'],
+        message: 'a topic parent cannot also be its prerequisite',
+      });
+    }
+  });
 
 const noteSummarySchema = z
   .object({
