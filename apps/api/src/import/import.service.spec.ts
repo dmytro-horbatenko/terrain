@@ -521,7 +521,7 @@ describe('ImportService.preview', () => {
             title: 'Monotonic stack',
             type: 'pattern',
             domain: 'DSA',
-            prerequisiteTitles: ['Stacks'],
+            prerequisiteTitles: [],
             parentTitle: 'Stacks',
           },
         ],
@@ -825,7 +825,7 @@ describe('ImportService.apply (transaction)', () => {
               title: 'Smart contract accounts and account abstraction',
               type: 'pattern',
               domain: 'Blockchain',
-              prerequisiteTitles: [label],
+              prerequisiteTitles: [],
               parentTitle: label,
             },
           ],
@@ -848,12 +848,7 @@ describe('ImportService.apply (transaction)', () => {
       where: { id: 'new-Smart contract accounts and account abstraction' },
       data: { parentId: 't1' },
     });
-    expect(tx.prerequisite.create).toHaveBeenCalledWith({
-      data: {
-        topicId: 'new-Smart contract accounts and account abstraction',
-        prerequisiteId: 't1',
-      },
-    });
+    expect(tx.prerequisite.create).not.toHaveBeenCalled();
   });
 
   it('claims atomically, dedupes prereqs, normalizes blank focus to null', async () => {
