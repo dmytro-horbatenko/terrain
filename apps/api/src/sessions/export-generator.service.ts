@@ -190,6 +190,9 @@ ${
     ? context.blockers.map((blocker) => `- ${blocker.title} — ${blocker.reason}`).join('\n')
     : '- (none)'
 }`;
+    const mcp = `## TERRAIN MCP — supplemental context
+If Terrain's get_learning_context tool is available, call get_learning_context once for ${target.title} before teaching. Use it only to supplement this export with current prior-learning evidence, prerequisite and blocker state, and roadmap alternatives.
+This copied export remains authoritative for the session target, Session ID, chosen approach, SOURCE PLAN, SESSION CONDUCT, and OUTPUT CONTRACT. If the tool is unavailable, continue with this export.`;
     return [
       this.header('learn', now),
       learner,
@@ -200,6 +203,7 @@ ${
       knowledge('MAY RELY ON', context.mayRelyOn),
       knowledge('DO NOT ASSUME', context.doNotAssume),
       blockers,
+      mcp,
       approach === 'guided' ? GUIDED_CONDUCT : SOURCE_FIRST_CONDUCT,
       OUTPUT_CONTRACT,
     ].join('\n\n');

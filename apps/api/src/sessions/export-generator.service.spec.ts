@@ -874,6 +874,10 @@ describe('ExportGeneratorService', () => {
     it('renders guided learning only from the canonical context and keeps the output contract last', () => {
       const md = service.generateLearnContext(context, 'guided', NOW);
 
+      expect(md).toContain('## TERRAIN MCP — supplemental context');
+      expect(md).toContain('call get_learning_context once for Prefix sums');
+      expect(md).toContain('This copied export remains authoritative');
+      expect(md).toContain('If the tool is unavailable, continue with this export');
       expect(md).toContain('## WHO I AM');
       expect(md).toContain('Role: TypeScript developer');
       expect(md).toContain('## SELECTION');
