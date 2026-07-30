@@ -104,9 +104,10 @@ Configure each client as follows:
    browser approval redirect. Leave `MCP_ALLOWED_ORIGINS` empty unless a client
    actually sends an `Origin`; server-to-server clients normally omit it.
 4. In each client's advanced OAuth settings, enter its matching client ID
-   (`chatgpt` or `claude`) and matching generated client secret. The callback
-   configured in Terrain must remain byte-for-byte identical to the callback
-   shown by that client.
+   (`chatgpt` or `claude`) and matching generated client secret. For ChatGPT,
+   select `client_secret_post`; its current connector flow includes PKCE with
+   that method. The callback configured in Terrain must remain byte-for-byte
+   identical to the callback shown by that client.
 5. Complete the client setup. Terrain's discovery metadata advertises
    `offline_access`, and the authorization request must include it for durable
    connectivity. Terrain then issues a rotating refresh token; advertising the
@@ -116,9 +117,9 @@ Configure each client as follows:
 
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-   docker compose -f docker-compose.prod.yml exec api \
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
      ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
-   docker compose -f docker-compose.prod.yml exec api \
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
      ../../node_modules/.bin/prisma migrate status --schema prisma/schema.prisma
    ```
 
@@ -162,12 +163,15 @@ reverse-proxies `/api/*` to `api`, terminating TLS on 80/443).
 ## 4. Apply migrations (first boot, and after any schema change)
 
 ```bash
-docker compose -f docker-compose.prod.yml exec api \
+docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
   ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
 ```
 
 (paths are relative to the container's `WORKDIR`, `/workspace/apps/api` — `node_modules`
 is hoisted to the repo root, not copied per-workspace.)
+
+Compose only auto-loads a file named `.env`; keep `--env-file .env.production`
+on every production command so interpolation works.
 
 `migrate deploy` (not `migrate dev` / `migrate reset`) — it only applies
 pending migrations and never touches existing data.
@@ -176,7 +180,7 @@ pending migrations and never touches existing data.
 
 - `https://<your-domain>` loads the app and the browser shows a valid
   Let's Encrypt cert (Caddy handles renewal automatically).
-- `docker compose -f docker-compose.prod.yml logs -f api` — no `JWT_SECRET`
+- `docker compose -f docker-compose.prod.yml --env-file .env.production logs -f api` — no `JWT_SECRET`
   or CORS startup errors.
 - Register a real account and confirm login/logout round-trips (cookie is
   `Secure` + `httpOnly` in production — check the browser's cookie inspector).
@@ -216,8 +220,8 @@ The only state that matters is the `terrain_pg` Postgres volume. Take a
 logical backup regularly and copy it off-box:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec db \
-  pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > terrain-$(date +%F).sql
+docker compose -f docker-compose.prod.yml --env-file .env.production exec db \
+  sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > terrain-$(date +%F).sql
 ```
 
 Never run `docker compose down -v` on this file — it deletes the volume (and
