@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { learningContextSchema } from '@terrain/types';
@@ -8,6 +8,7 @@ import { LearningContextService } from '../learning/learning-context.service';
 
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const ABORT_GRACE_MS = 100;
+const MCP_INSTRUCTIONS = `Use get_learning_context to supplement a copied Terrain learning-session export with current prior-learning evidence, prerequisites, blockers, and roadmap alternatives. The copied export remains authoritative for the session target, Session ID, chosen approach, source plan, conduct, and output contract. If no export is present, use the tool for Terrain roadmap and learning-context questions. This server is read-only.`;
 
 class McpBodyError extends Error {
   constructor(
@@ -142,10 +143,15 @@ function waitAfterClose(handling: Promise<SettledHandleOutcome>): Promise<Handle
 
 @Injectable()
 export class McpService {
+  private readonly logger = new Logger(McpService.name);
+
   constructor(private learning: LearningContextService) {}
 
   private createServer(userId: string): McpServer {
-    const server = new McpServer({ name: 'terrain', version: '1.0.0' });
+    const server = new McpServer(
+      { name: 'terrain', version: '1.0.0' },
+      { instructions: MCP_INSTRUCTIONS },
+    );
     server.registerTool(
       'get_learning_context',
       {
@@ -177,6 +183,10 @@ export class McpService {
               isError: true,
             };
           }
+          this.logger.error(
+            'get_learning_context failed',
+            error instanceof Error ? error.stack : String(error),
+          );
           return {
             content: [
               {
@@ -231,7 +241,8 @@ export class McpService {
         outcome = await waitAfterClose(handling);
       }
       if (outcome.kind === 'failed') throw outcome.error;
-    } catch {
+    } catch (error) {
+      this.logger.error('MCP request failed', error instanceof Error ? error.stack : String(error));
       sendProtocolError(request, response, 500, -32603, 'Internal server error');
     } finally {
       response.off('close', onClose);

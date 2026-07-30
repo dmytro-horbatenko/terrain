@@ -3,6 +3,7 @@ import {
   Controller,
   HttpException,
   INestApplication,
+  Logger,
   NotFoundException,
   Post,
 } from '@nestjs/common';
@@ -360,6 +361,8 @@ describe('McpController', () => {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: 'terrain', version: '1.0.0' },
+        instructions:
+          'Use get_learning_context to supplement a copied Terrain learning-session export with current prior-learning evidence, prerequisites, blockers, and roadmap alternatives. The copied export remains authoritative for the session target, Session ID, chosen approach, source plan, conduct, and output contract. If no export is present, use the tool for Terrain roadmap and learning-context questions. This server is read-only.',
       },
     });
     expect(response.headers['content-type']).toMatch(/^application\/json/);
@@ -883,5 +886,24 @@ describe('McpService response-close lifecycle', () => {
     await work;
     expect(serverClose).toHaveBeenCalledTimes(1);
     expect(transportClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs a transport failure while returning only a generic protocol error', async () => {
+    handleRequest.mockRejectedValue(new Error('transport exploded'));
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const response = fakeResponse();
+
+    await service().handle(rawRequest(), response, 'user-1');
+
+    expect(error).toHaveBeenCalledWith(
+      'MCP request failed',
+      expect.stringContaining('transport exploded'),
+    );
+    expect(response.status).toHaveBeenCalledWith(500);
+    expect(response.json).toHaveBeenCalledWith({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: 'Internal server error' },
+      id: null,
+    });
   });
 });
