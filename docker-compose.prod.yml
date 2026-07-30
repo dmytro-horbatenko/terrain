@@ -6,7 +6,7 @@
 #   # fill in JWT_SECRET (openssl rand -base64 48), CORS_ORIGIN=https://$DOMAIN
 #
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-#   docker compose -f docker-compose.prod.yml exec api \
+#   docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
 #     ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
 #   (paths are relative to the container's WORKDIR, /workspace/apps/api —
 #   node_modules is hoisted to the repo root, not copied per-workspace)
