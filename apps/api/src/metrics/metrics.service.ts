@@ -152,7 +152,12 @@ export class MetricsService {
       where: {
         suspended: false,
         nextReviewAt: { not: null, lt: endOfToday },
-        topic: { userId, status: { not: 'archived' }, ...this.domainFilter(domain, disabled) },
+        topic: {
+          userId,
+          status: { not: 'archived' },
+          children: { none: {} },
+          ...this.domainFilter(domain, disabled),
+        },
       },
       orderBy: { nextReviewAt: 'asc' },
     });
@@ -186,7 +191,12 @@ export class MetricsService {
         where: {
           suspended: false,
           nextReviewAt: { not: null, lt: endOfToday },
-          topic: { userId, status: { not: 'archived' }, ...this.domainFilter(domain, disabled) },
+          topic: {
+            userId,
+            status: { not: 'archived' },
+            children: { none: {} },
+            ...this.domainFilter(domain, disabled),
+          },
         },
         orderBy: { nextReviewAt: 'asc' },
         include: { topic: topicJoin },
@@ -195,7 +205,12 @@ export class MetricsService {
         where: {
           suspended: false,
           state: 'new',
-          topic: { userId, status: 'active', ...this.domainFilter(domain, disabled) },
+          topic: {
+            userId,
+            status: 'active',
+            children: { none: {} },
+            ...this.domainFilter(domain, disabled),
+          },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: NEW_CARDS_PER_SESSION,
@@ -271,7 +286,7 @@ export class MetricsService {
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId, ...this.domainFilter(domain, disabled) },
+        topic: { userId, children: { none: {} }, ...this.domainFilter(domain, disabled) },
         OR: [
           { topic: { status: { in: ['active', 'mastered'] } } },
           { topicId: { in: startableIds } },

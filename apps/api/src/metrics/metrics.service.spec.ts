@@ -278,7 +278,12 @@ describe('MetricsService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           suspended: false,
-          topic: { userId: 'userA', status: { not: 'archived' }, domain: 'DSA' },
+          topic: {
+            userId: 'userA',
+            status: { not: 'archived' },
+            domain: 'DSA',
+            children: { none: {} },
+          },
         }),
       }),
     );
@@ -290,7 +295,12 @@ describe('MetricsService', () => {
     expect(prisma.prompt.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          topic: { userId: 'userA', status: { not: 'archived' }, domain: { notIn: ['Web3'] } },
+          topic: {
+            userId: 'userA',
+            status: { not: 'archived' },
+            domain: { notIn: ['Web3'] },
+            children: { none: {} },
+          },
         }),
       }),
     );
@@ -314,7 +324,7 @@ describe('MetricsService', () => {
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId: 'userA', domain: 'DSA' },
+        topic: { userId: 'userA', domain: 'DSA', children: { none: {} } },
         OR: [
           { topic: { status: { in: ['active', 'mastered'] } } },
           { topicId: { in: ['startable', 'zero-prereq', 'blocked-prerequisite'] } },
@@ -355,7 +365,13 @@ describe('MetricsService', () => {
     );
     expect(prisma.prompt.count).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ topic: { userId: 'userA', domain: { notIn: ['DSA'] } } }),
+        where: expect.objectContaining({
+          topic: {
+            userId: 'userA',
+            domain: { notIn: ['DSA'] },
+            children: { none: {} },
+          },
+        }),
       }),
     );
   });
@@ -784,7 +800,7 @@ describe('MetricsService', () => {
         where: {
           suspended: false,
           nextReviewAt: { not: null, lt: expect.any(Date) },
-          topic: { userId: 'u1', status: { not: 'archived' } },
+          topic: { userId: 'u1', status: { not: 'archived' }, children: { none: {} } },
         },
         orderBy: { nextReviewAt: 'asc' },
       });
@@ -794,7 +810,7 @@ describe('MetricsService', () => {
         where: {
           suspended: false,
           state: 'new',
-          topic: { userId: 'u1', status: 'active' },
+          topic: { userId: 'u1', status: 'active', children: { none: {} } },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: 5,
