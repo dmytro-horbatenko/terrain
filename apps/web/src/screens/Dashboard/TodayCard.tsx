@@ -56,7 +56,7 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
             </p>
           ) : !nextUp ? (
             <p className="muted" style={{ margin: 0 }}>
-              All remaining topics are blocked — keep reviewing to unlock them.
+              No learnable leaf is available — check Roadmap blockers.
             </p>
           ) : (
             <>
