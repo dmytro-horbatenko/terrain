@@ -1222,9 +1222,9 @@
     },
     {
       "topicTitle": "ECDSA signing, verification & recovery",
-      "promptText": "Implement a deterministic sign-and-recover check for a fixed EIP-191 message.",
-      "answerHint": "Construct the EIP-191-prefixed digest, sign locally, enforce low-s, carry recovery parity, recover the public key/address, and assert it equals the independently derived address. Mutating one byte or omitting the prefix must not recover the expected signer.",
-      "promptKind": "code"
+      "promptText": "Describe the complete EIP-191 sign-and-recover pipeline for a fixed message, from message bytes to checking the recovered address.",
+      "answerHint": "Construct the EIP-191-prefixed digest, sign locally, enforce low-s, carry recovery parity, recover the public key/address, and compare it with the expected address. Mutating one byte or omitting the prefix must not recover the expected signer.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Mnemonic-to-seed & child-key derivation",
@@ -1258,15 +1258,15 @@
     },
     {
       "topicTitle": "Raw Ethereum JSON-RPC",
-      "promptText": "Write a dependency-free Node JSON-RPC caller that safely returns an Ethereum quantity.",
-      "answerHint": "POST jsonrpc/id/method/params with built-in fetch and AbortSignal timeout; validate status, JSON shape, matching id, and result XOR error; validate 0x quantity syntax and convert with BigInt. Test an RPC error under HTTP 200, malformed response, timeout, and a value above Number.MAX_SAFE_INTEGER.",
-      "promptKind": "code"
+      "promptText": "Given an eth_getBalance response, separate HTTP failure, JSON-RPC failure, and invalid Ethereum QUANTITY encoding.",
+      "answerHint": "Check transport status first, then require exactly one of result or error in a matching JSON-RPC response. A QUANTITY must use minimal 0x-prefixed hex: 0x0 and 0x1 are valid, while 0x01 is not.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Hashing & Merkle trees",
-      "promptText": "Implement and adversarially test a four-leaf Keccak Merkle tree.",
-      "answerHint": "Specify leaf encoding, pair ordering, and odd-node policy; build levels, return sibling+side proofs, recompute root in verify, and reject mutated leaf/order/proof. Assert Ethereum Keccak differs from SHA3-256 and avoid ambiguous packed concatenation.",
-      "promptKind": "code"
+      "promptText": "For a four-leaf Keccak Merkle tree, describe how a leaf is recomputed into the root and why each proof element needs a left or right position.",
+      "answerHint": "Hash the leaf with its sibling in the declared order, then repeat with each parent-level sibling until reaching the root. Left/right position is required because swapping concatenation order generally changes the hash.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "The EVM as a state machine",
