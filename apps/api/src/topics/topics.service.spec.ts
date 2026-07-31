@@ -548,6 +548,17 @@ describe('TopicsService', () => {
       });
     });
 
+    it('rejects reparenting beneath an existing prerequisite', async () => {
+      prisma.prerequisite.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.topicId === 't1' ? [{ prerequisiteId: 'p' }] : []),
+      );
+
+      await expect(service.update('userA', 't1', { parentId: 'p' })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.topic.update).not.toHaveBeenCalled();
+    });
+
     it('allows un-parenting (parentId null) without a cycle check', async () => {
       await service.update('userA', 'c1', { parentId: null } as any);
       expect(prisma.topic.update).toHaveBeenCalledWith({
@@ -596,6 +607,19 @@ describe('TopicsService', () => {
       await expect(service.addPrerequisite('userA', 't1', 'p')).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
+    });
+
+    it('rejects using an ancestor as a prerequisite', async () => {
+      prisma.topic.findFirst.mockImplementation(({ where }: any) => {
+        if (where.id === 't1') return Promise.resolve({ id: 't1', parentId: 'p' });
+        if (where.id === 'p') return Promise.resolve({ id: 'p', parentId: null });
+        return Promise.resolve(null);
+      });
+
+      await expect(service.addPrerequisite('userA', 't1', 'p')).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.prerequisite.upsert).not.toHaveBeenCalled();
     });
 
     it('rejects a transitive cycle with 422 (p requires q requires t1)', async () => {

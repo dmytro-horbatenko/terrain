@@ -279,6 +279,24 @@ export class TopicsService {
       }
       cursor = node.parentId;
     }
+
+    const prerequisiteStack = [id];
+    const seenPrerequisites = new Set<string>();
+    while (prerequisiteStack.length > 0) {
+      const topicId = prerequisiteStack.pop()!;
+      if (seenPrerequisites.has(topicId)) continue;
+      seenPrerequisites.add(topicId);
+      const edges = await this.prisma.prerequisite.findMany({
+        where: { topicId, topic: { userId } },
+        select: { prerequisiteId: true },
+      });
+      for (const edge of edges) {
+        if (edge.prerequisiteId === parentId) {
+          throw new UnprocessableEntityException('A topic parent cannot be its prerequisite.');
+        }
+        prerequisiteStack.push(edge.prerequisiteId);
+      }
+    }
   }
 
   async update(userId: string, id: string, dto: UpdateTopicDto) {
@@ -323,6 +341,20 @@ export class TopicsService {
     await this.findOne(userId, prerequisiteId); // 404 if the prerequisite is missing or not owned
     if (prerequisiteId === topicId) {
       throw new UnprocessableEntityException('A topic cannot be its own prerequisite.');
+    }
+    let ancestorId: string | null | undefined = topicId;
+    const seenAncestors = new Set<string>();
+    while (ancestorId) {
+      if (seenAncestors.has(ancestorId)) break;
+      seenAncestors.add(ancestorId);
+      const ancestor: { parentId?: string | null } | null = await this.prisma.topic.findFirst({
+        where: { id: ancestorId, userId },
+        select: { parentId: true },
+      });
+      ancestorId = ancestor?.parentId;
+      if (ancestorId === prerequisiteId) {
+        throw new UnprocessableEntityException('A topic parent cannot be its prerequisite.');
+      }
     }
     await this.assertNoPrereqCycle(userId, topicId, prerequisiteId);
     return this.prisma.prerequisite.upsert({
