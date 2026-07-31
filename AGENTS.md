@@ -5,8 +5,7 @@ knowledge graph. Codex.ai is the AI layer; this app is a context store,
 scheduler, and progress mirror. Multi-user, JWT cookie auth (see
 `docs/superpowers/specs/2026-07-01-terrain-multi-user-auth-design.md`).
 
-Design specs live in `docs/superpowers/specs/`. Build history / decisions are in
-`.superpowers/sdd/progress.md`.
+Design specs and implementation plans live in `docs/superpowers/`.
 
 ---
 

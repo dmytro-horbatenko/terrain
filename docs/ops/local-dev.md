@@ -1,6 +1,6 @@
 # Local development runbook
 
-How to bring up the full Terrain stack and verify it. See `CLAUDE.md` for the
+How to bring up the full Terrain stack and verify it. See `AGENTS.md` for the
 command reference and Prisma 7 / tooling specifics.
 
 ## 1. Start Postgres
