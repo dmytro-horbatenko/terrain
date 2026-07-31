@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "MEV is value extracted from block production beyond standard block rewards and gas fees by including, excluding, or changing transaction order: PBS, the searcher→builder→proposer supply chain, and arbitrage, liquidation, and sandwich strategies.",
-      "prerequisiteTitles": ["Phase 9 — Frontier Strands"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 9 — Frontier Strands"
     },
     {

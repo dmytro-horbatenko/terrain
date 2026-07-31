@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The modern TypeScript stack for talking to Ethereum: viem's public/wallet clients for reads, writes, and event watching, and wagmi's React hooks + typegen layered on top.",
-      "prerequisiteTitles": ["Phase 10 — Full-Stack dApp"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
     {
@@ -50,7 +50,7 @@
       "domain": "Web3",
       "description": "viem splits access into a Public Client (read-only: eth_call, getBalance, logs) and a Wallet Client (accounts, signing, and transactions), each built over a Transport (http, webSocket, or a custom EIP-1193 provider). You configure a chain and transport once and reuse the client. This separation makes it explicit which calls need wallet authority and which do not.",
       "aiContext": "Build: in frontend/src/clients.ts create a Public Client (http transport, a testnet chain) and a Wallet Client from window.ethereum, then read a balance and log the connected account. Done when: `getBalance` returns via the public client and the wallet client exposes an address from the injected provider, with the two responsibilities clearly separated.",
-      "prerequisiteTitles": ["viem & wagmi"],
+      "prerequisiteTitles": [],
       "parentTitle": "viem & wagmi",
       "sourcePlan": {
         "policy": "required",
@@ -297,7 +297,7 @@
       "domain": "Web3",
       "description": "A browser wallet can expose an EIP-1193 provider with request({ method, params }) and events including accountsChanged and chainChanged. EIP-1193 does not standardize window.ethereum. EIP-6963 adds window events for announcing and requesting multiple injected providers without relying on one mutable provider slot. Apps must react to account and chain changes rather than treating them as static.",
       "aiContext": "Build: in frontend/src/injected.ts request accounts via the EIP-1193 provider and subscribe to accountsChanged and chainChanged, updating UI state. Done when: switching accounts or networks in the wallet updates your app without a reload, and you can enumerate multiple wallets via EIP-6963 discovery.",
-      "prerequisiteTitles": ["Wallet Connection"],
+      "prerequisiteTitles": [],
       "parentTitle": "Wallet Connection",
       "sourcePlan": {
         "policy": "required",
@@ -433,7 +433,7 @@
       "domain": "Web3",
       "description": "Events are a queryable trail a dApp can use to derive views: indexed parameters are encoded into topics that filters can match, while non-indexed parameters are ABI-encoded in data. Direct getLogs/getContractEvents queries are suitable for bounded ranges, but provider limits, repeated scans, and reorg reconciliation make an indexer preferable for durable full-history products.",
       "aiContext": "Build: in frontend/src/logs.ts filter an ERC-20 Transfer log by an indexed `to` address over a bounded block range and render the results. Done when: the indexed-topic filter returns only matching transfers inside explicit fromBlock/toBlock bounds, and you can explain why repeated client-side scans do not scale to full history.",
-      "prerequisiteTitles": ["Events & Indexing", "Log anatomy: topics vs data"],
+      "prerequisiteTitles": ["Log anatomy: topics vs data"],
       "parentTitle": "Events & Indexing",
       "sourcePlan": {
         "policy": "required",
@@ -548,7 +548,7 @@
       "domain": "Web3",
       "description": "Scaffold-ETH 2 combines a Foundry or Hardhat contract workspace with a Next.js frontend wired to wagmi, viem, and RainbowKit. Deployments feed contract address and ABI information to the frontend. It includes contract hot reload, a local burner wallet and faucet, and a Debug Contracts UI for rapid local iteration.",
       "aiContext": "Build: `npx create-eth@latest` into frontend/scaffold, run the local chain, deploy the example contract, and open the Debug Contracts page. Done when: you can call your deployed contract's functions from the auto-generated Debug UI and a redeploy updates the frontend's typed contract registry automatically.",
-      "prerequisiteTitles": ["Scaffold-ETH 2"],
+      "prerequisiteTitles": [],
       "parentTitle": "Scaffold-ETH 2",
       "sourcePlan": {
         "policy": "required",
@@ -688,7 +688,7 @@
       "domain": "Web3",
       "description": "The current first challenge is Crowdfunding: CrowdFund collects contributions until a deadline, sends the pool to FundingRecipient when the threshold is met, or opens contributor withdrawals otherwise. It teaches payable functions, event-driven UI, a deadline state machine, checks-effects-interactions for refunds, testnet deployment, and frontend shipping. The curriculum title retains the ladder's former staking name for stable graph identity.",
       "aiContext": "Build: complete the current Speedrun Ethereum Crowdfunding challenge in frontend/speedrun: implement CrowdFund.sol (contribute, execute, withdraw, deadline/threshold) and its UI. Done when: the challenge tests pass, the UI records contributions, execution funds the recipient after a successful deadline, and contributors can withdraw after an unsuccessful one.",
-      "prerequisiteTitles": ["Scaffold-ETH 2 architecture", "Speedrun Ethereum Ladder"],
+      "prerequisiteTitles": ["Scaffold-ETH 2 architecture"],
       "parentTitle": "Speedrun Ethereum Ladder",
       "sourcePlan": {
         "policy": "required",

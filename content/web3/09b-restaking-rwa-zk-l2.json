@@ -231,7 +231,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Real-World Assets (RWAs)"],
+      "prerequisiteTitles": [],
       "parentTitle": "Real-World Assets (RWAs)"
     },
     {
@@ -345,7 +345,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Zero-Knowledge Proofs"],
+      "prerequisiteTitles": [],
       "parentTitle": "Zero-Knowledge Proofs"
     },
     {
@@ -577,7 +577,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["L2 Internals"],
+      "prerequisiteTitles": [],
       "parentTitle": "L2 Internals"
     },
     {
