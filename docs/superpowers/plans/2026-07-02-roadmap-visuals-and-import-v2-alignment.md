@@ -726,7 +726,7 @@ Expected: all assertions pass, 0 console errors. (This mutates the demo account 
 
 - [ ] **Step 5: Report + leave stack running**
 
-Report assertion results. Leave docker/API/web up. Remind the user: re-check `/roadmap` logged in as `dm.gorbatenko@gmail.com` — the screenshot's sparse view was the demo account's data; the real account should show 18 chapter tiles, now single-framed.
+Report assertion results. Leave docker/API/web up. Remind the user to re-check `/roadmap` with their real account; the screenshot's sparse view was the demo account's data, while the real account should show 18 chapter tiles, now single-framed.
 
 ---
 

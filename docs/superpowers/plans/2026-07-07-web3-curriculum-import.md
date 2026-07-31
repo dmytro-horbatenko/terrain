@@ -260,7 +260,7 @@ if (checkCoverage) {
 - [ ] **Step 3: Verify against fixtures (no content exists yet)**
 
 ```bash
-mkdir -p "$SCRATCH/web3-fixtures" && cd /Users/dmitrijgorbatenko/personal/consistency
+mkdir -p "$SCRATCH/web3-fixtures" && cd /path/to/consistency
 cat > "$SCRATCH/web3-fixtures/01-good.json" << 'EOF'
 { "version": 2, "sessionId": null, "reviews": [],
   "proposedTopics": [
@@ -847,7 +847,7 @@ yarn workspace @terrain/api start &          # wait for "Terrain API listening o
 
 Ask the user to export the real-account env vars themselves (do NOT invent or hardcode credentials):
 ```bash
-export TERRAIN_EMAIL='dm.gorbatenko@gmail.com' TERRAIN_PASSWORD='<user-provided>' TERRAIN_NAME='Dmytro'
+export TERRAIN_EMAIL='<terrain-email>' TERRAIN_PASSWORD='<user-provided>' TERRAIN_NAME='<terrain-name>'
 ```
 
 - [ ] **Step 3: Full validation + dry run**

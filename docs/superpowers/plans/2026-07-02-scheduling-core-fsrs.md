@@ -49,7 +49,7 @@
 
 ```bash
 yarn workspace @terrain/sr-engine add ts-fsrs
-node -e "const f = require('/Users/dmitrijgorbatenko/personal/consistency/node_modules/ts-fsrs'); console.log(typeof f.fsrs, typeof f.createEmptyCard, typeof f.Rating)"
+node -e "const f = require('ts-fsrs'); console.log(typeof f.fsrs, typeof f.createEmptyCard, typeof f.Rating)"
 ```
 Expected: `function function object`. If `require` fails (ESM-only build), STOP and report — do not improvise a workaround; the fallback decision (pin older version vs dynamic import) is a controller decision.
 

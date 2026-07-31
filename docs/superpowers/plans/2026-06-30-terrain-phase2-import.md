@@ -834,7 +834,7 @@ Run `yarn workspace @terrain/api build` → exits 0.
 
 The seed has DSA topics. Generate a real export, build a `learning-os` block that reviews a seeded topic, proposes a new topic, adds a note summary, and sets `nextSession`, then preview + apply + verify. Use this script (run from repo root):
 ```bash
-cd /Users/dmitrijgorbatenko/personal/consistency
+cd /path/to/consistency
 pkill -f "nest start" 2>/dev/null
 yarn workspace @terrain/api start > /tmp/terrain-import-e2e.log 2>&1 &
 # wait for boot, capture a real export + its session id and a seeded topic title

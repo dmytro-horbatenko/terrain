@@ -562,7 +562,7 @@ yarn workspace @terrain/api start &
 sleep 3
 curl -s -c /tmp/cookies.txt -X POST http://localhost:3000/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"dm.gorbatenko@gmail.com","password":"<your local password>"}' >/dev/null
+  -d '{"email":"<terrain-email>","password":"<your local password>"}' >/dev/null
 curl -s -b /tmp/cookies.txt http://localhost:3000/courses | head -c 500
 ```
 

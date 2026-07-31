@@ -223,7 +223,7 @@ if (checkUrls !== undefined) {
 - [ ] **Step 3: Verify against fixtures (no content exists yet)**
 
 ```bash
-mkdir -p "$SCRATCH/dsa-fixtures" && cd /Users/dmitrijgorbatenko/personal/consistency
+mkdir -p "$SCRATCH/dsa-fixtures" && cd /path/to/consistency
 cat > "$SCRATCH/dsa-fixtures/01-good.json" << 'EOF'
 { "version": 2, "sessionId": null, "reviews": [],
   "proposedTopics": [
@@ -936,7 +936,7 @@ yarn workspace @terrain/api start &          # wait for "Terrain API listening o
 Ask the user for the real-account email/password (or have them export env vars themselves). Do NOT invent or hardcode credentials. Example:
 
 ```bash
-export TERRAIN_EMAIL='dm.gorbatenko@gmail.com' TERRAIN_PASSWORD='<user-provided>' TERRAIN_NAME='Dmytro'
+export TERRAIN_EMAIL='<terrain-email>' TERRAIN_PASSWORD='<user-provided>' TERRAIN_NAME='<terrain-name>'
 ```
 
 - [ ] **Step 3: Full validation + dry run**
