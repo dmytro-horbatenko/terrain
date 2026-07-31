@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How on-chain exchanges price and settle without an orderbook: a bonding curve invariant (constant-product, constant-sum, or stableswap) holds reserves in a pool, and every trade moves along the curve.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {

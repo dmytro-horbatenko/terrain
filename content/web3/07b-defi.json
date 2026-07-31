@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Overcollateralized on-chain money markets: suppliers earn interest, borrowers post collateral and draw debt, and a health-factor plus liquidation mechanism keeps the system solvent. Aave V3 and Compound V3 are the reference designs.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Assets engineered to hold a peg: overcollateralized CDPs (DAI/USDS), algorithmic/seigniorage designs (and why they fail), and the mechanics of minting, burning, and liquidating against a price feed.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Turning staked ETH into a liquid, composable asset: Lido's rebasing stETH and wrapped wstETH, and EigenLayer's restaking that reuses that stake to secure additional services for extra yield and extra slashing risk.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Leveraged derivatives with no expiry, kept near spot by a funding rate exchanged between longs and shorts. Covers mark vs index price, funding, and the GMX pooled-liquidity and Hyperliquid orderbook models.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -40,7 +40,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The tokenized-vault standard that turned yield strategies into composable share tokens: deposit an asset, mint shares whose price grows as yield accrues, redeem for more of the asset — with the rounding and inflation-defense rules that make it safe.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -48,7 +48,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Uncollateralized loans that are safe because they are atomic: borrow, act, and repay plus a fee within a single transaction, or the whole thing reverts. The primitive behind arbitrage, liquidations, collateral swaps — and many exploits.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
 
