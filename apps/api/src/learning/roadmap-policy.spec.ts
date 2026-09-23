@@ -8,6 +8,45 @@ const node = (
 ): RoadmapNode => ({ id, status, parentId, prerequisiteIds });
 
 describe('buildRoadmapPolicy', () => {
+  it('identifies a lesson requiring its containing chapter as a cycle, even after activation', () => {
+    for (const status of ['planned', 'active'] as const) {
+      const result = buildRoadmapPolicy([
+        node('chapter', 'active'),
+        node('lesson', status, 'chapter', ['chapter']),
+        node('next', 'planned', null, ['chapter']),
+      ]);
+      expect(result.get('lesson')).toMatchObject({
+        cycle: true,
+        satisfied: false,
+        learnable: false,
+      });
+      expect(result.get('chapter')).toMatchObject({ cycle: true, satisfied: false });
+      expect(result.get('next')?.learnable).toBe(false);
+    }
+  });
+
+  it('detects cycles through inherited prerequisites and another chapter’s descendants', () => {
+    const result = buildRoadmapPolicy([
+      node('a', 'planned', null, ['b']),
+      node('a-leaf', 'planned', 'a'),
+      node('b', 'planned'),
+      node('b-leaf', 'planned', 'b', ['a-leaf']),
+      node('unrelated', 'planned'),
+    ]);
+    expect(result.get('a-leaf')).toMatchObject({ cycle: true, learnable: false });
+    expect(result.get('b-leaf')).toMatchObject({ cycle: true, learnable: false });
+    expect(result.get('unrelated')).toMatchObject({ cycle: false, learnable: true });
+  });
+
+  it('detects a direct prerequisite cycle independently of recorded learning status', () => {
+    const result = buildRoadmapPolicy([
+      node('a', 'active', null, ['b']),
+      node('b', 'active', null, ['a']),
+    ]);
+    expect(result.get('a')).toMatchObject({ cycle: true, satisfied: false });
+    expect(result.get('b')).toMatchObject({ cycle: true, satisfied: false });
+  });
+
   it('keeps Accounts blocked while Blockchain basics is 5/13', () => {
     const basics = Array.from({ length: 13 }, (_, i) =>
       node(`basic-${i + 1}`, i < 5 ? 'active' : 'planned', 'basics'),

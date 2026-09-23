@@ -33,6 +33,7 @@ import {
   EmptyState,
   ErrorBox,
   TopicDetailPanel,
+  canLeaveTopicPanel,
   STATUS_META,
   BLOCKED_COLOR,
   useToast,
@@ -40,7 +41,7 @@ import {
 import TopicNode, { type TopicNodeData, type TopicNodeType } from './TopicNode';
 import GroupNode, { type GroupNodeType } from './GroupNode';
 import GhostNode, { type GhostNodeData, type GhostNodeType } from './GhostNode';
-import { projectRoadmap } from './projection';
+import { ancestorPrerequisites, projectRoadmap } from './projection';
 import { layoutGraph } from './layout';
 
 type RoadmapNode = TopicNodeType | GroupNodeType | GhostNodeType;
@@ -65,7 +66,7 @@ export default function Roadmap() {
   const { mutate: updateTopic } = useUpdateTopic();
   const { mutate: deleteTopic } = useDeleteTopic();
   const { mutate: addPrerequisite } = useAddPrerequisite();
-  const { mutate: removePrerequisite } = useRemovePrerequisite();
+  const { mutate: removePrerequisite, isPending: removingPrerequisite } = useRemovePrerequisite();
   const { toast } = useToast();
   const rf = useRef<ReactFlowInstance<RoadmapNode, Edge> | null>(null);
 
@@ -231,6 +232,7 @@ export default function Roadmap() {
   }, [derivedNodes, derivedEdges, setNodes, setEdges]);
 
   const onNodeClick: NodeMouseHandler<RoadmapNode> = (_e, node) => {
+    if (selectedId !== node.id && !canLeaveTopicPanel()) return;
     if (node.type === 'chapter') {
       setSelectedId(null);
       setFocusId(node.id);
@@ -312,6 +314,8 @@ export default function Roadmap() {
   }
 
   const hasTopics = (topics ?? []).length > 0;
+  const circularLinks = ancestorPrerequisites(topics ?? []);
+  const topicById = new Map((topics ?? []).map((topic) => [topic.id, topic]));
 
   return (
     <div className="page">
@@ -349,6 +353,44 @@ export default function Roadmap() {
           ))}
         </div>
       </div>
+
+      {circularLinks.length > 0 && (
+        <details className="card card-pad" open>
+          <summary>{circularLinks.length} circular chapter prerequisites need repair</summary>
+          <p className="muted">
+            These topics require a chapter containing themselves. Remove the circular links to
+            restore the study path. Topics, chapter order, notes and learning history are preserved.
+          </p>
+          <ul>
+            {circularLinks.map((link) => {
+              const title = topicById.get(link.topicId)!.title;
+              const prerequisite = topicById.get(link.prerequisiteId)!.title;
+              return (
+                <li key={`${link.topicId}:${link.prerequisiteId}`}>
+                  {title} → {prerequisite}{' '}
+                  <button
+                    className="btn btn-sm"
+                    disabled={removingPrerequisite}
+                    aria-label={`Remove ${prerequisite} prerequisite from ${title}`}
+                    onClick={() =>
+                      removePrerequisite(link, {
+                        onSuccess: () =>
+                          toast(
+                            'Circular prerequisite removed; study history preserved',
+                            'success',
+                          ),
+                        onError: (e) => err(e, 'Could not remove prerequisite'),
+                      })
+                    }
+                  >
+                    Remove circular link
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
 
       <div className="row wrap gap-3" style={{ alignItems: 'center', marginTop: 8 }}>
         {LEGEND.map((l) => (
@@ -423,7 +465,12 @@ export default function Roadmap() {
       )}
 
       {selectedId && (
-        <div className="drawer-overlay" onMouseDown={() => setSelectedId(null)}>
+        <div
+          className="drawer-overlay"
+          onMouseDown={() => {
+            if (canLeaveTopicPanel()) setSelectedId(null);
+          }}
+        >
           <div className="drawer" onMouseDown={(e) => e.stopPropagation()}>
             <TopicDetailPanel topicId={selectedId} onClose={() => setSelectedId(null)} />
           </div>

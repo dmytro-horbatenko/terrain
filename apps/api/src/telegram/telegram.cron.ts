@@ -4,7 +4,7 @@ import type { Settings } from '@prisma/client';
 import { MetricsService } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StreakService } from '../streak/streak.service';
-import { composeDigest, composeNudge, estimateMinutes } from './telegram.messages';
+import { composeDigest, composeNudge } from './telegram.messages';
 import { TelegramService } from './telegram.service';
 import { localDayStart, localHour } from './telegram.time';
 
@@ -46,19 +46,21 @@ export class TelegramCron {
   }
 
   private async sendDigest(s: Settings, now: Date): Promise<void> {
-    const [cards, due, streakState, nextUp] = await Promise.all([
-      this.metrics.dueCards(s.userId, now),
+    const [queue, due, streakState, nextUp] = await Promise.all([
+      this.metrics.sessionQueue(s.userId, now),
       this.metrics.dueTopics(s.userId, now),
       this.streak.getState(s.userId),
       this.metrics.nextUp(s.userId, undefined, now),
     ]);
-    const byKind = (k: string) => cards.filter((c) => c.promptKind === k).length;
+    const byKind = (k: string) => queue.items.filter((c) => c.kind === k).length;
     const html = composeDigest({
       date: now,
       timezone: s.timezone,
       dueByKind: { concept: byKind('concept'), code: byKind('code'), problem: byKind('problem') },
-      dueCount: cards.length,
-      estMinutes: estimateMinutes(cards),
+      dueCount: queue.items.length,
+      estMinutes: queue.estimatedMinutes,
+      backlogCount: queue.backlogCount,
+      backlogMinutes: queue.backlogMinutes,
       overdueTopics: due.overdue.length,
       streak: streakState.currentStreak,
       nextUpTitle: nextUp?.topic.title ?? null,
@@ -76,13 +78,15 @@ export class TelegramCron {
       where: { userId: s.userId, reviewedAt: { gte: dayStart } },
     });
     if (reviewsToday > 0) return;
-    const cards = await this.metrics.dueCards(s.userId, now);
-    if (cards.length === 0) return;
+    const queue = await this.metrics.sessionQueue(s.userId, now);
+    if (queue.backlogCount === 0) return;
     const streakState = await this.streak.getState(s.userId);
     const html = composeNudge({
       streak: streakState.currentStreak,
-      dueCount: cards.length,
-      estMinutes: estimateMinutes(cards),
+      dueCount: queue.items.length,
+      estMinutes: queue.estimatedMinutes,
+      backlogCount: queue.backlogCount,
+      backlogMinutes: queue.backlogMinutes,
     });
     await this.telegram.sendTo(s.userId, s.telegramChatId!, html, {
       text: 'Review now',

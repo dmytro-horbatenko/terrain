@@ -24,6 +24,8 @@ describe('composeDigest', () => {
     dueByKind: { concept: 3, code: 2, problem: 2 },
     dueCount: 7,
     estMinutes: 40,
+    backlogCount: 12,
+    backlogMinutes: 70,
     overdueTopics: 2,
     streak: 12,
     nextUpTitle: 'Interval DP',
@@ -32,7 +34,8 @@ describe('composeDigest', () => {
   it('renders the full digest', () => {
     const html = composeDigest(base);
     expect(html).toContain('Thu, Jul 2');
-    expect(html).toContain('Due: 7 cards (3 concept · 2 code · 2 problem) · ~40 min');
+    expect(html).toContain("Today's slice: 7 cards (3 concept · 2 code · 2 problem) · ~40 min");
+    expect(html).toContain('Backlog: 12 cards · ~70 min');
     expect(html).toContain('Overdue topics: 2 · Streak: 12 🔥');
     expect(html).toContain('Next up: Interval DP');
   });
@@ -42,6 +45,8 @@ describe('composeDigest', () => {
       ...base,
       dueByKind: { concept: 0, code: 0, problem: 0 },
       dueCount: 0,
+      backlogCount: 0,
+      backlogMinutes: 0,
       estMinutes: 0,
       overdueTopics: 0,
     });
@@ -67,8 +72,15 @@ describe('composeDigest', () => {
 
 describe('composeNudge', () => {
   it('renders streak, due count and estimate', () => {
-    const html = composeNudge({ streak: 12, dueCount: 5, estMinutes: 15 });
+    const html = composeNudge({
+      streak: 12,
+      dueCount: 5,
+      estMinutes: 15,
+      backlogCount: 9,
+      backlogMinutes: 45,
+    });
     expect(html).toContain('Streak (12) at risk — nothing logged today.');
-    expect(html).toContain('5 cards due · ~15 min. One review keeps the day.');
+    expect(html).toContain("Today's slice: 5 cards · ~15 min.");
+    expect(html).toContain('Backlog: 9 cards · ~45 min');
   });
 });

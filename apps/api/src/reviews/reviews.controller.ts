@@ -3,6 +3,7 @@ import { ReviewsService } from './reviews.service';
 import { LogReviewDto } from './dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MetricsService } from '../metrics/metrics.service';
+import { parseReviewOptions } from '../metrics/review-queue';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -20,7 +21,14 @@ export class ReviewsController {
   @Get('session-queue') sessionQueue(
     @CurrentUser() userId: string,
     @Query('domain') domain?: string,
+    @Query('reviewMinutes') reviewMinutes?: string | string[],
+    @Query('reviewPromptId') reviewPromptId?: string | string[],
   ) {
-    return this.metrics.sessionQueue(userId, new Date(), domain);
+    return this.metrics.sessionQueue(
+      userId,
+      new Date(),
+      domain,
+      parseReviewOptions(reviewMinutes, reviewPromptId),
+    );
   }
 }

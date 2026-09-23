@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 import type {
+  ProjectCheckpointInput,
+  SkillCheckPlan,
+  SkillCheckAttempt,
+  SkillCheckResult,
+} from '@terrain/types';
+import type {
   CreateAppEventInput,
   CreateTopicInput,
   ExportOptions,
+  ReviewOptions,
   LoginInput,
   RegisterInput,
   UpdateProfileInput,
@@ -12,12 +19,20 @@ import type {
 } from './types';
 
 export const qk = {
+  skillChecks: ['skill-checks'] as const,
+  projects: ['projects'] as const,
   topics: ['topics'] as const,
   topic: (id: string) => ['topic', id] as const,
   reviews: (topicId: string) => ['reviews', topicId] as const,
   nextPrompt: (topicId: string) => ['next-prompt', topicId] as const,
   prompt: (id: string) => ['prompt', id] as const,
-  dashboard: (domain?: string) => ['dashboard', domain ?? 'all'] as const,
+  dashboard: (domain?: string, options: ReviewOptions = {}) =>
+    [
+      'dashboard',
+      domain ?? 'all',
+      options.reviewMinutes ?? 15,
+      options.reviewPromptId ?? null,
+    ] as const,
   heatmap: (days?: number) => ['heatmap', days ?? 'default'] as const,
   streak: ['streak'] as const,
   settings: ['settings'] as const,
@@ -27,6 +42,60 @@ export const qk = {
 };
 
 // ---- queries ----
+
+export function useSkillChecks() {
+  return useQuery({
+    queryKey: qk.skillChecks,
+    queryFn: api.getSkillChecks,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+}
+
+type SkillCheckSave =
+  | { action: 'schedule'; plan: SkillCheckPlan }
+  | { action: 'attempt'; id: string; attempt: SkillCheckAttempt }
+  | { action: 'result'; id: string; result: SkillCheckResult }
+  | { action: 'cancel'; id: string };
+
+export function useSaveSkillCheck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SkillCheckSave) => {
+      switch (input.action) {
+        case 'schedule':
+          return api.createSkillCheck(input.plan);
+        case 'attempt':
+          return api.saveSkillCheckAttempt(input.id, input.attempt);
+        case 'result':
+          return api.saveSkillCheckResult(input.id, input.result);
+        case 'cancel':
+          return api.cancelSkillCheck(input.id);
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.skillChecks }),
+    onError: (error) => {
+      if ('status' in error && error.status === 409)
+        void qc.invalidateQueries({ queryKey: qk.skillChecks });
+    },
+  });
+}
+
+export function useProjectProgress() {
+  return useQuery({ queryKey: qk.projects, queryFn: api.getProjectProgress, retry: false });
+}
+
+export function useSaveProjectCheckpoint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProjectCheckpointInput) => api.saveProjectCheckpoint(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.projects }),
+    onError: (error) => {
+      if ('status' in error && error.status === 409)
+        void qc.invalidateQueries({ queryKey: qk.projects });
+    },
+  });
+}
 
 export function useTopics() {
   return useQuery({ queryKey: qk.topics, queryFn: api.getTopics });
@@ -48,10 +117,11 @@ export function useReviews(topicId: string | null) {
   });
 }
 
-export function useDashboard(domain?: string) {
+export function useDashboard(domain?: string, options: ReviewOptions = {}) {
   return useQuery({
-    queryKey: qk.dashboard(domain),
-    queryFn: () => api.getDashboard(domain),
+    queryKey: qk.dashboard(domain, options),
+    queryFn: () => api.getDashboard(domain, options),
+    refetchInterval: 60_000,
   });
 }
 
@@ -59,6 +129,15 @@ export function useLearningContext(topic?: string, enabled = true) {
   return useQuery({
     queryKey: qk.learningContext(topic),
     queryFn: () => api.getLearningContext(topic),
+    enabled,
+  });
+}
+
+export function useSessionQueue(options: ReviewOptions, enabled: boolean) {
+  return useQuery({
+    queryKey: ['session-queue', options.reviewMinutes ?? 15, options.reviewPromptId ?? null],
+    queryFn: () => api.getSessionQueue(options),
+    refetchInterval: 60_000,
     enabled,
   });
 }
@@ -108,6 +187,7 @@ function useInvalidateAll() {
     Promise.all([
       qc.invalidateQueries({ queryKey: qk.topics }),
       qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      qc.invalidateQueries({ queryKey: ['session-queue'] }),
       qc.invalidateQueries({ queryKey: ['heatmap'] }),
       qc.invalidateQueries({ queryKey: qk.streak }),
       qc.invalidateQueries({ queryKey: qk.topicTypes }),
@@ -208,6 +288,10 @@ export function useGenerateExport() {
     // A new SessionExport row may change the dashboard's pendingSessions.
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
   });
+}
+
+export function useStoredExport() {
+  return useMutation({ mutationFn: api.getStoredExport });
 }
 
 export function useImportPreview() {

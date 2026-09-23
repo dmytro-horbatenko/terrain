@@ -23,7 +23,7 @@ function makeMetrics(prisma: any) {
   return {
     dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
     dueCards: jest.fn().mockResolvedValue([]),
-    struggleRatio7d: jest.fn().mockResolvedValue(0.44),
+    reviewStats7d: jest.fn().mockResolvedValue({ total: 25, again: 11, againRatio: 0.44 }),
     masteryStatus: real.masteryStatus.bind(real),
     topicLabels: real.topicLabels.bind(real),
     nextUp: jest.fn().mockResolvedValue(null),
@@ -291,7 +291,7 @@ describe('ExportGeneratorService', () => {
     const metrics = {
       dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
       dueCards: jest.fn().mockResolvedValue([]),
-      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      reviewStats7d: jest.fn().mockResolvedValue({ total: 0, again: 0, againRatio: null }),
       masteryStatus: () => ({
         retention: false,
         application: false,
@@ -541,7 +541,7 @@ describe('ExportGeneratorService', () => {
       },
     };
     const metrics: any = {
-      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      reviewStats7d: jest.fn().mockResolvedValue({ total: 0, again: 0, againRatio: null }),
       dueTopics: jest.fn().mockResolvedValue({ overdue: [], dueToday: [] }),
       dueCards: jest.fn().mockResolvedValue([]),
     };
@@ -572,7 +572,7 @@ describe('ExportGeneratorService', () => {
         .mockResolvedValue([
           { id: 'card1', topicId: 't1', promptKind: 'concept', promptText: 'What is a stack?' },
         ]),
-      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      reviewStats7d: jest.fn().mockResolvedValue({ total: 0, again: 0, againRatio: null }),
       masteryStatus: () => ({
         retention: false,
         application: false,
@@ -614,7 +614,7 @@ describe('ExportGeneratorService', () => {
         .mockResolvedValue([
           { id: 'card2', topicId: 'orphan', promptKind: 'concept', promptText: 'Orphan card' },
         ]),
-      struggleRatio7d: jest.fn().mockResolvedValue(0),
+      reviewStats7d: jest.fn().mockResolvedValue({ total: 0, again: 0, againRatio: null }),
       masteryStatus: () => ({
         retention: false,
         application: false,
@@ -667,12 +667,22 @@ describe('ExportGeneratorService', () => {
           promptText: 'What does a hash map trade for O(1) lookups?',
           promptKind: 'concept',
           estimatedMinutes: null,
+          answerHint: 'Extra space for an index; collisions still need resolution.',
+          reviews: [
+            {
+              grade: 'again',
+              reviewedAt: new Date('2026-07-01T10:00:00Z'),
+              note: 'Claimed collisions are impossible; corrected after an example.',
+            },
+          ],
         },
         {
           id: 'p2',
           promptText: 'Solve: Search in Rotated Sorted Array',
           promptKind: 'problem',
           estimatedMinutes: 30,
+          answerHint: null,
+          reviews: [],
         },
       ];
       return { items, prompts };
@@ -685,7 +695,18 @@ describe('ExportGeneratorService', () => {
       };
       const metrics: any = { sessionQueue: jest.fn() };
       const { items, prompts } = repeatMocks();
-      metrics.sessionQueue = jest.fn().mockResolvedValue({ items });
+      metrics.sessionQueue = jest.fn().mockResolvedValue({
+        items: items.map((item, i) => ({
+          ...item,
+          promptText: prompts[i].promptText,
+          estimatedMinutes: i === 0 ? 2 : 10,
+        })),
+        estimatedMinutes: 12,
+        budgetMinutes: 15,
+        backlogCount: 8,
+        backlogMinutes: 55,
+        deferredExercises: [],
+      });
       prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
       prisma.prompt.findMany = jest.fn().mockResolvedValue(prompts);
       const svc = new ExportGeneratorService(prisma, metrics);
@@ -693,9 +714,30 @@ describe('ExportGeneratorService', () => {
       const md = await svc.generate({ mode: 'repeat', now: NOW, userId: 'u1' });
 
       expect(md).toContain("## TODAY'S REVIEW QUEUE");
-      expect(md).toContain('2 cards (1 due, 1 new)');
-      // concept fallback 2 min + explicit 30 min
-      expect(md).toContain('estimated 32 min');
+      expect(md).toContain('2 cards (1 due, 1 first retrievals)');
+      expect(md).toContain('estimated 12 min');
+      expect(md).toContain('budget 15 min');
+      expect(md).toContain('Full eligible backlog: 8 cards · estimated 55 min');
+      expect(md.split('\n')[0]).toBe(
+        '<!-- terrain-review: {"promptIds":["p1","p2"],"estimatedMinutes":12,"budgetMinutes":15,"reviewMinutes":15} -->',
+      );
+      expect(prisma.prompt.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['p1', 'p2'] }, topic: { userId: 'u1' } },
+        select: {
+          id: true,
+          answerHint: true,
+          reviews: {
+            where: { userId: 'u1' },
+            orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+            take: 1,
+            select: { grade: true, reviewedAt: true, note: true },
+          },
+        },
+      });
+      expect(md).toContain('Extra space for an index; collisions still need resolution.');
+      expect(md).toContain('2026-07-01T10:00:00.000Z');
+      expect(md).toContain('Claimed collisions are impossible; corrected after an example.');
+      expect(md).not.toContain('undefined');
       const p1 = md.indexOf('card p1 [concept] (Arrays & Hashing) What does a hash map');
       const p2 = md.indexOf('card p2 [problem] [NEW] (Binary Search) Solve: Search in Rotated');
       expect(p1).toBeGreaterThan(-1);
@@ -715,15 +757,43 @@ describe('ExportGeneratorService', () => {
         prompt: { findMany: jest.fn() },
       };
       const metrics: any = { sessionQueue: jest.fn() };
-      metrics.sessionQueue = jest.fn().mockResolvedValue({ items: [] });
+      metrics.sessionQueue = jest.fn().mockResolvedValue({
+        items: [],
+        estimatedMinutes: 0,
+        budgetMinutes: 15,
+        backlogCount: 0,
+        backlogMinutes: 0,
+        deferredExercises: [],
+      });
       prisma.user.findUnique = jest.fn().mockResolvedValue({ name: 'Dm' });
       const svc = new ExportGeneratorService(prisma, metrics);
 
       const md = await svc.generate({ mode: 'repeat', now: NOW, userId: 'u1' });
 
       expect(md).toContain('Nothing due today.');
+      expect(prisma.prompt.findMany).not.toHaveBeenCalled();
       expect(md).not.toContain('## SESSION CONDUCT');
       expect(md).toContain('## OUTPUT CONTRACT');
+    });
+
+    it('does not claim all clear when the selected slice cannot fit the remaining exercise', async () => {
+      const svc = new ExportGeneratorService(
+        { user: makeUserMock() } as any,
+        {
+          sessionQueue: jest.fn().mockResolvedValue({
+            items: [],
+            estimatedMinutes: 0,
+            budgetMinutes: 15,
+            backlogCount: 1,
+            backlogMinutes: 30,
+            deferredExercises: [],
+          }),
+        } as any,
+      );
+      const md = await svc.generate({ mode: 'repeat', now: NOW, userId: 'u1' });
+      expect(md).toContain('Full eligible backlog: 1 cards');
+      expect(md).not.toContain('Nothing due today.');
+      expect(md).toContain('Choose a focused exercise');
     });
   });
 
@@ -871,6 +941,111 @@ describe('ExportGeneratorService', () => {
       ],
     } satisfies LearningContext;
 
+    it.each(['guided', 'source-first'] as const)(
+      'carries partial study and its next challenge into a %s export',
+      (approach) => {
+        const resumedContext = {
+          ...context,
+          target: {
+            ...context.target,
+            prompts: [
+              {
+                ...context.target.prompts[0],
+                lastGrade: 'again' as const,
+                lastReviewedAt: '2026-09-01T12:00:00.000Z',
+                lastReviewNote: 'First attempt confused list items with bytes; hint supplied.',
+              },
+            ],
+            title: 'RLP',
+            summary: 'Encoded short strings; lists remain unfinished.',
+            studyContext: 'Build an RLP encoder and verify boundary lengths.',
+            noteRef: 'Obsidian: Web3/RLP',
+            continuation: {
+              sessionId: '00000000-0000-4000-8000-000000000009',
+              importedAt: '2026-09-01T12:00:00.000Z',
+              coldChallenge: 'Encode a nested list and explain its length prefix.',
+              resuming: true,
+            },
+          },
+        };
+
+        const md = service.generateLearnContext(resumedContext, approach, NOW);
+
+        expect(md).toContain('Encoded short strings; lists remain unfinished.');
+        expect(md).toContain('First attempt confused list items with bytes; hint supplied.');
+        expect(md).toContain('Build an RLP encoder and verify boundary lengths.');
+        expect(md).toContain('Obsidian: Web3/RLP');
+        expect(md).toContain('Encode a nested list and explain its length prefix.');
+        expect(md).toContain('2026-09-01T12:00:00.000Z');
+        expect(md).toContain('00000000-0000-4000-8000-000000000009');
+        expect(md).not.toContain('Exposure: not yet studied');
+        expect(md).toContain('Requirement canonical');
+        expect(md.endsWith(OUTPUT_CONTRACT)).toBe(true);
+      },
+    );
+
+    it('keeps a suggested opening challenge separate from evidence of prior study', () => {
+      const newTopicContext = {
+        ...context,
+        target: {
+          ...context.target,
+          continuation: {
+            sessionId: '00000000-0000-4000-8000-000000000009',
+            importedAt: '2026-09-01T12:00:00.000Z',
+            coldChallenge: 'Explain what makes a prefix sum useful.',
+            resuming: false,
+          },
+        },
+      };
+
+      const md = service.generateLearnContext(newTopicContext, 'guided', NOW);
+
+      expect(md).toContain('Explain what makes a prefix sum useful.');
+      expect(md).toContain('Exposure: no study recorded');
+    });
+
+    it('exports recorded study work and makes credited source requirements explicit', () => {
+      const md = service.generateLearnContext(
+        {
+          ...context,
+          target: {
+            ...context.target,
+            sourceProgress: [
+              {
+                requirementId: 'canonical',
+                sourceTitle: 'Guide',
+                sourceUrl: 'https://example.com/guide',
+                mainClaim: 'Prefix sums accumulate ranges.',
+                supportingMechanism: 'Subtract two prefixes.',
+                openQuestion: 'How does overflow behave?',
+                recordedAt: '2026-01-01T00:00:00.000Z',
+                reusable: true,
+              },
+            ],
+            applications: [
+              {
+                description: 'Derived range subtraction unaided.',
+                url: 'https://example.com/derivation',
+                appliedAt: '2026-01-01T00:00:00.000Z',
+              },
+            ],
+          },
+        },
+        'source-first',
+        NOW,
+      );
+      expect(md).toContain('already credited');
+      expect(md).not.toContain('EXPIRED — verify live before use');
+      expect(md).toContain('catalog recheck due');
+      expect(md).toContain('Prefix sums accumulate ranges.');
+      expect(md).toContain('How does overflow behave?');
+      expect(md).toContain('https://example.com/derivation');
+      expect(md).toContain('Exposure: partial study recorded');
+      expect(md).toContain('Do not resubmit recorded evidence');
+      expect(md).toContain('Agree one objective');
+      expect(md.endsWith(OUTPUT_CONTRACT)).toBe(true);
+    });
+
     it('renders guided learning only from the canonical context and keeps the output contract last', () => {
       const md = service.generateLearnContext(context, 'guided', NOW);
 
@@ -915,7 +1090,7 @@ describe('ExportGeneratorService', () => {
       expect(md).toContain('3. RECONSTRUCT');
       expect(md).toContain('Do not teach the topic before required source reconstruction');
       expect(md).toContain(
-        'Exposure: not yet studied — treat this as first exposure, start from fundamentals',
+        'Exposure: no study recorded — prior understanding is unknown; calibrate only what this objective needs',
       );
       expect(md).toContain('Chosen approach: source-first');
       expect(md).toContain('Recommended approach: guided');

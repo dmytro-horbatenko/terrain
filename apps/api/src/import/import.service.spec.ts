@@ -102,6 +102,7 @@ function build(prismaOver: any = {}) {
     sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
     topic: { findMany: jest.fn().mockResolvedValue([TOPIC()]) },
     prompt: { findMany: jest.fn().mockResolvedValue([]) },
+    sourceEvidence: { findMany: jest.fn().mockResolvedValue([]) },
     ...prismaOver,
   };
   return { prisma };
@@ -115,6 +116,66 @@ async function svc(prisma: any): Promise<ImportService> {
 }
 
 describe('ImportService.preview', () => {
+  it.each([
+    [
+      { title: 'Chapter', prerequisiteTitles: [] },
+      { title: 'Section', parentTitle: 'Chapter', prerequisiteTitles: [] },
+      { title: 'Lesson', parentTitle: 'Section', prerequisiteTitles: ['Chapter'] },
+    ],
+    [
+      { title: 'A', prerequisiteTitles: ['B'] },
+      { title: 'A lesson', parentTitle: 'A', prerequisiteTitles: [] },
+      { title: 'B', prerequisiteTitles: [] },
+      { title: 'B lesson', parentTitle: 'B', prerequisiteTitles: ['A lesson'] },
+    ],
+  ])('blocks imported prerequisite cycles involving chapter contents: %j', async (...topics) => {
+    const { prisma } = build();
+    const service = await svc(prisma);
+    const raw = fence(
+      v2({
+        proposedTopics: topics.map((topic) => ({ ...topic, type: 'concept', domain: 'Web3' })),
+      }),
+    );
+    const plan = await service.preview('userA', raw);
+    expect(plan.applicable).toBe(false);
+    expect(plan.unresolved).toContainEqual(expect.objectContaining({ reason: 'cycle' }));
+    await expect(service.apply('userA', raw)).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('rejects a new lesson requiring an existing ancestor chapter', async () => {
+    const { prisma } = build({
+      topic: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            TOPIC({ id: 'chapter', title: 'Chapter', prerequisites: [] }),
+            TOPIC({ id: 'section', title: 'Section', parentId: 'chapter', prerequisites: [] }),
+          ]),
+      },
+    });
+    const service = await svc(prisma);
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'Lesson',
+              type: 'concept',
+              domain: 'Web3',
+              parentTitle: 'Section',
+              prerequisiteTitles: ['Chapter'],
+            },
+          ],
+        }),
+      ),
+    );
+    expect(plan.applicable).toBe(false);
+    expect(plan.unresolved).toContainEqual(
+      expect.objectContaining({ title: 'Lesson', reason: 'cycle' }),
+    );
+  });
+
   it('plans valid curated evidence for every requirement of a studied planned topic', async () => {
     const { prisma } = build({ topic: { findMany: jest.fn().mockResolvedValue([]) } });
     const service = await svc(prisma);
@@ -217,6 +278,45 @@ describe('ImportService.preview', () => {
     expect(plan.sourceIssues).toEqual([
       expect.objectContaining({ topicTitle: 'Legacy', reason: 'missing-plan', blocking: false }),
     ]);
+    expect(plan.applicable).toBe(true);
+  });
+
+  it('allows a guided first exposure without source evidence', async () => {
+    const title = 'Gas & the fee market (EIP-1559)';
+    const { prisma } = build({
+      sessionExport: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'sess-1',
+          userId: 'userA',
+          generatedAt: new Date('2026-08-29T06:00:00Z'),
+          mode: 'learn',
+          domain: 'Web3',
+          focusTopicId: 'gas',
+          approach: 'guided',
+          exportMd: 'guided context',
+          importedAt: null,
+          importedOutputRaw: null,
+          newTopicsCreated: [],
+          nextFocusTitle: null,
+          nextColdChallenge: null,
+        }),
+      },
+      topic: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            TOPIC({ id: 'gas', title, status: 'planned', sourcePlan: SOURCE_PLAN() }),
+          ]),
+      },
+    });
+    const service = await svc(prisma);
+
+    const plan = await service.preview(
+      'userA',
+      fence(v2({ studiedTopics: [title], sourceEvidence: [] })),
+    );
+
+    expect(plan.sourceIssues).toEqual([]);
     expect(plan.applicable).toBe(true);
   });
 
@@ -760,23 +860,27 @@ describe('ImportService.preview', () => {
 describe('ImportService.apply (transaction)', () => {
   function txMock(): any {
     return {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       sessionExport: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         update: jest.fn().mockResolvedValue({}),
       },
       topicType: { upsert: jest.fn().mockResolvedValue({}) },
       topic: {
+        findMany: jest.fn().mockResolvedValue([TOPIC()]),
         create: jest
           .fn()
           .mockImplementation(({ data }: any) =>
             Promise.resolve({ id: `new-${data.title}`, ...data }),
           ),
         update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       prerequisite: { create: jest.fn().mockResolvedValue({}) },
       review: { create: jest.fn().mockResolvedValue({}) },
       prompt: {
         create: jest.fn().mockResolvedValue({ id: 'prompt-1' }),
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest
           .fn()
           .mockImplementation(({ where }: any) =>
@@ -796,8 +900,108 @@ describe('ImportService.apply (transaction)', () => {
     return mod.get(ImportService);
   }
 
+  it('rechecks changed hierarchy inside the import transaction before writing topics', async () => {
+    const existing = [
+      TOPIC({ id: 'chapter', title: 'Chapter', parentId: null, prerequisites: [] }),
+      TOPIC({ id: 'section', title: 'Section', parentId: null, prerequisites: [] }),
+    ];
+    const tx = txMock();
+    tx.topic.findMany.mockResolvedValue([existing[0], { ...existing[1], parentId: 'chapter' }]);
+    const { prisma } = build({
+      topic: { findMany: jest.fn().mockResolvedValue(existing) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    });
+    const service = await svcWithTx(prisma);
+    const raw = fence(
+      v2({
+        proposedTopics: [
+          {
+            title: 'Lesson',
+            type: 'concept',
+            domain: 'Web3',
+            parentTitle: 'Section',
+            prerequisiteTitles: ['Chapter'],
+          },
+        ],
+      }),
+    );
+    await expect(service.apply('userA', raw)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(tx.topic.create).not.toHaveBeenCalled();
+  });
+
+  it('reuses a proposed parent created before the import transaction', async () => {
+    const tx = txMock();
+    tx.topic.findMany.mockResolvedValue([TOPIC({ id: 'current-parent', title: 'Parent' })]);
+    const { prisma } = build({
+      topic: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    });
+    const service = await svcWithTx(prisma);
+    const result = await service.apply(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            { title: 'Parent', type: 'concept', domain: 'Web3' },
+            { title: 'Child', type: 'concept', domain: 'Web3', parentTitle: 'Parent' },
+          ],
+        }),
+      ),
+    );
+
+    expect(result.topicsCreated).toEqual(['new-Child']);
+    expect(tx.topic.create).toHaveBeenCalledTimes(1);
+    expect(tx.topic.update).toHaveBeenCalledWith({
+      where: { id: 'new-Child' },
+      data: { parentId: 'current-parent' },
+    });
+  });
+
+  it('writes prerequisite identities from the hierarchy validated inside the transaction', async () => {
+    const existing = [TOPIC({ id: 'p', title: 'P' }), TOPIC({ id: 'q', title: 'Q' })];
+    const tx = txMock();
+    tx.topic.findMany.mockResolvedValue([
+      { ...existing[0], parentId: 'q' },
+      { ...existing[1], title: 'X' },
+      TOPIC({ id: 'r', title: 'Q' }),
+    ]);
+    const { prisma } = build({
+      topic: { findMany: jest.fn().mockResolvedValue(existing) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    });
+    const service = await svcWithTx(prisma);
+    await service.apply(
+      'userA',
+      fence(
+        v2({
+          proposedTopics: [
+            {
+              title: 'N',
+              type: 'concept',
+              domain: 'Web3',
+              parentTitle: 'P',
+              prerequisiteTitles: ['Q'],
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(tx.prerequisite.create).toHaveBeenCalledTimes(1);
+    expect(tx.prerequisite.create).toHaveBeenCalledWith({
+      data: { topicId: 'new-N', prerequisiteId: 'r' },
+    });
+  });
+
   it('accepts exported "title [type]" labels as references to an existing topic', async () => {
     const tx = txMock();
+    tx.topic.findMany.mockResolvedValue([
+      TOPIC({
+        title: 'EIP-712 typed structured authorization',
+        status: 'planned',
+        sourcePlan: { policy: 'none', rationale: 'Session-led topic' },
+      }),
+    ]);
     tx.topic.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     const prisma: any = {
       sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
@@ -886,6 +1090,32 @@ describe('ImportService.apply (transaction)', () => {
     expect(res.nextSessionStored).toBe(false); // blank focus
     expect(tx.sessionExport.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ nextFocusTitle: null }) }),
+    );
+  });
+
+  it('does not save a completed topic as the next focus', async () => {
+    const tx = txMock();
+    const prisma: any = {
+      sessionExport: { findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', importedAt: null }) },
+      topic: { findMany: jest.fn().mockResolvedValue([TOPIC()]) },
+      prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: any) => cb(tx)),
+    };
+    const service = await svcWithTx(prisma);
+    const res = await service.apply(
+      'userA',
+      fence(
+        v2({
+          studiedTopics: ['Stacks'],
+          nextSession: { focusTitle: 'Stacks', coldChallenge: 'Optional changed case.' },
+        }),
+      ),
+    );
+    expect(res.nextSessionStored).toBe(false);
+    expect(tx.sessionExport.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nextFocusTitle: null, nextColdChallenge: null }),
+      }),
     );
   });
 
@@ -1458,9 +1688,49 @@ describe('ImportService.apply (transaction)', () => {
       expect(tx.topic.updateMany).toHaveBeenCalledTimes(1);
       expect(tx.topic.updateMany).toHaveBeenCalledWith({
         where: { id: 't1', userId: 'userA', status: 'planned' },
-        data: { status: 'active', aiProposed: false },
+        data: { status: 'active', aiProposed: false, learnedAt: expect.any(Date) },
       });
       expect(res.topicsActivated).toBe(1);
+    });
+
+    it('masters a studied topic when the import completes all mastery evidence', async () => {
+      const tx = txMock();
+      tx.topic.findMany.mockResolvedValue([
+        {
+          id: 't1',
+          summary: 'Typed envelopes and local mempool policy.',
+          noteRef: null,
+          prompts: [{ stability: 30, suspended: false }],
+          _count: { appEvents: 1 },
+        },
+      ]);
+      tx.topic.updateMany.mockResolvedValue({ count: 1 });
+      const { prisma } = build({
+        topic: { findMany: jest.fn().mockResolvedValue([TOPIC({ status: 'active' })]) },
+        $transaction: jest.fn((cb: any) => cb(tx)),
+      });
+      const service = await svcWithTx(prisma);
+      const res = await service.apply(
+        'userA',
+        fence(
+          v2({
+            studiedTopics: ['Stacks'],
+            noteSummaries: [{ topicTitle: 'Stacks', keyInsight: 'Completed.' }],
+            applicationEvents: [
+              {
+                topicTitle: 'Stacks',
+                kind: 'audit_exercise',
+                description: 'Solved the mixed case.',
+              },
+            ],
+          }),
+        ),
+      );
+      expect(res.topicsMastered).toBe(1);
+      expect(tx.topic.updateMany).toHaveBeenCalledWith({
+        where: { id: 't1', userId: 'userA', status: 'active' },
+        data: { status: 'mastered' },
+      });
     });
   });
 
@@ -1594,6 +1864,7 @@ describe('ImportService.apply guards (no writes on reject)', () => {
       },
       topicType: { upsert: jest.fn().mockResolvedValue({}) },
       topic: {
+        findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn(({ data }: any) => Promise.resolve({ id: `new-${data.title}`, ...data })),
         update: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -1657,6 +1928,7 @@ describe('ImportService.apply guards (no writes on reject)', () => {
           .mockResolvedValue([TOPIC({ status: 'planned', sourcePlan: SOURCE_PLAN() })]),
       },
       prompt: { findMany: jest.fn().mockResolvedValue([]) },
+      sourceEvidence: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: transaction,
     };
     const service = await svc(prisma);

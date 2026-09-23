@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { skillCheckEvidenceSchema } from './skill-checks';
+export * from './projects';
+export * from './skill-checks';
 
 export type TopicStatus = 'planned' | 'active' | 'mastered' | 'archived';
 export type ReviewMode = 'telegram_quick' | 'app_log' | 'claude_session';
@@ -227,6 +230,47 @@ export const learningContextSchema = z
         sessionEligible: z.boolean(),
         status: topicStatusSchema,
         description: z.string().nullable(),
+        summary: z.string().nullable().optional(),
+        studyContext: z.string().nullable().optional(),
+        noteRef: z.string().nullable().optional(),
+        skillChecks: z.array(skillCheckEvidenceSchema).max(3).optional(),
+        sourceProgress: z
+          .array(
+            z
+              .object({
+                requirementId: z.string(),
+                sourceTitle: z.string(),
+                sourceUrl: z.string().url(),
+                mainClaim: z.string(),
+                supportingMechanism: z.string(),
+                openQuestion: z.string().nullable(),
+                recordedAt: z.string().datetime(),
+                reusable: z.boolean(),
+              })
+              .strict(),
+          )
+          .optional(),
+        applications: z
+          .array(
+            z
+              .object({
+                description: z.string(),
+                url: z.string().nullable(),
+                appliedAt: z.string().datetime(),
+              })
+              .strict(),
+          )
+          .optional(),
+        continuation: z
+          .object({
+            sessionId: z.string().uuid(),
+            importedAt: z.string().datetime(),
+            coldChallenge: z.string().min(1),
+            resuming: z.boolean(),
+          })
+          .strict()
+          .nullable()
+          .optional(),
         sourcePlan: sourcePlanSchema.nullable(),
         chapter: z
           .object({
@@ -253,6 +297,8 @@ export const learningContextSchema = z
               difficulty: z.number().nullable(),
               stability: z.number().nullable(),
               lastGrade: z.enum(GRADES).nullable(),
+              lastReviewedAt: z.string().datetime().nullable().optional(),
+              lastReviewNote: z.string().nullable().optional(),
             })
             .strict(),
         ),

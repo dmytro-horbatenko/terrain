@@ -1,9 +1,19 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CardState, PromptKind, ReviewGrade, Topic, TopicStatus } from '@prisma/client';
-import { learningContextSchema, type Grade, type LearningContext } from '@terrain/types';
+import {
+  learningContextSchema,
+  parseLearningOs,
+  skillCheckEvidence,
+  type Grade,
+  type LearningContext,
+} from '@terrain/types';
 import type { NextUp } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseStoredSourcePlan, sourcePlanStats } from '../sources/source-plan';
+import {
+  canReuseSourceEvidence,
+  parseStoredSourcePlan,
+  sourcePlanStats,
+} from '../sources/source-plan';
 import { recommendApproach } from './approach';
 import { buildRoadmapPolicy, type RoadmapEligibility } from './roadmap-policy';
 
@@ -36,12 +46,15 @@ type ReviewEvidence = {
   grade: ReviewGrade;
   reviewedAt: Date;
   promptId: string | null;
+  note?: string | null;
 };
 
 type CompactEvidence = LearningContext['mayRelyOn'][number]['evidence'];
 
 const normalizeTitle = (value: string) => value.trim().toLowerCase();
 const learned = (status: TopicStatus) => status === 'active' || status === 'mastered';
+const malformedRoadmapData = (policy: RoadmapEligibility) =>
+  policy.cycle || policy.malformedParent || policy.unavailablePrerequisite;
 
 @Injectable()
 export class LearningContextService {
@@ -94,11 +107,11 @@ export class LearningContextService {
         : this.prisma.sessionExport.findFirst({
             where: {
               userId,
+              mode: 'learn',
               importedAt: { not: null },
-              nextFocusTitle: { not: null },
             },
             orderBy: { importedAt: 'desc' },
-            select: { nextFocusTitle: true },
+            select: { nextFocusTitle: true, importedOutputRaw: true },
           }),
     ]);
     const policy = buildRoadmapPolicy(
@@ -134,14 +147,38 @@ export class LearningContextService {
     }
 
     const candidates = graph.filter(
-      (candidate) => inScope(candidate) && policy.get(candidate.id)?.learnable,
+      (candidate) =>
+        inScope(candidate) &&
+        candidate.status === 'planned' &&
+        this.sessionEligible(candidate, policy),
     );
     const importedTitle = imported?.nextFocusTitle?.trim();
     if (importedTitle) {
+      const completedInImport = (() => {
+        if (!imported?.importedOutputRaw) return false;
+        try {
+          return (parseLearningOs(imported.importedOutputRaw).studiedTopics ?? []).some(
+            (title) => normalizeTitle(title) === normalizeTitle(importedTitle),
+          );
+        } catch {
+          return false;
+        }
+      })();
+      if (completedInImport) {
+        return {
+          targetId: candidates[0]?.id ?? null,
+          source: candidates.length ? 'authored-order' : 'none',
+          importedFocus: null,
+          graph,
+          policy,
+          scopeIds,
+        };
+      }
       const matches = graph.filter(
         (candidate) => normalizeTitle(candidate.title) === normalizeTitle(importedTitle),
       );
-      const accepted = matches.length === 1 && candidates.some(({ id }) => id === matches[0].id);
+      const accepted =
+        matches.length === 1 && inScope(matches[0]) && this.sessionEligible(matches[0], policy);
       if (accepted) {
         return {
           targetId: matches[0].id,
@@ -149,7 +186,10 @@ export class LearningContextService {
           importedFocus: {
             title: importedTitle,
             accepted: true,
-            reason: 'Accepted as a learnable planned leaf.',
+            reason:
+              matches[0].status === 'planned'
+                ? 'Accepted as a learnable planned leaf.'
+                : 'Accepted as a previously studied leaf to continue.',
           },
           graph,
           policy,
@@ -198,8 +238,9 @@ export class LearningContextService {
     if (eligibility?.unavailablePrerequisite) {
       return `${topic.title} has an unavailable prerequisite.`;
     }
-    if (topic.status !== 'planned') return `${topic.title} is ${topic.status}, not planned.`;
     if (eligibility?.kind === 'group') return `${topic.title} is a group, not a leaf.`;
+    if (learned(topic.status)) return `${topic.title} has unavailable or cyclic prerequisite data.`;
+    if (topic.status !== 'planned') return `${topic.title} is ${topic.status}, not planned.`;
     const blockerId = eligibility?.blockerIds[0];
     if (blockerId) {
       const blocker = policy.get(blockerId);
@@ -251,7 +292,17 @@ export class LearningContextService {
     const byId = new Map(selection.graph.map((topic) => [topic.id, topic]));
     const target = selection.targetId ? byId.get(selection.targetId) : undefined;
     const relevantIds = target ? this.relevantIds(target, selection.policy) : [];
-    const [learner, reviewGroups, sourceEvidence, applicationEvents] = await Promise.all([
+    const targetPromptIds =
+      target?.prompts.filter((prompt) => !prompt.suspended).map((prompt) => prompt.id) ?? [];
+    const [
+      learner,
+      reviewGroups,
+      sourceEvidence,
+      applicationEvents,
+      continuation,
+      targetReviews,
+      skillChecks,
+    ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -278,14 +329,30 @@ export class LearningContextService {
       ),
       this.prisma.sourceEvidence.findMany({
         where: { userId, topicId: { in: relevantIds } },
-        orderBy: { createdAt: 'desc' },
-        select: { topicId: true, sourceTitle: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       }),
       this.prisma.applicationEvent.findMany({
         where: { userId, topicId: { in: relevantIds } },
         orderBy: { appliedAt: 'desc' },
-        select: { topicId: true, description: true },
+        select: { topicId: true, description: true, url: true, appliedAt: true },
       }),
+      target ? this.studyContinuation(userId, target, selection.graph) : Promise.resolve(null),
+      targetPromptIds.length
+        ? this.prisma.review.findMany({
+            where: { userId, topicId: target!.id, promptId: { in: targetPromptIds } },
+            distinct: ['promptId'],
+            orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+            select: { topicId: true, promptId: true, grade: true, reviewedAt: true, note: true },
+          })
+        : Promise.resolve([]),
+      target
+        ? this.prisma.skillCheck.findMany({
+            where: { userId, topicId: target.id, assessedAt: { not: null }, cancelledAt: null },
+            orderBy: [{ assessedAt: 'desc' }, { id: 'desc' }],
+            take: 3,
+            select: { plan: true, attempt: true, result: true, attemptedAt: true },
+          })
+        : Promise.resolve([]),
     ]);
     const reviews = reviewGroups.flat() as ReviewEvidence[];
     const evidenceFor = (topicId: string): CompactEvidence => {
@@ -318,6 +385,26 @@ export class LearningContextService {
         },
       ];
     });
+    const targetSources = sourceEvidence.filter((row) => row.topicId === target?.id);
+    const sourcePlan = target ? parseStoredSourcePlan(target.sourcePlan) : null;
+    const reusable = (row: (typeof sourceEvidence)[number]) =>
+      !!target && canReuseSourceEvidence(sourcePlan, target.status, row, now);
+    const sourceProgress = [...new Set(targetSources.map((row) => row.requirementId))].map(
+      (requirementId) => {
+        const matches = targetSources.filter((row) => row.requirementId === requirementId);
+        const row = matches.find(reusable) ?? matches[0];
+        return {
+          requirementId,
+          sourceTitle: row.sourceTitle,
+          sourceUrl: row.sourceUrl,
+          mainClaim: row.mainClaim,
+          supportingMechanism: row.supportingMechanism,
+          openQuestion: row.openQuestion,
+          recordedAt: row.createdAt.toISOString(),
+          reusable: reusable(row),
+        };
+      },
+    );
     const result: LearningContext = {
       schemaVersion: 1,
       generatedAt: now.toISOString(),
@@ -327,7 +414,32 @@ export class LearningContextService {
         codeStyle: learner?.codeStyle ?? null,
         noteSystem: learner?.noteSystem ?? null,
       },
-      target: target ? this.targetContext(target, selection, reviews, byId, now) : null,
+      target: target
+        ? {
+            ...this.targetContext(
+              target,
+              selection,
+              reviews,
+              byId,
+              now,
+              targetReviews,
+              sourceProgress
+                .filter((source) => source.reusable)
+                .map((source) => source.requirementId),
+            ),
+            continuation,
+            sourceProgress,
+            skillChecks: skillChecks.flatMap(skillCheckEvidence),
+            applications: applicationEvents
+              .filter((row) => row.topicId === target.id)
+              .slice(0, 3)
+              .map((row) => ({
+                description: row.description,
+                url: row.url,
+                appliedAt: row.appliedAt.toISOString(),
+              })),
+          }
+        : null,
       selection: {
         source: selection.source,
         importedFocus: selection.importedFocus,
@@ -335,7 +447,8 @@ export class LearningContextService {
           if (
             candidate.id === selection.targetId ||
             !selection.scopeIds.has(candidate.id) ||
-            !selection.policy.get(candidate.id)?.learnable
+            candidate.status !== 'planned' ||
+            !this.sessionEligible(candidate, selection.policy)
           ) {
             return [];
           }
@@ -369,8 +482,67 @@ export class LearningContextService {
     return learningContextSchema.parse(result);
   }
 
+  private async studyContinuation(
+    userId: string,
+    target: LoadedTopic,
+    graph: LoadedTopic[],
+  ): Promise<NonNullable<LearningContext['target']>['continuation']> {
+    // Saved next steps identify their destination by title, even for ID-selected topics.
+    if (
+      graph.filter((topic) => normalizeTitle(topic.title) === normalizeTitle(target.title))
+        .length !== 1
+    ) {
+      return null;
+    }
+    const sessions = await this.prisma.sessionExport.findMany({
+      where: {
+        userId,
+        mode: 'learn',
+        importedAt: { not: null },
+        OR: [
+          { focusTopicId: target.id },
+          { nextFocusTitle: { contains: target.title.trim(), mode: 'insensitive' } },
+        ],
+      },
+      orderBy: [{ importedAt: 'desc' }, { generatedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        focusTopicId: true,
+        nextFocusTitle: true,
+        nextColdChallenge: true,
+        importedAt: true,
+      },
+    });
+    // ponytail: legacy titles need trimming in memory; store a next-topic ID if
+    // per-topic histories grow too large to load these compact candidate rows.
+    const matchesTitle = (title: string | null) =>
+      title != null && normalizeTitle(title) === normalizeTitle(target.title);
+    const latest = sessions.find(
+      (session) => session.focusTopicId === target.id || matchesTitle(session.nextFocusTitle),
+    );
+    const challenge = latest?.nextColdChallenge?.trim();
+    // A newer same-topic session may finish or redirect the work. Do not revive
+    // an older challenge after that session has cleared it.
+    if (!latest?.importedAt || !matchesTitle(latest.nextFocusTitle) || !challenge) return null;
+    return {
+      sessionId: latest.id,
+      importedAt: latest.importedAt.toISOString(),
+      coldChallenge: challenge,
+      resuming: latest.focusTopicId === target.id,
+    };
+  }
+
   private relevantIds(target: LoadedTopic, policy: Map<string, RoadmapEligibility>): string[] {
     return [target.id, ...this.prerequisiteIds(target.id, policy)];
+  }
+
+  private sessionEligible(target: LoadedTopic, policy: Map<string, RoadmapEligibility>): boolean {
+    const targetPolicy = policy.get(target.id)!;
+    return (
+      targetPolicy.kind === 'leaf' &&
+      (targetPolicy.learnable || learned(target.status)) &&
+      this.relevantIds(target, policy).every((id) => !malformedRoadmapData(policy.get(id)!))
+    );
   }
 
   private prerequisiteIds(targetId: string, policy: Map<string, RoadmapEligibility>): string[] {
@@ -422,6 +594,8 @@ export class LearningContextService {
     reviews: ReviewEvidence[],
     byId: Map<string, LoadedTopic>,
     now: Date,
+    targetReviews: ReviewEvidence[],
+    creditedRequirementIds: string[],
   ): NonNullable<LearningContext['target']> {
     const targetPolicy = selection.policy.get(target.id)!;
     const directIds = new Set([target.id, ...targetPolicy.effectivePrerequisiteIds]);
@@ -435,11 +609,12 @@ export class LearningContextService {
       domain: target.domain,
       topicType: target.topicType,
       kind: targetPolicy.kind,
-      sessionEligible:
-        targetPolicy.kind === 'leaf' &&
-        (targetPolicy.learnable || target.status === 'active' || target.status === 'mastered'),
+      sessionEligible: this.sessionEligible(target, selection.policy),
       status: target.status,
       description: target.description,
+      summary: target.summary ?? null,
+      studyContext: target.aiContext ?? null,
+      noteRef: target.noteRef ?? null,
       sourcePlan: parseStoredSourcePlan(target.sourcePlan),
       chapter:
         parent && parentPolicy
@@ -452,22 +627,26 @@ export class LearningContextService {
           : null,
       approach: recommendApproach({
         plan: parseStoredSourcePlan(target.sourcePlan),
+        creditedRequirementIds,
         status: target.status,
         now,
         recentGrades: approachReviews.map((review) => review.grade as Grade),
         promptKinds: activePrompts.map((prompt) => prompt.promptKind),
       }),
-      prompts: activePrompts.map((prompt) => ({
-        id: prompt.id,
-        kind: prompt.promptKind,
-        text: prompt.promptText,
-        state: prompt.state,
-        difficulty: prompt.difficulty,
-        stability: prompt.stability,
-        lastGrade:
-          (reviews.find((review) => review.promptId === prompt.id)?.grade as Grade | undefined) ??
-          null,
-      })),
+      prompts: activePrompts.map((prompt) => {
+        const lastReview = targetReviews.find((review) => review.promptId === prompt.id);
+        return {
+          id: prompt.id,
+          kind: prompt.promptKind,
+          text: prompt.promptText,
+          state: prompt.state,
+          difficulty: prompt.difficulty,
+          stability: prompt.stability,
+          lastGrade: (lastReview?.grade as Grade | undefined) ?? null,
+          lastReviewedAt: lastReview?.reviewedAt.toISOString() ?? null,
+          lastReviewNote: lastReview?.note ?? null,
+        };
+      }),
     };
   }
 
@@ -556,7 +735,13 @@ export class LearningContextService {
         reason: 'Archived topics are not session eligible.',
       });
     }
-    blockers.push(...policy.blockerIds.map((blockerId) => this.blocker(blockerId, selection)));
+    const blockerIds = new Set([
+      ...policy.blockerIds,
+      ...this.prerequisiteIds(target.id, selection.policy).filter((id) =>
+        malformedRoadmapData(selection.policy.get(id)!),
+      ),
+    ]);
+    blockers.push(...[...blockerIds].map((blockerId) => this.blocker(blockerId, selection)));
     return blockers;
   }
 
@@ -588,7 +773,7 @@ export class LearningContextService {
         (topic) =>
           topic.status === 'planned' &&
           selection.scopeIds.has(topic.id) &&
-          !selection.policy.get(topic.id)?.learnable,
+          !this.sessionEligible(topic, selection.policy),
       )
       .flatMap((topic) => this.blockers(topic, selection));
   }

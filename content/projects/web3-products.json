@@ -1,0 +1,2731 @@
+{
+  "version": "2026-09-03.1",
+  "title": "Web3 Product Engineering",
+  "description": "A parallel curriculum of complete systems: architecture, implementation, adversarial testing, operations and independent defense. Study topics deeply on their own, build projects on their own, or connect the two through milestone reading links.",
+  "weeklyPlan": [
+    {
+      "activity": "Deep topic study",
+      "hours": "4–6",
+      "purpose": "Read, derive, discuss and run focused labs without needing to advance a project."
+    },
+    {
+      "activity": "Product milestones",
+      "hours": "3–5",
+      "purpose": "One active product; complete small sessions inside substantial milestones."
+    },
+    {
+      "activity": "Retrieval and maintenance",
+      "hours": "2",
+      "purpose": "Use bounded review slices and revisit errors; do not turn the backlog into an endless gate."
+    },
+    {
+      "activity": "Reflection, delayed practice and feedback",
+      "hours": "1–2",
+      "purpose": "Revisit a changed case, defend decisions, get feedback and preserve open questions. This weekly split is an example; adapt it to your available time and desired depth."
+    }
+  ],
+  "assessment": [
+    "Every milestone has deliverables, acceptance criteria, an architecture decision, a failure drill and an independent defense.",
+    "Completion is a learner-confirmed evidence claim, not an audited certification. Saving a link or importing an AI answer does not prove mastery.",
+    "Keep one product active by default. Suggested prerequisites describe reusable experience; they do not lock the topic curriculum or force all projects into one chain.",
+    "Expect multiple sessions per milestone. Hour ranges are planning estimates; recalibrate after the first two milestones. Do not infer a salary or job-readiness guarantee from completion.",
+    "Build first on local chains/testnets with version-pinned dependencies. Public artifacts must not contain keys, seeds or private customer data."
+  ],
+  "projects": [
+    {
+      "id": "wallet-console",
+      "title": "Wallet & transaction operations console",
+      "stage": "01 · EVM application foundations",
+      "brief": "Build a non-custodial wallet companion for a developer or support engineer: inspect accounts, connect a wallet, prepare transfers, follow transaction state, and diagnose failures. The finished system includes a React interface, typed chain access, a small activity service and an operational runbook.",
+      "outcomes": [
+        "Separate wallet authority from public chain reads",
+        "Model asynchronous transactions and recover from stale state",
+        "Ship an accessible, observable interface with a defensible threat model"
+      ],
+      "prerequisites": [],
+      "readiness": "You can explain accounts, RPC, transaction anatomy and integer base units. Study missing topics alongside the first milestones; Solidity is not a prerequisite for the read-only start.",
+      "scope": "Local chain and testnet; delegate signing to an existing wallet. Key custody and a browser-extension wallet are separate advanced work, not hidden requirements.",
+      "sources": [
+        {
+          "title": "EIP / ERC-1193",
+          "url": "https://eips.ethereum.org/EIPS/eip-1193",
+          "scope": "Provider requests, connection errors and account/chain events."
+        },
+        {
+          "title": "EIP / ERC-6963",
+          "url": "https://eips.ethereum.org/EIPS/eip-6963",
+          "scope": "Multiple-provider discovery and untrusted provider metadata."
+        },
+        {
+          "title": "EIP / ERC-1559",
+          "url": "https://eips.ethereum.org/EIPS/eip-1559",
+          "scope": "Fee fields and effective gas price."
+        },
+        {
+          "title": "viem clients",
+          "url": "https://viem.sh/docs/clients/intro",
+          "scope": "Public and wallet clients, transports and chain configuration."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "w1",
+          "title": "W1 · Read-only account workspace",
+          "hours": [4, 7],
+          "objective": "Design and build the first useful vertical slice: inspect a public address on a selected chain without connecting a signer.",
+          "deliverables": [
+            "User story and boundary diagram",
+            "React account view, typed RPC module and read/error tests"
+          ],
+          "criteria": [
+            {
+              "id": "w1-c1",
+              "text": "Chain ID and address are validated before reads"
+            },
+            {
+              "id": "w1-c2",
+              "text": "Balances use bigint/base units; loading, empty and failed states are distinct"
+            },
+            {
+              "id": "w1-c3",
+              "text": "Changing chain/address cannot display a late response as current data"
+            }
+          ],
+          "designQuestion": "Which information belongs in URL state, query cache and an RPC module, and why?",
+          "failureDrill": "Delay the first response, switch address, then return responses out of order.",
+          "defense": "Explain the full path from an RPC request to a rendered balance and change the chain model without copying the page.",
+          "topicTitles": [
+            "Nodes, clients & JSON-RPC",
+            "Raw Ethereum JSON-RPC",
+            "viem clients: public, wallet & transports"
+          ]
+        },
+        {
+          "id": "w2",
+          "title": "W2 · Provider discovery & connection lifecycle",
+          "hours": [4, 7],
+          "objective": "Add explicit wallet connection while keeping public reads usable without authorization.",
+          "deliverables": [
+            "Provider adapter and lifecycle diagram",
+            "Connection UI plus account/chain switching tests"
+          ],
+          "criteria": [
+            {
+              "id": "w2-c1",
+              "text": "Multiple providers are selectable and metadata is rendered safely"
+            },
+            {
+              "id": "w2-c2",
+              "text": "Rejected requests, no accounts and unsupported chains have recovery paths"
+            },
+            {
+              "id": "w2-c3",
+              "text": "Account/chain changes invalidate dependent state and listeners are cleaned up"
+            }
+          ],
+          "designQuestion": "What authority does a provider connection grant, and what still needs account approval?",
+          "failureDrill": "Disconnect during a request, change accounts in the wallet, and announce a second provider.",
+          "defense": "Demonstrate why a connected provider is not equivalent to permission to transact.",
+          "topicTitles": ["Injected wallets & EIP-1193 / EIP-6963", "EOAs vs contract accounts"]
+        },
+        {
+          "id": "w3",
+          "title": "W3 · Transfer composer & transaction state machine",
+          "hours": [6, 10],
+          "objective": "Prepare a native-token transfer with meaningful confirmation and explicit lifecycle states.",
+          "deliverables": [
+            "Transaction state machine and confirmation screen",
+            "Simulation/estimation adapter and integration tests"
+          ],
+          "criteria": [
+            {
+              "id": "w3-c1",
+              "text": "Amounts round-trip exactly in base units; zero/invalid destinations are handled intentionally"
+            },
+            {
+              "id": "w3-c2",
+              "text": "User sees chain, recipient, amount, fee assumptions and wallet rejection"
+            },
+            {
+              "id": "w3-c3",
+              "text": "Submitted, included, reverted and confirmation policy are distinguishable"
+            }
+          ],
+          "designQuestion": "Which preflight checks improve feedback without pretending execution is guaranteed?",
+          "failureDrill": "Change chain between preparation and signing; make an otherwise valid transfer revert.",
+          "defense": "Trace the source of each confirmation field and explain why simulation can become stale.",
+          "topicTitles": [
+            "Transaction anatomy",
+            "Gas & the fee market (EIP-1559)",
+            "Writing transactions with viem & wagmi"
+          ]
+        },
+        {
+          "id": "w4",
+          "title": "W4 · Nonce, replacement & recovery laboratory",
+          "hours": [5, 9],
+          "objective": "Make pending, replaced and uncertain transactions understandable and recoverable.",
+          "deliverables": [
+            "Local-node experiment log with hashes/nonces",
+            "Recovery UI and client-policy notes"
+          ],
+          "criteria": [
+            {
+              "id": "w4-c1",
+              "text": "Nonce conflicts and replacements have reproducible examples"
+            },
+            {
+              "id": "w4-c2",
+              "text": "Dropped/unknown state is not displayed as success or definitive failure"
+            },
+            {
+              "id": "w4-c3",
+              "text": "Replacement fee rules are documented as node/provider policy, with user reconfirmation"
+            }
+          ],
+          "designQuestion": "Who owns nonce assignment when the wallet, another tab and another app submit concurrently?",
+          "failureDrill": "Disable automining, submit competing transactions, restart the client, then reconcile receipts.",
+          "defense": "Explain nonce replay protection versus typed-message replay protection using separate examples.",
+          "topicTitles": [
+            "Nonce & replay protection",
+            "Transaction types & the mempool",
+            "anvil: local test node"
+          ]
+        },
+        {
+          "id": "w5",
+          "title": "W5 · Token balances, allowances & signatures",
+          "hours": [6, 10],
+          "objective": "Extend the wallet to selected ERC-20 assets and transparent authorization requests.",
+          "deliverables": [
+            "Token interaction view with decimal-safe formatting",
+            "Allowance and typed-message inspection tests"
+          ],
+          "criteria": [
+            {
+              "id": "w5-c1",
+              "text": "Token units and missing/nonstandard metadata are handled explicitly"
+            },
+            {
+              "id": "w5-c2",
+              "text": "Allowance amount and spender are visible before approval"
+            },
+            {
+              "id": "w5-c3",
+              "text": "Typed data shows domain and purpose; signatures are never presented as harmless login by default"
+            }
+          ],
+          "designQuestion": "How do you keep token metadata and signing payloads from becoming trusted UI content?",
+          "failureDrill": "Use an unusual-decimal token, a failing read and a signature with the wrong chain/domain.",
+          "defense": "Reconstruct the difference between a transfer, an allowance and a signed authorization.",
+          "topicTitles": [
+            "ERC-20 approvals & SafeERC20",
+            "Reading contracts with viem",
+            "EIP-712 typed structured data"
+          ]
+        },
+        {
+          "id": "w6",
+          "title": "W6 · Activity service & reconciliation",
+          "hours": [6, 10],
+          "objective": "Add a small Node service that records submitted hashes and reconciles chain outcomes across reloads.",
+          "deliverables": [
+            "API/storage design and idempotency rules",
+            "Activity timeline with reconciliation worker and contract tests"
+          ],
+          "criteria": [
+            {
+              "id": "w6-c1",
+              "text": "Repeated submission tracking does not duplicate activity"
+            },
+            {
+              "id": "w6-c2",
+              "text": "Records include chain identity and distinguish observed from confirmed facts"
+            },
+            {
+              "id": "w6-c3",
+              "text": "Worker restart and temporary RPC failure recover without losing pending work"
+            }
+          ],
+          "designQuestion": "Which data is authoritative on chain, locally observed or user supplied?",
+          "failureDrill": "Restart after persisting a hash but before receipt processing; replay the same receipt twice.",
+          "defense": "Draw the transaction timeline and identify the points where consistency is temporarily weaker.",
+          "topicTitles": ["Watching events & logs (viem)", "Finality & fork choice (Gasper)"]
+        },
+        {
+          "id": "w7",
+          "title": "W7 · Release, incident drill & architecture defense",
+          "hours": [5, 8],
+          "objective": "Turn the wallet into a reviewable portfolio system with a repeatable release and support story.",
+          "deliverables": [
+            "CI, testnet demo and sanitized operational metrics",
+            "Architecture decision records, threat model and five-minute walkthrough"
+          ],
+          "criteria": [
+            {
+              "id": "w7-c1",
+              "text": "A clean checkout builds and runs with documented configuration"
+            },
+            {
+              "id": "w7-c2",
+              "text": "Critical account/chain/rejection flows work by keyboard and on a narrow screen"
+            },
+            {
+              "id": "w7-c3",
+              "text": "RPC outage drill produces an incident note and verified recovery"
+            }
+          ],
+          "designQuestion": "What did you deliberately keep out of the backend, and what would force that boundary to change?",
+          "failureDrill": "Break the primary RPC and replay a misleading wallet response; document user impact and recovery.",
+          "defense": "Implement a small unannounced change without a walkthrough and defend the tradeoff with evidence.",
+          "topicTitles": ["Contract verification", "Reading an unfamiliar codebase"]
+        }
+      ]
+    },
+    {
+      "id": "chain-indexer",
+      "title": "Reorg-aware indexer & portfolio API",
+      "stage": "02 · Data and backend systems",
+      "brief": "Build the data service a real wallet or analytics product needs: backfill chain events, follow the head, reconcile reorganizations and expose consistent queries. Focus on correctness under retries and partial failure, then measure performance.",
+      "outcomes": [
+        "Design recoverable ingestion and durable cursors",
+        "Separate provisional observations from confirmed data",
+        "Operate and profile an API under load"
+      ],
+      "prerequisites": ["wallet-console"],
+      "readiness": "You can read logs, explain block identity and write transactional database code.",
+      "scope": "One EVM network and a bounded token set first; add a second only in the final change exercise.",
+      "sources": [
+        {
+          "title": "Ponder indexing functions",
+          "url": "https://ponder.sh/docs/api-reference/ponder/indexing-functions",
+          "scope": "Compare framework-managed indexing to your explicit cursor/reorg model."
+        },
+        {
+          "title": "Ethereum JSON-RPC",
+          "url": "https://ethereum.org/developers/docs/apis/json-rpc/",
+          "scope": "Blocks, receipts and log queries."
+        },
+        {
+          "title": "EIP / ERC-20",
+          "url": "https://eips.ethereum.org/EIPS/eip-20",
+          "scope": "Transfer events and token interface."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "i1",
+          "title": "I1 · Data contract & consistency model",
+          "hours": [3, 5],
+          "objective": "Specify what the portfolio API promises before designing tables.",
+          "deliverables": [
+            "Consumer queries and sample event dataset",
+            "Schema, chain-identity keys and consistency decision"
+          ],
+          "criteria": [
+            {
+              "id": "i1-c1",
+              "text": "Every record is scoped to a chain and block identity"
+            },
+            {
+              "id": "i1-c2",
+              "text": "Provisional and finalized query semantics are explicit"
+            },
+            {
+              "id": "i1-c3",
+              "text": "Token units and pagination ordering are specified"
+            }
+          ],
+          "designQuestion": "Which reads require a coherent block snapshot rather than the latest row?",
+          "failureDrill": "Describe two branches containing transactions at the same block height.",
+          "defense": "Explain which identity keys survive a reorg and which records must be replaced.",
+          "topicTitles": ["Log anatomy: topics vs data", "Finality & fork choice (Gasper)"]
+        },
+        {
+          "id": "i2",
+          "title": "I2 · Bounded backfill & durable checkpoints",
+          "hours": [6, 9],
+          "objective": "Ingest historical events in repeatable batches with a cursor that cannot outrun committed data.",
+          "deliverables": [
+            "Backfill worker and checkpoint transaction",
+            "Duplicate, crash and RPC-limit tests"
+          ],
+          "criteria": [
+            {
+              "id": "i2-c1",
+              "text": "Restart resumes from the last committed range"
+            },
+            {
+              "id": "i2-c2",
+              "text": "Repeated ranges do not duplicate balances or events"
+            },
+            {
+              "id": "i2-c3",
+              "text": "Batch size, retries and backoff remain bounded"
+            }
+          ],
+          "designQuestion": "Should cursor persistence and event writes share a transaction? Show the crash cases.",
+          "failureDrill": "Terminate after an event batch is written but before the next loop iteration.",
+          "defense": "Rebuild the same range twice and explain why the aggregate remains unchanged.",
+          "topicTitles": ["Reading event logs on the frontend", "Events & indexed topics"]
+        },
+        {
+          "id": "i3",
+          "title": "I3 · Live ingestion & chain reorganization",
+          "hours": [7, 11],
+          "objective": "Follow new blocks while detecting parent mismatch and repairing a bounded orphaned range.",
+          "deliverables": [
+            "Parent-hash reconciliation algorithm",
+            "Local reorg fixture and recovery report"
+          ],
+          "criteria": [
+            {
+              "id": "i3-c1",
+              "text": "Orphaned effects are removed or compensated consistently"
+            },
+            {
+              "id": "i3-c2",
+              "text": "Replayed canonical events produce the expected state"
+            },
+            {
+              "id": "i3-c3",
+              "text": "Reorgs beyond the supported window halt with an actionable signal"
+            }
+          ],
+          "designQuestion": "How do you balance retained history, finality lag and recovery cost?",
+          "failureDrill": "Replace the last few locally mined blocks and reconnect the worker.",
+          "defense": "Explain why a WebSocket subscription alone cannot guarantee complete history.",
+          "topicTitles": ["What a blockchain is", "Watching events & logs (viem)"]
+        },
+        {
+          "id": "i4",
+          "title": "I4 · Query API & consumer integration",
+          "hours": [5, 8],
+          "objective": "Serve activity and balances with stable pagination and visible freshness.",
+          "deliverables": [
+            "Typed API and wallet integration",
+            "Query plans, indexes and error contract"
+          ],
+          "criteria": [
+            {
+              "id": "i4-c1",
+              "text": "Pagination does not skip or repeat rows in the stated consistency mode"
+            },
+            {
+              "id": "i4-c2",
+              "text": "Responses disclose indexed block and lag"
+            },
+            {
+              "id": "i4-c3",
+              "text": "Input limits prevent arbitrary unbounded scans"
+            }
+          ],
+          "designQuestion": "Would you serve cached aggregates or compute from events, and at what measured cost?",
+          "failureDrill": "Insert new events between page requests and query while backfill is incomplete.",
+          "defense": "Explain one query plan and justify the index order from an actual access pattern.",
+          "topicTitles": ["Ponder indexing", "viem clients: public, wallet & transports"]
+        },
+        {
+          "id": "i5",
+          "title": "I5 · Recovery, observability & load",
+          "hours": [5, 8],
+          "objective": "Measure the system and create a recovery procedure that someone else could execute.",
+          "deliverables": [
+            "Latency/lag/retry metrics and bounded load test",
+            "Backup/rebuild procedure and outage drill"
+          ],
+          "criteria": [
+            {
+              "id": "i5-c1",
+              "text": "SLO assumptions and test dataset are stated"
+            },
+            {
+              "id": "i5-c2",
+              "text": "RPC throttling degrades predictably without a retry storm"
+            },
+            {
+              "id": "i5-c3",
+              "text": "Recovery verifies data consistency against a fresh rebuild"
+            }
+          ],
+          "designQuestion": "What must be backed up if events can be fetched again, and what cannot be reconstructed?",
+          "failureDrill": "Throttle RPC and interrupt the database while ingestion and API reads run.",
+          "defense": "Identify the bottleneck from measurements and propose one justified optimization.",
+          "topicTitles": ["The Graph & subgraphs", "Nodes, clients & JSON-RPC"]
+        },
+        {
+          "id": "i6",
+          "title": "I6 · Consumer change & engineering handoff",
+          "hours": [4, 7],
+          "objective": "Support a second chain or new event family without losing the original guarantees.",
+          "deliverables": [
+            "Change proposal, migration and regression evidence",
+            "Public case study with consistency limitations"
+          ],
+          "criteria": [
+            {
+              "id": "i6-c1",
+              "text": "New data cannot collide with existing chain identities"
+            },
+            {
+              "id": "i6-c2",
+              "text": "Old consumers keep working or receive a versioned contract"
+            },
+            {
+              "id": "i6-c3",
+              "text": "An independent walkthrough reconstructs a reorg recovery"
+            }
+          ],
+          "designQuestion": "Which abstraction earned its place only after the second consumer appeared?",
+          "failureDrill": "Run old and new data shapes during a staged migration.",
+          "defense": "Add an unfamiliar event query and defend the schema and pagination choices.",
+          "topicTitles": ["ABIs & type generation (wagmi CLI)", "Reading an unfamiliar codebase"]
+        }
+      ]
+    },
+    {
+      "id": "escrow-payments",
+      "title": "Escrow, invoices & payment settlement",
+      "stage": "03 · Contract-backed products",
+      "brief": "Build a freelancer payment product with funded milestones, release/refund rules, a dispute role, receipts and a client portal. Model money and permissions before writing the contract.",
+      "outcomes": [
+        "Specify and test a money state machine",
+        "Integrate contracts, authentication and indexed receipts",
+        "Make trust and dispute assumptions visible"
+      ],
+      "prerequisites": ["wallet-console", "chain-indexer"],
+      "readiness": "Comfort with Solidity state, calls, access control, events and basic Foundry tests.",
+      "scope": "Test tokens, one network, explicit trusted dispute role; the exercise makes no claim of trustless arbitration.",
+      "sources": [
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        },
+        {
+          "title": "EIP / ERC-20",
+          "url": "https://eips.ethereum.org/EIPS/eip-20",
+          "scope": "Token transfers and allowances."
+        },
+        {
+          "title": "EIP / ERC-4361",
+          "url": "https://eips.ethereum.org/EIPS/eip-4361",
+          "scope": "Domain-bound login messages, nonce and session handling."
+        },
+        {
+          "title": "Foundry testing",
+          "url": "https://www.getfoundry.sh/forge/tests/overview/",
+          "scope": "Pin the toolchain; use unit, fuzz, invariant and fork tests where they answer a real risk."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "e1",
+          "title": "E1 · Actors, disputes & invariants",
+          "hours": [4, 6],
+          "objective": "Specify the legal states of an invoice and escrowed milestone before implementation.",
+          "deliverables": [
+            "Actor/permission matrix and state diagram",
+            "Amounts, deadlines and invariants in executable examples"
+          ],
+          "criteria": [
+            {
+              "id": "e1-c1",
+              "text": "Every transition has an authorized actor and preconditions"
+            },
+            {
+              "id": "e1-c2",
+              "text": "Refund, partial settlement and timeout policies are unambiguous"
+            },
+            {
+              "id": "e1-c3",
+              "text": "Total liabilities reconcile with funds under the supported token assumptions"
+            }
+          ],
+          "designQuestion": "Who can resolve a dispute, and what does the customer have to trust?",
+          "failureDrill": "Walk a dispute arriving at exactly the release deadline.",
+          "defense": "Derive a conservation-of-funds invariant and identify privileged escape hatches.",
+          "topicTitles": ["Enums", "Role-based access control", "Writing good invariants"]
+        },
+        {
+          "id": "e2",
+          "title": "E2 · Escrow contract & adversarial transfers",
+          "hours": [7, 11],
+          "objective": "Implement funding, release and refund with bounded work and pull-based settlement.",
+          "deliverables": [
+            "Contract, unit/fuzz tests and event schema",
+            "Malicious receiver/token fixtures"
+          ],
+          "criteria": [
+            {
+              "id": "e2-c1",
+              "text": "Unauthorized transitions revert"
+            },
+            {
+              "id": "e2-c2",
+              "text": "Repeat settlement cannot pay twice"
+            },
+            {
+              "id": "e2-c3",
+              "text": "Receiver failure does not block unrelated users"
+            }
+          ],
+          "designQuestion": "What token behavior is supported, rejected or accounted for by balance deltas?",
+          "failureDrill": "Reenter a withdrawal and use a token with unusual return behavior.",
+          "defense": "Explain ordering around the external call and demonstrate the invariant after a failed transfer.",
+          "topicTitles": [
+            "Pull-over-push payments",
+            "Reentrancy guard & checks-effects-interactions",
+            "ERC-20 approvals & SafeERC20"
+          ]
+        },
+        {
+          "id": "e3",
+          "title": "E3 · Authenticated invoice service",
+          "hours": [5, 8],
+          "objective": "Build the off-chain invoice metadata and session layer without treating wallet connection as login.",
+          "deliverables": [
+            "SIWE authentication and invoice API",
+            "Ownership, nonce-reuse and expired-session tests"
+          ],
+          "criteria": [
+            {
+              "id": "e3-c1",
+              "text": "Nonce and intended domain are checked before issuing a session"
+            },
+            {
+              "id": "e3-c2",
+              "text": "Invoice access is checked for the authenticated user"
+            },
+            {
+              "id": "e3-c3",
+              "text": "Metadata references chain state without granting settlement authority"
+            }
+          ],
+          "designQuestion": "Which invoice data is private and which is inevitably public on chain?",
+          "failureDrill": "Replay a login and request another account’s invoice by ID.",
+          "defense": "Explain the boundary between authenticated metadata access and contract authorization.",
+          "topicTitles": ["Sign-In With Ethereum (SIWE / EIP-4361)", "Nonce & replay protection"]
+        },
+        {
+          "id": "e4",
+          "title": "E4 · Buyer/seller portal & settlement timeline",
+          "hours": [5, 8],
+          "objective": "Deliver the full funding-to-receipt journey for both roles.",
+          "deliverables": [
+            "Role-specific UI and indexed settlement history",
+            "End-to-end happy/rejected/disputed flows"
+          ],
+          "criteria": [
+            {
+              "id": "e4-c1",
+              "text": "Each role sees permitted actions and financial effects"
+            },
+            {
+              "id": "e4-c2",
+              "text": "Approval and payment are distinct steps"
+            },
+            {
+              "id": "e4-c3",
+              "text": "Receipt state reconciles after reload and replacement"
+            }
+          ],
+          "designQuestion": "How do you show an optimistic action without declaring money settled?",
+          "failureDrill": "Disconnect after approval, then resume payment from another browser session.",
+          "defense": "Trace a payment across UI, wallet, contract, indexer and receipt.",
+          "topicTitles": ["Writing transactions with viem & wagmi", "Watching events & logs (viem)"]
+        },
+        {
+          "id": "e5",
+          "title": "E5 · Stateful attacks & accounting review",
+          "hours": [6, 10],
+          "objective": "Attempt to break the state machine through ordering, time and adversarial callers.",
+          "deliverables": [
+            "Stateful invariant harness and minimized failing traces",
+            "Review report with severity and remediation"
+          ],
+          "criteria": [
+            {
+              "id": "e5-c1",
+              "text": "Every state transition is exercised in adversarial order"
+            },
+            {
+              "id": "e5-c2",
+              "text": "Accounting remains valid across donations and failed withdrawals"
+            },
+            {
+              "id": "e5-c3",
+              "text": "At least one deliberately injected bug is detected and fixed"
+            }
+          ],
+          "designQuestion": "Which invariant is stronger than testing each function independently?",
+          "failureDrill": "Inject a double-release or stale-deadline bug and minimize the failure.",
+          "defense": "Explain the exploit, affected funds and why the fix addresses the cause.",
+          "topicTitles": [
+            "Stateful vs stateless fuzzing",
+            "Accounting & invariant violations",
+            "Anatomy of a good finding"
+          ]
+        },
+        {
+          "id": "e6",
+          "title": "E6 · Deployment, incident response & defense",
+          "hours": [4, 7],
+          "objective": "Release a coherent system and hand over its operating assumptions.",
+          "deliverables": [
+            "Repeatable deployment, role transfer and verification",
+            "Demo, incident playbook and architecture case study"
+          ],
+          "criteria": [
+            {
+              "id": "e6-c1",
+              "text": "Privileged roles are recorded and verified after deployment"
+            },
+            {
+              "id": "e6-c2",
+              "text": "An incident drill identifies safe stop/recovery actions"
+            },
+            {
+              "id": "e6-c3",
+              "text": "Reviewer can reproduce the customer journey from a clean checkout"
+            }
+          ],
+          "designQuestion": "When would pausing be appropriate, and which withdrawals must remain possible?",
+          "failureDrill": "Lose the indexer and disable the dispute service during an active invoice.",
+          "defense": "Defend the trust model and implement a new refund rule without weakening accounting.",
+          "topicTitles": ["Scripting & deployment (forge script)", "Pausable circuit breaker"]
+        }
+      ]
+    },
+    {
+      "id": "distribution",
+      "title": "Token distribution, vesting & claims",
+      "stage": "04 · Authorization and token systems",
+      "brief": "Build a contributor rewards platform with auditable allocation manifests, Merkle claims, vesting schedules, claim previews and administration. Treat off-chain dataset integrity as part of contract security.",
+      "outcomes": [
+        "Design reproducible distribution data",
+        "Protect claims from duplicate and cross-domain use",
+        "Explain tokenomics, vesting and authority"
+      ],
+      "prerequisites": ["escrow-payments"],
+      "readiness": "ERC-20, hashing, proof verification, access control and time-based tests.",
+      "scope": "Fixed test-token allocation, documented vesting rules and one declared distribution version.",
+      "sources": [
+        {
+          "title": "EIP / ERC-20",
+          "url": "https://eips.ethereum.org/EIPS/eip-20",
+          "scope": "Token accounting."
+        },
+        {
+          "title": "OpenZeppelin finance",
+          "url": "https://docs.openzeppelin.com/contracts/5.x/api/finance",
+          "scope": "VestingWallet behavior and schedule customization."
+        },
+        {
+          "title": "EIP / ERC-712",
+          "url": "https://eips.ethereum.org/EIPS/eip-712",
+          "scope": "Typed authorization domain and hashing."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "d1",
+          "title": "D1 · Allocation policy & reproducible manifest",
+          "hours": [4, 6],
+          "objective": "Define allocations and produce a deterministic dataset that can be independently verified.",
+          "deliverables": [
+            "Allocation specification and manifest generator",
+            "Checksums, totals and invalid-input tests"
+          ],
+          "criteria": [
+            {
+              "id": "d1-c1",
+              "text": "Amounts use exact units and total allocation is bounded"
+            },
+            {
+              "id": "d1-c2",
+              "text": "Duplicate recipients and invalid addresses follow explicit policy"
+            },
+            {
+              "id": "d1-c3",
+              "text": "The same input produces the same root and published manifest"
+            }
+          ],
+          "designQuestion": "Which fields must the claim leaf bind to avoid ambiguity between distributions?",
+          "failureDrill": "Reorder entries, duplicate an address and alter a single allocation.",
+          "defense": "Reconstruct one leaf and proof without relying on the UI.",
+          "topicTitles": ["Hashing & Merkle trees", "abi.encode vs encodePacked"]
+        },
+        {
+          "id": "d2",
+          "title": "D2 · Claim contract & replay resistance",
+          "hours": [6, 9],
+          "objective": "Implement a claim path that binds the recipient, amount and distribution identity.",
+          "deliverables": [
+            "Distributor contract and proof fixtures",
+            "Duplicate/forged/cross-distribution claim tests"
+          ],
+          "criteria": [
+            {
+              "id": "d2-c1",
+              "text": "Invalid proofs cannot redirect allocation"
+            },
+            {
+              "id": "d2-c2",
+              "text": "A claim cannot be paid twice"
+            },
+            {
+              "id": "d2-c3",
+              "text": "Unclaimed funds and administration follow the published policy"
+            }
+          ],
+          "designQuestion": "Bitmap or mapping: what is the measured storage/clarity tradeoff?",
+          "failureDrill": "Replay a valid claim against another distribution and change the caller/recipient.",
+          "defense": "Explain every committed leaf field and demonstrate why it is needed.",
+          "topicTitles": [
+            "Merkle-proof airdrops",
+            "Bitmaps for boolean flags",
+            "Signature replay protection"
+          ]
+        },
+        {
+          "id": "d3",
+          "title": "D3 · Vesting schedules & accounting",
+          "hours": [6, 9],
+          "objective": "Add vesting with explicit cliff, start, duration and late-funding semantics.",
+          "deliverables": [
+            "Schedule model and implementation",
+            "Boundary, partial-release and conservation tests"
+          ],
+          "criteria": [
+            {
+              "id": "d3-c1",
+              "text": "Release never exceeds entitlement or vested funds"
+            },
+            {
+              "id": "d3-c2",
+              "text": "Cliff/end timestamps and multiple releases are tested"
+            },
+            {
+              "id": "d3-c3",
+              "text": "Late funding and beneficiary changes have deliberate semantics"
+            }
+          ],
+          "designQuestion": "Should each beneficiary get a contract, a clone or a shared ledger?",
+          "failureDrill": "Fund a schedule after it has started, then release at boundary timestamps.",
+          "defense": "Derive the releasable amount from the stated policy for an unseen example.",
+          "topicTitles": [
+            "Minimal-proxy clones (EIP-1167)",
+            "Cheatcodes: warp & roll",
+            "Token decimals mismatch"
+          ]
+        },
+        {
+          "id": "d4",
+          "title": "D4 · Claim portal & proof service",
+          "hours": [5, 8],
+          "objective": "Let a recipient understand entitlement and claim safely from published data.",
+          "deliverables": [
+            "Portal with claim/vesting timeline",
+            "Proof retrieval API and chain reconciliation"
+          ],
+          "criteria": [
+            {
+              "id": "d4-c1",
+              "text": "The interface distinguishes allocated, vested, claimed and claimable"
+            },
+            {
+              "id": "d4-c2",
+              "text": "Untrusted API output is checked against the distribution identity"
+            },
+            {
+              "id": "d4-c3",
+              "text": "No allocation is silently changed by an administrator’s UI"
+            }
+          ],
+          "designQuestion": "Can the portal work if the proof service disappears, and how?",
+          "failureDrill": "Serve a stale manifest or wrong-chain root to the client.",
+          "defense": "Verify a claim using only the published dataset and contract state.",
+          "topicTitles": ["Reading contracts with viem", "Writing transactions with viem & wagmi"]
+        },
+        {
+          "id": "d5",
+          "title": "D5 · Administration & adversarial review",
+          "hours": [5, 8],
+          "objective": "Threat-model the distribution pipeline and test privileged changes.",
+          "deliverables": [
+            "Role/authority inventory and deployment checklist",
+            "Invariant tests plus one realistic exploit report"
+          ],
+          "criteria": [
+            {
+              "id": "d5-c1",
+              "text": "Root replacement and funding authority are explicit"
+            },
+            {
+              "id": "d5-c2",
+              "text": "Reentrant and duplicate claim sequences preserve accounting"
+            },
+            {
+              "id": "d5-c3",
+              "text": "The report separates proof validity from fairness of the allocation dataset"
+            }
+          ],
+          "designQuestion": "What can a compromised manifest publisher do even if proof verification is correct?",
+          "failureDrill": "Publish a valid root for a malicious allocation dataset and analyze what users can detect.",
+          "defense": "Explain the residual trust model and demonstrate a minimized contract bug fix.",
+          "topicTitles": [
+            "Role-based access control",
+            "Merkle proof forgery & second-preimage",
+            "Anatomy of a good finding"
+          ]
+        },
+        {
+          "id": "d6",
+          "title": "D6 · Release package & signed-claim comparison",
+          "hours": [4, 7],
+          "objective": "Ship a reproducible distribution and compare the design with signed claims.",
+          "deliverables": [
+            "Testnet deployment and reproducible claim walkthrough",
+            "ADR comparing Merkle and EIP-712 authorization"
+          ],
+          "criteria": [
+            {
+              "id": "d6-c1",
+              "text": "Manifest, deployment and funding totals reconcile"
+            },
+            {
+              "id": "d6-c2",
+              "text": "Versioned artifacts allow independent reconstruction"
+            },
+            {
+              "id": "d6-c3",
+              "text": "Signed-claim comparison addresses nonce, expiry and domain binding"
+            }
+          ],
+          "designQuestion": "At what scale or update frequency would you change authorization models?",
+          "failureDrill": "Ask a reviewer to claim from a clean environment using published artifacts alone.",
+          "defense": "Design a signed alternative and identify what replay protection it needs beyond EIP-712.",
+          "topicTitles": ["Signature-based airdrops", "EIP-712 typed structured data"]
+        }
+      ]
+    },
+    {
+      "id": "raffle",
+      "title": "Verifiable raffle & randomness operations",
+      "stage": "05 · Asynchronous contract systems",
+      "brief": "Build a round-based raffle with immutable entry snapshots, asynchronous verifiable randomness, settlement, claims and an operator dashboard. The hard part is preserving fairness and liveness through delayed and out-of-order events.",
+      "outcomes": [
+        "Model asynchronous state transitions",
+        "Separate randomness fulfillment from payouts",
+        "Operate and explain fairness assumptions"
+      ],
+      "prerequisites": ["escrow-payments", "chain-indexer"],
+      "readiness": "Contract state machines, external callbacks, events and adversarial testing.",
+      "scope": "Testnet simulation with test funds; no real-money gambling launch. Choose and document one supported VRF integration version.",
+      "sources": [
+        {
+          "title": "Chainlink VRF security",
+          "url": "https://docs.chain.link/vrf/v2-5/security",
+          "scope": "Request identity, frozen inputs, confirmations, callback liveness and no rerolls."
+        },
+        {
+          "title": "Chainlink VRF v2.5",
+          "url": "https://docs.chain.link/vrf/v2-5/overview",
+          "scope": "Coordinator integration and funding model."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        },
+        {
+          "title": "Foundry testing",
+          "url": "https://www.getfoundry.sh/forge/tests/overview/",
+          "scope": "Pin the toolchain; use unit, fuzz, invariant and fork tests where they answer a real risk."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "r1",
+          "title": "R1 · Round model, fairness & threat analysis",
+          "hours": [4, 6],
+          "objective": "Specify entry, locking, randomness, settlement and claims as separate phases.",
+          "deliverables": [
+            "Round state machine and threat model",
+            "Fairness/liveness requirements and sequence diagrams"
+          ],
+          "criteria": [
+            {
+              "id": "r1-c1",
+              "text": "Eligibility and entries become immutable at the stated boundary"
+            },
+            {
+              "id": "r1-c2",
+              "text": "No actor can discard an unfavorable completed draw"
+            },
+            {
+              "id": "r1-c3",
+              "text": "Timeout policy does not secretly introduce rerolls"
+            }
+          ],
+          "designQuestion": "Which fairness guarantees come from the randomness source and which from your state machine?",
+          "failureDrill": "Consider an operator observing an unfavorable result and withholding settlement.",
+          "defense": "Explain why timestamp or block data alone is unsuitable for this threat model.",
+          "topicTitles": [
+            "Weak randomness & timestamp dependence",
+            "State-machine & sequencing errors"
+          ]
+        },
+        {
+          "id": "r2",
+          "title": "R2 · Entry accounting & round locking",
+          "hours": [6, 9],
+          "objective": "Implement entry limits, deterministic snapshots and round isolation.",
+          "deliverables": [
+            "Entry contract and round snapshots",
+            "Boundary, repeated-entry and forced-funds tests"
+          ],
+          "criteria": [
+            {
+              "id": "r2-c1",
+              "text": "Entrants cannot change a locked round"
+            },
+            {
+              "id": "r2-c2",
+              "text": "Round liabilities and fees reconcile with supported funds"
+            },
+            {
+              "id": "r2-c3",
+              "text": "Unbounded entrant loops are absent from required settlement paths"
+            }
+          ],
+          "designQuestion": "How can the winner be selected without iterating over every entrant on chain?",
+          "failureDrill": "Enter at the locking boundary and force extra ETH into the contract.",
+          "defense": "Derive the relationship between tickets, collected funds and prize liability.",
+          "topicTitles": ["Mappings", "Force-feeding ETH", "Unbounded loops & gas-limit DoS"]
+        },
+        {
+          "id": "r3",
+          "title": "R3 · VRF request lifecycle & callbacks",
+          "hours": [7, 11],
+          "objective": "Integrate verifiable randomness with durable request-to-round identity and minimal fulfillment work.",
+          "deliverables": [
+            "Version-pinned VRF consumer and mocks",
+            "Out-of-order, late and repeated-callback tests"
+          ],
+          "criteria": [
+            {
+              "id": "r3-c1",
+              "text": "Each fulfillment resolves only its recorded request/round"
+            },
+            {
+              "id": "r3-c2",
+              "text": "Inputs remain frozen after requesting randomness"
+            },
+            {
+              "id": "r3-c3",
+              "text": "Callback stores the result with bounded work; payout failure cannot break fulfillment"
+            }
+          ],
+          "designQuestion": "What must be persisted before issuing the external request?",
+          "failureDrill": "Fulfill requests in reverse order, delay one, and simulate unavailable funding.",
+          "defense": "Trace two concurrent rounds and show why fulfillment order cannot change their entrants.",
+          "topicTitles": ["Calling other contracts", "State-machine & sequencing errors"]
+        },
+        {
+          "id": "r4",
+          "title": "R4 · Settlement, claims & failure isolation",
+          "hours": [6, 9],
+          "objective": "Settle a known result and let the winner claim without blocking later rounds.",
+          "deliverables": [
+            "Settlement/claim implementation and payout tests",
+            "Winner proof and immutable round history"
+          ],
+          "criteria": [
+            {
+              "id": "r4-c1",
+              "text": "Settlement is repeat-safe and cannot choose a new result"
+            },
+            {
+              "id": "r4-c2",
+              "text": "A failing recipient cannot block unrelated rounds"
+            },
+            {
+              "id": "r4-c3",
+              "text": "Claims and remaining liabilities reconcile after every action"
+            }
+          ],
+          "designQuestion": "Should settlement be permissionless, automated or operator initiated, and why?",
+          "failureDrill": "Make the winner a contract that rejects payment, then process the next round.",
+          "defense": "Explain why retrying settlement is different from requesting fresh randomness.",
+          "topicTitles": ["Pull-over-push payments", "Push-payment reverts & revert griefing"]
+        },
+        {
+          "id": "r5",
+          "title": "R5 · Participant UI & operator control room",
+          "hours": [5, 8],
+          "objective": "Expose round status and uncertainty to participants and operators.",
+          "deliverables": [
+            "Entry/history UI and indexed round timeline",
+            "Funding, delayed-fulfillment and lag alerts"
+          ],
+          "criteria": [
+            {
+              "id": "r5-c1",
+              "text": "Submitted entry is not shown as eligible until observed under the declared policy"
+            },
+            {
+              "id": "r5-c2",
+              "text": "Users can distinguish waiting for randomness from waiting for settlement"
+            },
+            {
+              "id": "r5-c3",
+              "text": "Operator controls expose authority and cannot override a completed result"
+            }
+          ],
+          "designQuestion": "Which operational metric detects a stuck round before a participant reports it?",
+          "failureDrill": "Take the indexer offline while a request is pending and recover from chain history.",
+          "defense": "Diagnose a delayed round from its event timeline without inspecting implementation first.",
+          "topicTitles": ["Watching events & logs (viem)", "Reading event logs on the frontend"]
+        },
+        {
+          "id": "r6",
+          "title": "R6 · Adversarial campaign & fairness defense",
+          "hours": [6, 10],
+          "objective": "Validate the entire asynchronous system and publish a reproducible case study.",
+          "deliverables": [
+            "Stateful test campaign and failure matrix",
+            "Testnet demo, runbook and fairness limitations"
+          ],
+          "criteria": [
+            {
+              "id": "r6-c1",
+              "text": "Reordered actions cannot double-pay or reopen entry"
+            },
+            {
+              "id": "r6-c2",
+              "text": "Funding/confirmation assumptions are documented for the chosen network"
+            },
+            {
+              "id": "r6-c3",
+              "text": "Independent reviewer can reproduce a delayed-round recovery"
+            }
+          ],
+          "designQuestion": "What reorganization risk remains and how did it influence confirmation policy?",
+          "failureDrill": "Inject a request-ID mixup and show the test that detects the wrong winner.",
+          "defense": "Defend fairness, authority and liveness separately; implement one unseen round-rule change.",
+          "topicTitles": [
+            "Foundry invariant testing",
+            "Finality & fork choice (Gasper)",
+            "Writing a minimal PoC"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "marketplace",
+      "title": "Signed-order marketplace & settlement engine",
+      "stage": "06 · Commerce and off-chain orders",
+      "brief": "Build a collectible marketplace with signed listings, an off-chain orderbook, atomic settlement and cancellation. Treat the orderbook as a convenience layer whose contents can be stale or malicious.",
+      "outcomes": [
+        "Design typed authorization with replay boundaries",
+        "Handle off-chain/on-chain consistency",
+        "Test atomic payment and asset transfer"
+      ],
+      "prerequisites": ["distribution", "chain-indexer"],
+      "readiness": "ERC-721, approvals, typed data, nonces and token transfer safety.",
+      "scope": "Fixed-price testnet sales for a declared token set; auctions and royalties require explicit later product decisions.",
+      "sources": [
+        {
+          "title": "EIP / ERC-721",
+          "url": "https://eips.ethereum.org/EIPS/eip-721",
+          "scope": "Ownership, approvals and receiver hooks."
+        },
+        {
+          "title": "EIP / ERC-712",
+          "url": "https://eips.ethereum.org/EIPS/eip-712",
+          "scope": "Typed signed order domain."
+        },
+        {
+          "title": "EIP / ERC-1271",
+          "url": "https://eips.ethereum.org/EIPS/eip-1271",
+          "scope": "Contract-account signature validation."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "m1",
+          "title": "M1 · Order schema & settlement invariants",
+          "hours": [4, 6],
+          "objective": "Define the exact commitments in a listing and the atomicity guarantee of a sale.",
+          "deliverables": [
+            "Order/domain schema and examples",
+            "Threat model and fill/cancel state diagram"
+          ],
+          "criteria": [
+            {
+              "id": "m1-c1",
+              "text": "Order binds maker, asset, payment, amount, expiry and replay domain"
+            },
+            {
+              "id": "m1-c2",
+              "text": "Partial fills are either fully specified or explicitly unsupported"
+            },
+            {
+              "id": "m1-c3",
+              "text": "Payment and asset transfer cannot leave a half-completed sale"
+            }
+          ],
+          "designQuestion": "Which fields can an orderbook safely add without changing the signed commitment?",
+          "failureDrill": "Replay an order on another chain, contract or deployment version.",
+          "defense": "Reconstruct the typed hash and explain the replay role of each field.",
+          "topicTitles": [
+            "EIP-712 typed structured data",
+            "Cross-chain replay & missing domain separator"
+          ]
+        },
+        {
+          "id": "m2",
+          "title": "M2 · Atomic settlement & cancellation",
+          "hours": [7, 11],
+          "objective": "Implement fill and cancellation with supported token behavior and clear nonce semantics.",
+          "deliverables": [
+            "Settlement contract and malicious-token fixtures",
+            "Fill, cancel, expiry and reentrancy tests"
+          ],
+          "criteria": [
+            {
+              "id": "m2-c1",
+              "text": "A filled/cancelled order cannot be reused"
+            },
+            {
+              "id": "m2-c2",
+              "text": "Failed payment or NFT delivery reverts the whole fill"
+            },
+            {
+              "id": "m2-c3",
+              "text": "EOA and supported contract-wallet signatures are validated correctly"
+            }
+          ],
+          "designQuestion": "Per-order hashes or account nonces: how does cancellation UX affect the choice?",
+          "failureDrill": "Race a cancellation and a fill, then call back from an NFT receiver.",
+          "defense": "Explain the resulting state for either transaction ordering.",
+          "topicTitles": [
+            "ERC-721 non-fungible tokens",
+            "ERC-1271 contract signatures",
+            "Single-function reentrancy"
+          ]
+        },
+        {
+          "id": "m3",
+          "title": "M3 · Orderbook API & stale-order policy",
+          "hours": [5, 8],
+          "objective": "Store signed orders while recognizing that validity changes independently on chain.",
+          "deliverables": [
+            "Order API, validation pipeline and storage indexes",
+            "Expiry/invalidation worker and abuse limits"
+          ],
+          "criteria": [
+            {
+              "id": "m3-c1",
+              "text": "API never treats database presence as proof an order can fill"
+            },
+            {
+              "id": "m3-c2",
+              "text": "Input size, rate and query ranges are bounded"
+            },
+            {
+              "id": "m3-c3",
+              "text": "Expired or invalidated orders are surfaced consistently"
+            }
+          ],
+          "designQuestion": "Validate eagerly, on demand, or both: what is the cost/staleness tradeoff?",
+          "failureDrill": "Transfer the NFT or revoke approval after publishing a listing.",
+          "defense": "Explain why database transactions cannot guarantee on-chain order validity.",
+          "topicTitles": ["Reading contracts with viem", "ERC-20 approvals & SafeERC20"]
+        },
+        {
+          "id": "m4",
+          "title": "M4 · Seller/buyer journeys & reconciliation",
+          "hours": [5, 8],
+          "objective": "Build signing, listing, buying and cancellation flows with accurate recovery.",
+          "deliverables": [
+            "Marketplace UI and activity timeline",
+            "End-to-end wallet rejection and stale-order tests"
+          ],
+          "criteria": [
+            {
+              "id": "m4-c1",
+              "text": "The seller reviews typed commitments before signing"
+            },
+            {
+              "id": "m4-c2",
+              "text": "Buyer sees price, asset, chain and relevant allowance"
+            },
+            {
+              "id": "m4-c3",
+              "text": "Stale fills fail clearly and refresh chain truth"
+            }
+          ],
+          "designQuestion": "What can you preflight and what can only the settlement transaction decide?",
+          "failureDrill": "Have two buyers attempt to fill the same order.",
+          "defense": "Trace the losing buyer’s error and show a useful recovery path.",
+          "topicTitles": [
+            "Writing transactions with viem & wagmi",
+            "Reading event logs on the frontend"
+          ]
+        },
+        {
+          "id": "m5",
+          "title": "M5 · Exploit-driven review & protocol constraints",
+          "hours": [6, 9],
+          "objective": "Challenge authorization, economic and callback assumptions across the stack.",
+          "deliverables": [
+            "Attack matrix and minimized PoC",
+            "Invariant/fuzz suite and supported-token policy"
+          ],
+          "criteria": [
+            {
+              "id": "m5-c1",
+              "text": "Tampered signed fields and malformed signatures fail"
+            },
+            {
+              "id": "m5-c2",
+              "text": "Callbacks cannot replay a fill or steal another order"
+            },
+            {
+              "id": "m5-c3",
+              "text": "Unsupported token behavior is rejected or explicitly accounted for"
+            }
+          ],
+          "designQuestion": "How does supporting contract signatures change your external-call threat model?",
+          "failureDrill": "Insert a missing domain field, reproduce exploitation, then fix it.",
+          "defense": "Write a severity-justified finding and demonstrate the regression test.",
+          "topicTitles": [
+            "Signature-based authorization gaps",
+            "Signature malleability & zero-address ecrecover",
+            "Anatomy of a good finding"
+          ]
+        },
+        {
+          "id": "m6",
+          "title": "M6 · Launch rehearsal & system design defense",
+          "hours": [4, 7],
+          "objective": "Ship a reproducible marketplace and respond to a realistic product change.",
+          "deliverables": [
+            "Demo, deployment manifest and operator runbook",
+            "ADR and portfolio case study"
+          ],
+          "criteria": [
+            {
+              "id": "m6-c1",
+              "text": "All services can rebuild from published contracts and signed data"
+            },
+            {
+              "id": "m6-c2",
+              "text": "A failed indexer or order API has a documented recovery mode"
+            },
+            {
+              "id": "m6-c3",
+              "text": "A reviewer can reproduce listing, cancellation and sale"
+            }
+          ],
+          "designQuestion": "When would an auction require a new protocol rather than an extra UI field?",
+          "failureDrill": "Disable the order API and show which user rights remain exercisable on chain.",
+          "defense": "Design an auction extension and identify the state and trust model changes before coding.",
+          "topicTitles": ["Scripting & deployment (forge script)", "Reading an unfamiliar codebase"]
+        }
+      ]
+    },
+    {
+      "id": "amm-exchange",
+      "title": "AMM exchange & liquidity analytics",
+      "stage": "07 · DeFi mechanics",
+      "brief": "Build and explain a constant-product exchange: liquidity shares, swaps, router protections, quote UI and analytics. Reproduce economic failures with local actors before integrating a real reference deployment on a fork.",
+      "outcomes": [
+        "Derive and test AMM accounting",
+        "Connect numerical precision to user protection",
+        "Explain slippage, liquidity and MEV exposure"
+      ],
+      "prerequisites": ["escrow-payments", "chain-indexer"],
+      "readiness": "ERC-20, invariant/fork testing, fixed-point integer arithmetic and transfer semantics.",
+      "scope": "An educational pair/router with explicit supported tokens; reference fork comparison is separate from any production deployment.",
+      "sources": [
+        {
+          "title": "Uniswap V2 contracts",
+          "url": "https://github.com/Uniswap/v2-core",
+          "scope": "Pair accounting, reserves and liquidity mechanics."
+        },
+        {
+          "title": "Uniswap V2 periphery",
+          "url": "https://github.com/Uniswap/v2-periphery",
+          "scope": "Router responsibilities and user bounds."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        },
+        {
+          "title": "Foundry testing",
+          "url": "https://www.getfoundry.sh/forge/tests/overview/",
+          "scope": "Pin the toolchain; use unit, fuzz, invariant and fork tests where they answer a real risk."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "a1",
+          "title": "A1 · Economic model & integer reference",
+          "hours": [5, 8],
+          "objective": "Derive swaps and liquidity shares before translating the math to Solidity.",
+          "deliverables": [
+            "Bigint reference model and worked examples",
+            "Invariant/rounding decisions and fee policy"
+          ],
+          "criteria": [
+            {
+              "id": "a1-c1",
+              "text": "Reference covers initial and subsequent liquidity"
+            },
+            {
+              "id": "a1-c2",
+              "text": "Rounding direction is explicit for each user operation"
+            },
+            {
+              "id": "a1-c3",
+              "text": "Fees and reserve accounting have independent test cases"
+            }
+          ],
+          "designQuestion": "Where should rounding favor the pool, and what does that cost a small trade?",
+          "failureDrill": "Use tiny reserves, very different decimals and a near-empty pool.",
+          "defense": "Calculate an unseen swap and explain price impact separately from slippage tolerance.",
+          "topicTitles": [
+            "Constant-product market maker (x*y=k)",
+            "Uniswap V2 LP mint/burn math",
+            "Division-before-multiplication & precision loss"
+          ]
+        },
+        {
+          "id": "a2",
+          "title": "A2 · Pair contract & liquidity lifecycle",
+          "hours": [8, 12],
+          "objective": "Implement mint, burn and swap around explicit balance/reserve invariants.",
+          "deliverables": [
+            "Pair implementation and reference-model comparisons",
+            "Stateful liquidity/swap tests"
+          ],
+          "criteria": [
+            {
+              "id": "a2-c1",
+              "text": "LP supply and claims reconcile across mint/burn"
+            },
+            {
+              "id": "a2-c2",
+              "text": "Successful swaps respect the chosen fee-adjusted invariant"
+            },
+            {
+              "id": "a2-c3",
+              "text": "External callbacks cannot corrupt reserve accounting"
+            }
+          ],
+          "designQuestion": "Why can token balance differ from recorded reserve, and what policy handles donations?",
+          "failureDrill": "Donate tokens directly, then mint/burn and compare to the reference model.",
+          "defense": "Explain each reserve update and demonstrate a randomized sequence that preserves accounting.",
+          "topicTitles": [
+            "Uniswap V2 pair & reserves",
+            "LP shares & impermanent loss",
+            "Foundry invariant testing"
+          ]
+        },
+        {
+          "id": "a3",
+          "title": "A3 · Router, bounds & supported tokens",
+          "hours": [6, 9],
+          "objective": "Add safe user-facing routing with explicit deadlines and minimum outputs.",
+          "deliverables": [
+            "Router contract and approval flow",
+            "Adverse-price-move and expired-deadline tests"
+          ],
+          "criteria": [
+            {
+              "id": "a3-c1",
+              "text": "User bounds are enforced on chain"
+            },
+            {
+              "id": "a3-c2",
+              "text": "Wrong recipient/path and unsupported tokens fail clearly"
+            },
+            {
+              "id": "a3-c3",
+              "text": "No quoted value is trusted without execution-time checks"
+            }
+          ],
+          "designQuestion": "Which protections belong in the router rather than the pair?",
+          "failureDrill": "Move reserves after quoting and before executing a swap.",
+          "defense": "Show why a successful simulation does not replace minimum-output enforcement.",
+          "topicTitles": [
+            "Sandwich attacks & missing slippage/deadline",
+            "ERC-20 approvals & SafeERC20"
+          ]
+        },
+        {
+          "id": "a4",
+          "title": "A4 · Swap/liquidity UI & analytics",
+          "hours": [5, 8],
+          "objective": "Expose numerical and economic consequences clearly to traders and liquidity providers.",
+          "deliverables": [
+            "Swap and LP screens with exact unit handling",
+            "Indexed volume/fees/liquidity views"
+          ],
+          "criteria": [
+            {
+              "id": "a4-c1",
+              "text": "User sees execution bounds and price-impact assumptions"
+            },
+            {
+              "id": "a4-c2",
+              "text": "LP position distinguishes deposits, current claim and fees"
+            },
+            {
+              "id": "a4-c3",
+              "text": "Analytics disclose indexed block and pricing assumptions"
+            }
+          ],
+          "designQuestion": "Which displayed values are estimates, measurements or contractual guarantees?",
+          "failureDrill": "Feed stale reserves and switch token decimals while a quote is loading.",
+          "defense": "Explain an LP gain/loss example without equating fee income with total return.",
+          "topicTitles": ["LP shares & impermanent loss", "Reading contracts with viem"]
+        },
+        {
+          "id": "a5",
+          "title": "A5 · MEV, oracle misuse & adversarial tests",
+          "hours": [6, 10],
+          "objective": "Explore how correct swap mechanics can still be used unsafely by consumers.",
+          "deliverables": [
+            "Local sandwich/oracle-manipulation experiment",
+            "Finding, mitigation comparison and invariant campaign"
+          ],
+          "criteria": [
+            {
+              "id": "a5-c1",
+              "text": "The attack is reproducible under documented assumptions"
+            },
+            {
+              "id": "a5-c2",
+              "text": "Spot price is not presented as a manipulation-resistant oracle"
+            },
+            {
+              "id": "a5-c3",
+              "text": "Mitigations describe costs and residual risk"
+            }
+          ],
+          "designQuestion": "Would a TWAP meet a proposed consumer’s risk model, and with what window/liquidity assumptions?",
+          "failureDrill": "Use a local flash-funded price move against a deliberately naive consumer.",
+          "defense": "Separate a pair bug from a consumer’s unsafe economic assumption.",
+          "topicTitles": [
+            "Spot-price oracle manipulation",
+            "Uniswap V2 TWAP oracle",
+            "Arbitrage & sandwich MEV"
+          ]
+        },
+        {
+          "id": "a6",
+          "title": "A6 · Fork comparison & protocol defense",
+          "hours": [5, 8],
+          "objective": "Compare behavior with a version-pinned reference and publish measurable conclusions.",
+          "deliverables": [
+            "Fork differential tests and gas comparison",
+            "Architecture/economics case study and demo"
+          ],
+          "criteria": [
+            {
+              "id": "a6-c1",
+              "text": "Fork chain/block and contract versions are reproducible"
+            },
+            {
+              "id": "a6-c2",
+              "text": "Differences are explained rather than hidden by matching one output"
+            },
+            {
+              "id": "a6-c3",
+              "text": "Independent defense covers rounding, invariant and user protection"
+            }
+          ],
+          "designQuestion": "Which reference features did your specification exclude, and why?",
+          "failureDrill": "Change fee policy and determine which formulas and invariants must change.",
+          "defense": "Implement the changed formula, defend its rounding and show comparative test evidence.",
+          "topicTitles": ["Fork testing", "Gas snapshots", "Uniswap V2 protocol fee (1/6)"]
+        }
+      ]
+    },
+    {
+      "id": "lending-vault",
+      "title": "Collateralized lending & ERC-4626 vault",
+      "stage": "08 · Risk and accounting",
+      "brief": "Build a bounded single-collateral lending market and a depositor-facing vault, including interest, collateral valuation, liquidation, withdrawal constraints and risk dashboards. Treat oracle freshness, rounding and bad debt as first-class behavior.",
+      "outcomes": [
+        "Model debt, shares and collateral units",
+        "Test solvency assumptions and liquidation paths",
+        "Communicate liquidity and oracle risks"
+      ],
+      "prerequisites": ["amm-exchange", "distribution"],
+      "readiness": "Fixed-point arithmetic, invariant testing, AMMs, oracle threats and ERC-20 accounting.",
+      "scope": "One collateral and one debt asset with caps on a local/test environment. No claim that educational economic parameters are production-safe.",
+      "sources": [
+        {
+          "title": "EIP / ERC-4626",
+          "url": "https://eips.ethereum.org/EIPS/eip-4626",
+          "scope": "Vault conversion, preview, limit and rounding semantics."
+        },
+        {
+          "title": "Aave V3 core",
+          "url": "https://github.com/aave/aave-v3-core",
+          "scope": "Reference lending architecture and risk accounting."
+        },
+        {
+          "title": "Chainlink data feed API",
+          "url": "https://docs.chain.link/data-feeds/api-reference",
+          "scope": "Read feed data and establish application-specific validity checks."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "v1",
+          "title": "V1 · Balance sheet & risk specification",
+          "hours": [5, 8],
+          "objective": "Define assets, liabilities, collateral and share/debt units with numerical examples.",
+          "deliverables": [
+            "Balance-sheet model and risk parameter rationale",
+            "Solvency/liquidity invariants and rounding table"
+          ],
+          "criteria": [
+            {
+              "id": "v1-c1",
+              "text": "Each quantity has a unit and scale"
+            },
+            {
+              "id": "v1-c2",
+              "text": "Bad debt and insufficient liquidity have explicit treatment"
+            },
+            {
+              "id": "v1-c3",
+              "text": "Supported collateral/asset behavior and caps are declared"
+            }
+          ],
+          "designQuestion": "Which risks are prevented by code and which are bounded only by parameters?",
+          "failureDrill": "Model a rapid collateral crash while most supplied assets are borrowed.",
+          "defense": "Explain why solvency and immediate withdrawal liquidity are different properties.",
+          "topicTitles": [
+            "Health factor & liquidation",
+            "Token decimals mismatch",
+            "Writing good invariants"
+          ]
+        },
+        {
+          "id": "v2",
+          "title": "V2 · Supply, borrow & interest accounting",
+          "hours": [8, 12],
+          "objective": "Implement supply, debt growth, repay and collateral checks against a reference model.",
+          "deliverables": [
+            "Market contract and exact reference ledger",
+            "Time-boundary and stateful accounting tests"
+          ],
+          "criteria": [
+            {
+              "id": "v2-c1",
+              "text": "Repeated accrual does not double-charge elapsed time"
+            },
+            {
+              "id": "v2-c2",
+              "text": "Repayment cannot erase more debt than paid under the stated rounding"
+            },
+            {
+              "id": "v2-c3",
+              "text": "Borrow authorization and health checks hold across action sequences"
+            }
+          ],
+          "designQuestion": "Global interest index or per-position accrual: what correctness and gas tradeoffs follow?",
+          "failureDrill": "Jump time, partially repay, then interleave several users’ actions.",
+          "defense": "Derive one user’s debt from the stored index and demonstrate conservation across repayment.",
+          "topicTitles": [
+            "Aave V3 aTokens & interest accrual",
+            "Cheatcodes: warp & roll",
+            "Accounting & invariant violations"
+          ]
+        },
+        {
+          "id": "v3",
+          "title": "V3 · Oracle adapter & failure policy",
+          "hours": [5, 8],
+          "objective": "Make price assumptions and stale/unavailable-feed behavior explicit and testable.",
+          "deliverables": [
+            "Oracle adapter and validity policy",
+            "Decimal, invalid-price and stale-feed tests"
+          ],
+          "criteria": [
+            {
+              "id": "v3-c1",
+              "text": "Price scale and feed identity are validated"
+            },
+            {
+              "id": "v3-c2",
+              "text": "Unsafe borrow/withdraw decisions stop under invalid prices"
+            },
+            {
+              "id": "v3-c3",
+              "text": "Repay and other safe actions remain possible where the specification allows"
+            }
+          ],
+          "designQuestion": "Which actions can continue during an oracle outage without increasing risk?",
+          "failureDrill": "Return zero, stale data and an unexpected scale; simulate an L2 sequencer outage if targeting an L2.",
+          "defense": "Explain why a recent timestamp alone cannot establish economic price integrity.",
+          "topicTitles": [
+            "Chainlink push price feeds",
+            "Stale & misconfigured price feeds",
+            "Oracle manipulation resistance"
+          ]
+        },
+        {
+          "id": "v4",
+          "title": "V4 · Liquidation & insolvency scenarios",
+          "hours": [7, 11],
+          "objective": "Implement liquidation incentives and bounded repayment/collateral transfers.",
+          "deliverables": [
+            "Liquidation path, keeper simulation and scenarios",
+            "Boundary, rounding and bad-debt tests"
+          ],
+          "criteria": [
+            {
+              "id": "v4-c1",
+              "text": "Healthy positions cannot be liquidated"
+            },
+            {
+              "id": "v4-c2",
+              "text": "Seizure and repayment respect declared bounds and units"
+            },
+            {
+              "id": "v4-c3",
+              "text": "Bad debt is detected and represented explicitly"
+            }
+          ],
+          "designQuestion": "How do incentive, close factor and liquidity affect whether a position can actually be liquidated?",
+          "failureDrill": "Crash collateral value past insolvency and remove market liquidity.",
+          "defense": "Compute an unseen liquidation and explain who absorbs any shortfall.",
+          "topicTitles": [
+            "Health factor & liquidation",
+            "CDP liquidation & collateral ratio",
+            "Liquidation MEV"
+          ]
+        },
+        {
+          "id": "v5",
+          "title": "V5 · ERC-4626 depositor interface",
+          "hours": [7, 11],
+          "objective": "Wrap supplied assets in a vault whose previews and limits match actual liquidity.",
+          "deliverables": [
+            "Vault adapter and standard-behavior tests",
+            "Donation/inflation and illiquid-withdrawal experiments"
+          ],
+          "criteria": [
+            {
+              "id": "v5-c1",
+              "text": "Conversions and operation-specific previews use the correct rounding"
+            },
+            {
+              "id": "v5-c2",
+              "text": "Maximum withdrawal reflects executable limits"
+            },
+            {
+              "id": "v5-c3",
+              "text": "First-depositor/donation behavior is demonstrated and defended"
+            }
+          ],
+          "designQuestion": "Should strategy losses affect share price immediately, and what does totalAssets include?",
+          "failureDrill": "Donate assets before a small deposit and request more liquidity than is available.",
+          "defense": "Explain the difference between convert, preview and max methods using actual calls.",
+          "topicTitles": ["ERC-4626 tokenized vaults", "ERC-4626 inflation attack & virtual shares"]
+        },
+        {
+          "id": "v6",
+          "title": "V6 · Risk console & operational response",
+          "hours": [5, 8],
+          "objective": "Give depositors, borrowers and operators accurate views of positions and protocol health.",
+          "deliverables": [
+            "Position/risk UI and indexed health dashboard",
+            "Oracle/keeper incident playbook"
+          ],
+          "criteria": [
+            {
+              "id": "v6-c1",
+              "text": "The UI states liquidity, price and rate assumptions"
+            },
+            {
+              "id": "v6-c2",
+              "text": "Alerts expose unhealthy positions and stale inputs"
+            },
+            {
+              "id": "v6-c3",
+              "text": "Emergency controls preserve the declared safe user actions"
+            }
+          ],
+          "designQuestion": "Which admin capability reduces risk but creates centralization exposure?",
+          "failureDrill": "Stop the keeper and stale the oracle while users attempt repay and withdrawal.",
+          "defense": "Diagnose the protocol state from the console and justify an incident response.",
+          "topicTitles": ["Pausable circuit breaker", "Watching events & logs (viem)"]
+        },
+        {
+          "id": "v7",
+          "title": "V7 · Economic review & independent defense",
+          "hours": [6, 10],
+          "objective": "Review the system through a hostile actor model and a reproducible reference comparison.",
+          "deliverables": [
+            "Stateful campaign, minimized exploit and remediation",
+            "Fork comparison, demo and risk case study"
+          ],
+          "criteria": [
+            {
+              "id": "v7-c1",
+              "text": "Accounting tests include multiple actors and time evolution"
+            },
+            {
+              "id": "v7-c2",
+              "text": "At least one injected economic/accounting fault is caught"
+            },
+            {
+              "id": "v7-c3",
+              "text": "The report distinguishes proven properties from economic assumptions"
+            }
+          ],
+          "designQuestion": "What evidence would be necessary before increasing a deployment cap?",
+          "failureDrill": "Inject a rounding or stale-price fault and reproduce the loss path.",
+          "defense": "Defend a new collateral proposal and identify the required code, tests and risk work.",
+          "topicTitles": ["Foundry invariant testing", "Fork testing", "Anatomy of a good finding"]
+        }
+      ]
+    },
+    {
+      "id": "treasury-governance",
+      "title": "Governed treasury & upgrade lifecycle",
+      "stage": "09 · Protocol administration",
+      "brief": "Build a treasury with proposals, voting snapshots, delayed execution, role transfer and an upgrade rehearsal. The product is an accountable administrative system, not just a vote button.",
+      "outcomes": [
+        "Model governance authority and time",
+        "Test delayed arbitrary-call execution safely",
+        "Plan migrations and operational recovery"
+      ],
+      "prerequisites": ["distribution", "escrow-payments"],
+      "readiness": "Roles, tokens, contract calls and storage layout.",
+      "scope": "Testnet treasury, version-pinned governance contracts and explicit trust/upgrade policy.",
+      "sources": [
+        {
+          "title": "OpenZeppelin governance",
+          "url": "https://docs.openzeppelin.com/contracts/5.x/governance",
+          "scope": "Governor, voting token and timelock composition."
+        },
+        {
+          "title": "EIP / ERC-1967",
+          "url": "https://eips.ethereum.org/EIPS/eip-1967",
+          "scope": "Proxy implementation/admin slots."
+        },
+        {
+          "title": "OpenZeppelin upgradeable contracts",
+          "url": "https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable",
+          "scope": "Initializers and storage compatibility."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "g1",
+          "title": "G1 · Authority map & governance constitution",
+          "hours": [4, 6],
+          "objective": "Specify who can propose, vote, cancel, execute and change the rules.",
+          "deliverables": [
+            "Authority graph and proposal lifecycle",
+            "Quorum, delay and emergency-policy scenarios"
+          ],
+          "criteria": [
+            {
+              "id": "g1-c1",
+              "text": "No privileged capability is omitted from the graph"
+            },
+            {
+              "id": "g1-c2",
+              "text": "Voting power timing and delegation are explicit"
+            },
+            {
+              "id": "g1-c3",
+              "text": "Emergency authority has bounded powers and a recovery procedure"
+            }
+          ],
+          "designQuestion": "Which actions should require governance, a multisig or no admin at all?",
+          "failureDrill": "Consider a compromised proposer and a lost executor key.",
+          "defense": "Explain the system’s actual control structure without using the word decentralized as proof.",
+          "topicTitles": ["Governor framework", "Multisig wallets", "Role-based access control"]
+        },
+        {
+          "id": "g2",
+          "title": "G2 · Voting snapshots & proposal transitions",
+          "hours": [6, 9],
+          "objective": "Implement and test the voting lifecycle with historical power and boundary timing.",
+          "deliverables": [
+            "Governance contracts and proposal fixtures",
+            "Delegation, snapshot and quorum tests"
+          ],
+          "criteria": [
+            {
+              "id": "g2-c1",
+              "text": "Votes use the intended historical power"
+            },
+            {
+              "id": "g2-c2",
+              "text": "Duplicate votes and invalid lifecycle transitions fail"
+            },
+            {
+              "id": "g2-c3",
+              "text": "Quorum and deadline boundary behavior matches the policy"
+            }
+          ],
+          "designQuestion": "What stops short-lived voting power from controlling a proposal?",
+          "failureDrill": "Move tokens and delegate around the snapshot boundary.",
+          "defense": "Calculate an unseen proposal outcome and identify a flash-loan governance risk.",
+          "topicTitles": ["ERC-20Votes voting tokens", "Flash-loan governance attacks"]
+        },
+        {
+          "id": "g3",
+          "title": "G3 · Timelock execution & treasury controls",
+          "hours": [6, 9],
+          "objective": "Queue and execute treasury actions with explicit calldata review and role boundaries.",
+          "deliverables": [
+            "Timelock/treasury integration and role-transfer script",
+            "Delay, cancellation and failed-execution tests"
+          ],
+          "criteria": [
+            {
+              "id": "g3-c1",
+              "text": "Actions cannot execute before the delay"
+            },
+            {
+              "id": "g3-c2",
+              "text": "Only the declared authority can schedule/cancel"
+            },
+            {
+              "id": "g3-c3",
+              "text": "Failed multi-call behavior is understood and tested"
+            }
+          ],
+          "designQuestion": "Which proposal details must remain immutable between approval and execution?",
+          "failureDrill": "Queue a batch containing a failing call and inspect atomicity.",
+          "defense": "Decode a treasury proposal and explain all recipients, values and permissions.",
+          "topicTitles": [
+            "Timelock controller",
+            "Calling other contracts",
+            "Batching and multicall"
+          ]
+        },
+        {
+          "id": "g4",
+          "title": "G4 · Proposal interface & audit trail",
+          "hours": [5, 8],
+          "objective": "Build proposal authoring and review interfaces that reveal what will execute.",
+          "deliverables": [
+            "Proposal UI, simulation and indexed timeline",
+            "Human-readable calldata and warning tests"
+          ],
+          "criteria": [
+            {
+              "id": "g4-c1",
+              "text": "Opaque calldata is still available for independent inspection"
+            },
+            {
+              "id": "g4-c2",
+              "text": "Simulation results include their assumptions"
+            },
+            {
+              "id": "g4-c3",
+              "text": "Status and execution history reconcile with chain state"
+            }
+          ],
+          "designQuestion": "How do you render a proposal description without trusting its claims about the payload?",
+          "failureDrill": "Provide a benign description attached to malicious transfer calldata.",
+          "defense": "Explain a proposal from its actual calls rather than its title.",
+          "topicTitles": [
+            "ABIs & type generation (wagmi CLI)",
+            "Reading event logs on the frontend"
+          ]
+        },
+        {
+          "id": "g5",
+          "title": "G5 · Upgrade & migration rehearsal",
+          "hours": [7, 11],
+          "objective": "Perform an intentional version change while preserving state and authority.",
+          "deliverables": [
+            "Storage-layout comparison and migration plan",
+            "Fork/local upgrade rehearsal and initializer tests"
+          ],
+          "criteria": [
+            {
+              "id": "g5-c1",
+              "text": "Existing balances/roles survive the migration"
+            },
+            {
+              "id": "g5-c2",
+              "text": "Initialization cannot be replayed or hijacked"
+            },
+            {
+              "id": "g5-c3",
+              "text": "Rollback or forward-repair limits are documented"
+            }
+          ],
+          "designQuestion": "What must be immutable even when the implementation is upgradeable?",
+          "failureDrill": "Introduce an incompatible storage change and prove the validation catches it.",
+          "defense": "Defend proxy choice and trace who can execute the upgrade.",
+          "topicTitles": [
+            "Storage layout for upgrades",
+            "Initializers & _disableInitializers",
+            "UUPS proxy pattern"
+          ]
+        },
+        {
+          "id": "g6",
+          "title": "G6 · Governance incident & public defense",
+          "hours": [4, 7],
+          "objective": "Rehearse an adversarial proposal and communicate the operational response.",
+          "deliverables": [
+            "Malicious-proposal simulation and response timeline",
+            "Deployment manifest and governance case study"
+          ],
+          "criteria": [
+            {
+              "id": "g6-c1",
+              "text": "Monitoring detects the dangerous action before execution under the stated delay"
+            },
+            {
+              "id": "g6-c2",
+              "text": "The response uses only authorized capabilities"
+            },
+            {
+              "id": "g6-c3",
+              "text": "Residual capture and emergency-key risks are disclosed"
+            }
+          ],
+          "designQuestion": "Would increasing a timelock delay help every class of governance attack?",
+          "failureDrill": "Simulate a compromised role and coordinate cancellation/replacement locally.",
+          "defense": "Review an unfamiliar proposal live and defend the decision to execute or reject it.",
+          "topicTitles": ["Audit scoping & the audit lifecycle", "Anatomy of a good finding"]
+        }
+      ]
+    },
+    {
+      "id": "smart-account",
+      "title": "Smart-account wallet & gas sponsorship",
+      "stage": "10 · Account abstraction",
+      "brief": "Return to the wallet and add a programmable account, bundler interaction, narrowly scoped sponsorship, account recovery and a support console. Explain each new authority and trust boundary introduced by the improved UX.",
+      "outcomes": [
+        "Trace a UserOperation through validation and execution",
+        "Bound sponsorship and session permissions",
+        "Design recovery as an adversarial state machine"
+      ],
+      "prerequisites": ["wallet-console", "distribution", "treasury-governance"],
+      "readiness": "Signature domains, contract authorization, simulation, nonces and upgrade risks.",
+      "scope": "Local/testnet account abstraction with pinned EntryPoint/bundler versions. Recovery and delegated authority are explicit, not assumed safe.",
+      "sources": [
+        {
+          "title": "EIP / ERC-4337",
+          "url": "https://eips.ethereum.org/EIPS/eip-4337",
+          "scope": "Account, EntryPoint, bundler, validation and paymaster flow."
+        },
+        {
+          "title": "EIP / ERC-1271",
+          "url": "https://eips.ethereum.org/EIPS/eip-1271",
+          "scope": "Contract signature interface."
+        },
+        {
+          "title": "EIP / ERC-7702",
+          "url": "https://eips.ethereum.org/EIPS/eip-7702",
+          "scope": "Compare EOA delegation authority and persistence."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "s1",
+          "title": "S1 · Account model & authority boundaries",
+          "hours": [4, 7],
+          "objective": "Specify account ownership, execution permissions, EntryPoint trust and recovery actors.",
+          "deliverables": [
+            "Architecture/authority diagrams and transaction comparison",
+            "Version and deployment assumptions"
+          ],
+          "criteria": [
+            {
+              "id": "s1-c1",
+              "text": "Account validation and call execution are separate responsibilities"
+            },
+            {
+              "id": "s1-c2",
+              "text": "Trusted EntryPoint and upgrade powers are explicit"
+            },
+            {
+              "id": "s1-c3",
+              "text": "Recovery threat model includes compromised and lost keys"
+            }
+          ],
+          "designQuestion": "What becomes possible with a smart account that an EOA wallet companion could not enforce?",
+          "failureDrill": "Compare compromised owner, bundler and paymaster scenarios.",
+          "defense": "Trace native transaction versus UserOperation authority without conflating bundler with signer.",
+          "topicTitles": ["Account abstraction (ERC-4337)", "EOAs vs contract accounts"]
+        },
+        {
+          "id": "s2",
+          "title": "S2 · Account validation & deterministic deployment",
+          "hours": [7, 11],
+          "objective": "Implement or integrate a minimal account and factory with explicit signature and nonce validation.",
+          "deliverables": [
+            "Account/factory integration with pinned reference",
+            "Invalid signature, nonce and deployment tests"
+          ],
+          "criteria": [
+            {
+              "id": "s2-c1",
+              "text": "Validation binds the operation to the expected account/domain"
+            },
+            {
+              "id": "s2-c2",
+              "text": "Replay and unauthorized execution are rejected"
+            },
+            {
+              "id": "s2-c3",
+              "text": "Deterministic deployment cannot initialize ownership to an unintended party"
+            }
+          ],
+          "designQuestion": "Which validation checks belong in the account versus EntryPoint infrastructure?",
+          "failureDrill": "Replay an operation, change a signed call and alter factory initialization data.",
+          "defense": "Explain a counterfactual address and show how owner initialization is protected.",
+          "topicTitles": [
+            "CREATE2 deterministic deployment",
+            "Signature replay protection",
+            "ERC-1271 contract signatures"
+          ]
+        },
+        {
+          "id": "s3",
+          "title": "S3 · Bundler client & operation lifecycle",
+          "hours": [6, 9],
+          "objective": "Connect the UI to simulation, submission and receipt tracking for UserOperations.",
+          "deliverables": [
+            "Typed bundler adapter and lifecycle UI",
+            "Rejected, replaced and dropped-operation tests"
+          ],
+          "criteria": [
+            {
+              "id": "s3-c1",
+              "text": "Simulation and submission errors have actionable states"
+            },
+            {
+              "id": "s3-c2",
+              "text": "Operation hash and eventual transaction receipt are not confused"
+            },
+            {
+              "id": "s3-c3",
+              "text": "Version mismatch and unsupported network fail explicitly"
+            }
+          ],
+          "designQuestion": "What does a bundler simulation establish, and what can change before inclusion?",
+          "failureDrill": "Lose the bundler after submission and reconcile via another observation path.",
+          "defense": "Locate a failing validation stage from structured errors and traces.",
+          "topicTitles": ["Bundler economics", "Debugging: traces & the interactive debugger"]
+        },
+        {
+          "id": "s4",
+          "title": "S4 · Paymaster policy & abuse limits",
+          "hours": [7, 11],
+          "objective": "Sponsor only the intended operations with bounded expenditure and replay-safe authorization.",
+          "deliverables": [
+            "Sponsorship policy/service and on-chain validation",
+            "Quota, expiry and drain-attempt tests"
+          ],
+          "criteria": [
+            {
+              "id": "s4-c1",
+              "text": "Sponsor commitments bind the relevant operation/domain"
+            },
+            {
+              "id": "s4-c2",
+              "text": "Budget and eligibility checks cannot be bypassed through repeated requests"
+            },
+            {
+              "id": "s4-c3",
+              "text": "Failure paths account for who pays and how spending is monitored"
+            }
+          ],
+          "designQuestion": "Which limits must be enforced on chain versus in a rate-limited service?",
+          "failureDrill": "Automate repeated requests and modify a sponsored call after authorization.",
+          "defense": "Explain a sponsorship drain attempt and the residual cost even when execution fails.",
+          "topicTitles": ["Paymasters & gas sponsorship", "EIP-712 typed structured data"]
+        },
+        {
+          "id": "s5",
+          "title": "S5 · Scoped sessions & account recovery",
+          "hours": [7, 11],
+          "objective": "Add a restricted session capability and a delayed, cancelable recovery flow.",
+          "deliverables": [
+            "Permission model and recovery state machine",
+            "Scope, expiry, revocation and recovery attack tests"
+          ],
+          "criteria": [
+            {
+              "id": "s5-c1",
+              "text": "Session authority cannot exceed its declared target/value/time scope"
+            },
+            {
+              "id": "s5-c2",
+              "text": "Revocation and expiry are enforced at execution"
+            },
+            {
+              "id": "s5-c3",
+              "text": "Recovery cannot silently bypass the stated delay/cancellation policy"
+            }
+          ],
+          "designQuestion": "How does a capability differ from storing another unrestricted private key?",
+          "failureDrill": "Use a revoked session, change target selectors and race owner cancellation with recovery.",
+          "defense": "Identify every authority that can eventually take control of the account.",
+          "topicTitles": [
+            "Role-based access control",
+            "Signature-based authorization gaps",
+            "State-machine & sequencing errors"
+          ]
+        },
+        {
+          "id": "s6",
+          "title": "S6 · Wallet UX, monitoring & version compatibility",
+          "hours": [5, 8],
+          "objective": "Integrate the advanced account into the wallet with honest sponsorship and recovery status.",
+          "deliverables": [
+            "Wallet extension and support dashboard",
+            "Compatibility matrix and end-to-end failure suite"
+          ],
+          "criteria": [
+            {
+              "id": "s6-c1",
+              "text": "User understands account type and who pays gas"
+            },
+            {
+              "id": "s6-c2",
+              "text": "Recovery/session permissions are inspectable and revocable"
+            },
+            {
+              "id": "s6-c3",
+              "text": "Bundler/paymaster outages preserve a documented user recovery route"
+            }
+          ],
+          "designQuestion": "When is a seamless UX hiding an authority change the user needs to understand?",
+          "failureDrill": "Exhaust sponsor funds and make the default bundler unavailable.",
+          "defense": "Diagnose whether an operation failed in validation, sponsorship or execution.",
+          "topicTitles": [
+            "Injected wallets & EIP-1193 / EIP-6963",
+            "Account abstraction (ERC-4337)"
+          ]
+        },
+        {
+          "id": "s7",
+          "title": "S7 · Security review & EOA-delegation comparison",
+          "hours": [6, 9],
+          "objective": "Review the complete authority model and compare it with EIP-7702 delegation.",
+          "deliverables": [
+            "Attack report and independent change exercise",
+            "Demo, runbook and delegation comparison ADR"
+          ],
+          "criteria": [
+            {
+              "id": "s7-c1",
+              "text": "Replay, privilege and recovery tests cover adversarial sequences"
+            },
+            {
+              "id": "s7-c2",
+              "text": "Dependency/EntryPoint versions and upgrade assumptions are recorded"
+            },
+            {
+              "id": "s7-c3",
+              "text": "Comparison distinguishes delegation from the full 4337 service lifecycle"
+            }
+          ],
+          "designQuestion": "Would delegation simplify this product or move its authority risks elsewhere?",
+          "failureDrill": "Inject an overly broad session permission and demonstrate unauthorized execution.",
+          "defense": "Defend the fix and compare its security assumptions with an EOA-delegation design.",
+          "topicTitles": [
+            "EIP-7702 EOA delegation",
+            "Writing a minimal PoC",
+            "Audit scoping & the audit lifecycle"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cross-chain",
+      "title": "Cross-chain order fulfillment & recovery",
+      "stage": "11 · Distributed protocol systems",
+      "brief": "Build a two-chain order workflow using an established messaging interface, with authenticated messages, durable status, failure recovery and a user timeline. Treat asynchronous execution and bridge trust as unavoidable design inputs.",
+      "outcomes": [
+        "Design for independent chains and partial completion",
+        "Authenticate and deduplicate remote instructions",
+        "Explain recovery and bridge assumptions"
+      ],
+      "prerequisites": ["chain-indexer", "escrow-payments", "smart-account"],
+      "readiness": "Async state machines, finality, message authentication and invariant testing.",
+      "scope": "Two local/test chains and a documented messaging provider. Do not build a new consensus or bridge-security mechanism.",
+      "sources": [
+        {
+          "title": "Chainlink CCIP EVM best practices",
+          "url": "https://docs.chain.link/ccip/concepts/best-practices/evm",
+          "scope": "Authenticate routers/origins, handle messages safely and reason about gas/failure."
+        },
+        {
+          "title": "EIP / ERC-7683",
+          "url": "https://eips.ethereum.org/EIPS/eip-7683",
+          "scope": "Compare the standard intent/order model to the chosen workflow."
+        },
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "x1",
+          "title": "X1 · Two-chain protocol & trust model",
+          "hours": [5, 8],
+          "objective": "Specify source commitment, destination fulfillment and user recovery without assuming atomic cross-chain transactions.",
+          "deliverables": [
+            "Protocol state diagrams and message schema",
+            "Trust, finality and timeout assumptions"
+          ],
+          "criteria": [
+            {
+              "id": "x1-c1",
+              "text": "Each stage identifies its authoritative chain"
+            },
+            {
+              "id": "x1-c2",
+              "text": "Partial completion and timeout outcomes are explicit"
+            },
+            {
+              "id": "x1-c3",
+              "text": "Provider/security assumptions are visible in the product brief"
+            }
+          ],
+          "designQuestion": "Which failures can a timeout resolve and which require a compensating action?",
+          "failureDrill": "Source succeeds while destination is unavailable for an extended period.",
+          "defense": "Explain why a source receipt is not proof of destination fulfillment.",
+          "topicTitles": [
+            "Rollups: optimistic vs ZK",
+            "Finality & fork choice (Gasper)",
+            "ERC-7683 cross-chain intents"
+          ]
+        },
+        {
+          "id": "x2",
+          "title": "X2 · Authenticated messaging adapter",
+          "hours": [7, 11],
+          "objective": "Implement sender/origin checks and deterministic message identity around the chosen provider.",
+          "deliverables": [
+            "Source/receiver contracts and message fixtures",
+            "Unauthorized-origin and duplicate-message tests"
+          ],
+          "criteria": [
+            {
+              "id": "x2-c1",
+              "text": "Only the declared router/source combination can trigger effects"
+            },
+            {
+              "id": "x2-c2",
+              "text": "A replay cannot apply effects twice"
+            },
+            {
+              "id": "x2-c3",
+              "text": "Message version and payload bounds are validated"
+            }
+          ],
+          "designQuestion": "Which identity fields prevent replay across chains, deployments and order types?",
+          "failureDrill": "Deliver forged, duplicated and out-of-order messages locally.",
+          "defense": "Trace the validation chain from the transport callback to authorized state change.",
+          "topicTitles": ["Cross-chain replay & missing domain separator", "Interfaces"]
+        },
+        {
+          "id": "x3",
+          "title": "X3 · Fulfillment, retries & compensation",
+          "hours": [7, 11],
+          "objective": "Make failed destination execution observable and safely retryable under the declared protocol.",
+          "deliverables": [
+            "Fulfillment/retry state machine",
+            "Partial-failure and compensation tests"
+          ],
+          "criteria": [
+            {
+              "id": "x3-c1",
+              "text": "Retries cannot duplicate transfers or settlement"
+            },
+            {
+              "id": "x3-c2",
+              "text": "Failed execution preserves enough data for authorized recovery"
+            },
+            {
+              "id": "x3-c3",
+              "text": "Refund/compensation cannot race a successful fulfillment into double payment"
+            }
+          ],
+          "designQuestion": "How can you distinguish unknown outcome from a proven failed operation?",
+          "failureDrill": "Interrupt execution around every durable state transition and retry.",
+          "defense": "Explain the outcome of delayed fulfillment arriving after a proposed refund.",
+          "topicTitles": ["State-machine & sequencing errors", "Accounting & invariant violations"]
+        },
+        {
+          "id": "x4",
+          "title": "X4 · Relayer/indexer service & user timeline",
+          "hours": [6, 9],
+          "objective": "Track both chains and provide an honest end-to-end order view.",
+          "deliverables": [
+            "Dual-chain worker and reconciled order API",
+            "User status UI and restart tests"
+          ],
+          "criteria": [
+            {
+              "id": "x4-c1",
+              "text": "Data identities include chain and message/order identity"
+            },
+            {
+              "id": "x4-c2",
+              "text": "Timeline labels source finality and destination execution separately"
+            },
+            {
+              "id": "x4-c3",
+              "text": "A restarted worker reconstructs pending work without duplicate actions"
+            }
+          ],
+          "designQuestion": "What should be stored durably versus rebuilt from each chain?",
+          "failureDrill": "Delay one chain’s indexing and restart the observer during recovery.",
+          "defense": "Diagnose an order using the timeline and authoritative chain records.",
+          "topicTitles": ["Watching events & logs (viem)", "Ponder indexing"]
+        },
+        {
+          "id": "x5",
+          "title": "X5 · Economic bounds & failure campaign",
+          "hours": [6, 10],
+          "objective": "Test liveness costs, fee exposure and griefing in the asynchronous system.",
+          "deliverables": [
+            "Fee/gas policy and failure matrix",
+            "Adversarial payload, delay and resource-limit tests"
+          ],
+          "criteria": [
+            {
+              "id": "x5-c1",
+              "text": "Message work and retry exposure are bounded"
+            },
+            {
+              "id": "x5-c2",
+              "text": "Fee changes and exhausted budgets have a recovery policy"
+            },
+            {
+              "id": "x5-c3",
+              "text": "Untrusted counterparties cannot force arbitrary execution"
+            }
+          ],
+          "designQuestion": "Who pays for a failed remote attempt, and what bounds the resulting liability?",
+          "failureDrill": "Send maximum-size supported payloads and underfund destination execution.",
+          "defense": "Separate protocol safety from economic liveness and justify the limits.",
+          "topicTitles": ["Gas griefing & return-bomb", "Insufficient input validation"]
+        },
+        {
+          "id": "x6",
+          "title": "X6 · Deployment rehearsal & distributed-systems defense",
+          "hours": [5, 8],
+          "objective": "Release and demonstrate the full lifecycle including an intentionally failed transfer.",
+          "deliverables": [
+            "Two-chain deployment manifest and recovery runbook",
+            "Case study and independent change exercise"
+          ],
+          "criteria": [
+            {
+              "id": "x6-c1",
+              "text": "Addresses, chain identities and provider configuration are reproducible"
+            },
+            {
+              "id": "x6-c2",
+              "text": "Failure demonstration recovers through declared paths"
+            },
+            {
+              "id": "x6-c3",
+              "text": "Bridge/provider compromises and finality assumptions are disclosed"
+            }
+          ],
+          "designQuestion": "How would you migrate the messaging provider without accepting both trust domains indefinitely?",
+          "failureDrill": "Rehearse a configuration change and reject old unauthorized messages.",
+          "defense": "Design a third-chain extension and identify the state-space and operational costs.",
+          "topicTitles": ["Scripting & deployment (forge script)", "Reading an unfamiliar codebase"]
+        }
+      ]
+    },
+    {
+      "id": "capstone",
+      "title": "Production-style capstone & hiring evidence",
+      "stage": "12 · Independent engineering",
+      "brief": "Choose one customer problem and deliver a coherent system independently: a treasury operations product, creator commerce platform, smart-account subscription service or another bounded proposal. Reuse selected earlier systems, but demonstrate original architecture, measured reliability, security review and a clear product story.",
+      "outcomes": [
+        "Own a product from requirements through operations",
+        "Defend tradeoffs with working artifacts and measurements",
+        "Produce portfolio and interview evidence of independent engineering"
+      ],
+      "prerequisites": ["wallet-console", "chain-indexer", "escrow-payments"],
+      "readiness": "You can independently deliver the wallet and one contract-backed product. Choose advanced modules needed by the problem; completing every specialization is not an admission requirement.",
+      "scope": "One primary user and a bounded testnet/fork deployment. A production-style exercise does not by itself certify contracts for real funds.",
+      "sources": [
+        {
+          "title": "Solidity security considerations",
+          "url": "https://docs.soliditylang.org/en/latest/security-considerations.html",
+          "scope": "External calls, authorization, bounded work and checks-effects-interactions."
+        },
+        {
+          "title": "Foundry testing",
+          "url": "https://www.getfoundry.sh/forge/tests/overview/",
+          "scope": "Pin the toolchain; use unit, fuzz, invariant and fork tests where they answer a real risk."
+        },
+        {
+          "title": "Ethereum application security",
+          "url": "https://ethereum.org/developers/docs/smart-contracts/security/",
+          "scope": "Threat modeling, testing and ongoing contract risk."
+        }
+      ],
+      "milestones": [
+        {
+          "id": "c1",
+          "title": "C1 · Customer problem & measurable scope",
+          "hours": [4, 7],
+          "objective": "Choose a concrete user, painful workflow and observable success criteria.",
+          "deliverables": [
+            "One-page product brief and user interviews or explicitly labeled assumptions",
+            "Scope, constraints and release acceptance criteria"
+          ],
+          "criteria": [
+            {
+              "id": "c1-c1",
+              "text": "The problem names a user and a job they need to do"
+            },
+            {
+              "id": "c1-c2",
+              "text": "Scope includes reliability/security requirements, not only features"
+            },
+            {
+              "id": "c1-c3",
+              "text": "Success can be demonstrated with observable behavior"
+            }
+          ],
+          "designQuestion": "Which proposed features do not improve the chosen customer workflow?",
+          "failureDrill": "Remove half the delivery time and renegotiate scope without losing the core outcome.",
+          "defense": "Defend why blockchain is needed and identify what belongs off chain.",
+          "topicTitles": ["Reading an unfamiliar codebase", "Audit scoping & the audit lifecycle"]
+        },
+        {
+          "id": "c2",
+          "title": "C2 · Architecture proposal & adversarial review",
+          "hours": [6, 10],
+          "objective": "Design the system before coding the risky core, then challenge its boundaries.",
+          "deliverables": [
+            "Context/container diagrams, data model and state machines",
+            "ADRs, authority map and threat model"
+          ],
+          "criteria": [
+            {
+              "id": "c2-c1",
+              "text": "Critical flows identify consistency and trust boundaries"
+            },
+            {
+              "id": "c2-c2",
+              "text": "Alternatives have explicit tradeoffs tied to constraints"
+            },
+            {
+              "id": "c2-c3",
+              "text": "Threats map to prevention, detection or accepted residual risk"
+            }
+          ],
+          "designQuestion": "Which module hides the hardest decision behind the simplest interface?",
+          "failureDrill": "Review the design as a malicious caller, failed provider and future maintainer.",
+          "defense": "Explain the architecture in ten minutes and respond to an unexpected requirement change.",
+          "topicTitles": ["Writing good invariants", "Note-taking and building a mental model"]
+        },
+        {
+          "id": "c3",
+          "title": "C3 · End-to-end vertical slice",
+          "hours": [10, 16],
+          "objective": "Deliver the smallest complete customer journey across the actual stack.",
+          "deliverables": [
+            "Contract/service/UI slice and repeatable local environment",
+            "Integration tests and walkthrough"
+          ],
+          "criteria": [
+            {
+              "id": "c3-c1",
+              "text": "A clean checkout completes the core workflow"
+            },
+            {
+              "id": "c3-c2",
+              "text": "Authoritative state is reconciled across boundaries"
+            },
+            {
+              "id": "c3-c3",
+              "text": "Expected rejection and failure cases are usable"
+            }
+          ],
+          "designQuestion": "Which integration assumption failed first and how did you change the design?",
+          "failureDrill": "Interrupt the workflow after each externally visible side effect.",
+          "defense": "Trace one request through the complete system and repair a seeded integration bug.",
+          "topicTitles": ["Writing transactions with viem & wagmi", "Watching events & logs (viem)"]
+        },
+        {
+          "id": "c4",
+          "title": "C4 · Complete product behavior & independent change",
+          "hours": [12, 20],
+          "objective": "Implement the committed scope while preserving clarity and correctness.",
+          "deliverables": [
+            "Remaining release workflows and accessibility pass",
+            "Change history explaining decisions and tradeoffs"
+          ],
+          "criteria": [
+            {
+              "id": "c4-c1",
+              "text": "All product acceptance criteria have reproducible evidence"
+            },
+            {
+              "id": "c4-c2",
+              "text": "A new requirement is implemented without guided core code"
+            },
+            {
+              "id": "c4-c3",
+              "text": "Help and generated code are disclosed with independent validation"
+            }
+          ],
+          "designQuestion": "Which abstraction did actual change justify, and what did you remove?",
+          "failureDrill": "Apply a stakeholder change that crosses one contract/backend/UI boundary.",
+          "defense": "Defend the implementation and modify the core path live without a walkthrough.",
+          "topicTitles": ["Interfaces", "Reading an unfamiliar codebase"]
+        },
+        {
+          "id": "c5",
+          "title": "C5 · Security campaign & remediation",
+          "hours": [8, 14],
+          "objective": "Assess the final scope as an attacker and verify the fixes.",
+          "deliverables": [
+            "Attack surface inventory and invariant/fuzz/fork evidence",
+            "Findings with severity, PoCs, remediation and retest"
+          ],
+          "criteria": [
+            {
+              "id": "c5-c1",
+              "text": "Critical authorization and money paths have adversarial checks"
+            },
+            {
+              "id": "c5-c2",
+              "text": "Claims are tied to reproducible artifacts and exact versions"
+            },
+            {
+              "id": "c5-c3",
+              "text": "Unresolved risks are described with user impact"
+            }
+          ],
+          "designQuestion": "What would an external reviewer need to reproduce your strongest finding?",
+          "failureDrill": "Inject a realistic state/accounting/authorization flaw and detect it through the review process.",
+          "defense": "Present one finding and defend both severity and fix under questioning.",
+          "topicTitles": [
+            "Audit scoping & the audit lifecycle",
+            "Anatomy of a good finding",
+            "Foundry invariant testing"
+          ]
+        },
+        {
+          "id": "c6",
+          "title": "C6 · Release, load & incident ownership",
+          "hours": [8, 12],
+          "objective": "Operate the system under measured load and rehearsed failure.",
+          "deliverables": [
+            "CI/release pipeline, deployment manifest and rollback/repair plan",
+            "Metrics, load evidence and incident postmortem"
+          ],
+          "criteria": [
+            {
+              "id": "c6-c1",
+              "text": "Performance claims specify dataset, environment and workload"
+            },
+            {
+              "id": "c6-c2",
+              "text": "Secrets and user data are absent from public artifacts"
+            },
+            {
+              "id": "c6-c3",
+              "text": "An outage is detected, diagnosed and recovered through the runbook"
+            }
+          ],
+          "designQuestion": "What cannot be rolled back once it is on chain, and how does that change release strategy?",
+          "failureDrill": "Break a dependency and recover while preserving pending user work.",
+          "defense": "Use observations to diagnose a bottleneck and make one measured improvement.",
+          "topicTitles": [
+            "Scripting & deployment (forge script)",
+            "Contract verification",
+            "Debugging: traces & the interactive debugger"
+          ]
+        },
+        {
+          "id": "c7",
+          "title": "C7 · Portfolio case study & interview defense",
+          "hours": [5, 9],
+          "objective": "Package verified engineering evidence and use it in realistic technical interviews.",
+          "deliverables": [
+            "Public-ready README, demo, architecture narrative and two incident/security stories",
+            "Role-specific CV bullets and mock interview notes"
+          ],
+          "criteria": [
+            {
+              "id": "c7-c1",
+              "text": "Claims distinguish personal work, assistance and measured results"
+            },
+            {
+              "id": "c7-c2",
+              "text": "Another engineer can run the project and reproduce the key evidence"
+            },
+            {
+              "id": "c7-c3",
+              "text": "A mock system-design/debugging session produces specific gaps and follow-up practice"
+            }
+          ],
+          "designQuestion": "Which evidence shows you can own a system rather than follow a tutorial?",
+          "failureDrill": "Ask an unfamiliar reviewer to run the demo and challenge one design assumption.",
+          "defense": "Explain the product, defend a tradeoff, debug a seeded failure and implement a small change without a script.",
+          "topicTitles": ["Reading an unfamiliar codebase", "Anatomy of a good finding"]
+        }
+      ]
+    }
+  ]
+}

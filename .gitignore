@@ -8,6 +8,7 @@ dist/
 .yarn/*
 !.yarn/releases
 coverage/
+/backups/
 
 # Claude Code — personal/session-local settings (the shared policy lives in
 # .claude/settings.json, which IS tracked)

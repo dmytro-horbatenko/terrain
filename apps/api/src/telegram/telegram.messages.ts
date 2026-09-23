@@ -11,6 +11,8 @@ export interface DigestData {
   dueByKind: { concept: number; code: number; problem: number };
   dueCount: number;
   estMinutes: number;
+  backlogCount: number;
+  backlogMinutes: number;
   overdueTopics: number;
   streak: number;
   nextUpTitle: string | null;
@@ -20,6 +22,8 @@ export interface NudgeData {
   streak: number;
   dueCount: number;
   estMinutes: number;
+  backlogCount: number;
+  backlogMinutes: number;
 }
 
 export function estimateMinutes(
@@ -43,7 +47,7 @@ export function composeDigest(d: DigestData): string {
     day: 'numeric',
   }).format(d.date);
   const lines = [`🌄 <b>Terrain — ${day}</b>`];
-  if (d.dueCount === 0) {
+  if (d.backlogCount === 0) {
     lines.push(`All clear — nothing due today. Streak ${d.streak} 🔥`);
   } else {
     const kinds = [
@@ -53,7 +57,12 @@ export function composeDigest(d: DigestData): string {
     ]
       .filter(Boolean)
       .join(' · ');
-    lines.push(`Due: ${d.dueCount} cards (${kinds}) · ~${d.estMinutes} min`);
+    lines.push(
+      d.dueCount > 0
+        ? `Today's slice: ${d.dueCount} cards (${kinds}) · ~${d.estMinutes} min`
+        : 'Remaining review needs a focused exercise.',
+    );
+    lines.push(`Backlog: ${d.backlogCount} cards · ~${d.backlogMinutes} min`);
     lines.push(`Overdue topics: ${d.overdueTopics} · Streak: ${d.streak} 🔥`);
   }
   if (d.nextUpTitle) lines.push(`Next up: ${escapeHtml(d.nextUpTitle)}`);
@@ -63,6 +72,9 @@ export function composeDigest(d: DigestData): string {
 export function composeNudge(d: NudgeData): string {
   return [
     `⚠️ Streak (${d.streak}) at risk — nothing logged today.`,
-    `${d.dueCount} cards due · ~${d.estMinutes} min. One review keeps the day.`,
+    d.dueCount > 0
+      ? `Today's slice: ${d.dueCount} cards · ~${d.estMinutes} min.`
+      : 'Remaining review needs a focused exercise.',
+    `Backlog: ${d.backlogCount} cards · ~${d.backlogMinutes} min. Stop when needed; record only actual attempts.`,
   ].join('\n');
 }

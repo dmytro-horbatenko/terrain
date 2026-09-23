@@ -34,6 +34,15 @@ const topic = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const studySession = (overrides: Record<string, unknown> = {}) => ({
+  id: '00000000-0000-4000-8000-000000000009',
+  focusTopicId: ids.target,
+  nextFocusTitle: 'Target',
+  nextColdChallenge: 'Encode a nested list and explain its length prefix.',
+  importedAt: new Date('2026-09-01T12:00:00Z'),
+  ...overrides,
+});
+
 describe('LearningContextService', () => {
   let prisma: any;
   let service: LearningContextService;
@@ -42,7 +51,10 @@ describe('LearningContextService', () => {
     prisma = {
       settings: { findUnique: jest.fn().mockResolvedValue(null) },
       topic: { findMany: jest.fn().mockResolvedValue([]) },
-      sessionExport: { findFirst: jest.fn().mockResolvedValue(null) },
+      sessionExport: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       user: {
         findUnique: jest.fn().mockResolvedValue({
           headline: 'Staff engineer',
@@ -54,8 +66,392 @@ describe('LearningContextService', () => {
       review: { findMany: jest.fn().mockResolvedValue([]) },
       sourceEvidence: { findMany: jest.fn().mockResolvedValue([]) },
       applicationEvent: { findMany: jest.fn().mockResolvedValue([]) },
+      skillCheck: { findMany: jest.fn().mockResolvedValue([]) },
     };
     service = new LearningContextService(prisma as PrismaService);
+  });
+
+  it('includes recent assessed skill gaps in owned topic context without replacing continuation', async () => {
+    prisma.topic.findMany.mockResolvedValue([topic({ status: 'active' })]);
+    prisma.sessionExport.findMany.mockResolvedValue([studySession()]);
+    prisma.skillCheck.findMany.mockResolvedValue([
+      {
+        plan: {
+          id: ids.target,
+          target: { kind: 'topic', topicId: ids.target },
+          kind: 'diagnosis',
+          learnedOn: '2026-09-01',
+          dueOn: '2026-09-02',
+          task: 'Diagnose an incorrect nested RLP list-length prefix.',
+          successCriteria: 'Explain the length mismatch and verify the corrected encoding.',
+          allowedTools: 'documentation',
+        },
+        attempt: {
+          firstAttempt: 'I miscounted the nested payload length and did not locate the boundary.',
+          evidence: 'The fixture still fails at the nested list boundary.',
+          assistance: 'hints',
+          helpDetails: 'The tutor pointed to the length calculation.',
+        },
+        result: {
+          outcome: 'needs_practice',
+          feedback: 'The payload length still includes the wrong prefix bytes.',
+          nextAction: 'Trace the inner and outer lengths separately.',
+          reviewer: 'ai',
+        },
+        attemptedAt: new Date('2026-09-02T12:00:00Z'),
+      },
+    ]);
+    const context = await service.context('user-a', { topic: ids.target });
+    expect(prisma.skillCheck.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-a',
+        topicId: ids.target,
+        assessedAt: { not: null },
+        cancelledAt: null,
+      },
+      orderBy: [{ assessedAt: 'desc' }, { id: 'desc' }],
+      take: 3,
+      select: { plan: true, attempt: true, result: true, attemptedAt: true },
+    });
+    expect(context.target?.skillChecks).toEqual([
+      expect.objectContaining({
+        outcome: 'needs_practice',
+        assistance: 'hints',
+        nextAction: 'Trace the inner and outer lengths separately.',
+      }),
+    ]);
+    expect(context.target?.continuation?.coldChallenge).toBe(
+      'Encode a nested list and explain its length prefix.',
+    );
+  });
+
+  it('resumes an explicitly selected active topic with its recorded work and challenge', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({
+        status: 'active',
+        summary: 'Encoded short strings; lists remain unfinished.',
+        aiContext: 'Build an RLP encoder and verify boundary lengths.',
+        noteRef: 'Obsidian: Web3/RLP',
+      }),
+    ]);
+    prisma.sessionExport.findMany.mockResolvedValue([studySession()]);
+
+    const context = await service.context('user-a', { topic: ids.target });
+
+    expect(context.target).toMatchObject({
+      id: ids.target,
+      sessionEligible: true,
+      summary: 'Encoded short strings; lists remain unfinished.',
+      studyContext: 'Build an RLP encoder and verify boundary lengths.',
+      noteRef: 'Obsidian: Web3/RLP',
+      continuation: {
+        sessionId: '00000000-0000-4000-8000-000000000009',
+        importedAt: '2026-09-01T12:00:00.000Z',
+        coldChallenge: 'Encode a nested list and explain its length prefix.',
+        resuming: true,
+      },
+    });
+    expect(prisma.sessionExport.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-a',
+        mode: 'learn',
+        importedAt: { not: null },
+        OR: [
+          { focusTopicId: ids.target },
+          { nextFocusTitle: { contains: 'Target', mode: 'insensitive' } },
+        ],
+      },
+      orderBy: [{ importedAt: 'desc' }, { generatedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        focusTopicId: true,
+        nextFocusTitle: true,
+        nextColdChallenge: true,
+        importedAt: true,
+      },
+    });
+  });
+
+  it('recovers an older matching study after switching topics without accepting a substring match', async () => {
+    prisma.topic.findMany.mockResolvedValue([topic()]);
+    prisma.sessionExport.findMany.mockResolvedValue([
+      studySession({
+        focusTopicId: ids.accounts,
+        nextFocusTitle: 'Target extension',
+        nextColdChallenge: 'Unrelated exercise',
+      }),
+      studySession({
+        nextFocusTitle: '  tArGeT  ',
+        nextColdChallenge: '  Resume the list encoder.  ',
+      }),
+    ]);
+
+    const context = await service.context('user-a', { topic: ids.target });
+
+    expect(context.target).toMatchObject({
+      status: 'planned',
+      continuation: { coldChallenge: 'Resume the list encoder.' },
+    });
+  });
+
+  it("carries target reconstructions, application references, and each card's latest grade", async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({
+        sourcePlan: {
+          policy: 'required',
+          requirements: [
+            {
+              id: 'encoding',
+              purpose: 'Trace bytes',
+              requiredWhen: 'always',
+              options: [
+                {
+                  id: 'spec',
+                  title: 'Spec',
+                  url: 'https://example.com/spec',
+                  format: 'article',
+                  scope: 'Encoding',
+                  estimatedMinutes: 10,
+                  why: 'Definition',
+                },
+              ],
+            },
+          ],
+        },
+        prompts: [
+          {
+            id: ids.prompt,
+            promptKind: 'concept',
+            promptText: 'Encode a list',
+            state: 'review',
+            difficulty: 4,
+            stability: 5,
+            suspended: false,
+          },
+        ],
+      }),
+    ]);
+    // This card's latest attempt precedes the three recent topic-level reviews.
+    prisma.review.findMany.mockImplementation(({ distinct }: any) =>
+      Promise.resolve(
+        distinct
+          ? [
+              {
+                topicId: ids.target,
+                promptId: ids.prompt,
+                grade: 'hard',
+                reviewedAt: new Date('2026-08-01'),
+                note: 'First attempt confused payload length with item count; corrected after a hint.',
+              },
+            ]
+          : [],
+      ),
+    );
+    prisma.sourceEvidence.findMany.mockResolvedValue([
+      {
+        topicId: ids.target,
+        requirementId: 'encoding',
+        sourceId: 'spec',
+        sourceTitle: 'Spec',
+        sourceUrl: 'https://example.com/spec',
+        mainClaim: 'Lists have length prefixes.',
+        supportingMechanism: 'The prefix delimits the payload.',
+        openQuestion: null,
+        substitutionReason: null,
+        verifiedLiveAt: null,
+        verificationNote: null,
+        createdAt: new Date('2026-09-01'),
+      },
+    ]);
+    prisma.applicationEvent.findMany.mockResolvedValue([
+      {
+        topicId: ids.target,
+        description: 'Traced a nested list; no implementation yet.',
+        url: 'notes/rlp-trace.md',
+        appliedAt: new Date('2026-09-01'),
+      },
+    ]);
+
+    const context = await service.context('user-a', { topic: ids.target });
+    expect(context.target).toMatchObject({
+      prompts: [
+        {
+          id: ids.prompt,
+          lastGrade: 'hard',
+          lastReviewedAt: '2026-08-01T00:00:00.000Z',
+          lastReviewNote:
+            'First attempt confused payload length with item count; corrected after a hint.',
+        },
+      ],
+      approach: { recommended: 'guided' },
+      sourceProgress: [
+        {
+          requirementId: 'encoding',
+          mainClaim: 'Lists have length prefixes.',
+          reusable: true,
+          recordedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ],
+      applications: [
+        {
+          description: 'Traced a nested list; no implementation yet.',
+          url: 'notes/rlp-trace.md',
+        },
+      ],
+    });
+    expect(prisma.review.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-a', topicId: ids.target, promptId: { in: [ids.prompt] } },
+        distinct: ['promptId'],
+        select: expect.objectContaining({ note: true, reviewedAt: true }),
+      }),
+    );
+  });
+
+  it.each([
+    { nextFocusTitle: 'Another topic' },
+    { nextFocusTitle: null },
+    { nextColdChallenge: null },
+    { nextColdChallenge: '  ' },
+  ])(
+    'does not resurrect a continuation superseded by a newer same-topic session: %p',
+    async (latest) => {
+      prisma.topic.findMany.mockResolvedValue([topic({ status: 'active' })]);
+      prisma.sessionExport.findMany.mockResolvedValue([studySession(latest), studySession()]);
+
+      expect((await service.context('user-a', { topic: ids.target })).target).toMatchObject({
+        continuation: null,
+      });
+    },
+  );
+
+  it('returns no continuation when the selected topic has no recorded study', async () => {
+    prisma.topic.findMany.mockResolvedValue([topic()]);
+
+    expect((await service.context('user-a', { topic: ids.target })).target).toMatchObject({
+      summary: null,
+      studyContext: null,
+      noteRef: null,
+      continuation: null,
+    });
+  });
+
+  it('carries an incoming challenge without claiming the new target was studied', async () => {
+    prisma.topic.findMany.mockResolvedValue([topic()]);
+    prisma.sessionExport.findMany.mockResolvedValue([studySession({ focusTopicId: ids.accounts })]);
+
+    expect((await service.context('user-a', { topic: ids.target })).target).toMatchObject({
+      status: 'planned',
+      continuation: {
+        coldChallenge: 'Encode a nested list and explain its length prefix.',
+        resuming: false,
+      },
+    });
+  });
+
+  it('does not attach an ambiguous title-based continuation to an explicitly selected topic', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic(),
+      topic({ id: ids.accounts, title: ' target ' }),
+    ]);
+    prisma.sessionExport.findMany.mockResolvedValue([
+      studySession({ focusTopicId: ids.accounts, nextFocusTitle: ' target ' }),
+    ]);
+
+    expect((await service.context('user-a', { topic: ids.target })).target).toMatchObject({
+      id: ids.target,
+      continuation: null,
+    });
+  });
+
+  it('resumes an active leaf from the latest study recommendation instead of starting another topic', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({ status: 'active' }),
+      topic({ id: ids.accounts, title: 'Another topic' }),
+    ]);
+    prisma.sessionExport.findFirst.mockResolvedValue(studySession());
+
+    expect((await service.nextUp('user-a'))?.topic.id).toBe(ids.target);
+    expect(prisma.sessionExport.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-a', mode: 'learn', importedAt: { not: null } },
+      }),
+    );
+  });
+
+  it('keeps an active leaf with unavailable parent data out of study selection', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({ status: 'active', parentId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }),
+      topic({ id: ids.accounts, title: 'Another topic' }),
+    ]);
+    prisma.sessionExport.findFirst.mockResolvedValue(studySession());
+
+    expect((await service.nextUp('user-a'))?.topic.id).toBe(ids.accounts);
+    expect((await service.context('user-a', { topic: ids.target })).target?.sessionEligible).toBe(
+      false,
+    );
+  });
+
+  it.each([false, true])(
+    'allows resuming across unfinished prerequisites only when their roadmap data is valid (malformed: %s)',
+    async (malformed) => {
+      prisma.topic.findMany.mockResolvedValue([
+        topic({ status: 'active', prerequisites: [{ prerequisiteId: ids.basics }] }),
+        topic({ id: ids.accounts, title: 'Another topic' }),
+        topic({
+          id: ids.basics,
+          title: 'Prerequisite',
+          parentId: malformed ? 'ffffffff-ffff-4fff-8fff-ffffffffffff' : null,
+        }),
+      ]);
+      prisma.sessionExport.findFirst.mockResolvedValue(studySession());
+
+      expect((await service.nextUp('user-a'))?.topic.id).toBe(
+        malformed ? ids.accounts : ids.target,
+      );
+      expect((await service.context('user-a', { topic: ids.target })).target?.sessionEligible).toBe(
+        !malformed,
+      );
+    },
+  );
+
+  it('keeps planned topics with malformed transitive prerequisites out of recommendations', async () => {
+    const graph = [
+      topic({ prerequisites: [{ prerequisiteId: ids.basics }] }),
+      topic({ id: ids.accounts, title: 'Another topic' }),
+      topic({
+        id: ids.basics,
+        title: 'Prerequisite',
+        status: 'active',
+        prerequisites: [{ prerequisiteId: ids.practicing }],
+      }),
+      topic({
+        id: ids.practicing,
+        title: 'Malformed dependency',
+        status: 'active',
+        parentId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      }),
+    ];
+    prisma.topic.findMany.mockResolvedValue(graph);
+
+    expect((await service.nextUp('user-a'))?.topic.id).toBe(ids.accounts);
+    const context = await service.context('user-a');
+    expect(context.selection.learnableAlternatives).toEqual([]);
+    const explicit = await service.context('user-a', { topic: ids.target });
+    expect(explicit.target?.sessionEligible).toBe(false);
+    expect(explicit.blockers).toContainEqual(
+      expect.objectContaining({
+        topicId: ids.practicing,
+        reason: 'Prerequisite parent data is unavailable.',
+      }),
+    );
+
+    prisma.topic.findMany.mockResolvedValue(graph.filter(({ id }) => id !== ids.accounts));
+    const unavailable = await service.context('user-a');
+    expect(unavailable.target).toBeNull();
+    expect(unavailable.blockers).toContainEqual(
+      expect.objectContaining({ topicId: ids.practicing }),
+    );
   });
 
   it('rejects a blocked imported focus and selects the first learnable authored leaf', async () => {
@@ -294,7 +690,7 @@ describe('LearningContextService', () => {
     expect(context.doNotAssume).toEqual([
       expect.objectContaining({ id: ids.introduced, level: 'introduced' }),
     ]);
-    expect(prisma.review.findMany).toHaveBeenCalledTimes(3);
+    expect(prisma.review.findMany).toHaveBeenCalledTimes(4);
     expect(prisma.sourceEvidence.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

@@ -272,29 +272,6 @@
   font-size: 12.5px;
 }
 
-/* ---------- gauge ---------- */
-.gauge-track {
-  position: relative;
-  height: 10px;
-  background: var(--surface-2);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.gauge-band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--ok) 22%, white);
-}
-.gauge-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  background: var(--primary);
-  border-radius: 999px;
-}
-
 /* ---------- detail panel ---------- */
 .detail-panel .stat-strip {
   background: var(--surface-2);
@@ -566,4 +543,171 @@
   .dashboard-kpi-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+/* Product curriculum: readable briefs alongside a separate milestone workspace. */
+.project-hero {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+.project-hero h1 {
+  margin: 8px 0 16px;
+  max-width: 28ch;
+}
+.project-hero p {
+  max-width: 85ch;
+  line-height: 1.7;
+}
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #68717e);
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.project-card h2 {
+  font-size: 21px;
+  line-height: 1.35;
+}
+.project-card p,
+.project-card li {
+  line-height: 1.65;
+}
+.project-workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.project-milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 20px;
+}
+.project-milestone {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid var(--border);
+  padding: 13px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+.project-milestone span {
+  font-size: 12px;
+  opacity: 0.7;
+}
+.project-milestone.selected {
+  border-color: var(--accent, #5b5bd6);
+  background: color-mix(in srgb, var(--accent, #5b5bd6) 8%, transparent);
+}
+.project-notice {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  line-height: 1.7;
+}
+.project-prompt {
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent, #5b5bd6);
+  background: color-mix(in srgb, var(--accent, #5b5bd6) 5%, transparent);
+}
+.project-prompt p {
+  margin: 8px 0 0;
+  line-height: 1.65;
+}
+.project-checks {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.project-editor {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.project-checks label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  margin: 12px 0;
+  line-height: 1.55;
+}
+.project-checks input {
+  margin-top: 5px;
+}
+.project-context {
+  width: 100%;
+  min-height: 240px;
+  font-family: var(--mono, monospace);
+  font-size: 12px;
+}
+.project-table-wrap {
+  overflow-x: auto;
+}
+.project-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+.project-table th,
+.project-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+@media (max-width: 900px) {
+  .project-workspace {
+    grid-template-columns: 1fr;
+  }
+  .project-milestones {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .project-grid,
+  .project-milestones {
+    grid-template-columns: 1fr;
+  }
+  .project-hero {
+    padding: 18px;
+  }
+}
+.skill-check-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.skill-check-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.skill-check-item > summary {
+  cursor: pointer;
+}
+.skill-check-item > summary span {
+  display: block;
+  margin-top: 4px;
+}
+.skill-check-item[open] > summary {
+  margin-bottom: 16px;
+}
+.skill-check-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
 }

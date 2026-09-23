@@ -83,6 +83,11 @@ export class TopicsService {
   }
 
   async create(userId: string, dto: CreateTopicDto) {
+    if (dto.status === 'mastered') {
+      throw new UnprocessableEntityException(
+        'Create the topic as planned or active; mastery requires recorded retention, application, and teaching evidence.',
+      );
+    }
     const sourcePlan = this.parseSourcePlan(dto.sourcePlan);
     if (dto.parentId) await this.findOne(userId, dto.parentId); // 404 if missing or not owned
     await this.registerType(userId, dto.topicType);
@@ -95,6 +100,7 @@ export class TopicsService {
             domain: dto.domain,
             topicType: dto.topicType,
             status: dto.status,
+            ...(dto.status === 'active' ? { learnedAt: new Date() } : {}),
             description: dto.description,
             noteRef: dto.noteRef,
             parentId: dto.parentId,
@@ -255,66 +261,55 @@ export class TopicsService {
     return topic;
   }
 
-  private async assertNoParentCycle(userId: string, id: string, parentId: string): Promise<void> {
-    if (parentId === id) {
-      throw new UnprocessableEntityException('A topic cannot be its own parent.');
-    }
-    let cursor: string | null = parentId;
-    const visited = new Set<string>();
-    while (cursor) {
-      if (cursor === id) {
-        throw new UnprocessableEntityException('Reparenting would create a cycle.');
-      }
-      if (visited.has(cursor)) break; // pre-existing bad-data cycle upstream — stop
-      visited.add(cursor);
-      const node: { parentId: string | null } | null = await this.prisma.topic.findFirst({
-        where: { id: cursor, userId },
-        select: { parentId: true },
-      });
-      if (!node) {
-        if (cursor === parentId) {
-          throw new NotFoundException(`Topic ${parentId} not found`);
-        }
-        break; // broken ancestor chain — nothing more to walk
-      }
-      cursor = node.parentId;
-    }
-
-    const prerequisiteStack = [id];
-    const seenPrerequisites = new Set<string>();
-    while (prerequisiteStack.length > 0) {
-      const topicId = prerequisiteStack.pop()!;
-      if (seenPrerequisites.has(topicId)) continue;
-      seenPrerequisites.add(topicId);
-      const edges = await this.prisma.prerequisite.findMany({
-        where: { topicId, topic: { userId } },
-        select: { prerequisiteId: true },
-      });
-      for (const edge of edges) {
-        if (edge.prerequisiteId === parentId) {
-          throw new UnprocessableEntityException('A topic parent cannot be its prerequisite.');
-        }
-        prerequisiteStack.push(edge.prerequisiteId);
-      }
+  private async assertRoadmapChange(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    id: string,
+    change: { parentId?: string | null; prerequisiteId?: string },
+  ): Promise<void> {
+    const topics = await tx.topic.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        parentId: true,
+        status: true,
+        prerequisites: { select: { prerequisiteId: true } },
+      },
+    });
+    const nodes = topics.map((topic) => ({
+      id: topic.id,
+      parentId: topic.parentId,
+      status: topic.status,
+      prerequisiteIds: topic.prerequisites.map((edge) => edge.prerequisiteId),
+    }));
+    const node = nodes.find((topic) => topic.id === id);
+    if (!node) throw new NotFoundException(`Topic ${id} not found`);
+    if (change.parentId !== undefined) node.parentId = change.parentId;
+    if (change.prerequisiteId) node.prerequisiteIds.push(change.prerequisiteId);
+    const policy = buildRoadmapPolicy(nodes).get(id)!;
+    if (policy.cycle || policy.malformedParent || policy.unavailablePrerequisite) {
+      throw new UnprocessableEntityException(
+        'This change would create a circular or unavailable roadmap dependency.',
+      );
     }
   }
 
   async update(userId: string, id: string, dto: UpdateTopicDto) {
     const existing = await this.findOne(userId, id);
     const sourcePlan = this.parseSourcePlan(dto.sourcePlan);
-    if (
-      typeof dto.parentId === 'string' &&
-      dto.parentId.length > 0 &&
-      dto.parentId !== existing.parentId
-    ) {
-      await this.assertNoParentCycle(userId, id, dto.parentId);
-    }
+    const changingParent = dto.parentId !== undefined && dto.parentId !== existing.parentId;
+    if (changingParent && dto.parentId) await this.findOne(userId, dto.parentId);
     if (dto.topicType) await this.registerType(userId, dto.topicType);
     const data: Prisma.TopicUpdateInput = {
       ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
       ...(dto.domain !== undefined ? { domain: dto.domain } : {}),
       ...(dto.topicType !== undefined ? { topicType: dto.topicType } : {}),
       ...(dto.status !== undefined ? { status: dto.status } : {}),
+      ...((dto.status === 'active' || dto.status === 'mastered') &&
+      existing.status !== 'active' &&
+      existing.status !== 'mastered'
+        ? { learnedAt: new Date() }
+        : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.noteRef !== undefined ? { noteRef: dto.noteRef } : {}),
       ...(dto.parentId !== undefined ? { parentId: dto.parentId } : {}),
@@ -324,11 +319,61 @@ export class TopicsService {
       ...(sourcePlan !== undefined ? { sourcePlan } : {}),
     };
     try {
+      if (dto.status === 'mastered') {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            if (changingParent)
+              await this.assertRoadmapChange(tx, userId, id, { parentId: dto.parentId });
+            const evidence = await tx.topic.findFirst({
+              where: { id, userId },
+              select: {
+                status: true,
+                noteRef: true,
+                summary: true,
+                prompts: { select: { stability: true, suspended: true } },
+                _count: { select: { appEvents: { where: { userId } } } },
+              },
+            });
+            if (!evidence) throw new NotFoundException(`Topic ${id} not found`);
+            if (evidence.status !== 'mastered') {
+              const mastery = this.metrics.masteryStatus({
+                cards: evidence.prompts,
+                appEventCount: evidence._count.appEvents,
+                noteRef: dto.noteRef !== undefined ? dto.noteRef : evidence.noteRef,
+                summary: dto.summary !== undefined ? dto.summary : evidence.summary,
+              });
+              if (!mastery.eligible) {
+                throw new UnprocessableEntityException({
+                  message:
+                    'Mastery requires retention, an application event, and a written summary or note.',
+                  mastery,
+                });
+              }
+            }
+            return tx.topic.update({ where: { id, userId }, data });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      }
+      if (changingParent) {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            await this.assertRoadmapChange(tx, userId, id, { parentId: dto.parentId });
+            return tx.topic.update({ where: { id }, data });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      }
       return await this.prisma.topic.update({
         where: { id },
         data,
       });
     } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new ConflictException(
+          'Topic evidence changed during this update. Refresh and try again.',
+        );
+      }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('a topic with this title already exists');
       }
@@ -337,54 +382,27 @@ export class TopicsService {
   }
 
   async addPrerequisite(userId: string, topicId: string, prerequisiteId: string) {
-    await this.findOne(userId, topicId); // 404 if the dependent is missing or not owned
-    await this.findOne(userId, prerequisiteId); // 404 if the prerequisite is missing or not owned
-    if (prerequisiteId === topicId) {
-      throw new UnprocessableEntityException('A topic cannot be its own prerequisite.');
-    }
-    let ancestorId: string | null | undefined = topicId;
-    const seenAncestors = new Set<string>();
-    while (ancestorId) {
-      if (seenAncestors.has(ancestorId)) break;
-      seenAncestors.add(ancestorId);
-      const ancestor: { parentId?: string | null } | null = await this.prisma.topic.findFirst({
-        where: { id: ancestorId, userId },
-        select: { parentId: true },
-      });
-      ancestorId = ancestor?.parentId;
-      if (ancestorId === prerequisiteId) {
-        throw new UnprocessableEntityException('A topic parent cannot be its prerequisite.');
+    await this.findOne(userId, topicId);
+    await this.findOne(userId, prerequisiteId);
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          await this.assertRoadmapChange(tx, userId, topicId, { prerequisiteId });
+          return tx.prerequisite.upsert({
+            where: { topicId_prerequisiteId: { topicId, prerequisiteId } },
+            create: { topicId, prerequisiteId },
+            update: {},
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new ConflictException(
+          'The roadmap changed during this update. Refresh and try again.',
+        );
       }
-    }
-    await this.assertNoPrereqCycle(userId, topicId, prerequisiteId);
-    return this.prisma.prerequisite.upsert({
-      where: { topicId_prerequisiteId: { topicId, prerequisiteId } },
-      create: { topicId, prerequisiteId },
-      update: {},
-    });
-  }
-
-  private async assertNoPrereqCycle(
-    userId: string,
-    topicId: string,
-    prerequisiteId: string,
-  ): Promise<void> {
-    // A cycle forms iff prerequisiteId already (transitively) requires topicId.
-    // Walk the requires-closure outward from prerequisiteId.
-    const visited = new Set<string>();
-    const stack = [prerequisiteId];
-    while (stack.length > 0) {
-      const current = stack.pop()!;
-      if (current === topicId) {
-        throw new UnprocessableEntityException('Adding this prerequisite would create a cycle.');
-      }
-      if (visited.has(current)) continue;
-      visited.add(current);
-      const edges = await this.prisma.prerequisite.findMany({
-        where: { topicId: current, topic: { userId } },
-        select: { prerequisiteId: true },
-      });
-      for (const e of edges) stack.push(e.prerequisiteId);
+      throw error;
     }
   }
 

@@ -20,6 +20,15 @@ describe('localHour', () => {
 });
 
 describe('localDayStart', () => {
+  it.each([
+    ['2026-10-04T12:00:00Z', 'Australia/Sydney', '2026-10-03T14:00:00.000Z'],
+    ['2026-04-05T12:00:00Z', 'Australia/Sydney', '2026-04-04T13:00:00.000Z'],
+    ['2026-03-29T12:00:00Z', 'Europe/Warsaw', '2026-03-28T23:00:00.000Z'],
+    ['2026-10-25T12:00:00Z', 'Europe/Warsaw', '2026-10-24T22:00:00.000Z'],
+    ['2026-09-03T12:00:00Z', 'Asia/Kathmandu', '2026-09-02T18:15:00.000Z'],
+  ])('resolves midnight across offset changes: %s %s', (now, zone, expected) => {
+    expect(localDayStart(new Date(now), zone).toISOString()).toBe(expected);
+  });
   it('returns the UTC instant of local midnight', () => {
     const now = new Date('2026-07-02T06:30:00Z');
     expect(localDayStart(now, 'UTC').toISOString()).toBe('2026-07-02T00:00:00.000Z');

@@ -14,6 +14,7 @@ export type ApproachRecommendationInput = {
   now: Date;
   recentGrades: readonly Grade[];
   promptKinds: readonly PromptKind[];
+  creditedRequirementIds?: readonly string[];
 };
 
 export type ApproachRecommendation = {
@@ -22,7 +23,13 @@ export type ApproachRecommendation = {
 };
 
 export function recommendApproach(input: ApproachRecommendationInput): ApproachRecommendation {
-  const requirements = applicableRequirements(parseStoredSourcePlan(input.plan), input.status);
+  const requirements = applicableRequirements(
+    parseStoredSourcePlan(input.plan),
+    input.status,
+  ).filter(
+    (requirement) =>
+      input.status !== 'planned' || !input.creditedRequirementIds?.includes(requirement.id),
+  );
   const needsCurrentSource = requirements.some(
     (requirement) =>
       requirement.requiredWhen === 'always' ||

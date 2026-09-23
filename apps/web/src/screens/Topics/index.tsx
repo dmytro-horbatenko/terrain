@@ -8,6 +8,7 @@ import {
   EmptyState,
   StatusBadge,
   TopicDetailPanel,
+  canLeaveTopicPanel,
   useToast,
 } from '../../components';
 import { TOPIC_STATUSES } from '../../api/types';
@@ -184,7 +185,9 @@ export default function Topics() {
                     <TopicRow
                       key={t.id}
                       topic={t}
-                      onOpen={() => setSelectedId(t.id)}
+                      onOpen={() => {
+                        if (selectedId === t.id || canLeaveTopicPanel()) setSelectedId(t.id);
+                      }}
                       onDelete={(e) => handleDelete(e, t)}
                       deleting={del.isPending}
                     />
@@ -203,7 +206,12 @@ export default function Topics() {
 
       {/* Detail drawer */}
       {selectedId && (
-        <div className="drawer-overlay" onMouseDown={() => setSelectedId(null)}>
+        <div
+          className="drawer-overlay"
+          onMouseDown={() => {
+            if (canLeaveTopicPanel()) setSelectedId(null);
+          }}
+        >
           <div className="drawer" onMouseDown={(e) => e.stopPropagation()}>
             <TopicDetailPanel topicId={selectedId} onClose={() => setSelectedId(null)} />
           </div>

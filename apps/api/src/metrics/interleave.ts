@@ -22,8 +22,8 @@ function dueKey(item: SessionQueueItem): number {
   return item.nextReviewAt ? item.nextReviewAt.getTime() : Number.POSITIVE_INFINITY;
 }
 
-export function interleaveQueue(items: SessionQueueItem[]): SessionQueueItem[] {
-  const buckets = new Map<string, SessionQueueItem[]>();
+export function interleaveQueue<T extends SessionQueueItem>(items: T[]): T[] {
+  const buckets = new Map<string, T[]>();
   for (const item of items) {
     const bucket = buckets.get(item.chapterTitle);
     if (bucket) bucket.push(item);
@@ -43,7 +43,7 @@ export function interleaveQueue(items: SessionQueueItem[]): SessionQueueItem[] {
     .sort((a, b) => dueKey(a[1][0]) - dueKey(b[1][0]) || a[0].localeCompare(b[0]))
     .map(([, bucket]) => bucket);
 
-  const out: SessionQueueItem[] = [];
+  const out: T[] = [];
   for (let round = 0; out.length < items.length; round++) {
     for (const bucket of ordered) {
       if (round < bucket.length) out.push(bucket[round]);

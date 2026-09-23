@@ -5,14 +5,15 @@ const NAV = [
   { to: '/', label: 'Dashboard', icon: '◎', exact: true },
   { to: '/topics', label: 'Topics', icon: '☰', exact: false },
   { to: '/roadmap', label: 'Roadmap', icon: '⊹', exact: false },
+  { to: '/projects', label: 'Projects', icon: '◈', exact: false },
   { to: '/export', label: 'Export', icon: '↗', exact: false },
   { to: '/import', label: 'Import', icon: '↘', exact: false },
   { to: '/courses', label: 'Courses', icon: '⬒', exact: false },
   { to: '/settings', label: 'Settings', icon: '⚙', exact: false },
 ] as const;
 
-const MOBILE_PATHS = ['/', '/topics', '/roadmap', '/courses'] as const;
-const MORE_PATHS = ['/export', '/import', '/settings'] as const;
+const MOBILE_PATHS = ['/', '/topics', '/roadmap', '/projects'] as const;
+const MORE_PATHS = ['/courses', '/export', '/import', '/settings'] as const;
 
 function StreakChip() {
   const { data } = useStreak();

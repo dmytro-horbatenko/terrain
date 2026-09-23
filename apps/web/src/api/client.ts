@@ -6,6 +6,7 @@ import type {
   CreateAppEventInput,
   Dashboard,
   ExportOptions,
+  ReviewOptions,
   ExportResult,
   HeatmapCell,
   ImportPlan,
@@ -31,6 +32,14 @@ import type {
   UpdateSettingsInput,
   UpdateTopicInput,
 } from './types';
+import type {
+  ProjectCheckpointInput,
+  ProjectProgress,
+  SkillCheckPlan,
+  SkillCheckAttempt,
+  SkillCheckResult,
+  SkillCheckList,
+} from '@terrain/types';
 
 const BASE = '/api';
 
@@ -74,6 +83,26 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
 export const api = {
+  getSkillChecks: () => req<SkillCheckList>('/skill-checks'),
+  createSkillCheck: (input: SkillCheckPlan) =>
+    req<{ alreadySaved: boolean }>('/skill-checks', { method: 'POST', ...json(input) }),
+  saveSkillCheckAttempt: (id: string, input: SkillCheckAttempt) =>
+    req<{ alreadySaved: boolean }>(`/skill-checks/${encodeURIComponent(id)}/attempt`, {
+      method: 'POST',
+      ...json(input),
+    }),
+  saveSkillCheckResult: (id: string, input: SkillCheckResult) =>
+    req<{ alreadySaved: boolean }>(`/skill-checks/${encodeURIComponent(id)}/result`, {
+      method: 'POST',
+      ...json(input),
+    }),
+  cancelSkillCheck: (id: string) =>
+    req<{ alreadySaved: boolean }>(`/skill-checks/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+    }),
+  getProjectProgress: () => req<ProjectProgress[]>('/projects/progress'),
+  saveProjectCheckpoint: (input: ProjectCheckpointInput) =>
+    req<{ alreadySaved: boolean }>('/projects/checkpoints', { method: 'POST', ...json(input) }),
   // topics
   getTopics: () => req<TopicWithMeta[]>('/topics'),
   getTopic: (id: string) => req<TopicDetail>(`/topics/${id}`),
@@ -97,15 +126,25 @@ export const api = {
   getReviews: (topicId: string) => req<Review[]>(`/reviews?topicId=${encodeURIComponent(topicId)}`),
   getNextPrompt: (topicId: string) =>
     req<NextPromptPayload | null>(`/topics/${topicId}/prompts/next`),
-  getSessionQueue: () => req<SessionQueue>('/reviews/session-queue'),
+  getSessionQueue: (options: ReviewOptions = {}) => {
+    const q = new URLSearchParams();
+    if (options.reviewMinutes) q.set('reviewMinutes', String(options.reviewMinutes));
+    if (options.reviewPromptId) q.set('reviewPromptId', options.reviewPromptId);
+    return req<SessionQueue>(`/reviews/session-queue?${q}`);
+  },
   getPrompt: (id: string) => req<NextPromptPayload>(`/prompts/${id}`),
   setPromptSuspended: (id: string, suspended: boolean) =>
     req<Prompt>(`/prompts/${id}`, { method: 'PATCH', ...json({ suspended }) }),
   deletePrompt: (id: string) => req<void>(`/prompts/${id}`, { method: 'DELETE' }),
 
   // metrics + streak
-  getDashboard: (domain?: string) =>
-    req<Dashboard>(`/metrics/dashboard${domain ? `?domain=${encodeURIComponent(domain)}` : ''}`),
+  getDashboard: (domain?: string, options: ReviewOptions = {}) => {
+    const q = new URLSearchParams();
+    if (domain) q.set('domain', domain);
+    if (options.reviewMinutes) q.set('reviewMinutes', String(options.reviewMinutes));
+    if (options.reviewPromptId) q.set('reviewPromptId', options.reviewPromptId);
+    return req<Dashboard>(`/metrics/dashboard?${q}`);
+  },
   getStreak: () => req<StreakState>('/streak'),
   skipStreak: () => req<{ freezeBalance: number }>('/streak/skip', { method: 'POST' }),
 
@@ -132,11 +171,14 @@ export const api = {
   getTopicTypes: () => req<TopicType[]>('/topic-types'),
 
   // sessions export
+  getStoredExport: (id: string) => req<ExportResult>(`/sessions/${encodeURIComponent(id)}/export`),
   getExport: (opts: ExportOptions) => {
     const q = new URLSearchParams();
     if (opts.mode) q.set('mode', opts.mode);
     if (opts.focusTopicId) q.set('focusTopicId', opts.focusTopicId);
     if (opts.approach) q.set('approach', opts.approach);
+    if (opts.reviewMinutes) q.set('reviewMinutes', String(opts.reviewMinutes));
+    if (opts.reviewPromptId) q.set('reviewPromptId', opts.reviewPromptId);
     const qs = q.toString();
     return req<ExportResult>(`/sessions/export${qs ? `?${qs}` : ''}`);
   },

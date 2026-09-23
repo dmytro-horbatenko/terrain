@@ -94,6 +94,8 @@ model User {
   dailyLogs             DailyLog[]
   topicTypes            TopicType[]
   courseImports         CourseImport[]
+  projectProgress       ProjectProgress[]
+  skillChecks           SkillCheck[]
   sourceEvidence        SourceEvidence[]
   mcpAuthorizationCodes McpAuthorizationCode[]
   mcpRefreshTokens      McpRefreshToken[]
@@ -128,6 +130,7 @@ model Topic {
   appEvents      ApplicationEvent[]
   sourcePlan     Json?
   sourceEvidence SourceEvidence[]
+  skillChecks    SkillCheck[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -307,6 +310,55 @@ model CourseImport {
   importedAt DateTime @default(now())
 
   @@unique([userId, courseId])
+}
+
+model ProjectProgress {
+  id            String              @id @default(uuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectKey    String
+  revision      Int                 @default(0)
+  repositoryUrl String              @default("")
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  checkpoints   ProjectCheckpoint[]
+
+  @@unique([userId, projectKey])
+}
+
+model ProjectCheckpoint {
+  id                String          @id
+  projectProgressId String
+  projectProgress   ProjectProgress @relation(fields: [projectProgressId], references: [id], onDelete: Cascade)
+  milestoneKey      String
+  revision          Int
+  snapshot          Json
+  createdAt         DateTime        @default(now())
+
+  @@index([projectProgressId, milestoneKey, createdAt])
+  @@unique([projectProgressId, revision])
+}
+
+model SkillCheck {
+  id            String    @id
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId       String?
+  topic         Topic?    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  projectKey    String?
+  milestoneKey  String?
+  targetTitle   String
+  dueOn         DateTime  @db.Date
+  plan          Json
+  attempt       Json?
+  attemptedAt   DateTime?
+  result        Json?
+  assessedAt    DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, dueOn])
+  @@index([topicId])
 }
 
 model McpAuthorizationCode {

@@ -43,6 +43,24 @@ const validPlan = {
   ],
 };
 
+function mockTopology(prisma: any, ids: string[]) {
+  prisma.topic.findMany.mockImplementation(async () => {
+    const rows = await Promise.all(
+      ids.map(async (id) => {
+        const topic = await prisma.topic.findFirst({ where: { id, userId: 'userA' } });
+        if (!topic) return null;
+        return {
+          status: 'planned',
+          parentId: null,
+          ...topic,
+          prerequisites: await prisma.prerequisite.findMany({ where: { topicId: id } }),
+        };
+      }),
+    );
+    return rows.filter(Boolean);
+  });
+}
+
 describe('TopicsService', () => {
   let service: TopicsService;
   let prisma: {
@@ -152,6 +170,113 @@ describe('TopicsService', () => {
         promptText: starterCardText('Monotonic stack'),
       }),
     });
+  });
+
+  it('rejects creating a mastered topic without any recorded evidence', async () => {
+    await expect(
+      service.create('userA', {
+        title: 'RLP',
+        domain: 'Web3',
+        topicType: 'concept',
+        status: 'mastered',
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(prisma.topic.create).not.toHaveBeenCalled();
+  });
+
+  it.each([{ prompts: [] }, { _count: { appEvents: 0 } }, { summary: ' ', noteRef: '\n' }])(
+    'rejects a general status update that lacks mastery evidence: %j',
+    async (missing) => {
+      const row = {
+        id: 't1',
+        status: 'active',
+        summary: 'My explanation',
+        noteRef: null,
+        prompts: [{ stability: 35, suspended: false }],
+        _count: { appEvents: 1 },
+        ...missing,
+      };
+      prisma.topic.findFirst.mockResolvedValue(row);
+      prisma.topic.update = jest.fn(({ data }) => Promise.resolve(Object.assign(row, data)));
+      await expect(service.update('userA', 't1', { status: 'mastered' })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(row.status).toBe('active');
+    },
+  );
+
+  it('allows mastery with retention, standalone application, and a summary in the same update', async () => {
+    const row = {
+      id: 't1',
+      status: 'active',
+      summary: null,
+      noteRef: null,
+      prompts: [{ stability: 35, suspended: false }],
+      _count: { appEvents: 1 },
+    };
+    prisma.topic.findFirst.mockImplementation(({ where }: any) =>
+      Promise.resolve(where.userId === 'userA' ? row : null),
+    );
+    prisma.topic.update = jest.fn(({ data }) => Promise.resolve(Object.assign(row, data)));
+    await expect(service.update('userB', 't1', { status: 'mastered' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    const updated = await service.update('userA', 't1', {
+      status: 'mastered',
+      summary: 'I can explain the mechanism.',
+    });
+    expect(updated.status).toBe('mastered');
+  });
+
+  it('checks current evidence inside the mastery transaction, not an earlier editor snapshot', async () => {
+    const stale = {
+      id: 't1',
+      status: 'active',
+      summary: 'Old explanation',
+      noteRef: null,
+      prompts: [{ stability: 35, suspended: false }],
+      _count: { appEvents: 1 },
+    };
+    const current = { ...stale, summary: '' };
+    prisma.topic.findFirst.mockResolvedValue(stale);
+    prisma.topic.update = jest.fn(({ data }) => Promise.resolve(Object.assign(current, data)));
+    prisma.$transaction = jest.fn((fn) =>
+      fn({
+        topic: {
+          findFirst: async () => current,
+          update: prisma.topic.update,
+        },
+      }),
+    );
+    await expect(service.update('userA', 't1', { status: 'mastered' })).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+    expect(current.status).toBe('active');
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  });
+
+  it('reports a mastery transaction conflict without writing through the outer client', async () => {
+    prisma.topic.findFirst.mockResolvedValue({
+      id: 't1',
+      status: 'active',
+      summary: 'Explanation',
+      noteRef: null,
+      prompts: [{ stability: 35, suspended: false }],
+      _count: { appEvents: 1 },
+    });
+    prisma.topic.update = jest.fn().mockResolvedValue({ status: 'mastered' });
+    prisma.$transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('write conflict', {
+        code: 'P2034',
+        clientVersion: 'x',
+      }),
+    );
+    await expect(service.update('userA', 't1', { status: 'mastered' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(prisma.topic.update).not.toHaveBeenCalled();
   });
 
   it('create writes a validated source plan', async () => {
@@ -481,6 +606,28 @@ describe('TopicsService', () => {
     });
   });
 
+  it('dates a new manual activation while leaving historical active dates unknown', async () => {
+    prisma.topic.findFirst.mockResolvedValue({ id: 't1', status: 'planned', learnedAt: null });
+    prisma.topic.update = jest.fn().mockImplementation(({ data }: any) => Promise.resolve(data));
+    const activated = await service.update('userA', 't1', { status: 'active' });
+    expect(activated.learnedAt).toBeInstanceOf(Date);
+    prisma.topic.findFirst.mockResolvedValue({ id: 't1', status: 'active', learnedAt: null });
+    const unchanged = await service.update('userA', 't1', { status: 'active' });
+    expect(unchanged.learnedAt).toBeUndefined();
+  });
+
+  it('dates a newly created active topic', async () => {
+    await service.create('userA', {
+      title: 'New active',
+      topicType: 'concept',
+      domain: 'Web3',
+      status: 'active',
+    });
+    expect(prisma.topic.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'active', learnedAt: expect.any(Date) }),
+    });
+  });
+
   it('update forwards status planned (restore) through to prisma.topic.update', async () => {
     prisma.topic.findFirst.mockResolvedValue({ id: 't1', parentId: null });
     prisma.topic.update = jest.fn().mockResolvedValue({ id: 't1', status: 'planned' });
@@ -524,10 +671,26 @@ describe('TopicsService', () => {
         return Promise.resolve(rows[where.id] ?? null);
       });
       prisma.topic.update = jest.fn().mockResolvedValue({ id: 't1' });
+      mockTopology(prisma, ['t1', 'c1', 'p']);
     });
 
     it('rejects self-parent with 422', async () => {
       await expect(service.update('userA', 't1', { parentId: 't1' })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.topic.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a move that makes a descendant require its new ancestor', async () => {
+      prisma.topic.findMany.mockResolvedValue([
+        { id: 't1', parentId: null, status: 'planned', prerequisites: [] },
+        { id: 'c1', parentId: 't1', status: 'planned', prerequisites: [{ prerequisiteId: 'p' }] },
+        { id: 'p', parentId: null, status: 'planned', prerequisites: [] },
+      ]);
+      prisma.prerequisite.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.topicId === 'c1' ? [{ prerequisiteId: 'p' }] : []),
+      );
+      await expect(service.update('userA', 't1', { parentId: 'p' })).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
       expect(prisma.topic.update).not.toHaveBeenCalled();
@@ -586,12 +749,28 @@ describe('TopicsService', () => {
         upsert: jest.fn().mockResolvedValue({ topicId: 't1', prerequisiteId: 'p' }),
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       };
+      mockTopology(prisma, ['t1', 'p', 'q']);
     });
 
     it('rejects a self-prerequisite with 422', async () => {
       await expect(service.addPrerequisite('userA', 't1', 't1')).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
+    });
+
+    it('rejects a prerequisite cycle passing through another chapter’s child', async () => {
+      prisma.topic.findMany.mockResolvedValue([
+        { id: 't1', parentId: null, status: 'planned', prerequisites: [] },
+        { id: 'p', parentId: null, status: 'planned', prerequisites: [] },
+        { id: 'q', parentId: 'p', status: 'planned', prerequisites: [{ prerequisiteId: 't1' }] },
+      ]);
+      prisma.prerequisite.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.topicId === 'q' ? [{ prerequisiteId: 't1' }] : []),
+      );
+      await expect(service.addPrerequisite('userA', 't1', 'p')).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.prerequisite.upsert).not.toHaveBeenCalled();
     });
 
     it('404s when a topic is missing', async () => {

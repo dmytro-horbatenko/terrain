@@ -6,6 +6,7 @@ import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
 import { IntervalGrowthChart } from './IntervalGrowthChart';
 import { AppEventsPanel } from './AppEventsPanel';
+import { SkillChecksPanel } from './SkillChecksPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { TypeAutocomplete } from './TypeAutocomplete';
 import { Loading, ErrorBox } from './Feedback';
@@ -183,8 +184,17 @@ function LearningSources({
   );
 }
 
+export function canLeaveTopicPanel() {
+  return (
+    !document.querySelector('.detail-panel form[data-skill-dirty]') ||
+    window.confirm(
+      'This skill check has unsaved work. Save or download it before leaving. Leave anyway?',
+    )
+  );
+}
+
 export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClose?: () => void }) {
-  const { data: t, isLoading, error } = useTopic(topicId);
+  const { data: t, isLoading, error, refetch } = useTopic(topicId);
   const { data: settings } = useSettings();
   const update = useUpdateTopic();
   const { toast } = useToast();
@@ -221,7 +231,13 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
   const setStatus = (status: TopicStatus) =>
     update.mutate(
       { id: t.id, input: { status } },
-      { onSuccess: () => toast('Status updated', 'success') },
+      {
+        onSuccess: () => toast('Status updated', 'success'),
+        onError: (error) => {
+          toast(error instanceof Error ? error.message : 'Could not update status', 'error');
+          void refetch();
+        },
+      },
     );
 
   const saveNotes = () =>
@@ -272,7 +288,13 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         <div className="row gap-2" style={{ alignItems: 'flex-start' }}>
           <h2 style={{ fontSize: 19, lineHeight: 1.25 }}>{t.title}</h2>
           {onClose && (
-            <button className="btn btn-ghost btn-sm right" onClick={onClose} aria-label="Close">
+            <button
+              className="btn btn-ghost btn-sm right"
+              onClick={() => {
+                if (canLeaveTopicPanel()) onClose();
+              }}
+              aria-label="Close"
+            >
               ✕
             </button>
           )}
@@ -387,7 +409,11 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
             onChange={(e) => setStatus(e.target.value as TopicStatus)}
           >
             {TOPIC_STATUSES.map((s) => (
-              <option key={s} value={s}>
+              <option
+                key={s}
+                value={s}
+                disabled={s === 'mastered' && t.status !== 'mastered' && !t.mastery.eligible}
+              >
                 {STATUS_META[s].label}
               </option>
             ))}
@@ -426,14 +452,18 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         />
         <Check
           ok={t.mastery.application}
-          label="Application"
+          label="Recorded application"
           detail={`≥1 application event (have ${t.appEventCount})`}
         />
         <Check
           ok={t.mastery.teaching}
-          label="Teaching"
-          detail="a written summary or note reference exists"
+          label="Recorded explanation"
+          detail="a non-empty written summary or note reference exists"
         />
+        <p className="faint">
+          These are recorded progress conditions. Independent performance on a changed task is
+          recorded separately in skill checks.
+        </p>
         {t.mastery.eligible && t.status !== 'mastered' && (
           <button
             className="btn btn-primary btn-sm"
@@ -446,6 +476,11 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       </div>
 
       {/* application events */}
+      <SkillChecksPanel
+        key={t.id}
+        target={{ kind: 'topic', topicId: t.id }}
+        context={`${t.description ?? t.title}\nRecorded study: ${t.summary ?? 'No summary recorded yet.'}`}
+      />
       <AppEventsPanel topicId={t.id} events={t.appEvents} />
 
       <LearningSources plan={t.sourcePlan} evidence={t.sourceEvidence ?? []} />

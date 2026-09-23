@@ -2,6 +2,7 @@ import { useCourses, useImportCourse, useSetCourseDisabled } from '../../api/hoo
 import { Card, ErrorBox, Spinner, useToast } from '../../components';
 import type { Course } from '../../api/types';
 import { courseButtonState, courseDisableButtonState } from './buttonState';
+import { Link } from '@tanstack/react-router';
 
 function CourseCard({ course }: { course: Course }) {
   const { toast } = useToast();
@@ -84,6 +85,15 @@ export default function CoursesScreen() {
       <p className="muted">
         Pre-authored curricula you can import into your own roadmap with one click.
       </p>
+      <Card title="Web3 Product Engineering">
+        <p className="muted">
+          12 complete systems and 76 assessed milestones, from a wallet console to an independent
+          capstone. Architecture, adversarial testing and operations run alongside deep topic study.
+        </p>
+        <Link className="btn btn-primary" to="/projects">
+          Explore product curriculum
+        </Link>
+      </Card>
       <div className="col gap-3">
         {(courses ?? []).map((c) => (
           <CourseCard key={c.id} course={c} />

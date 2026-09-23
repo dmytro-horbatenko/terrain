@@ -12,8 +12,16 @@ import {
   type SourcePlan,
 } from '@terrain/types';
 import { applyGrade, type CardSrState, type Grade } from '@terrain/sr-engine';
-import type { Prompt, ReviewMode, SessionExport, Topic } from '@prisma/client';
+import {
+  Prisma,
+  type Prompt,
+  type ReviewMode,
+  type SessionExport,
+  type SourceEvidence,
+  type Topic,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildRoadmapPolicy, type RoadmapNode } from '../learning/roadmap-policy';
 import {
   buildCardReviewWrites,
   buildEvidenceReviewWrite,
@@ -22,11 +30,13 @@ import {
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
 import {
   applicableRequirements,
+  canReuseSourceEvidence,
   isSourceExpired,
   parseStoredSourcePlan,
 } from '../sources/source-plan';
 
 const norm = (s: string) => s.trim().toLowerCase();
+type ImportTopic = Topic & { prerequisites?: { prerequisiteId: string }[] };
 const topicRefKeys = (title: string, topicType: string) => [
   norm(title),
   norm(`${title} [${topicType}]`),
@@ -132,8 +142,26 @@ export interface ApplicationEventPlan {
 // rather than duplicated/widened, so promptKind/problemDifficulty stay
 // exactly the literal unions Prisma's Prompt columns expect.
 type ProposedPromptV2 = LearningOsV2['proposedPrompts'][number];
+type PromptIdentity = Pick<Prompt, 'topicId' | 'promptText' | 'promptKind' | 'url'>;
+const promptIdentitySelect = {
+  topicId: true,
+  promptText: true,
+  promptKind: true,
+  url: true,
+} as const;
+const promptKey = (
+  topicId: string,
+  p: { promptText: string; promptKind: string; url?: string | null },
+) =>
+  JSON.stringify([
+    topicId,
+    p.promptKind,
+    p.promptText.replace(/\r\n?/g, '\n').trim(),
+    p.url?.trim() ?? '',
+  ]);
 
 export interface NewPromptPlan {
+  duplicate: boolean;
   topicTitle: string;
   promptText: string;
   answerHint?: string;
@@ -176,7 +204,7 @@ export interface Unresolved {
   title?: string;
   ref?: string;
   context: string;
-  reason: 'missing' | 'ambiguous' | 'self-reference' | 'archived';
+  reason: 'missing' | 'ambiguous' | 'self-reference' | 'archived' | 'cycle';
 }
 export interface ImportPlan {
   sessionExportId: string;
@@ -198,10 +226,12 @@ export interface ImportResult {
   reviewsApplied: number;
   topicsCreated: string[];
   promptsCreated: number;
+  duplicatePromptsSkipped: number;
   noteSummariesApplied: number;
   appEventsApplied: number;
   topicsActivated: number;
   sourceEvidenceApplied: number;
+  topicsMastered: number;
   nextSessionStored: boolean;
 }
 
@@ -242,8 +272,10 @@ export class ImportService {
   ): Promise<{
     parsed: LearningOsV2;
     sessionExport: SessionExport;
-    existing: Topic[];
+    existing: ImportTopic[];
     promptsById: Map<string, Prompt>;
+    existingPrompts: PromptIdentity[];
+    priorSourceEvidence: SourceEvidence[];
   }> {
     let parsed: LearningOsV2;
     try {
@@ -266,7 +298,10 @@ export class ImportService {
       where: { id: parsed.sessionId, userId },
     });
     if (!sessionExport) throw new NotFoundException(`SessionExport ${parsed.sessionId} not found`);
-    const existing = await this.prisma.topic.findMany({ where: { userId } });
+    const existing = await this.prisma.topic.findMany({
+      where: { userId },
+      include: { prerequisites: { select: { prerequisiteId: true } } },
+    });
 
     // Resolve every reviews[].promptId in ONE batched query (not N+1),
     // scoped to this user so a miss also covers "not owned by this user".
@@ -281,17 +316,67 @@ export class ImportService {
       for (const p of prompts) promptsById.set(p.id, p);
     }
 
-    return { parsed, sessionExport, existing, promptsById };
+    const proposedRefs = new Set(parsed.proposedPrompts.map((p) => norm(p.topicTitle)));
+    const topicIds = existing
+      .filter((t) => topicRefKeys(t.title, t.topicType).some((key) => proposedRefs.has(key)))
+      .map((t) => t.id);
+    const existingPrompts = topicIds.length
+      ? await this.prisma.prompt.findMany({
+          where: { topicId: { in: topicIds }, topic: { userId } },
+          select: promptIdentitySelect,
+        })
+      : [];
+    const studiedRefs = new Set((parsed.studiedTopics ?? []).map(norm));
+    const historyTopicIds =
+      sessionExport.approach === 'guided'
+        ? []
+        : existing
+            .filter(
+              (topic) =>
+                topic.status === 'planned' &&
+                topicRefKeys(topic.title, topic.topicType).some((key) => studiedRefs.has(key)) &&
+                parseStoredSourcePlan(topic.sourcePlan)?.policy === 'required',
+            )
+            .map((topic) => topic.id);
+    const priorSourceEvidence = historyTopicIds.length
+      ? await this.prisma.sourceEvidence.findMany({
+          where: { userId, topicId: { in: historyTopicIds } },
+        })
+      : [];
+    return { parsed, sessionExport, existing, promptsById, existingPrompts, priorSourceEvidence };
   }
 
   async preview(userId: string, raw: string): Promise<ImportPlan> {
-    const { parsed, sessionExport, existing, promptsById } = await this.load(userId, raw);
-    return this.buildPlan(parsed, sessionExport, existing, promptsById);
+    const { parsed, sessionExport, existing, promptsById, existingPrompts, priorSourceEvidence } =
+      await this.load(userId, raw);
+    return this.buildPlan(
+      parsed,
+      sessionExport,
+      existing,
+      promptsById,
+      existingPrompts,
+      priorSourceEvidence,
+    );
   }
 
   async apply(userId: string, raw: string): Promise<ImportResult> {
-    const { parsed, sessionExport, existing, promptsById } = await this.load(userId, raw);
-    const plan = this.buildPlan(parsed, sessionExport, existing, promptsById);
+    const {
+      parsed,
+      sessionExport,
+      existing: loadedTopics,
+      promptsById,
+      existingPrompts,
+      priorSourceEvidence,
+    } = await this.load(userId, raw);
+    let existing = loadedTopics;
+    let plan = this.buildPlan(
+      parsed,
+      sessionExport,
+      existing,
+      promptsById,
+      existingPrompts,
+      priorSourceEvidence,
+    );
     if (plan.alreadyImported)
       throw new ConflictException('This session export was already imported.');
     const blockingSourceIssues = plan.sourceIssues.filter((issue) => issue.blocking);
@@ -304,13 +389,46 @@ export class ImportService {
     }
 
     const now = this.now();
-    return this.prisma.$transaction(async (tx) => {
+    const changesTopology = plan.newTopics.some((topic) => !topic.alreadyExists);
+    const applyPlan = async (tx: Prisma.TransactionClient) => {
+      if (changesTopology) {
+        const currentTopics = await tx.topic.findMany({
+          where: { userId },
+          include: { prerequisites: { select: { prerequisiteId: true } } },
+        });
+        const currentPlan = this.buildPlan(
+          parsed,
+          sessionExport,
+          currentTopics,
+          promptsById,
+          existingPrompts,
+          priorSourceEvidence,
+        );
+        if (
+          currentPlan.unresolved.length ||
+          currentPlan.sourceIssues.some((issue) => issue.blocking)
+        ) {
+          throw new UnprocessableEntityException({
+            message: 'The roadmap changed. Preview this import again.',
+            unresolved: currentPlan.unresolved,
+            sourceIssues: currentPlan.sourceIssues.filter((issue) => issue.blocking),
+          });
+        }
+        existing = currentTopics;
+        plan = currentPlan;
+      }
       const claim = await tx.sessionExport.updateMany({
         where: { id: sessionExport.id, userId, importedAt: null },
         data: { importedAt: now },
       });
       if (claim.count === 0)
         throw new ConflictException('This session export was already imported.');
+
+      if (plan.newPrompts.length) {
+        // Serialize card-producing session imports for this user; re-read after
+        // this transaction lock so different Session IDs cannot race a duplicate.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`terrain:prompt-import:${userId}`}))`;
+      }
 
       const idByNorm = new Map<string, string>();
       for (const t of existing) {
@@ -399,7 +517,7 @@ export class ImportService {
         if (!id) continue;
         const res = await tx.topic.updateMany({
           where: { id, userId, status: 'planned' },
-          data: { status: 'active', aiProposed: false },
+          data: { status: 'active', aiProposed: false, learnedAt: now },
         });
         topicsActivated += res.count;
       }
@@ -433,9 +551,31 @@ export class ImportService {
       }
 
       // d. create prompts for resolved proposedPrompts
+      let duplicatePromptsSkipped = 0;
+      const promptTopicIds = [
+        ...new Set(
+          plan.newPrompts.flatMap((p) => {
+            const id = idByNorm.get(norm(p.topicTitle));
+            return id ? [id] : [];
+          }),
+        ),
+      ];
+      const currentPrompts = promptTopicIds.length
+        ? await tx.prompt.findMany({
+            where: { topicId: { in: promptTopicIds }, topic: { userId } },
+            select: promptIdentitySelect,
+          })
+        : [];
+      const seenPrompts = new Set(currentPrompts.map((p) => promptKey(p.topicId, p)));
       for (const np of plan.newPrompts) {
         const topicId = idByNorm.get(norm(np.topicTitle));
         if (!topicId) continue; // unresolved already blocked apply() earlier
+        const key = promptKey(topicId, np);
+        if (seenPrompts.has(key)) {
+          duplicatePromptsSkipped++;
+          continue;
+        }
+        seenPrompts.add(key);
         await tx.prompt.create({
           data: {
             topicId,
@@ -529,12 +669,52 @@ export class ImportService {
         appEventsApplied++;
       }
 
+      // A completed studiedTopics import can close the topic when the same
+      // evidence required by the manual mastery action is now present.
+      let topicsMastered = 0;
+      const candidateIds = plan.activations
+        .map(
+          (activation) => activation.resolvedTopicId ?? idByNorm.get(norm(activation.topicTitle)),
+        )
+        .filter((id): id is string => id != null);
+      if (candidateIds.length) {
+        const candidates = await tx.topic.findMany({
+          where: { userId, id: { in: [...new Set(candidateIds)] }, status: 'active' },
+          select: {
+            id: true,
+            summary: true,
+            noteRef: true,
+            prompts: { select: { stability: true, suspended: true } },
+            _count: { select: { appEvents: true } },
+          },
+        });
+        for (const topic of candidates) {
+          const prompts = topic.prompts ?? [];
+          const cards = prompts.filter((prompt) => !prompt.suspended);
+          const retention =
+            prompts.length > 0 &&
+            cards.length > 0 &&
+            Math.min(...cards.map((card) => card.stability ?? -Infinity)) >= 30;
+          const teaching = !!(topic.noteRef?.trim() || topic.summary?.trim());
+          if (!retention || topic._count.appEvents < 1 || !teaching) continue;
+          const result = await tx.topic.updateMany({
+            where: { id: topic.id, userId, status: 'active' },
+            data: { status: 'mastered' },
+          });
+          topicsMastered += result.count;
+        }
+      }
+
       // g. stamp the originating SessionExport + store nextSession
       const focusTitle = plan.nextSession?.focusTitle;
       const coldChallenge = plan.nextSession?.coldChallenge;
-      const nextFocusTitle = focusTitle && focusTitle.trim().length > 0 ? focusTitle : null;
+      const completedTitles = new Set((parsed.studiedTopics ?? []).map(norm));
+      const nextFocusTitle =
+        focusTitle && focusTitle.trim().length > 0 && !completedTitles.has(norm(focusTitle))
+          ? focusTitle
+          : null;
       const nextColdChallenge =
-        coldChallenge && coldChallenge.trim().length > 0 ? coldChallenge : null;
+        nextFocusTitle && coldChallenge && coldChallenge.trim().length > 0 ? coldChallenge : null;
       await tx.sessionExport.update({
         where: { id: sessionExport.id },
         data: {
@@ -550,20 +730,37 @@ export class ImportService {
         reviewsApplied,
         topicsCreated,
         promptsCreated,
+        duplicatePromptsSkipped,
         noteSummariesApplied,
         appEventsApplied,
         topicsActivated,
+        topicsMastered,
         sourceEvidenceApplied,
         nextSessionStored: nextFocusTitle != null,
       };
-    });
+    };
+    return this.prisma
+      .$transaction(
+        applyPlan,
+        changesTopology
+          ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+          : undefined,
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+          throw new ConflictException('The roadmap changed during import. Preview and try again.');
+        }
+        throw error;
+      });
   }
 
   protected buildPlan(
     parsed: LearningOsV2,
     sessionExport: SessionExport,
-    existing: Topic[],
+    existing: ImportTopic[],
     promptsById: Map<string, Prompt>,
+    existingPrompts: PromptIdentity[],
+    priorSourceEvidence: SourceEvidence[],
   ): ImportPlan {
     const now = this.now();
     const byNorm = new Map<string, Topic[]>();
@@ -631,6 +828,45 @@ export class ImportService {
         sourcePlan: p.sourcePlan,
         alreadyExists: ex.id != null,
       });
+    }
+
+    const addedTopics = newTopics.filter((topic) => !topic.alreadyExists);
+    if (addedTopics.length) {
+      const addedIds = new Map(
+        addedTopics.flatMap((topic) =>
+          topicRefKeys(topic.title, topic.topicType).map((key) => [
+            key,
+            `new:${norm(topic.title)}`,
+          ]),
+        ),
+      );
+      const resolveId = (title: string) =>
+        resolveExisting(title).id ?? addedIds.get(norm(title)) ?? `missing:${norm(title)}`;
+      const nodes: RoadmapNode[] = [
+        ...existing.map((topic) => ({
+          id: topic.id,
+          parentId: topic.parentId,
+          status: topic.status,
+          prerequisiteIds: topic.prerequisites?.map((edge) => edge.prerequisiteId) ?? [],
+        })),
+        ...addedTopics.map((topic) => ({
+          id: resolveId(topic.title),
+          parentId: topic.parentTitle ? resolveId(topic.parentTitle) : null,
+          status: 'planned' as const,
+          prerequisiteIds: topic.prerequisiteTitles.map(resolveId),
+        })),
+      ];
+      const policy = buildRoadmapPolicy(nodes);
+      for (const topic of addedTopics) {
+        if (policy.get(resolveId(topic.title))?.cycle) {
+          unresolved.push({
+            kind: 'prerequisite',
+            title: topic.title,
+            context: 'Prerequisites and chapter contents create a circular dependency',
+            reason: 'cycle',
+          });
+        }
+      }
     }
 
     const running = new Map<string, CardSrState>();
@@ -744,6 +980,12 @@ export class ImportService {
       });
     }
 
+    const batchTopicByRef = new Map(
+      parsed.proposedTopics.flatMap((t) =>
+        topicRefKeys(t.title, t.type).map((ref) => [ref, norm(t.title)] as const),
+      ),
+    );
+    const seenPrompts = new Set(existingPrompts.map((p) => promptKey(p.topicId, p)));
     const newPrompts: NewPromptPlan[] = parsed.proposedPrompts.map((p) => {
       const ex = resolveExisting(p.topicTitle);
       if (ex.ambiguous)
@@ -760,7 +1002,13 @@ export class ImportService {
           context: 'proposedPrompt',
           reason: 'missing',
         });
+      const topicKey =
+        ex.id ?? `new:${batchTopicByRef.get(norm(p.topicTitle)) ?? norm(p.topicTitle)}`;
+      const key = promptKey(topicKey, p);
+      const duplicate = seenPrompts.has(key);
+      seenPrompts.add(key);
       return {
+        duplicate,
         topicTitle: p.topicTitle,
         promptText: p.promptText,
         answerHint: p.answerHint,
@@ -900,6 +1148,7 @@ export class ImportService {
     }
 
     for (const activation of activations) {
+      if (sessionExport.approach === 'guided') continue;
       const plan = planFor(activation.topicTitle);
       if (!plan) {
         const blocking = activation.currentStatus == null || activation.currentStatus === 'planned';
@@ -918,7 +1167,13 @@ export class ImportService {
         plan,
         status as 'planned' | 'active' | 'mastered' | 'archived',
       )) {
-        if (!accepted.has(`${norm(activation.topicTitle)}|${requirement.id}`)) {
+        const recorded = priorSourceEvidence.some(
+          (evidence) =>
+            evidence.topicId === activation.resolvedTopicId &&
+            evidence.requirementId === requirement.id &&
+            canReuseSourceEvidence(plan, status as Topic['status'], evidence, now),
+        );
+        if (!recorded && !accepted.has(`${norm(activation.topicTitle)}|${requirement.id}`)) {
           sourceIssues.push({
             topicTitle: activation.topicTitle,
             requirementId: requirement.id,

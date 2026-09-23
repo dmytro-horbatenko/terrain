@@ -1,6 +1,15 @@
 import { useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useDashboard, useHeatmap, useSkipStreak, useStreak } from '../../api/hooks';
+import { Link, useNavigate } from '@tanstack/react-router';
+import {
+  useDashboard,
+  useHeatmap,
+  useSkipStreak,
+  useStreak,
+  useTopics,
+  useProjectProgress,
+} from '../../api/hooks';
+import { latestProjectCheckpoint } from '@terrain/types';
+import curriculum from '../../../../../content/projects/web3-products.json';
 import type { Topic, TopicStatus } from '../../api/types';
 import TodayCard from './TodayCard';
 import {
@@ -17,6 +26,7 @@ import {
   useToast,
 } from '../../components';
 import { dueLabel } from '../../lib/format';
+import { SkillChecksPanel } from '../../components/SkillChecksPanel';
 
 const LIBRARY_ORDER: TopicStatus[] = ['planned', 'active', 'mastered', 'archived'];
 
@@ -24,6 +34,8 @@ export default function Dashboard() {
   const dashboardQ = useDashboard();
   const streakQ = useStreak();
   const heatmapQ = useHeatmap();
+  const topicsQ = useTopics();
+  const projectsQ = useProjectProgress();
   const skip = useSkipStreak();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -53,6 +65,12 @@ export default function Dashboard() {
   const dash = dashboardQ.data;
   const streak = streakQ.data;
   const { counts, due } = dash;
+  const chapterIds = new Set(topicsQ.data?.map((topic) => topic.parentId));
+  const learningTopics = topicsQ.data?.filter((topic) => !chapterIds.has(topic.id));
+  const lastCheckpoint = latestProjectCheckpoint(projectsQ.data ?? []);
+  const currentProject = curriculum.projects.find(
+    (project) => project.id === lastCheckpoint?.projectId,
+  );
 
   function useFreeze() {
     skip.mutate(undefined, {
@@ -70,6 +88,27 @@ export default function Dashboard() {
 
       <div className="col gap-4">
         <TodayCard dash={dash} />
+        <SkillChecksPanel />
+        <Card title="Product engineering">
+          <p className="muted">
+            Build complete Web3 systems alongside deep topic study. 12 projects · 76 assessed
+            milestones.
+          </p>
+          <div className="row wrap gap-2">
+            <Link className="btn btn-primary" to="/projects">
+              Open projects
+            </Link>
+            {currentProject && (
+              <Link
+                className="btn"
+                to="/projects/$projectId"
+                params={{ projectId: currentProject.id }}
+              >
+                Continue {currentProject.title}
+              </Link>
+            )}
+          </div>
+        </Card>
 
         {/* ---- KPI row ---- */}
         <div className="grid dashboard-kpi-grid">
@@ -103,25 +142,31 @@ export default function Dashboard() {
               due today
               {counts.overdue > 0 && <span className="faint"> · + {counts.overdue} overdue</span>}
               <span className="pill" style={{ marginLeft: 6 }}>
-                New: {dash.newCards}
+                Awaiting first review: {dash.newCards}
               </span>
             </div>
           </Card>
 
           <Card>
-            <div className="kpi">{counts.mastered}</div>
-            <div className="kpi-label">of {counts.total} topics mastered</div>
+            <div className="kpi">
+              {learningTopics?.filter((topic) => topic.status === 'mastered').length ?? '—'}
+            </div>
+            <div className="kpi-label">
+              of {learningTopics?.length ?? '—'} learning topics meet mastery conditions
+            </div>
+            <p className="faint">
+              Chapters are excluded. Independent practice is recorded in skill checks.
+            </p>
           </Card>
         </div>
 
         {/* ---- struggle + library ---- */}
         <div className="grid dashboard-analysis-grid">
-          <Card title="Struggle ratio (7d)">
-            <Gauge value={dash.struggleRatio7d} />
+          <Card title="Self-rated reviews (7d)">
+            <Gauge value={dash.reviewStats7d.againRatio} reviewCount={dash.reviewStats7d.total} />
             <p className="muted" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.5 }}>
-              The 40–60% band is the desirable-difficulty zone: hard enough to build durable memory,
-              not so hard you stall. Drifting low means reviews are too easy; high means you may be
-              overreaching.
+              Again records a difficult recall attempt. These self-ratings help plan practice; they
+              do not establish independent mastery or a target failure rate.
             </p>
           </Card>
 
@@ -139,7 +184,7 @@ export default function Dashboard() {
               })}
             </div>
             <div className="kpi-label" style={{ marginTop: 14 }}>
-              {counts.total} topics total
+              {counts.total} entries, including chapters
             </div>
           </Card>
         </div>

@@ -40,9 +40,23 @@ function zoneOffsetMs(at: Date, timeZone: string): number {
   return asUtc - at.getTime();
 }
 
-/** UTC instant of the current local midnight in `timeZone`. */
+/** First midnight (or first valid instant when midnight is skipped) of this local day. */
 export function localDayStart(now: Date, timeZone: string): Date {
   const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now); // YYYY-MM-DD
   const guess = new Date(`${dateStr}T00:00:00Z`);
-  return new Date(guess.getTime() - zoneOffsetMs(guess, timeZone));
+  // Try offsets on both sides of a transition, then verify at the actual instant.
+  const candidates = [-1, 0, 1].map(
+    (day) =>
+      new Date(
+        guess.getTime() - zoneOffsetMs(new Date(guess.getTime() + day * 86_400_000), timeZone),
+      ),
+  );
+  const valid = candidates.filter(
+    (candidate) => candidate.getTime() + zoneOffsetMs(candidate, timeZone) === guess.getTime(),
+  );
+  return new Date(
+    valid.length
+      ? Math.min(...valid.map((d) => d.getTime()))
+      : Math.max(...candidates.map((d) => d.getTime())),
+  );
 }

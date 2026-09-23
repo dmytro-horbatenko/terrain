@@ -18,6 +18,49 @@ describe('chooseInitialApproach', () => {
 });
 
 describe('matchingPendingSession', () => {
+  it('resumes the saved review on reload or dashboard entry, but honors a different explicit choice', () => {
+    const pending = [
+      {
+        id: 'review',
+        mode: 'repeat',
+        focusTopicId: null,
+        topicTitle: null,
+        approach: null,
+        generatedAt: 'x',
+        reviewPlan: {
+          promptIds: ['p1'],
+          estimatedMinutes: 18,
+          budgetMinutes: 20,
+          reviewMinutes: 20,
+        },
+      },
+    ] as const;
+    expect(matchingPendingSession(pending, 'repeat', null)?.id).toBe('review');
+    expect(matchingPendingSession(pending, 'repeat', null, { reviewMinutes: 20 })?.id).toBe(
+      'review',
+    );
+    expect(matchingPendingSession(pending, 'repeat', null, { reviewMinutes: 15 })).toBeUndefined();
+    const focused = [
+      {
+        ...pending[0],
+        reviewPlan: {
+          ...pending[0].reviewPlan,
+          reviewPromptId: 'p1',
+          estimatedMinutes: 30,
+          budgetMinutes: 30,
+        },
+      },
+    ];
+    expect(matchingPendingSession(focused, 'repeat', null)?.id).toBe('review');
+    expect(matchingPendingSession(focused, 'repeat', null, { reviewPromptId: 'p1' })?.id).toBe(
+      'review',
+    );
+    expect(
+      matchingPendingSession(focused, 'repeat', null, { reviewPromptId: 'p2' }),
+    ).toBeUndefined();
+    expect(matchingPendingSession(focused, 'repeat', null, { reviewMinutes: 20 })).toBeUndefined();
+  });
+
   it('resumes only the same mode and focus', () => {
     const pending = [
       {

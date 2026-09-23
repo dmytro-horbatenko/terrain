@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TopicWithMeta } from '../../api/types';
-import { projectRoadmap } from './projection';
+import { ancestorPrerequisites, projectRoadmap } from './projection';
 
 function topic(over: Partial<TopicWithMeta> & { id: string; title: string }): TopicWithMeta {
   return {
@@ -51,6 +51,23 @@ const project = (over: Partial<Parameters<typeof projectRoadmap>[0]> = {}) =>
   });
 
 describe('projectRoadmap', () => {
+  it('identifies only impossible ancestor prerequisites for repair, preserving ordinary chapter order', () => {
+    expect(
+      ancestorPrerequisites([
+        ...TOPICS,
+        topic({
+          id: 'bad',
+          title: 'Nested lesson',
+          parentId: 'A',
+          prerequisiteIds: ['R', 'a1', 'foreign'],
+        }),
+        topic({ id: 'self', title: 'Self', prerequisiteIds: ['self'] }),
+      ]),
+    ).toEqual([
+      { topicId: 'bad', prerequisiteId: 'R' },
+      { topicId: 'self', prerequisiteId: 'self' },
+    ]);
+  });
   it('auto-drills through a single-group root level', () => {
     const p = project();
     expect(p.effectiveFocusId).toBe('R');
@@ -61,15 +78,15 @@ describe('projectRoadmap', () => {
     ]);
   });
 
-  it('computes group counts over the whole subtree, including the chapter itself', () => {
+  it('counts learnable topics across the subtree without counting chapter containers', () => {
     const p = project();
     const groupA = p.items.find((i) => i.topic.id === 'A');
     if (groupA?.kind !== 'group') throw new Error('A must be a group');
-    expect(groupA.progress).toEqual({ started: 1, total: 3 }); // a1 active of {A, a1, a2}
-    expect(groupA.startableCount).toBe(2); // A itself + a2 (planned, not blocked)
+    expect(groupA.progress).toEqual({ started: 1, total: 2 });
+    expect(groupA.startableCount).toBe(1);
     const groupB = p.items.find((i) => i.topic.id === 'B');
     if (groupB?.kind !== 'group') throw new Error('B must be a group');
-    expect(groupB.startableCount).toBe(1); // B itself; b1 is blocked
+    expect(groupB.startableCount).toBe(0);
   });
 
   it('aggregates cross-subtree prerequisite edges to one group-level edge', () => {

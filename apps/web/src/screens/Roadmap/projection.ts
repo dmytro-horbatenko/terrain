@@ -30,6 +30,24 @@ export interface Projection {
 
 const isStarted = (s: TopicWithMeta['status']) => s === 'active' || s === 'mastered';
 
+/** Only these links are unambiguously invalid; ordinary curriculum sequencing is preserved. */
+export function ancestorPrerequisites(topics: TopicWithMeta[]) {
+  const byId = new Map(topics.map((topic) => [topic.id, topic]));
+  const links: { topicId: string; prerequisiteId: string }[] = [];
+  for (const topic of topics) {
+    const seen = new Set<string>();
+    let ancestor: TopicWithMeta | undefined = topic;
+    while (ancestor && !seen.has(ancestor.id)) {
+      seen.add(ancestor.id);
+      if (topic.prerequisiteIds.includes(ancestor.id)) {
+        links.push({ topicId: topic.id, prerequisiteId: ancestor.id });
+      }
+      ancestor = ancestor.parentId ? byId.get(ancestor.parentId) : undefined;
+    }
+  }
+  return links;
+}
+
 /**
  * Projects the flat topic list onto one drill-down level of the Roadmap:
  * the children of `focusId` (roots when null), where a child with children
@@ -46,6 +64,7 @@ export function projectRoadmap(input: {
   nextUpId: string | null;
 }): Projection {
   const { topics, domain, showParked, nextUpId } = input;
+  const chapterIds = new Set(topics.map((topic) => topic.parentId).filter(Boolean));
 
   // Same visibility rule the flat graph used: active graph + parked-when-toggled.
   const pool = topics.filter((t) => {
@@ -97,11 +116,12 @@ export function projectRoadmap(input: {
   const items: RoadmapItem[] = level.map((t) => {
     if (!hasChildren(t.id)) return { kind: 'leaf', topic: t, isNextUp: t.id === nextUpId };
     const sub = subtrees.get(t.id)!;
+    const leaves = sub.filter((topic) => !chapterIds.has(topic.id));
     return {
       kind: 'group',
       topic: t,
-      progress: { started: sub.filter((s) => isStarted(s.status)).length, total: sub.length },
-      startableCount: sub.filter(isStartable).length,
+      progress: { started: leaves.filter((s) => isStarted(s.status)).length, total: leaves.length },
+      startableCount: leaves.filter(isStartable).length,
       tentativeCount: sub.filter(isTentative).length,
       containsNextUp: nextUpId != null && sub.some((s) => s.id === nextUpId),
     };

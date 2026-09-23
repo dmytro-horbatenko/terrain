@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { isValidOAuthAuthorizationRequest } from '../screens/OAuthAuthorize';
-import { validateOAuthSearch } from './router';
+import { sessionRoute, validateOAuthSearch } from './router';
+
+it('keeps supported review choices in the session URL and changes session identity with them', () => {
+  const validate = sessionRoute.options.validateSearch as (
+    input: Record<string, unknown>,
+  ) => Record<string, unknown>;
+  const prompt = '11111111-1111-4111-8111-111111111111';
+  expect(validate({ reviewMinutes: '20', reviewPromptId: prompt })).toEqual({
+    reviewMinutes: 20,
+    reviewPromptId: prompt,
+  });
+  expect(validate({ reviewMinutes: '15oops', reviewPromptId: [] })).toEqual({});
+  const identity = sessionRoute.options.remountDeps as (input: any) => unknown;
+  expect(identity({ params: { mode: 'repeat' }, search: { reviewMinutes: 15 } })).not.toEqual(
+    identity({ params: { mode: 'repeat' }, search: { reviewMinutes: 20 } }),
+  );
+});
 
 const request = {
   response_type: 'code',

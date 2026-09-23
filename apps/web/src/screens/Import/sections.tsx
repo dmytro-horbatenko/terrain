@@ -325,6 +325,7 @@ function ProposedCardRow({ p }: { p: NewPromptPlan }) {
           {p.topicTitle}
         </span>
         <Chip>{p.promptKind}</Chip>
+        {p.duplicate && <span className="badge faint">Duplicate · skipped</span>}
         {p.problemDifficulty && <Chip>{p.problemDifficulty}</Chip>}
         {p.estimatedMinutes != null && <Chip>~{p.estimatedMinutes}m</Chip>}
       </div>
@@ -342,7 +343,7 @@ function ProposedCardRow({ p }: { p: NewPromptPlan }) {
 
 export function ProposedCardsSection({ prompts }: { prompts: NewPromptPlan[] }) {
   return (
-    <SectionShell title="Proposed cards" count={prompts.length}>
+    <SectionShell title="New cards" count={prompts.filter((p) => !p.duplicate).length}>
       {prompts.length === 0 ? (
         <div className="muted">No new cards proposed.</div>
       ) : (

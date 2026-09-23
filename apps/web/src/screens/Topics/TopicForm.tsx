@@ -98,7 +98,7 @@ export function TopicForm({
             value={status}
             onChange={(e) => setStatus(e.target.value as TopicStatus)}
           >
-            {TOPIC_STATUSES.map((s) => (
+            {TOPIC_STATUSES.filter((s) => s !== 'mastered').map((s) => (
               <option key={s} value={s}>
                 {STATUS_META[s].label}
               </option>

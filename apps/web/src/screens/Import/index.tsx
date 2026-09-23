@@ -168,6 +168,12 @@ export default function ImportScreen() {
                   <div>{applyResult.promptsCreated}</div>
                   <div className="kpi-label">new cards</div>
                 </div>
+                {applyResult.duplicatePromptsSkipped > 0 && (
+                  <div className="kpi">
+                    <div>{applyResult.duplicatePromptsSkipped}</div>
+                    <div className="kpi-label">duplicate cards skipped</div>
+                  </div>
+                )}
                 <div className="kpi">
                   <div>{applyResult.topicsActivated}</div>
                   <div className="kpi-label">topics activated</div>

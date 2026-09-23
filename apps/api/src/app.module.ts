@@ -17,6 +17,8 @@ import { TelegramModule } from './telegram/telegram.module';
 import { CoursesModule } from './courses/courses.module';
 import { LearningModule } from './learning/learning.module';
 import { McpModule } from './mcp/mcp.module';
+import { ProjectsModule } from './projects/projects.module';
+import { SkillChecksModule } from './skill-checks/skill-checks.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { McpModule } from './mcp/mcp.module';
     CoursesModule,
     LearningModule,
     McpModule,
+    ProjectsModule,
+    SkillChecksModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

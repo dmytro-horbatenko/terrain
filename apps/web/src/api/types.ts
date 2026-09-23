@@ -224,8 +224,7 @@ export interface NextPromptPayload {
   previewIntervals: Record<Grade, number>;
 }
 
-/** GET /reviews/session-queue — interleaved review-session queue (metadata
- *  only; card text + previews come per-card from GET /prompts/:id). */
+/** GET /reviews/session-queue — selected cards with their text and planning estimates. */
 export interface SessionQueueItem {
   promptId: string;
   topicId: string;
@@ -235,10 +234,22 @@ export interface SessionQueueItem {
   isNew: boolean;
   nextReviewAt: string | null;
   createdAt: string;
+  promptText: string;
+  estimatedMinutes: number;
 }
 
 export interface SessionQueue {
   items: SessionQueueItem[];
+  estimatedMinutes: number;
+  budgetMinutes: number;
+  backlogCount: number;
+  backlogMinutes: number;
+  deferredExercises: {
+    promptId: string;
+    topicTitle: string;
+    promptText: string;
+    estimatedMinutes: number;
+  }[];
 }
 
 export interface LogReviewInput {
@@ -273,15 +284,24 @@ export interface PendingSession {
   focusTopicId: string | null;
   topicTitle: string | null;
   approach: LearningApproach | null;
+  reviewPlan?: {
+    promptIds: readonly string[];
+    estimatedMinutes: number;
+    budgetMinutes: number;
+    reviewMinutes: 15 | 20;
+    reviewPromptId?: string;
+  } | null;
 }
 
 export interface Dashboard {
   generatedAt: string;
-  struggleRatio7d: number;
+  reviewStats7d: { total: number; again: number; againRatio: number | null };
   newCards: number;
   nextUp: NextUp | null;
   sessionQueueCount: number;
   sessionQueueMinutes: number;
+  reviewQueue: SessionQueue;
+  reviewDay: { dayKey: string; completed: boolean };
   pendingSessions: PendingSession[];
   due: { overdue: Topic[]; dueToday: Topic[] };
   counts: {
@@ -304,9 +324,15 @@ export interface TopicType {
 export interface ExportResult {
   id: string;
   exportMd: string;
+  reviewPlan?: PendingSession['reviewPlan'];
 }
 
-export interface ExportOptions {
+export interface ReviewOptions {
+  reviewMinutes?: 15 | 20;
+  reviewPromptId?: string;
+}
+
+export interface ExportOptions extends ReviewOptions {
   mode?: string;
   focusTopicId?: string;
   approach?: LearningApproach;
@@ -355,6 +381,7 @@ export interface NewTopicPlan {
 }
 
 export interface NewPromptPlan {
+  duplicate: boolean;
   topicTitle: string;
   promptText: string;
   answerHint?: string;
@@ -444,10 +471,12 @@ export interface ImportResult {
   reviewsApplied: number;
   topicsCreated: string[];
   promptsCreated: number;
+  duplicatePromptsSkipped: number;
   noteSummariesApplied: number;
   appEventsApplied: number;
   nextSessionStored: boolean;
   topicsActivated: number;
+  topicsMastered: number;
   sourceEvidenceApplied: number;
 }
 

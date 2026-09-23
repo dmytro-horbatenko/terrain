@@ -29,7 +29,12 @@ describe('TelegramCron', () => {
     review: { count: jest.fn() },
   };
   const telegram = { isConfigured: jest.fn().mockReturnValue(true), sendTo: jest.fn() };
-  const metrics = { dueCards: jest.fn(), dueTopics: jest.fn(), nextUp: jest.fn() };
+  const metrics = {
+    dueCards: jest.fn(),
+    sessionQueue: jest.fn(),
+    dueTopics: jest.fn(),
+    nextUp: jest.fn(),
+  };
   const streak = { getState: jest.fn() };
 
   beforeEach(async () => {
@@ -37,6 +42,15 @@ describe('TelegramCron', () => {
     telegram.isConfigured.mockReturnValue(true);
     process.env.WEB_BASE_URL = 'https://terrain.example';
     metrics.dueCards.mockResolvedValue([card('concept'), card('code'), card('problem', 45)]);
+    metrics.sessionQueue.mockResolvedValue({
+      items: [
+        { kind: 'concept', isNew: true },
+        { kind: 'code', isNew: false },
+      ],
+      estimatedMinutes: 12,
+      backlogCount: 3,
+      backlogMinutes: 57,
+    });
     metrics.dueTopics.mockResolvedValue({ overdue: [{}, {}], dueToday: [{}] });
     metrics.nextUp.mockResolvedValue({ topic: { title: 'Interval DP' } });
     streak.getState.mockResolvedValue({ currentStreak: 12 });
@@ -60,8 +74,9 @@ describe('TelegramCron', () => {
     const [userId, chatId, html, button] = telegram.sendTo.mock.calls[0];
     expect(userId).toBe('u1');
     expect(chatId).toBe('42');
-    expect(html).toContain('Due: 3 cards');
-    expect(html).toContain(`~${2 + 10 + 45} min`);
+    expect(html).toContain("Today's slice: 2 cards");
+    expect(html).toContain('~12 min');
+    expect(html).toContain('Backlog: 3 cards · ~57 min');
     expect(html).toContain('Streak: 12');
     expect(html).toContain('Next up: Interval DP');
     expect(button).toEqual({ text: 'Start review', url: 'https://terrain.example/?session=1' });
@@ -101,6 +116,12 @@ describe('TelegramCron', () => {
 
   it('suppresses the nudge when nothing is due', async () => {
     metrics.dueCards.mockResolvedValue([]);
+    metrics.sessionQueue.mockResolvedValue({
+      items: [],
+      estimatedMinutes: 0,
+      backlogCount: 0,
+      backlogMinutes: 0,
+    });
     prisma.settings.findMany.mockResolvedValue([settingsRow()]);
     await cron.tick(new Date('2026-07-02T17:00:00Z'));
     expect(telegram.sendTo).not.toHaveBeenCalled();
@@ -111,8 +132,15 @@ describe('TelegramCron', () => {
       settingsRow({ userId: 'bad' }),
       settingsRow({ userId: 'good', telegramChatId: '43' }),
     ]);
-    metrics.dueCards.mockImplementation((userId: string) =>
-      userId === 'bad' ? Promise.reject(new Error('boom')) : Promise.resolve([card('concept')]),
+    metrics.sessionQueue.mockImplementation((userId: string) =>
+      userId === 'bad'
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve({
+            items: [{ kind: 'concept' }],
+            estimatedMinutes: 2,
+            backlogCount: 1,
+            backlogMinutes: 2,
+          }),
     );
     await cron.tick(NOW);
     expect(telegram.sendTo).toHaveBeenCalledTimes(1);
@@ -123,5 +151,27 @@ describe('TelegramCron', () => {
     telegram.isConfigured.mockReturnValue(false);
     await cron.tick(NOW);
     expect(prisma.settings.findMany).not.toHaveBeenCalled();
+  });
+
+  it('does not call a long-only or first-retrieval-only backlog all clear', async () => {
+    prisma.settings.findMany.mockResolvedValue([settingsRow()]);
+    metrics.sessionQueue.mockResolvedValue({
+      items: [],
+      estimatedMinutes: 0,
+      backlogCount: 1,
+      backlogMinutes: 30,
+    });
+    await cron.tick(NOW);
+    expect(telegram.sendTo.mock.calls[0][2]).not.toContain('All clear');
+    expect(telegram.sendTo.mock.calls[0][2]).toContain('focused');
+    telegram.sendTo.mockClear();
+    metrics.sessionQueue.mockResolvedValue({
+      items: [{ kind: 'concept', isNew: true }],
+      estimatedMinutes: 2,
+      backlogCount: 1,
+      backlogMinutes: 2,
+    });
+    await cron.tick(NOW);
+    expect(telegram.sendTo.mock.calls[0][2]).toContain("Today's slice: 1 cards");
   });
 });

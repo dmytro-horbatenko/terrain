@@ -3,12 +3,19 @@ import type { Prompt, Topic } from '@prisma/client';
 import type { LearningApproach } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { LearningContextService } from '../learning/learning-context.service';
-import { buildRoadmapPolicy } from '../learning/roadmap-policy';
 import { estimateMinutes } from '../telegram/telegram.messages';
-import { interleaveQueue, type SessionQueueItem } from './interleave';
+import { localDayStart } from '../telegram/telegram.time';
+import {
+  completedReview,
+  readReviewSnapshot,
+  selectReviewQueue,
+  type ReviewCard,
+  type ReviewOptions,
+  type ReviewQueue,
+  type ReviewSnapshot,
+} from './review-queue';
 
 const DAY_MS = 86_400_000;
-const NEW_CARDS_PER_SESSION = 5;
 
 export interface NextUp {
   topic: Topic;
@@ -69,19 +76,19 @@ export class MetricsService {
       activeCards.length > 0 &&
       Math.min(...activeCards.map((c) => c.stability ?? -Infinity)) >= 30;
     const application = input.appEventCount >= 1;
-    const teaching = input.noteRef != null || input.summary != null;
+    const teaching = !!(input.noteRef?.trim() || input.summary?.trim());
     return { retention, application, teaching, eligible: retention && application && teaching };
   }
 
-  async struggleRatio7d(userId: string, now: Date): Promise<number> {
+  async reviewStats7d(userId: string, now: Date) {
     const cutoff = new Date(now.getTime() - 7 * DAY_MS);
     const reviews = await this.prisma.review.findMany({
-      where: { userId, reviewedAt: { gte: cutoff } },
+      where: { userId, reviewedAt: { gte: cutoff, lte: now } },
       select: { grade: true },
     });
-    if (reviews.length === 0) return 0;
-    const poor = reviews.filter((r) => r.grade === 'again').length;
-    return poor / reviews.length;
+    const total = reviews.length;
+    const again = reviews.filter((r) => r.grade === 'again').length;
+    return { total, again, againRatio: total ? again / total : null };
   }
 
   /**
@@ -163,21 +170,24 @@ export class MetricsService {
     });
   }
 
-  /**
-   * Interleaved review-session queue: every due card (same predicate as
-   * `dueCards`, kept separate because this query needs topic/parent joins)
-   * plus up to NEW_CARDS_PER_SESSION new cards from *active* topics only —
-   * starting planned topics stays a deliberate act via Next Up.
-   */
+  /** Bounded review slice plus the full eligible backlog; planned study stays separate. */
   async sessionQueue(
     userId: string,
     now: Date,
     domain?: string,
-  ): Promise<{ items: SessionQueueItem[]; estimatedMinutes: number }> {
-    const disabled = await this.disabledDomains(userId);
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
+    options: ReviewOptions = {},
+  ): Promise<ReviewQueue> {
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { disabledDomains: true, timezone: true },
+    });
+    const disabled = settings?.disabledDomains ?? [];
+    const timezone = settings?.timezone ?? 'UTC';
+    const startOfToday = localDayStart(now, timezone);
+    const endOfToday = localDayStart(
+      new Date(startOfToday.getTime() + 36 * 60 * 60 * 1000),
+      timezone,
+    );
     const topicJoin = {
       select: {
         id: true,
@@ -190,36 +200,43 @@ export class MetricsService {
       this.prisma.prompt.findMany({
         where: {
           suspended: false,
+          state: { not: 'new' },
           nextReviewAt: { not: null, lt: endOfToday },
           topic: {
             userId,
-            status: { not: 'archived' },
+            status: { in: ['active', 'mastered'] },
             children: { none: {} },
             ...this.domainFilter(domain, disabled),
           },
         },
-        orderBy: { nextReviewAt: 'asc' },
+        orderBy: [{ nextReviewAt: 'asc' }, { id: 'asc' }],
         include: { topic: topicJoin },
       }),
       this.prisma.prompt.findMany({
         where: {
           suspended: false,
           state: 'new',
+          createdAt: { lt: startOfToday },
           topic: {
             userId,
-            status: 'active',
+            status: { in: ['active', 'mastered'] },
+            OR: [{ learnedAt: null }, { learnedAt: { lt: startOfToday } }],
             children: { none: {} },
             ...this.domainFilter(domain, disabled),
           },
         },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        take: NEW_CARDS_PER_SESSION,
+        orderBy: [
+          { topic: { learnedAt: { sort: 'desc', nulls: 'last' } } },
+          { createdAt: 'asc' },
+          { id: 'asc' },
+        ],
         include: { topic: topicJoin },
       }),
     ]);
-    const raw = [...due, ...fresh];
-    const items = raw.map(
-      (p): SessionQueueItem => ({
+    // ponytail: load compact curriculum candidates for exact backlog totals;
+    // move selection/aggregation to paged queries if this outgrows personal use.
+    const items = [...due, ...fresh].map(
+      (p): ReviewCard => ({
         promptId: p.id,
         topicId: p.topic.id,
         topicTitle: p.topic.title,
@@ -228,69 +245,26 @@ export class MetricsService {
         isNew: p.state === 'new',
         nextReviewAt: p.nextReviewAt,
         createdAt: p.createdAt,
+        promptText: p.promptText,
+        estimatedMinutes: estimateMinutes([p]),
       }),
     );
-    return {
-      items: interleaveQueue(items),
-      estimatedMinutes: estimateMinutes(
-        raw.map((p) => ({ promptKind: p.promptKind, estimatedMinutes: p.estimatedMinutes })),
-      ),
-    };
+    return selectReviewQueue(items, options);
   }
 
-  /**
-   * IDs of learnable planned leaves in creation order. Policy evaluation sees
-   * the whole owned graph before the candidate domain is filtered.
-   */
-  private async startablePlannedIds(
-    userId: string,
-    domain: string | undefined,
-    disabledDomains: string[],
-  ): Promise<string[]> {
-    const topics = await this.prisma.topic.findMany({
-      where: { userId },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        domain: true,
-        parentId: true,
-        status: true,
-        prerequisites: { select: { prerequisiteId: true } },
-      },
-    });
-    const policy = buildRoadmapPolicy(
-      topics.map((topic) => ({
-        id: topic.id,
-        parentId: topic.parentId,
-        status: topic.status,
-        prerequisiteIds: topic.prerequisites.map((edge) => edge.prerequisiteId),
-      })),
-    );
-    return topics
-      .filter((topic) =>
-        domain ? topic.domain === domain : !disabledDomains.includes(topic.domain),
-      )
-      .filter((topic) => policy.get(topic.id)?.learnable)
-      .map((t) => t.id);
-  }
-
-  /**
-   * Non-suspended `new`-state cards whose topic is studyable today: active or
-   * mastered, or a startable planned topic. Blocked planned topics' starter
-   * cards are excluded — they'd inflate "New: N" with cards you can't reach.
-   */
+  /** Unreviewed cards on studied topics, including cards awaiting their first eligible day. */
   async newCardsCount(userId: string, domain?: string): Promise<number> {
     const disabled = await this.disabledDomains(userId);
-    const startableIds = await this.startablePlannedIds(userId, domain, disabled);
     return this.prisma.prompt.count({
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId, children: { none: {} }, ...this.domainFilter(domain, disabled) },
-        OR: [
-          { topic: { status: { in: ['active', 'mastered'] } } },
-          { topicId: { in: startableIds } },
-        ],
+        topic: {
+          userId,
+          status: { in: ['active', 'mastered'] },
+          children: { none: {} },
+          ...this.domainFilter(domain, disabled),
+        },
       },
     });
   }
@@ -320,6 +294,7 @@ export class MetricsService {
       focusTopicId: string | null;
       topicTitle: string | null;
       approach: LearningApproach | null;
+      reviewPlan: ReviewSnapshot | null;
     }[]
   > {
     const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000);
@@ -336,6 +311,7 @@ export class MetricsService {
             importedAt: true,
             focusTopicId: true,
             approach: true,
+            exportMd: true,
           },
         }),
       ),
@@ -358,33 +334,66 @@ export class MetricsService {
       focusTopicId: row.focusTopicId,
       topicTitle: row.focusTopicId ? (titleById.get(row.focusTopicId) ?? null) : null,
       approach: row.approach === 'source_first' ? 'source-first' : row.approach,
+      reviewPlan: row.mode === 'repeat' ? readReviewSnapshot(row.exportMd) : null,
     }));
   }
 
-  async dashboard(userId: string, now: Date, domain?: string) {
-    const [struggleRatio7d, due, grouped, newCards, nextUp, sessionQueue, pendingSessions] =
-      await Promise.all([
-        this.struggleRatio7d(userId, now),
-        this.dueTopics(userId, now, domain),
-        this.prisma.topic.groupBy({
-          by: ['status'],
-          _count: true,
-          where: { userId, ...(domain ? { domain } : {}) },
-        }),
-        this.newCardsCount(userId, domain),
-        this.nextUp(userId, domain, now),
-        this.sessionQueue(userId, now, domain),
-        this.pendingSessions(userId, now),
-      ]);
+  private async reviewDay(userId: string, now: Date) {
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    });
+    const timezone = settings?.timezone ?? 'UTC';
+    const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+    const sessions = await this.prisma.sessionExport.findMany({
+      where: {
+        userId,
+        mode: 'repeat',
+        importedAt: { gte: localDayStart(now, timezone), lte: now },
+      },
+      select: { id: true, exportMd: true, importedOutputRaw: true },
+    });
+    return {
+      dayKey,
+      completed: sessions.some((s) => completedReview(s.exportMd, s.importedOutputRaw, s.id)),
+    };
+  }
+
+  async dashboard(userId: string, now: Date, domain?: string, options: ReviewOptions = {}) {
+    const [
+      reviewStats7d,
+      due,
+      grouped,
+      newCards,
+      nextUp,
+      sessionQueue,
+      pendingSessions,
+      reviewDay,
+    ] = await Promise.all([
+      this.reviewStats7d(userId, now),
+      this.dueTopics(userId, now, domain),
+      this.prisma.topic.groupBy({
+        by: ['status'],
+        _count: true,
+        where: { userId, ...(domain ? { domain } : {}) },
+      }),
+      this.newCardsCount(userId, domain),
+      this.nextUp(userId, domain, now),
+      this.sessionQueue(userId, now, domain, options),
+      this.pendingSessions(userId, now),
+      this.reviewDay(userId, now),
+    ]);
     const countOf = (status: string) => grouped.find((g) => g.status === status)?._count ?? 0;
     return {
       generatedAt: now.toISOString(),
-      struggleRatio7d,
+      reviewStats7d,
       due,
       newCards,
       nextUp,
       sessionQueueCount: sessionQueue.items.length,
       sessionQueueMinutes: sessionQueue.estimatedMinutes,
+      reviewQueue: sessionQueue,
+      reviewDay,
       pendingSessions,
       counts: {
         total: grouped.reduce((sum, g) => sum + g._count, 0),

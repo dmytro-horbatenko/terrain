@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { Dashboard } from '../../api/types';
 import { Card } from '../../components';
+import { ReviewFirst, ReviewPlan, useReviewChoice } from '../../components/ReviewChoice';
 
 /**
  * The daily-ritual surface: two independent tracks — review what's due, and
@@ -10,8 +11,9 @@ import { Card } from '../../components';
  * grades; it only hands off context and records the imported result.
  */
 export default function TodayCard({ dash }: { dash: Dashboard }) {
-  const { nextUp, counts, sessionQueueCount, sessionQueueMinutes, pendingSessions } = dash;
-  const repeatPending = pendingSessions.some((s) => s.mode === 'repeat');
+  const { nextUp, counts, sessionQueueCount, pendingSessions, reviewQueue, reviewDay } = dash;
+  const reviewChoice = useReviewChoice(dash);
+  const repeatPending = pendingSessions.find((s) => s.mode === 'repeat');
   const learnPending =
     !!nextUp &&
     pendingSessions.some(
@@ -24,23 +26,36 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
       {/* ---- review track ---- */}
       <Card title="Review">
         <div className="col gap-3">
-          {sessionQueueCount === 0 ? (
+          {reviewDay.completed && <b>Today's review commitment is complete.</b>}
+          {repeatPending ? (
+            <>
+              <b>
+                Review in progress
+                {repeatPending.reviewPlan &&
+                  `: ${repeatPending.reviewPlan.promptIds.length} cards · ~${repeatPending.reviewPlan.estimatedMinutes} min`}
+              </b>
+              <Link to="/session/$mode" params={{ mode: 'repeat' }} className="btn btn-primary">
+                Continue review
+              </Link>
+              <span className="faint">Saved session — not imported yet</span>
+              {reviewQueue.backlogCount > 0 && (
+                <details>
+                  <summary>Other review options</summary>
+                  <ReviewPlan queue={reviewQueue} />
+                </details>
+              )}
+            </>
+          ) : reviewQueue.backlogCount === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
               Nothing due today — all clear.
             </p>
           ) : (
             <>
-              <div className="faint" style={{ fontSize: 12.5 }}>
-                {sessionQueueCount} cards
-                {sessionQueueMinutes > 0 ? ` · ~${sessionQueueMinutes} min` : ''}
-              </div>
-              <Link to="/session/$mode" params={{ mode: 'repeat' }} className="btn btn-primary">
-                {repeatPending ? 'Continue review' : 'Start review'}
-              </Link>
-              {repeatPending && (
-                <span className="faint" style={{ fontSize: 12 }}>
-                  session in progress — not imported yet
-                </span>
+              <ReviewPlan queue={reviewQueue} />
+              {sessionQueueCount > 0 && (
+                <Link to="/session/$mode" params={{ mode: 'repeat' }} className="btn btn-primary">
+                  {reviewDay.completed ? 'Review more' : 'Start review'}
+                </Link>
               )}
             </>
           )}
@@ -69,10 +84,10 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
               )}
               {nextUp.sourcePlanStats.requiredCount > 0 && (
                 <div className="faint" style={{ fontSize: 12.5 }}>
-                  {nextUp.sourcePlanStats.requiredCount} required source
+                  Source plan: {nextUp.sourcePlanStats.requiredCount} source
                   {nextUp.sourcePlanStats.requiredCount === 1 ? '' : 's'} · ~
-                  {nextUp.sourcePlanStats.estimatedMinutes} min intake
-                  {nextUp.sourcePlanStats.hasExpired ? ' · verification needed' : ''}
+                  {nextUp.sourcePlanStats.estimatedMinutes} min total reading
+                  {nextUp.sourcePlanStats.hasExpired ? ' · catalog recheck due' : ''}
                 </div>
               )}
               <div className="row gap-2" style={{ alignItems: 'center' }}>
@@ -84,14 +99,22 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
                   </span>
                 )}
               </div>
-              <Link
-                to="/session/$mode"
-                params={{ mode: 'learn' }}
-                search={{ topic: nextUp.topic.id }}
-                className="btn btn-primary"
-              >
-                {learnPending ? 'Continue learning' : 'Start learning'}
-              </Link>
+              {reviewChoice.reviewFirst && !learnPending ? (
+                <ReviewFirst onContinue={reviewChoice.continueToday} />
+              ) : (
+                <Link
+                  to="/session/$mode"
+                  params={{ mode: 'learn' }}
+                  search={{ topic: nextUp.topic.id }}
+                  className="btn btn-primary"
+                >
+                  {learnPending ||
+                  nextUp.topic.status === 'active' ||
+                  nextUp.topic.status === 'mastered'
+                    ? 'Continue learning'
+                    : 'Start learning'}
+                </Link>
+              )}
               {learnPending && (
                 <span className="faint" style={{ fontSize: 12 }}>
                   session in progress — not imported yet

@@ -29,7 +29,10 @@ describe('MetricsService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(0),
       },
-      sessionExport: { findFirst: jest.fn().mockResolvedValue(null) },
+      sessionExport: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       settings: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     learning = {
@@ -139,35 +142,72 @@ describe('MetricsService', () => {
     expect(s.retention).toBe(false);
   });
 
-  it('struggleRatio7d returns 0 with no reviews', async () => {
-    expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0);
+  it('does not report zero failures when there is no review evidence', async () => {
+    expect(await service.reviewStats7d('userA', new Date('2026-01-08T00:00:00Z'))).toEqual({
+      total: 0,
+      again: 0,
+      againRatio: null,
+    });
   });
 
-  it('struggleRatio7d = poor/total over the window, counting only again', async () => {
+  it('reports a real zero Again rate when reviews exist', async () => {
+    prisma.review.findMany.mockResolvedValue([{ grade: 'good' }, { grade: 'hard' }]);
+    const now = new Date('2026-01-08T00:00:00Z');
+    expect(await service.reviewStats7d('userA', now)).toEqual({
+      total: 2,
+      again: 0,
+      againRatio: 0,
+    });
+    expect(prisma.review.findMany).toHaveBeenCalledWith({
+      where: { userId: 'userA', reviewedAt: { gte: new Date('2026-01-01T00:00:00Z'), lte: now } },
+      select: { grade: true },
+    });
+  });
+
+  it('does not count whitespace-only notes as teaching evidence', () => {
+    expect(
+      service.masteryStatus({
+        cards: [{ stability: 35, suspended: false }],
+        appEventCount: 1,
+        noteRef: '  ',
+        summary: '\n ',
+      }),
+    ).toMatchObject({ teaching: false, eligible: false });
+  });
+
+  it('reviewStats7d = poor/total over the window, counting only again', async () => {
     prisma.review.findMany.mockResolvedValue([
       { grade: 'again' },
       { grade: 'again' },
       { grade: 'good' },
       { grade: 'easy' },
     ]);
-    expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0.5);
+    expect(await service.reviewStats7d('userA', new Date('2026-01-08T00:00:00Z'))).toEqual({
+      total: 4,
+      again: 2,
+      againRatio: 0.5,
+    });
   });
 
-  it('struggleRatio7d does not count hard as struggle', async () => {
+  it('reviewStats7d does not count hard as struggle', async () => {
     prisma.review.findMany.mockResolvedValue([
       { grade: 'again' },
       { grade: 'hard' },
       { grade: 'good' },
       { grade: 'easy' },
     ]);
-    expect(await service.struggleRatio7d('userA', new Date('2026-01-08T00:00:00Z'))).toBe(0.25);
+    expect(await service.reviewStats7d('userA', new Date('2026-01-08T00:00:00Z'))).toEqual({
+      total: 4,
+      again: 1,
+      againRatio: 0.25,
+    });
   });
 
-  it('struggleRatio7d scopes reviews to the user', async () => {
+  it('reviewStats7d scopes reviews to the user', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma: any = { review: { findMany } };
     const svc = new MetricsService(prisma, learning as any);
-    await svc.struggleRatio7d('userA', new Date('2026-07-01T00:00:00Z'));
+    await svc.reviewStats7d('userA', new Date('2026-07-01T00:00:00Z'));
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: 'userA' }) }),
     );
@@ -306,74 +346,38 @@ describe('MetricsService', () => {
     );
   });
 
-  it('newCardsCount includes startable planned topics and excludes blocked ones', async () => {
-    prisma.topic.findMany.mockResolvedValue([
-      roadmapTopic({ id: 'started-prerequisite', status: 'active' }),
-      roadmapTopic({
-        id: 'startable',
-        prerequisites: [{ prerequisiteId: 'started-prerequisite' }],
-      }),
-      roadmapTopic({ id: 'zero-prereq' }),
-      roadmapTopic({ id: 'blocked-prerequisite' }),
-      roadmapTopic({ id: 'blocked', prerequisites: [{ prerequisiteId: 'blocked-prerequisite' }] }),
-    ]);
+  it('counts only unreviewed cards on owned active or mastered leaves', async () => {
     prisma.prompt.count.mockResolvedValue(3);
-    const result = await service.newCardsCount('userA', 'DSA');
-    expect(result).toBe(3);
+    expect(await service.newCardsCount('userA', 'DSA')).toBe(3);
     expect(prisma.prompt.count).toHaveBeenCalledWith({
       where: {
         suspended: false,
         state: 'new',
-        topic: { userId: 'userA', domain: 'DSA', children: { none: {} } },
-        OR: [
-          { topic: { status: { in: ['active', 'mastered'] } } },
-          { topicId: { in: ['startable', 'zero-prereq', 'blocked-prerequisite'] } },
-        ],
+        topic: {
+          userId: 'userA',
+          domain: 'DSA',
+          children: { none: {} },
+          status: { in: ['active', 'mastered'] },
+        },
       },
     });
   });
-  it('newCardsCount loads the owned topology in creation order', async () => {
-    await service.newCardsCount('userA');
-    expect(prisma.topic.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'userA' },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        select: expect.objectContaining({
-          parentId: true,
-          prerequisites: { select: { prerequisiteId: true } },
-        }),
-      }),
-    );
-  });
 
-  it('newCardsCount returns a number via prisma.prompt.count, not findMany().length', async () => {
-    prisma.prompt.count.mockResolvedValue(4);
-    const result = await service.newCardsCount('userA');
-    expect(result).toBe(4);
-    expect(prisma.prompt.findMany).not.toHaveBeenCalled();
-  });
-
-  it('newCardsCount filters disabled domains after loading the owned topology', async () => {
+  it('excludes disabled domains from the unreviewed-card count', async () => {
     prisma.settings.findUnique.mockResolvedValue({ disabledDomains: ['DSA'] });
-    prisma.prompt.count.mockResolvedValue(2);
-    const result = await service.newCardsCount('userA');
-    expect(result).toBe(2);
-    expect(prisma.topic.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'userA' },
-      }),
-    );
-    expect(prisma.prompt.count).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          topic: {
-            userId: 'userA',
-            domain: { notIn: ['DSA'] },
-            children: { none: {} },
-          },
-        }),
-      }),
-    );
+    await service.newCardsCount('userA');
+    expect(prisma.prompt.count).toHaveBeenCalledWith({
+      where: {
+        suspended: false,
+        state: 'new',
+        topic: {
+          userId: 'userA',
+          domain: { notIn: ['DSA'] },
+          children: { none: {} },
+          status: { in: ['active', 'mastered'] },
+        },
+      },
+    });
   });
 
   it('dashboard composes counts from groupBy and due lengths, and includes newCards', async () => {
@@ -399,7 +403,7 @@ describe('MetricsService', () => {
       expect.objectContaining({ by: ['status'], where: { userId: 'userA', domain: 'DSA' } }),
     );
     expect(result.generatedAt).toBe(now.toISOString());
-    expect(result.struggleRatio7d).toBe(0);
+    expect(result.reviewStats7d).toEqual({ total: 0, again: 0, againRatio: null });
     expect(result.newCards).toBe(7);
     expect(result.counts).toEqual({
       total: 6,
@@ -507,9 +511,9 @@ describe('MetricsService', () => {
 
       expect(result?.topic.id).toBe('mnemonics');
       expect(prisma.sessionExport.findFirst).toHaveBeenCalledWith({
-        where: { userId: 'userA', importedAt: { not: null }, nextFocusTitle: { not: null } },
+        where: { userId: 'userA', mode: 'learn', importedAt: { not: null } },
         orderBy: { importedAt: 'desc' },
-        select: { nextFocusTitle: true },
+        select: { nextFocusTitle: true, importedOutputRaw: true },
       });
       expect(prisma.topic.findFirst).not.toHaveBeenCalled();
     });
@@ -785,36 +789,142 @@ describe('MetricsService', () => {
       };
     }
 
-    it('queries due cards and capped new cards with the right predicates', async () => {
+    it('bounds the slice before interleaving and reserves room for at most two first retrievals', async () => {
+      prisma.prompt.findMany
+        .mockResolvedValueOnce(
+          [10, 4, 4].map((estimatedMinutes, i) =>
+            queuePrompt({
+              id: `due-${i + 1}`,
+              estimatedMinutes,
+              nextReviewAt: new Date(`2026-07-0${i + 1}T00:00:00Z`),
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(
+          [1, 2, 3].map((i) =>
+            queuePrompt({
+              id: `new-${i}`,
+              state: 'new',
+              nextReviewAt: null,
+              estimatedMinutes: 2,
+            }),
+          ),
+        );
+      const queue = await service.sessionQueue('u1', new Date('2026-07-03T10:00:00Z'));
+      expect(queue.items.map((c) => c.promptId).sort()).toEqual(['due-1', 'new-1', 'new-2']);
+      expect(queue).toMatchObject({
+        estimatedMinutes: 14,
+        budgetMinutes: 15,
+        backlogCount: 6,
+        backlogMinutes: 24,
+      });
+    });
+
+    it('uses unused new-card capacity for due cards and supports the 20-minute option', async () => {
+      prisma.prompt.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.state === 'new'
+            ? []
+            : [1, 2, 3, 4].map((i) => queuePrompt({ id: `p${i}`, estimatedMinutes: 5 })),
+        ),
+      );
+      expect((await service.sessionQueue('u1', new Date())).items).toHaveLength(3);
+      const longer = await (service.sessionQueue as any)('u1', new Date(), undefined, {
+        reviewMinutes: 20,
+      });
+      expect(longer.items).toHaveLength(4);
+      expect(longer.estimatedMinutes).toBe(20);
+    });
+
+    it('keeps a long exercise visible and selects it only on an explicit request', async () => {
+      prisma.prompt.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.state === 'new'
+            ? []
+            : [queuePrompt({ id: 'long', promptKind: 'problem', estimatedMinutes: 30 })],
+        ),
+      );
+      const normal = await service.sessionQueue('u1', new Date());
+      expect(normal.items).toEqual([]);
+      expect(normal).toMatchObject({
+        backlogCount: 1,
+        deferredExercises: [{ promptId: 'long', estimatedMinutes: 30 }],
+      });
+      const focused = await (service.sessionQueue as any)('u1', new Date(), undefined, {
+        reviewPromptId: 'long',
+      });
+      expect(focused.items.map((c: any) => c.promptId)).toEqual(['long']);
+      expect(focused).toMatchObject({ estimatedMinutes: 30, budgetMinutes: 30 });
+      await expect(
+        (service.sessionQueue as any)('u1', new Date(), undefined, { reviewPromptId: 'foreign' }),
+      ).rejects.toThrow();
+    });
+
+    it('admits a larger first retrieval when due work leaves enough room', async () => {
+      prisma.prompt.findMany
+        .mockResolvedValueOnce([queuePrompt({ estimatedMinutes: 2 })])
+        .mockResolvedValueOnce([
+          queuePrompt({
+            id: 'new-code',
+            promptKind: 'code',
+            state: 'new',
+            nextReviewAt: null,
+            estimatedMinutes: 10,
+          }),
+        ]);
+      const queue = await service.sessionQueue('u1', new Date());
+      expect(queue.items.map((c) => c.promptId).sort()).toEqual(['new-code', 'p1']);
+      expect(queue.estimatedMinutes).toBe(12);
+    });
+
+    it('never counts a duplicated card twice', async () => {
+      const card = queuePrompt({ estimatedMinutes: 2 });
+      prisma.prompt.findMany.mockResolvedValueOnce([card, card]).mockResolvedValueOnce([]);
+      const queue = await service.sessionQueue('u1', new Date());
+      expect(queue.items).toHaveLength(1);
+      expect(queue).toMatchObject({ estimatedMinutes: 2, backlogCount: 1 });
+    });
+
+    it('queries eligible owned due and fresh cards without hiding the backlog', async () => {
       prisma.prompt.findMany
         .mockResolvedValueOnce([]) // due
         .mockResolvedValueOnce([]); // new
       const now = new Date('2026-07-03T10:00:00');
 
       const result = await service.sessionQueue('u1', now);
-      expect(result).toEqual({ items: [], estimatedMinutes: 0 });
+      expect(result).toMatchObject({ items: [], estimatedMinutes: 0, backlogCount: 0 });
       expect(prisma.prompt.findMany).toHaveBeenCalledTimes(2);
 
-      // due query: same predicate family as dueCards (suspended:false, lt endOfToday, non-archived topics)
+      // Planned topics cannot enter review; new-state cards use the separate first-retrieval cap.
       expect(prisma.prompt.findMany.mock.calls[0][0]).toMatchObject({
         where: {
           suspended: false,
+          state: { not: 'new' },
           nextReviewAt: { not: null, lt: expect.any(Date) },
-          topic: { userId: 'u1', status: { not: 'archived' }, children: { none: {} } },
+          topic: { userId: 'u1', status: { in: ['active', 'mastered'] }, children: { none: {} } },
         },
-        orderBy: { nextReviewAt: 'asc' },
+        orderBy: [{ nextReviewAt: 'asc' }, { id: 'asc' }],
       });
 
-      // new-cards query: active topics only, capped at 5, stable order
+      // Load fresh candidates for exact backlog totals; cap during selection.
       expect(prisma.prompt.findMany.mock.calls[1][0]).toMatchObject({
         where: {
           suspended: false,
           state: 'new',
-          topic: { userId: 'u1', status: 'active', children: { none: {} } },
+          createdAt: { lt: expect.any(Date) },
+          topic: { userId: 'u1', status: { in: ['active', 'mastered'] }, children: { none: {} } },
         },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        take: 5,
+        orderBy: [
+          { topic: { learnedAt: { sort: 'desc', nulls: 'last' } } },
+          { createdAt: 'asc' },
+          { id: 'asc' },
+        ],
       });
+      expect(prisma.prompt.findMany.mock.calls[1][0].take).toBeUndefined();
+      expect(prisma.prompt.findMany.mock.calls[1][0].where.topic.OR).toEqual([
+        { learnedAt: null },
+        { learnedAt: { lt: expect.any(Date) } },
+      ]);
     });
 
     it('maps prompts to queue items with parent title as chapter, domain as fallback', async () => {
@@ -849,6 +959,22 @@ describe('MetricsService', () => {
       await service.sessionQueue('u1', new Date('2026-07-03T10:00:00'), 'DSA');
       expect(prisma.prompt.findMany.mock.calls[0][0].where.topic).toMatchObject({ domain: 'DSA' });
       expect(prisma.prompt.findMany.mock.calls[1][0].where.topic).toMatchObject({ domain: 'DSA' });
+    });
+
+    it('uses the learner local day for both due and first-retrieval boundaries on a DST change', async () => {
+      prisma.settings.findUnique.mockResolvedValue({
+        timezone: 'Australia/Sydney',
+        disabledDomains: [],
+      });
+      await service.sessionQueue('u1', new Date('2026-10-04T12:00:00Z'));
+      const dueWhere = prisma.prompt.findMany.mock.calls[0][0].where;
+      const freshWhere = prisma.prompt.findMany.mock.calls[1][0].where;
+      expect(dueWhere.nextReviewAt.lt).toEqual(new Date('2026-10-04T13:00:00Z'));
+      expect(freshWhere.createdAt.lt).toEqual(new Date('2026-10-03T14:00:00Z'));
+      expect(freshWhere.topic.OR).toEqual([
+        { learnedAt: null },
+        { learnedAt: { lt: new Date('2026-10-03T14:00:00Z') } },
+      ]);
     });
 
     it('excludes disabled domains from both the due and new-card queries', async () => {
@@ -899,6 +1025,44 @@ describe('MetricsService', () => {
     expect(dash.sessionQueueCount).toBe(0);
   });
 
+  it('recognizes a completed slice in the learner local day even after a later partial session', async () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    prisma.settings.findUnique.mockResolvedValue({
+      timezone: 'Europe/Warsaw',
+      disabledDomains: [],
+    });
+    prisma.sessionExport.findMany.mockResolvedValue([
+      {
+        id: 'partial',
+        exportMd: `<!-- terrain-review: {"promptIds":["${id}"],"estimatedMinutes":2,"budgetMinutes":15,"reviewMinutes":15} -->\n`,
+        importedOutputRaw: JSON.stringify({ version: 2, sessionId: 'partial', reviews: [] }),
+      },
+      {
+        id: 'complete',
+        exportMd: `<!-- terrain-review: {"promptIds":["${id}"],"estimatedMinutes":2,"budgetMinutes":15,"reviewMinutes":15} -->\n`,
+        importedOutputRaw: JSON.stringify({
+          version: 2,
+          sessionId: 'complete',
+          reviews: [{ promptId: id, grade: 'again' }],
+        }),
+      },
+    ]);
+    const dash = await service.dashboard('u1', new Date('2026-09-02T23:30:00Z'));
+    expect(dash).toMatchObject({ reviewDay: { dayKey: '2026-09-03', completed: true } });
+    expect(prisma.sessionExport.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'u1',
+          mode: 'repeat',
+          importedAt: {
+            gte: new Date('2026-09-02T22:00:00Z'),
+            lte: new Date('2026-09-02T23:30:00Z'),
+          },
+        },
+      }),
+    );
+  });
+
   it('dashboard includes sessionQueueMinutes', async () => {
     // beforeEach stubs every findMany to [] — empty queue estimates 0 minutes.
     const dash = await service.dashboard('u1', new Date('2026-07-03T10:00:00'));
@@ -907,6 +1071,35 @@ describe('MetricsService', () => {
 
   describe('pendingSessions (via dashboard)', () => {
     const now = new Date('2026-07-03T10:00:00Z');
+
+    it('preserves the saved focused review even when the current queue is empty', async () => {
+      const id = '11111111-1111-4111-8111-111111111111';
+      const reviewPlan = {
+        promptIds: [id],
+        estimatedMinutes: 30,
+        budgetMinutes: 30,
+        reviewMinutes: 15,
+        reviewPromptId: id,
+      };
+      prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.mode === 'repeat'
+            ? {
+                id: 'saved',
+                mode: 'repeat',
+                generatedAt: now,
+                importedAt: null,
+                focusTopicId: null,
+                approach: null,
+                exportMd: `<!-- terrain-review: ${JSON.stringify(reviewPlan)} -->\n`,
+              }
+            : null,
+        ),
+      );
+      const dash = await service.dashboard('u1', now);
+      expect(dash.reviewQueue.items).toEqual([]);
+      expect(dash.pendingSessions).toEqual([expect.objectContaining({ id: 'saved', reviewPlan })]);
+    });
 
     it('reports a pending learn export with its owned focus and normalized approach', async () => {
       prisma.sessionExport.findFirst.mockImplementation(({ where }: any) =>
@@ -946,6 +1139,7 @@ describe('MetricsService', () => {
           focusTopicId: 'focus-1',
           topicTitle: 'Owned focus',
           approach: 'source-first',
+          reviewPlan: null,
         },
       ]);
       expect(prisma.topic.findMany).toHaveBeenCalledWith({

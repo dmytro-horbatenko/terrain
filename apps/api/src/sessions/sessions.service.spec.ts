@@ -9,13 +9,15 @@ describe('SessionsService.createExport', () => {
   let service: SessionsService;
   let create: jest.Mock;
   let update: jest.Mock;
+  let findFirst: jest.Mock;
   let learning: { context: jest.Mock };
   let generator: { generate: jest.Mock; generateLearnContext: jest.Mock };
 
   beforeEach(async () => {
     create = jest.fn().mockResolvedValue({ id: 'sess-1' });
     update = jest.fn().mockResolvedValue({});
-    const prisma = { sessionExport: { create, update } };
+    findFirst = jest.fn();
+    const prisma = { sessionExport: { create, update, findFirst } };
     generator = {
       generate: jest.fn().mockResolvedValue('header Session: <set-on-persist>\n\nbody'),
       generateLearnContext: jest
@@ -54,6 +56,40 @@ describe('SessionsService.createExport', () => {
       where: { id: 'sess-1' },
       data: { exportMd: expect.stringContaining('Session: sess-1') },
     });
+  });
+
+  it('recovers an owned export unchanged without creating a replacement', async () => {
+    const saved = { id: 'sess-1', exportMd: 'Session: sess-1\nSaved 30-minute exercise' };
+    findFirst.mockImplementation(({ where }) =>
+      Promise.resolve(where.id === saved.id && where.userId === 'userA' ? saved : null),
+    );
+    await expect(service.getExport('userA', saved.id)).resolves.toEqual(saved);
+    await expect(service.getExport('userB', saved.id)).rejects.toThrow('Session not found');
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: saved.id, userId: 'userA' },
+      select: { id: true, exportMd: true },
+    });
+    expect(generator.generate).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('returns the persisted review snapshot for the wizard to retain with its session id', async () => {
+    const reviewPlan = {
+      promptIds: ['11111111-1111-4111-8111-111111111111'],
+      estimatedMinutes: 30,
+      budgetMinutes: 30,
+      reviewMinutes: 15,
+      reviewPromptId: '11111111-1111-4111-8111-111111111111',
+    };
+    generator.generate.mockResolvedValue(
+      `<!-- terrain-review: ${JSON.stringify(reviewPlan)} -->\nSession: <set-on-persist>`,
+    );
+    const out = await service.createExport('userA', {
+      mode: 'repeat',
+      reviewPromptId: reviewPlan.reviewPromptId,
+    });
+    expect(out).toMatchObject({ id: 'sess-1', reviewPlan });
+    expect(out.exportMd).toContain('Session: sess-1');
   });
 
   it("writes mode: 'full' and domain: null for a plain full export", async () => {

@@ -67,6 +67,24 @@ export function buildRoadmapPolicy(nodes: RoadmapNode[]): Map<string, RoadmapEli
     }),
   );
 
+  // A group requires its children, and children inherit the group's prerequisites.
+  // Checking prerequisite edges alone misses deadlocks such as a lesson requiring its chapter.
+  const cyclic = new Map<string, boolean>();
+  const visiting = new Set<string>();
+  const hasDependencyCycle = (id: string): boolean => {
+    if (visiting.has(id)) return true;
+    const cached = cyclic.get(id);
+    if (cached !== undefined) return cached;
+    visiting.add(id);
+    const constraints = inheritedConstraints.get(id)!;
+    const dependencies = [...(children.get(id) ?? []), ...constraints.prerequisiteIds];
+    const cycle = constraints.cycle || dependencies.some(hasDependencyCycle);
+    visiting.delete(id);
+    cyclic.set(id, cycle);
+    return cycle;
+  };
+  for (const node of nodes) hasDependencyCycle(node.id);
+
   const facts = new Map<string, { leafIds: string[]; satisfied: boolean; cycle: boolean }>();
   const inspect = (
     id: string,
@@ -85,8 +103,8 @@ export function buildRoadmapPolicy(nodes: RoadmapNode[]): Map<string, RoadmapEli
           learned(current.status) &&
           !constraints.unavailablePrerequisite &&
           !constraints.malformedParent &&
-          !constraints.cycle,
-        cycle: constraints.cycle,
+          !cyclic.get(id),
+        cycle: cyclic.get(id)!,
       };
       facts.set(id, fact);
       return fact;
@@ -94,7 +112,7 @@ export function buildRoadmapPolicy(nodes: RoadmapNode[]): Map<string, RoadmapEli
     const next = new Set(visiting).add(id);
     const childFacts = childIds.map((childId) => inspect(childId, next));
     const leafIds = childFacts.flatMap((fact) => fact.leafIds);
-    const cycle = constraints.cycle || childFacts.some((fact) => fact.cycle);
+    const cycle = cyclic.get(id)! || childFacts.some((fact) => fact.cycle);
     const fact = {
       leafIds,
       satisfied:
