@@ -71,6 +71,125 @@ describe('LearningContextService', () => {
     service = new LearningContextService(prisma as PrismaService);
   });
 
+  it('preserves authored course order when creation timestamps tie while leaving custom topics in place', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({ id: ids.target, title: 'Later lesson', curriculumOrder: 10 }),
+      topic({ id: ids.introduced, title: 'Personal topic', curriculumOrder: null }),
+      topic({ id: ids.basics, title: 'First lesson', curriculumOrder: 0 }),
+    ]);
+    const context = await service.context('user-a');
+    expect(context.target?.id).toBe(ids.basics);
+    expect(context.selection.learnableAlternatives.map(({ id }) => id)).toEqual([
+      ids.introduced,
+      ids.target,
+    ]);
+  });
+
+  it.each(['active', 'mastered'])(
+    'verifies failed recall even for a %s prerequisite',
+    async (status) => {
+      prisma.topic.findMany.mockResolvedValue([
+        topic({ id: ids.basics, status, summary: 'Previously understood this.' }),
+        topic({ prerequisites: [{ prerequisiteId: ids.basics }] }),
+      ]);
+      prisma.review.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.topicId === ids.basics
+            ? [1, 2, 3].map((day) => ({
+                topicId: ids.basics,
+                grade: 'again',
+                promptId: null,
+                reviewedAt: new Date(`2026-09-${26 - day}T12:00:00Z`),
+              }))
+            : [],
+        ),
+      );
+      const context = await service.context('user-a', { topic: ids.target });
+      expect(context.mayRelyOn).toEqual([]);
+      expect(context.doNotAssume).toEqual([
+        expect.objectContaining({
+          id: ids.basics,
+          status,
+          level: 'needs_verification',
+          reason: expect.stringMatching(/failed recall/i),
+        }),
+      ]);
+    },
+  );
+
+  it('includes learned descendants of a planned chapter without treating the container as unseen', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({ id: ids.basics, title: 'Chapter', status: 'planned' }),
+      topic({
+        id: ids.practicing,
+        title: 'Learned lesson',
+        parentId: ids.basics,
+        status: 'active',
+        summary: 'A useful invariant.',
+      }),
+      topic({ prerequisites: [{ prerequisiteId: ids.basics }] }),
+    ]);
+    const context = await service.context('user-a', { topic: ids.target });
+    expect(context.target?.sessionEligible).toBe(true);
+    expect(context.mayRelyOn).toEqual([
+      expect.objectContaining({ id: ids.practicing, summary: 'A useful invariant.' }),
+    ]);
+    expect(context.doNotAssume).toEqual([]);
+    expect(context.prerequisites[0]).toMatchObject({
+      id: ids.basics,
+      satisfied: true,
+      children: [expect.objectContaining({ id: ids.practicing, summary: 'A useful invariant.' })],
+    });
+  });
+
+  it('verifies an unresolved independent-check gap on a prerequisite despite successful recall', async () => {
+    prisma.topic.findMany.mockResolvedValue([
+      topic({ id: ids.basics, status: 'mastered' }),
+      topic({ prerequisites: [{ prerequisiteId: ids.basics }] }),
+    ]);
+    prisma.skillCheck.findMany.mockImplementation(({ where }: any) =>
+      Promise.resolve(
+        where.topicId === ids.basics
+          ? [
+              {
+                plan: {
+                  id: ids.basics,
+                  target: { kind: 'topic', topicId: ids.basics },
+                  kind: 'adaptation',
+                  learnedOn: '2026-09-01',
+                  dueOn: '2026-09-08',
+                  allowedTools: 'documentation',
+                  task: 'Adapt the model to a changed boundary condition.',
+                  successCriteria: 'Identify the new assumption and verify the resulting behavior.',
+                },
+                attempt: {
+                  firstAttempt: 'I could not apply the model to the changed requirement.',
+                  evidence: 'The changed-case test fails.',
+                  assistance: 'none',
+                  helpDetails: 'No help.',
+                },
+                result: {
+                  outcome: 'needs_practice',
+                  feedback: 'The original invariant does not cover the new boundary.',
+                  nextAction: 'Compare the two boundary conditions.',
+                  reviewer: 'self',
+                },
+                attemptedAt: new Date('2026-09-08T12:00:00Z'),
+              },
+            ]
+          : [],
+      ),
+    );
+    const context = await service.context('user-a', { topic: ids.target });
+    expect(context.mayRelyOn).toEqual([]);
+    expect(context.doNotAssume[0]).toMatchObject({
+      id: ids.basics,
+      level: 'needs_verification',
+      reason: expect.stringMatching(/independent check/i),
+      evidence: { skillChecks: [expect.objectContaining({ outcome: 'needs_practice' })] },
+    });
+  });
+
   it('includes recent assessed skill gaps in owned topic context without replacing continuation', async () => {
     prisma.topic.findMany.mockResolvedValue([topic({ status: 'active' })]);
     prisma.sessionExport.findMany.mockResolvedValue([studySession()]);
@@ -621,14 +740,13 @@ describe('LearningContextService', () => {
         }),
       }),
     ]);
-    expect(context.mayRelyOn).toEqual([
-      expect.objectContaining({
-        id: ids.basics,
-        level: 'practicing',
-        evidence: expect.objectContaining({ recentGrades: ['hard'] }),
-      }),
-    ]);
-    expect(context.doNotAssume).toEqual([]);
+    expect(context.mayRelyOn.map(({ id }) => id)).toEqual(
+      leafIds.filter((_, index) => index % 2 === 0),
+    );
+    expect(context.doNotAssume.map(({ id }) => id)).toEqual(
+      leafIds.filter((_, index) => index % 2 === 1),
+    );
+    expect(context.prerequisites[0].children.map(({ id }) => id)).toEqual(leafIds);
     expect(context.blockers).toEqual([]);
     expect(prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: 'user-a', topicId: ids.basics } }),

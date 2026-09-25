@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import type { Review } from '../api/types';
 import { formatDate } from '../lib/format';
+import { useSettings } from '../api/hooks';
 
 /**
  * FSRS interval growth over a topic's review history — reads the historical
@@ -17,13 +18,14 @@ import { formatDate } from '../lib/format';
  * are excluded. Chronological (oldest → newest). Renders nothing below 2 points.
  */
 export function IntervalGrowthChart({ reviews }: { reviews: Review[] }) {
+  const { data: settings } = useSettings();
   const data = [...reviews]
     .filter((r) => r.intervalAfter != null)
     .reverse()
     .map((r, i) => ({
       i,
       interval: r.intervalAfter,
-      date: formatDate(r.reviewedAt),
+      date: formatDate(r.reviewedAt, undefined, settings?.timezone),
     }));
 
   if (data.length < 2) return null;

@@ -39,6 +39,7 @@ export default function Settings() {
   }, [me.data]);
 
   const settings = useSettings();
+  const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const updateSettings = useUpdateSettings();
   const linkToken = useTelegramLinkToken();
   const unlink = useTelegramUnlink();
@@ -131,7 +132,7 @@ export default function Settings() {
             </button>
           </div>
         </Card>
-        <Card title="Notifications — Telegram digest & streak nudge">
+        <Card title="Study timezone & notifications">
           <div className="col gap-3">
             {settings.data?.telegramLinked ? (
               <div className="row gap-2" style={{ alignItems: 'center' }}>
@@ -173,6 +174,17 @@ export default function Settings() {
                 onChange={(e) => setNotif({ ...notif, timezone: e.target.value })}
               />
             </label>
+            <p className="faint">
+              Your timezone sets review days, streaks, the calendar and reminder hours. Device
+              timezone: {deviceTimezone}.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setNotif({ ...notif, timezone: deviceTimezone })}
+            >
+              Use device timezone
+            </button>
             <label className="col gap-1">
               <span className="field-label">Morning digest hour</span>
               <select
@@ -219,13 +231,13 @@ export default function Settings() {
                     obsidianVault: notif.obsidianVault === '' ? null : notif.obsidianVault,
                   },
                   {
-                    onSuccess: () => toast('Notification settings saved', 'success'),
+                    onSuccess: () => toast('Timezone and notification settings saved', 'success'),
                     onError: (e) => toast(e instanceof Error ? e.message : 'Save failed', 'error'),
                   },
                 )
               }
             >
-              Save notifications
+              Save timezone & notifications
             </button>
           </div>
         </Card>

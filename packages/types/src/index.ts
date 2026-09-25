@@ -154,7 +154,13 @@ export const LEARNING_APPROACHES = ['guided', 'source-first'] as const;
 export type LearningApproach = (typeof LEARNING_APPROACHES)[number];
 
 const topicStatusSchema = z.enum(['planned', 'active', 'mastered', 'archived']);
-const knowledgeLevelSchema = z.enum(['unseen', 'introduced', 'practicing', 'mastered']);
+const knowledgeLevelSchema = z.enum([
+  'unseen',
+  'introduced',
+  'practicing',
+  'mastered',
+  'needs_verification',
+]);
 
 const evidenceSchema = z
   .object({
@@ -163,6 +169,7 @@ const evidenceSchema = z
     sourceTitles: z.array(z.string()),
     applicationCount: z.number().int().nonnegative(),
     latestApplication: z.string().nullable(),
+    skillChecks: z.array(skillCheckEvidenceSchema).max(3).optional(),
   })
   .strict();
 

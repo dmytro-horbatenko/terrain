@@ -1,0 +1,67 @@
+[
+  {
+    "topicTitle": "Building an EVM interpreter from scratch",
+    "previousPromptText": "Pass the w1nt3r evm-from-scratch test ladder through the JUMP group.",
+    "promptText": "In 10 minutes, trace PUSH1 0x03, PUSH1 0x02, ADD, STOP: give the program counter and stack after each instruction. Why must a jump land on JUMPDEST rather than a byte inside PUSH data?"
+  },
+  {
+    "topicTitle": "Huff jump tables & when Huff pays off",
+    "previousPromptText": "Practice hand-writing Huff macros and dispatch on the RareSkills Huff puzzles.",
+    "promptText": "In 10 minutes, sketch selector dispatch to two Huff macros and the fallback path. State the stack contract at each jump and one measured reason to keep Solidity instead."
+  },
+  {
+    "topicTitle": "Certora Prover & CVL",
+    "previousPromptText": "Study worked CVL specs and rules in the Certora Examples repository.",
+    "promptText": "In 10 minutes, state one CVL rule for an authorized balance transfer and one assumption that could make a passing proof vacuous. How would you detect the bad assumption?"
+  },
+  {
+    "topicTitle": "Liquidation MEV",
+    "previousPromptText": "Practice building a flash-loan-funded liquidation bot (Damn Vulnerable DeFi puppet-style / real Aave).",
+    "promptText": "In 10 minutes, trace a flash-funded liquidation balance sheet. What must be true for the transaction to repay and leave a profit, and which change makes it revert?"
+  },
+  {
+    "topicTitle": "Building a V4 hook (Atrium patterns)",
+    "previousPromptText": "Build and test a Uniswap V4 hook from the official template (Hook Incubator style).",
+    "promptText": "In 10 minutes, explain how a V4 hook address, permission flags and callback implementation agree. Name one test that catches a mismatch without rebuilding the full hook."
+  },
+  {
+    "topicTitle": "Writing a Noir circuit",
+    "previousPromptText": "Write and prove a Noir circuit for a hash preimage, then verify it.",
+    "promptText": "In 10 minutes, separate public input, private witness, circuit, proof and verification key for a hash-preimage claim. Where should a wrong preimage fail?"
+  },
+  {
+    "topicTitle": "The Graph & subgraphs",
+    "previousPromptText": "Build and deploy a subgraph indexing an ERC-20's Transfer events into per-account entities.",
+    "promptText": "In 10 minutes, sketch the entity IDs and update rule for indexing ERC-20 Transfer logs. How do repeated processing and a reorg affect correctness?"
+  },
+  {
+    "topicTitle": "Speedrun: Decentralized Staking App",
+    "previousPromptText": "Complete the current first Speedrun Ethereum challenge (Crowdfunding).",
+    "promptText": "In 10 minutes, trace the crowdfunding state machine when the deadline passes below versus above the threshold. Why must refund state change before the external payment?"
+  },
+  {
+    "topicTitle": "Speedrun: Token Vendor",
+    "previousPromptText": "Complete SpeedRunEthereum Challenge 2 (Token Vendor).",
+    "promptText": "In 10 minutes, explain approve → sellTokens and write the asset/unit equation for a fixed-price buy. Which balances and permissions must be checked on a sale?"
+  },
+  {
+    "topicTitle": "Speedrun: Dice Game (randomness)",
+    "previousPromptText": "Complete SpeedRunEthereum Challenge 3 (Dice Game / RiggedRoll).",
+    "promptText": "In 10 minutes, explain how predictable public inputs let an attacker call a dice game only on winning rolls. Why does hiding the formula in the frontend not help?"
+  },
+  {
+    "topicTitle": "Speedrun: Build a DEX",
+    "previousPromptText": "Complete SpeedRunEthereum Challenge 4 (Build a DEX).",
+    "promptText": "In 10 minutes, derive the output and reserve update for one constant-product swap with a fee. Which rounding direction protects the pool and which user bound protects the trader?"
+  },
+  {
+    "topicTitle": "Speedrun: later challenges (Multisig, SVG NFT, Oracle)",
+    "previousPromptText": "Finish at least one currently published later Speedrun Ethereum challenge.",
+    "promptText": "In 10 minutes, explain the proposal → dispute → settlement states of an optimistic oracle. What changes if a dispute arrives at the boundary of the challenge window?"
+  },
+  {
+    "topicTitle": "OP Stack & fault proofs",
+    "previousPromptText": "What are the two halves of the OP Stack fault-proof system?",
+    "promptText": "What roles do the fault-proof program, Cannon VM and dispute game play in the OP Stack?"
+  }
+]

@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Hardhat 3 is the secondary toolchain in this curriculum: Ignition deployment modules, network/config management, plugins, typed TypeScript integrations, and Foundry-compatible Solidity tests used where a JS/frontend workflow matters.",
-      "prerequisiteTitles": ["Foundry"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 3 — Tooling: Foundry & Hardhat"
     },
     {

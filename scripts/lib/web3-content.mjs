@@ -3,6 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { learningOsV2Schema } from '@terrain/types';
+import { dependencyErrors } from './course-content.mjs';
 
 export const CONTENT_DIR = path.resolve(import.meta.dirname, '../../content/web3');
 export const norm = (s) => s.trim().toLowerCase();
@@ -87,7 +88,7 @@ export async function loadContentFiles(dir = CONTENT_DIR) {
 
 // Structural rules beyond the Zod schema. Returns human-readable errors.
 export function structuralErrors(files, { sourcePrefixes = [] } = {}) {
-  const errors = [];
+  const errors = dependencyErrors(files);
   const seenTitles = new Map(); // norm(title) -> file
   for (const { file, doc } of files) {
     const checkSources =
@@ -108,14 +109,6 @@ export function structuralErrors(files, { sourcePrefixes = [] } = {}) {
         errors.push(
           `${file}: duplicate topic "${t.title}" (also in ${seenTitles.get(norm(t.title))})`,
         );
-      const resolvable = (ref) => seenTitles.has(norm(ref)) || local.has(norm(ref));
-      if (t.parentTitle && !resolvable(t.parentTitle))
-        errors.push(
-          `${file}: "${t.title}" parent "${t.parentTitle}" not in this or an earlier file`,
-        );
-      for (const pre of t.prerequisiteTitles)
-        if (!resolvable(pre))
-          errors.push(`${file}: "${t.title}" prereq "${pre}" not in this or an earlier file`);
       if (checkSources) {
         errors.push(...sourcePlanErrors(t, file));
         if (/resources:/i.test(t.description ?? ''))

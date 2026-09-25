@@ -7,6 +7,7 @@ import {
   useStreak,
   useTopics,
   useProjectProgress,
+  useSettings,
 } from '../../api/hooks';
 import { latestProjectCheckpoint } from '@terrain/types';
 import curriculum from '../../../../../content/projects/web3-products.json';
@@ -32,6 +33,7 @@ const LIBRARY_ORDER: TopicStatus[] = ['planned', 'active', 'mastered', 'archived
 
 export default function Dashboard() {
   const dashboardQ = useDashboard();
+  const timezone = useSettings().data?.timezone ?? 'UTC';
   const streakQ = useStreak();
   const heatmapQ = useHeatmap();
   const topicsQ = useTopics();
@@ -51,6 +53,7 @@ export default function Dashboard() {
   }, [navigate]);
 
   const today = new Date().toLocaleDateString(undefined, {
+    timeZone: timezone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -84,7 +87,9 @@ export default function Dashboard() {
   return (
     <div className="page">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-sub">{today}</p>
+      <p className="page-sub">
+        {today} · {timezone}
+      </p>
 
       <div className="col gap-4">
         <TodayCard dash={dash} />
@@ -97,6 +102,9 @@ export default function Dashboard() {
           <div className="row wrap gap-2">
             <Link className="btn btn-primary" to="/projects">
               Open projects
+            </Link>
+            <Link className="btn" to="/courses" hash="study-guide">
+              Study routine
             </Link>
             {currentProject && (
               <Link
@@ -117,7 +125,11 @@ export default function Dashboard() {
               <span aria-hidden>🔥</span>
               <span>{streak.currentStreak}</span>
             </div>
-            <div className="kpi-label">day streak — best {streak.longestStreak}</div>
+            <div className="kpi-label">day review streak — best {streak.longestStreak}</div>
+            <p className="faint">
+              Completed days only. Quiet days with no active topics due also extend this streak;
+              freezes preserve it. Project work and source study are tracked separately.
+            </p>
           </Card>
 
           <Card>
@@ -192,7 +204,7 @@ export default function Dashboard() {
         {/* ---- activity heatmap ---- */}
         <Card title="Review activity">
           {heatmapQ.data ? (
-            <Heatmap cells={heatmapQ.data} />
+            <Heatmap cells={heatmapQ.data} timezone={timezone} />
           ) : (
             <span className="faint">Loading activity…</span>
           )}
@@ -206,14 +218,21 @@ export default function Dashboard() {
           {dueCount === 0 ? (
             <EmptyState
               title="All clear"
-              hint="Nothing due today — a quiet day keeps your streak."
+              hint="No topic reviews due today. A quiet day extends your review streak without recording study."
             />
           ) : (
             <div className="col gap-4">
               {due.overdue.length > 0 && (
-                <DueGroup label="Overdue" labelColor="var(--st-blocked)" topics={due.overdue} />
+                <DueGroup
+                  label="Overdue"
+                  labelColor="var(--st-blocked)"
+                  topics={due.overdue}
+                  timezone={timezone}
+                />
               )}
-              {due.dueToday.length > 0 && <DueGroup label="Due today" topics={due.dueToday} />}
+              {due.dueToday.length > 0 && (
+                <DueGroup label="Due today" topics={due.dueToday} timezone={timezone} />
+              )}
             </div>
           )}
         </div>
@@ -226,10 +245,12 @@ function DueGroup({
   label,
   labelColor,
   topics,
+  timezone,
 }: {
   label: string;
   labelColor?: string;
   topics: Topic[];
+  timezone: string;
 }) {
   return (
     <div className="col gap-2">
@@ -250,7 +271,7 @@ function DueGroup({
       </div>
       <Card pad={false}>
         {topics.map((t) => {
-          const due = dueLabel(t.nextReviewAt);
+          const due = dueLabel(t.nextReviewAt, timezone);
           return (
             <div key={t.id} className="list-row" style={{ cursor: 'default' }}>
               <StatusBadge status={t.status} />

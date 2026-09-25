@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Bringing off-chain assets on-chain: tokenized treasuries (BlackRock BUIDL, Ondo), permissioned/compliant transfer designs, and the oracle/proof-of-reserve problem.",
-      "prerequisiteTitles": ["Maximal Extractable Value (MEV)"],
+      "prerequisiteTitles": ["ERC-20 fungible token standard"],
       "parentTitle": "Phase 9 — Frontier Strands"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The concept-heavy strand: SNARKs vs STARKs, arithmetic circuits and constraint systems, writing a circuit in Noir, and verifying a proof on-chain. Math-heavy — stay conceptual plus one real build.",
-      "prerequisiteTitles": ["Maximal Extractable Value (MEV)"],
+      "prerequisiteTitles": ["Hashing & Merkle trees"],
       "parentTitle": "Phase 9 — Frontier Strands"
     },
     {
@@ -96,7 +96,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["AVSs & operators (EigenLayer)", "Staking, LSTs & Restaking"],
+      "prerequisiteTitles": ["AVSs & operators (EigenLayer)", "Lido stETH & wstETH"],
       "parentTitle": "Restaking & EigenLayer"
     },
     {
@@ -118,10 +118,10 @@
                 "title": "EigenLayer Core Releases",
                 "url": "https://github.com/Layr-Labs/eigenlayer-contracts/releases",
                 "format": "documentation",
-                "scope": "Sections latest stable release and v1.9.0 Slashing UX Improvements: Highlights, Breaking Changes, and Deprecations",
+                "scope": "Sections v1.13.0 Slash Resolution Delay: Highlights and Breaking Changes, and v1.9.0 slasher configuration",
                 "estimatedMinutes": 18,
-                "why": "The canonical release history records the designated operator-set slasher, AllocationManager changes, and current migration boundary that supersede the old veto-committee description.",
-                "verifiedAt": "2026-07-11",
+                "why": "The release history separates the configured operator-set slasher from the later delay and pause controls before clearing slashed shares; pin the deployed version for the exercise.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
@@ -138,8 +138,8 @@
       "title": "EigenCloud & verifiable services",
       "type": "pattern",
       "domain": "Web3",
-      "description": "EigenCloud combines verifiable services including EigenDA, EigenCompute, and EigenAI. A service may verify results cryptographically, by reproducible execution, or through crypto-economic accountability; those are different guarantees and must not be collapsed into 'slashing makes compute correct.'",
-      "aiContext": "Build: in contracts/phase09/eigencloud.md pick one current service (DA, compute, or verifiable inference) and identify its claimed verification or accountability mechanism, verifier, evidence, and failure boundary. Done when: you distinguish cryptographic proof, reproducible execution, and crypto-economic enforcement without assuming every service uses slashing.",
+      "description": "EigenCloud groups services including EigenCompute, EigenDA and EigenLayer-backed security. A service may rely on cryptographic verification, reproducible execution, hardware trust or crypto-economic accountability; those guarantees differ and must be checked for the selected service/version.",
+      "aiContext": "Build: in contracts/phase09/eigencloud.md pick one current service (DA, compute, or verifiable inference) and identify its claimed verification or accountability mechanism, verifier, evidence, and failure boundary. Done when: you distinguish cryptographic proof, reproducible execution, and crypto-economic enforcement without assuming every service uses slashing. Source check 2026-09-25: the current landing page names EigenCompute, EigenDA and EigenLayer. Select a linked service and record its current mechanism and assumptions rather than relying on a remembered product list.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -153,10 +153,10 @@
                 "title": "EigenCloud Documentation",
                 "url": "https://docs.eigencloud.xyz/",
                 "format": "documentation",
-                "scope": "Sections Build on EigenCloud, EigenAI, EigenCompute, EigenDA, and DevKit",
+                "scope": "Sections Build on EigenCloud: EigenCompute, EigenDA, and EigenLayer",
                 "estimatedMinutes": 12,
-                "why": "The current product documentation names the live service categories and avoids projecting one verification mechanism onto all of them.",
-                "verifiedAt": "2026-07-11",
+                "why": "The current documentation entry points distinguish compute, data availability and restaked security; inspect the selected service rather than inferring a uniform verification guarantee.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
@@ -263,7 +263,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Tokenized treasuries (BUIDL, Ondo)", "Access Control patterns"],
+      "prerequisiteTitles": ["Tokenized treasuries (BUIDL, Ondo)", "Role-based access control"],
       "parentTitle": "Real-World Assets (RWAs)"
     },
     {
@@ -313,7 +313,10 @@
           }
         ]
       },
-      "prerequisiteTitles": ["RWA compliance & permissioned transfers", "DeFi Oracles"],
+      "prerequisiteTitles": [
+        "RWA compliance & permissioned transfers",
+        "Chainlink push price feeds"
+      ],
       "parentTitle": "Real-World Assets (RWAs)"
     },
     {
@@ -403,7 +406,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Noir is a proving-backend-agnostic DSL. Inputs are private by default and `pub` values are revealed to the verifier; `assert` adds a constraint. Current tooling separates compilation/execution in Nargo from proving and verification in a backend such as Barretenberg (`bb`).",
-      "aiContext": "Build: in contracts/phase09/noir/ pin compatible Nargo and bb versions, write a preimage or range circuit, run `nargo execute` to emit the circuit and witness, then `bb prove` and `bb verify`. Done when: the correct witness verifies, an invalid witness fails execution/proving, and you identify every public and private input.",
+      "aiContext": "Build: in contracts/phase09/noir/ pin compatible Nargo and bb versions, write a preimage or range circuit, run `nargo execute` to emit the circuit and witness, then `bb prove` and `bb verify`. Done when: the correct witness verifies, an invalid witness fails execution/proving, and you identify every public and private input. Preserved substantial practice (120 minutes, split across sessions): Write and prove a Noir circuit for a hash preimage, then verify it. Write a valid Noir hash constraint with x private and the digest public; `nargo execute` emits circuit+witness, then `bb prove` and `bb verify`. A wrong preimage must fail execution/proving. Pin Nargo, bb, and the selected hash/proof mode. Reference: https://noir-lang.org/docs. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -420,7 +423,7 @@
                 "scope": "Sections Installing Nargo through Verifying the proof",
                 "estimatedMinutes": 22,
                 "why": "The current official workflow assigns compile/execute to Nargo and prove/verify to Barretenberg, replacing the removed nargo prove and nargo verify commands.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
@@ -453,7 +456,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "An on-chain verifier checks a proof and public inputs against a verification key for one circuit and proving-system configuration. Generated interfaces and proof serialization are backend/version specific; not every SNARK verifier is a pairing contract. Reusing mismatched circuit, key, hash mode, or proof bytes invalidates the test boundary.",
-      "aiContext": "Build: in contracts/phase09/verifier pin Nargo/bb versions and one Barretenberg proof mode, generate its verification key and Solidity verifier, and test the exact serialized proof/public-input ABI in test/phase09/Verifier.t.sol. Done when: valid proof passes; tampered proof, changed public input, and mismatched key fail; versions and generation commands are recorded.",
+      "aiContext": "Build: in contracts/phase09/verifier pin Nargo/bb versions and one Barretenberg proof mode, generate its verification key and Solidity verifier, and test the exact serialized proof/public-input ABI in test/phase09/Verifier.t.sol. Done when: valid proof passes; tampered proof, changed public input, and mismatched key fail; versions and generation commands are recorded. Source check 2026-09-25: use the current Barretenberg generation/verification guide with a pinned compatible release, including matching oracle hash mode for key and proof. The optional starter README is historical scaffolding; its tool commands were not validated by running the lab.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -463,17 +466,30 @@
             "requiredWhen": "first_exposure",
             "options": [
               {
-                "id": "09b-noir-foundry-starter",
-                "title": "Noir Starter: Foundry",
-                "url": "https://github.com/AztecProtocol/noir-starter",
+                "id": "09b-barretenberg-solidity-verifier",
+                "title": "Barretenberg: Generate a Solidity Verifier",
+                "url": "https://barretenberg.aztec.network/docs/how_to_guides/how-to-solidity-verifier/",
                 "format": "documentation",
-                "scope": "Sections README workflow and linked scripts/tests for compiling, generating Barretenberg verifier/proof artifacts, and calling the verifier from Foundry",
+                "scope": "Sections Step 1 Generate a solidity contract and Step 4 Verifying",
                 "estimatedMinutes": 24,
-                "why": "The Noir organization's current Foundry template owns the exact cross-tool artifact and Solidity ABI boundary exercised by this build.",
-                "verifiedAt": "2026-07-11",
+                "why": "The backend owner documents verifier generation, matching Keccak proof/key mode, and the separate proof/public-input ABI used by the on-chain test.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
+          }
+        ],
+        "optional": [
+          {
+            "id": "09b-noir-foundry-starter",
+            "title": "Noir Starter: Foundry",
+            "url": "https://github.com/AztecProtocol/noir-starter",
+            "format": "documentation",
+            "scope": "Sections README workflow and linked scripts/tests for compiling, generating Barretenberg verifier/proof artifacts, and calling the verifier from Foundry",
+            "estimatedMinutes": 24,
+            "why": "Historical Foundry scaffold for understanding test integration; its README contains version-sensitive commands. Recheck the pinned template commit before use and follow the current Barretenberg guide for artifact generation.",
+            "verifiedAt": "2026-07-11",
+            "recheckAfterDays": 60
           }
         ]
       },
@@ -584,8 +600,8 @@
       "title": "OP Stack & fault proofs",
       "type": "pattern",
       "domain": "Web3",
-      "description": "The OP fault-proof system combines a deterministic fault-proof program with an FPVM and a fault dispute game. Cannon supplies off-chain trace generation plus an on-chain single-instruction VM. The program is transitioning from op-program to kona-client, so component names must be versioned rather than treated as permanent protocol roles.",
-      "aiContext": "Build: in contracts/phase09/op-stack.md diagram proposal, dispute game, fault-proof program, Cannon trace bisection, preimage oracle, and on-chain instruction step; note the current op-program-to-kona-client transition. Done when: you distinguish program, VM, and dispute game and name the pinned deployment/game type your diagram describes.",
+      "description": "The OP fault-proof system separates a deterministic program, a fault-proof VM and a dispute game. The maintained Cannon path runs kona-client on a 64-bit MIPS VM and resolves a disputed instruction in MIPS64.sol. Current documentation identifies CANNON_KONA game type 8; op-program and the older 32-bit MIPS.sol path are legacy. A specific chain deployment must still be checked.",
+      "aiContext": "Build: in contracts/phase09/op-stack.md diagram proposal, dispute game, kona-client, Cannon trace bisection, preimage oracle and the on-chain MIPS64.sol instruction step. Contrast legacy op-program game types 0/1 with CANNON_KONA type 8 using the operator guide. Done when: you distinguish program, VM and dispute game, and record the deployment address, release/prestate and respected game type actually inspected; a documentation update does not prove every OP Stack chain migrated.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -599,10 +615,10 @@
                 "title": "Optimism Fault Proof VM: Cannon",
                 "url": "https://docs.optimism.io/op-stack/fault-proofs/cannon",
                 "format": "documentation",
-                "scope": "Sections Control flow, OP-Challenger to Cannon, OP-Program to Cannon, and mips.go vs. MIPS.sol",
+                "scope": "Sections Control flow, op-challenger to Cannon, kona-client to Cannon, and MIPS64 state and memory",
                 "estimatedMinutes": 20,
-                "why": "The current OP documentation defines the program/FPVM/dispute-game boundary and the single-instruction on-chain step.",
-                "verifiedAt": "2026-07-11",
+                "why": "The maintained path runs kona-client in 64-bit Cannon and resolves an instruction in MIPS64.sol; the page distinguishes legacy op-program and retired 32-bit MIPS.sol.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
@@ -617,17 +633,17 @@
                 "title": "Optimism: Switching to Kona Proofs",
                 "url": "https://docs.optimism.io/chain-operators/guides/features/switching-to-kona-proofs",
                 "format": "documentation",
-                "scope": "Sections Introduction, CANNON op-program versus CANNON_KONA kona-client, and respected game type",
+                "scope": "Sections Check OpChainConfig prestates, Ensure op-challenger is Kona-ready, and Switch the respected game type to CANNON_KONA",
                 "estimatedMinutes": 12,
                 "why": "The current operator guide records the live version transition and the deployment/game-type choice the build must name.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               }
             ]
           }
         ]
       },
-      "prerequisiteTitles": ["Arbitrum Nitro & interactive fraud proofs"],
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK", "The EVM as a state machine"],
       "parentTitle": "L2 Internals"
     },
     {
@@ -652,7 +668,7 @@
                 "scope": "Sections glossary entries Sequencer, Batcher, Batcher Transaction, Channel, Frame, Data Availability Provider, Derivation, and L2 Output Root",
                 "estimatedMinutes": 20,
                 "why": "The normative OP vocabulary separates block production, channel publication, derivation, and state commitments used by the trace.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 60
               }
             ]
@@ -744,12 +760,9 @@
     },
     {
       "topicTitle": "Writing a Noir circuit",
-      "promptText": "Write and prove a Noir circuit for a hash preimage, then verify it.",
-      "answerHint": "Write a valid Noir hash constraint with x private and the digest public; `nargo execute` emits circuit+witness, then `bb prove` and `bb verify`. A wrong preimage must fail execution/proving. Pin Nargo, bb, and the selected hash/proof mode.",
-      "promptKind": "problem",
-      "url": "https://noir-lang.org/docs",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 120
+      "promptText": "In 10 minutes, separate public input, private witness, circuit, proof and verification key for a hash-preimage claim. Where should a wrong preimage fail?",
+      "answerHint": "Constrain the private preimage to the public digest; execution/proving fails for a bad witness. Nargo produces circuit/witness and the pinned proving backend produces proof/key; verifier sees the public statement.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "On-chain ZK verifiers",
@@ -771,8 +784,8 @@
     },
     {
       "topicTitle": "OP Stack & fault proofs",
-      "promptText": "What are the two halves of the OP Stack fault-proof system?",
-      "answerHint": "The deterministic fault-proof program derives L2 output from agreed inputs; Cannon is an FPVM that generates a trace off-chain and verifies one instruction on-chain, while the dispute game narrows claims. Pitfall: op-program is transitioning to kona-client, so pin the game type and implementation version.",
+      "promptText": "What roles do the fault-proof program, Cannon VM and dispute game play in the OP Stack?",
+      "answerHint": "The program derives an L2 output from agreed inputs; Cannon generates its execution trace off-chain and verifies a disputed instruction on-chain; the game narrows the disagreement. Current maintained documentation uses kona-client, 64-bit Cannon and MIPS64.sol (CANNON_KONA game type 8). op-program is legacy and end-of-support. Pin the actual deployment, release and respected game type rather than assuming all OP chains migrated.",
       "promptKind": "concept"
     },
     {

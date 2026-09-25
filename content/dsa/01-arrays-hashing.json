@@ -4,27 +4,18 @@
   "reviews": [],
   "proposedTopics": [
     {
-      "title": "Data Structures & Algorithms",
-      "type": "concept",
-      "domain": "DSA",
-      "description": "Root of the DSA learning path. Structure: NeetCode roadmap category order, each split into reviewable sub-patterns (the actual scheduling unit), each with curated problems from NeetCode 150 / Blind 75. Prereq edges follow real conceptual dependency, not just roadmap position. Study one sub-pattern at a time; drill into individual problems only when reviewing that sub-pattern.",
-      "prerequisiteTitles": [],
-      "parentTitle": null,
-      "aiContext": "path root, created 2026-07-01; cards authored 2026-07-02"
-    },
-    {
       "title": "Arrays & Hashing",
       "type": "concept",
       "domain": "DSA",
-      "description": "Foundation category: hash-based lookup and array manipulation underlie most other patterns. No DSA prereqs — entry point.",
-      "prerequisiteTitles": [],
+      "description": "Array manipulation and hash-based lookup. Bring the representation and cost model from the foundation lessons into concrete problems.",
+      "prerequisiteTitles": ["Representations & operation tradeoffs", "Complexity & cost models"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {
       "title": "Hashing fundamentals",
       "type": "pattern",
       "domain": "DSA",
-      "description": "Use a hash set/map to turn an O(n) membership or lookup check into O(1). Recognize: \"have I seen this before\", \"does X exist\", frequency counts.",
+      "description": "Use a hash set/map for expected constant-time membership or lookup under the stated hash-table assumptions; account for key construction, collisions, and worst-case behavior. Recognize duplicate detection, membership and frequency queries.",
       "prerequisiteTitles": [],
       "parentTitle": "Arrays & Hashing"
     },

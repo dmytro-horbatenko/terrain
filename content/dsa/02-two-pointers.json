@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Two indices scanning data (often after sorting) to avoid nested loops. Builds directly on array/hash foundations.",
-      "prerequisiteTitles": ["Arrays & Hashing"],
+      "prerequisiteTitles": ["Hashing fundamentals"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {
@@ -16,7 +16,7 @@
       "type": "pattern",
       "domain": "DSA",
       "description": "One pointer at each end of a sorted structure, moving inward based on a comparison. Recognize: sorted array, \"pair/triplet meeting a condition\", area/capacity maximization.",
-      "prerequisiteTitles": ["Sorting-based array tricks"],
+      "prerequisiteTitles": ["Sorting-based array tricks", "Loop invariants & termination"],
       "parentTitle": "Two Pointers"
     },
     {

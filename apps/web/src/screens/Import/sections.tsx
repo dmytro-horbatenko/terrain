@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card, GRADES, tint, useToast } from '../../components';
 import { formatDate } from '../../lib/format';
+import { useSettings } from '../../api/hooks';
 import type {
   ActivationPlan,
   Grade,
@@ -60,6 +61,7 @@ function SectionShell({
 // ---- a) Reviews ----
 
 function ReviewRow({ r }: { r: ResolvedReview }) {
+  const { data: settings } = useSettings();
   // Card reviews resolve by promptId: topicId null means the id didn't
   // resolve (a matching Unresolved entry blocks apply). Evidence reviews
   // with resolvedTopicId null are NOT flagged here — that's either an
@@ -91,7 +93,9 @@ function ReviewRow({ r }: { r: ResolvedReview }) {
       {r.kind === 'card' && r.cardPreview && (
         <span className="sr-preview mono">
           interval {r.cardPreview.intervalBefore}d → {r.cardPreview.intervalAfter}d
-          {r.cardPreview.nextReviewAt ? ` · next ${formatDate(r.cardPreview.nextReviewAt)}` : ''}
+          {r.cardPreview.nextReviewAt
+            ? ` · next ${formatDate(r.cardPreview.nextReviewAt, undefined, settings?.timezone)}`
+            : ''}
         </span>
       )}
       {unresolved && (
@@ -192,6 +196,7 @@ export function NewTopicsSection({ topics }: { topics: NewTopicPlan[] }) {
 // ---- b1) Source evidence ----
 
 export function SourceEvidenceSection({ evidence }: { evidence: SourceEvidencePlan[] }) {
+  const { data: settings } = useSettings();
   return (
     <SectionShell title="Source reconstructions" count={evidence.length}>
       {evidence.length === 0 ? (
@@ -233,7 +238,8 @@ export function SourceEvidenceSection({ evidence }: { evidence: SourceEvidencePl
               )}
               {entry.verifiedLiveAt && entry.verificationNote && (
                 <div className="faint" style={{ fontSize: 12 }}>
-                  Live verified {formatDate(entry.verifiedLiveAt)} — {entry.verificationNote}
+                  Live verified {formatDate(entry.verifiedLiveAt, undefined, settings?.timezone)} —{' '}
+                  {entry.verificationNote}
                 </div>
               )}
             </div>

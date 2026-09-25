@@ -35,7 +35,6 @@
       "prerequisiteTitles": ["ERC-20 fungible token standard"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
-
     {
       "title": "Pausable circuit breaker",
       "type": "pattern",
@@ -150,7 +149,6 @@
       "prerequisiteTitles": ["Reentrancy guard & checks-effects-interactions", "Mappings"],
       "parentTitle": "Safety Patterns"
     },
-
     {
       "title": "ERC-2612 permit (gasless approvals)",
       "type": "pattern",
@@ -333,7 +331,6 @@
       "prerequisiteTitles": ["ERC-2612 permit (gasless approvals)"],
       "parentTitle": "Signatures & Meta-Transactions"
     },
-
     {
       "title": "Merkle-proof airdrops",
       "type": "pattern",
@@ -463,7 +460,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Low-level calls", "Mappings"],
+      "prerequisiteTitles": ["Low-level call", "Mappings"],
       "parentTitle": "Distribution & Factory Patterns"
     },
     {
@@ -569,7 +566,6 @@
       ],
       "parentTitle": "Distribution & Factory Patterns"
     },
-
     {
       "title": "ERC-20Votes voting tokens",
       "type": "pattern",

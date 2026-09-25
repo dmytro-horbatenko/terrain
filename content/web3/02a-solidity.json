@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Solidity's value types, reference types (arrays/mappings/structs), and the three data locations (storage/memory/calldata) that decide lifetime, copy-vs-alias semantics, and gas.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["The EVM as a state machine"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How functions are declared and controlled: return values, view/pure mutability, the four visibility levels, modifiers, the constructor, and control flow.",
-      "prerequisiteTitles": ["Types & data locations"],
+      "prerequisiteTitles": ["Value types & their defaults"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How state variables map to 32-byte storage slots: sequential layout, packing, and the constant/immutable escape from storage. This is the foundation for proxies and gas work.",
-      "prerequisiteTitles": ["Types & data locations"],
+      "prerequisiteTitles": ["Value types & their defaults", "Reference types & data location"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Composing contracts with is, virtual/override, super, shadowing rules, and abstract contracts, plus C3 linearization for multiple inheritance.",
-      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "prerequisiteTitles": ["Functions & return values"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -40,10 +40,9 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Events write to the transaction log — cheap, off-chain-indexable output that contracts themselves cannot read. Indexed topics vs data, and the log's on-chain anatomy.",
-      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "prerequisiteTitles": ["Functions & return values"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
-
     {
       "title": "Value types & their defaults",
       "type": "pattern",
@@ -402,7 +401,6 @@
         ]
       }
     },
-
     {
       "title": "Functions & return values",
       "type": "pattern",
@@ -687,7 +685,6 @@
         ]
       }
     },
-
     {
       "title": "Reading & writing state variables",
       "type": "pattern",
@@ -870,7 +867,6 @@
         ]
       }
     },
-
     {
       "title": "Inheritance & function overriding",
       "type": "pattern",
@@ -1007,7 +1003,6 @@
         ]
       }
     },
-
     {
       "title": "Events & indexed topics",
       "type": "pattern",

@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ImportService } from '../import/import.service';
+import { CourseUpdatesService } from './course-updates.service';
 import { CoursesService } from './courses.service';
 
 function build(prismaOver: any = {}, importOver: any = {}) {
@@ -23,9 +23,8 @@ function build(prismaOver: any = {}, importOver: any = {}) {
     ...prismaOver,
   };
   const importService: any = {
-    apply: jest
-      .fn()
-      .mockResolvedValue({ topicsCreated: ['t1'], promptsCreated: 2, topicsActivated: 0 }),
+    preview: jest.fn().mockResolvedValue({ fingerprint: 'preview-fingerprint' }),
+    apply: jest.fn().mockResolvedValue({ topicsCreated: 1, promptsCreated: 2, topicsActivated: 0 }),
     ...importOver,
   };
   return { prisma, importService };
@@ -36,7 +35,7 @@ async function svc(prisma: any, importService: any): Promise<CoursesService> {
     providers: [
       CoursesService,
       { provide: PrismaService, useValue: prisma },
-      { provide: ImportService, useValue: importService },
+      { provide: CourseUpdatesService, useValue: importService },
     ],
   }).compile();
   return mod.get(CoursesService);
@@ -129,21 +128,16 @@ describe('CoursesService.setDisabled', () => {
 });
 
 describe('CoursesService.importCourse', () => {
-  it('calls ImportService.apply once per file, sums the totals, and upserts CourseImport', async () => {
+  it('imports the entire prepared course through a checked atomic update', async () => {
     const { prisma, importService } = build();
     const service = await svc(prisma, importService);
 
     const summary = await service.importCourse('u1', 'dsa');
 
-    expect(importService.apply).toHaveBeenCalledTimes(18); // content/dsa has 18 files
-    expect(prisma.sessionExport.create).toHaveBeenCalledTimes(18);
-    expect(summary.topicsCreated).toBe(18); // 1 topic per apply() call in this mock
-    expect(summary.promptsCreated).toBe(36); // 2 per apply() call
-    expect(prisma.courseImport.upsert).toHaveBeenCalledWith({
-      where: { userId_courseId: { userId: 'u1', courseId: 'dsa' } },
-      update: expect.objectContaining({ importedAt: expect.any(Date) }),
-      create: { userId: 'u1', courseId: 'dsa' },
-    });
+    expect(importService.apply).toHaveBeenCalledWith('u1', 'dsa', 'preview-fingerprint');
+    expect(importService.apply).toHaveBeenCalledTimes(1);
+    expect(summary.topicsCreated).toBe(1);
+    expect(summary.promptsCreated).toBe(2);
   });
 
   it('throws NotFoundException for an unknown course id', async () => {

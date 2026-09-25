@@ -4,6 +4,13 @@ Companion to `docs/ops/local-dev.md`. Covers taking Terrain from "runs on my
 laptop" to "runs on my rented server," matching the hardening described in
 the security review report.
 
+The local SSH alias `game` connects as `uyuyuy@terrain.yarre.uk` with the
+configured personal key. The deployment
+directory is `/home/uyuyuy/apps/terrain/consistency`. That directory is not a
+Git checkout. The server is too small for image builds. Build Linux images on
+a stronger machine, transfer them, and run Compose with `--no-build`.
+Commands below use fish on the server.
+
 ## 1. Server prep (one time)
 
 - Point `DOMAIN`'s A/AAAA record at the server's IP before starting Caddy —
@@ -112,18 +119,8 @@ Configure each client as follows:
    `offline_access`, and the authorization request must include it for durable
    connectivity. Terrain then issues a rotating refresh token; advertising the
    scope without actually issuing a refresh token is insufficient.
-6. Rebuild/restart the stack, then apply the pending migration
-   non-destructively:
-
-   ```bash
-   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-   docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
-     ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
-   docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
-     ../../node_modules/.bin/prisma migrate status --schema prisma/schema.prisma
-   ```
-
-   Confirm `20260724000002_mcp_oauth` is applied. Never use `migrate reset`.
+6. Deploy the changed images using steps 3–4 below. Confirm
+   `20260724000002_mcp_oauth` is applied. Never use `migrate reset`.
 
 After authorization, **Settings → AI connections** lists the client grant.
 Disconnecting there revokes that client's grant and its refresh-token families;
@@ -150,31 +147,58 @@ OAuth in each permitted client, confirm `tools/list` exposes only
 `/api/learning/context` REST responses. Finally disconnect in Terrain Settings
 and confirm the old access and refresh credentials can no longer reconnect.
 
-## 3. Bring the stack up
+## 3. Build and transfer images off-server
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+Commit the intended source changes on the build machine first. On the server, run
+`uname -m`: use `linux/amd64` for `x86_64` or `linux/arm64` for `aarch64`.
+Start Docker/OrbStack on the build machine. From the app revision to deploy,
+run these commands locally (shown for a POSIX shell):
+
+```sh
+tag=$(git rev-parse --short HEAD)
+platform=linux/amd64 # change to linux/arm64 for an aarch64 server
+docker buildx build --platform "$platform" --load -t "terrain-api:$tag" -f apps/api/Dockerfile .
+docker buildx build --platform "$platform" --load -t "terrain-web:$tag" -f apps/web/Dockerfile .
+docker save "terrain-api:$tag" "terrain-web:$tag" | gzip -1 > "/tmp/terrain-images-$tag.tar.gz"
+scp "/tmp/terrain-images-$tag.tar.gz" game:/tmp/
 ```
 
-This builds and starts three containers: `db` (Postgres, internal-only),
-`api` (NestJS, internal-only), `web` (Caddy — serves the built SPA and
-reverse-proxies `/api/*` to `api`, terminating TLS on 80/443).
+The archive is a transfer artifact, not a database backup. Its tag identifies
+the app revision used to build it. Rebuild it for app-code changes; a later
+documentation-only commit does not change the image payload.
 
-## 4. Apply migrations (first boot, and after any schema change)
+## 4. Load, migrate, and start on the server
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
-  ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+Connect with `ssh game`. In fish, use the tag in the
+transferred archive name (for example, `8a40163`):
+
+```fish
+cd /home/uyuyuy/apps/terrain/consistency
+ls -l docker-compose.prod.yml .env.production apps/api/.env # confirm files exist; do not print secrets
+set -gx TERRAIN_IMAGE_TAG 8a40163 # replace with the transferred archive's tag
+gzip -dc /tmp/terrain-images-$TERRAIN_IMAGE_TAG.tar.gz | docker load
+printf 'services:\n  api:\n    image: terrain-api:%s\n    pull_policy: never\n  web:\n    image: terrain-web:%s\n    pull_policy: never\n' $TERRAIN_IMAGE_TAG $TERRAIN_IMAGE_TAG > /tmp/terrain-prebuilt.yml
+
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d db
+docker compose -f docker-compose.prod.yml --env-file .env.production exec db sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 1; done'
+mkdir -p backups
+set backup "backups/terrain-before-update-"(date -u +%Y%m%dT%H%M%SZ)".dump"
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T db sh -c 'exec pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > $backup
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T db pg_restore --list < $backup > /dev/null
+
+docker compose -f docker-compose.prod.yml -f /tmp/terrain-prebuilt.yml --env-file .env.production run --rm --no-deps api ../../node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+docker compose -f docker-compose.prod.yml -f /tmp/terrain-prebuilt.yml --env-file .env.production run --rm --no-deps api ../../node_modules/.bin/prisma migrate status --schema prisma/schema.prisma
+docker compose -f docker-compose.prod.yml -f /tmp/terrain-prebuilt.yml --env-file .env.production up -d --no-build api web
+docker compose -f docker-compose.prod.yml -f /tmp/terrain-prebuilt.yml --env-file .env.production ps
 ```
 
-(paths are relative to the container's `WORKDIR`, `/workspace/apps/api` — `node_modules`
-is hoisted to the repo root, not copied per-workspace.)
-
-Compose only auto-loads a file named `.env`; keep `--env-file .env.production`
-on every production command so interpolation works.
-
-`migrate deploy` (not `migrate dev` / `migrate reset`) — it only applies
-pending migrations and never touches existing data.
+Stop if the backup or migration command fails. `migrate deploy` applies pending
+migrations without resetting existing data. The API image contains Prisma;
+the server only loads images, runs the migration, and restarts containers.
+Compose only auto-loads a file named `.env`, so keep `--env-file .env.production`
+on every production command. Use both Compose files for later API/web commands
+in this deployment; the override selects the loaded images and `--no-build`
+prevents a server build.
 
 ## 5. Verify
 
@@ -187,11 +211,13 @@ pending migrations and never touches existing data.
 
 ## 6. Updates
 
-```bash
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-# then step 4 again if the update includes a migration
-```
+Repeat steps 3–4 with a new tag. Keep the previous images on the server until
+the updated app is verified, so rollback remains possible. There is no Git
+repository on this server: transferred images carry application code and
+migrations. If `docker-compose.prod.yml` itself changes, copy that file
+separately and review it before replacing the server copy; keep the server's
+`.env.production` and `apps/api/.env` files. A local database dump is not an
+app image.
 
 ## 7. Telegram digest
 

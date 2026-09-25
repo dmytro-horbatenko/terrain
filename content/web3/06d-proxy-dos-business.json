@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "OWASP SC10 plus denial-of-service: upgradeable-contract hazards (storage-slot collisions, selector clashes, uninitialized implementations, delegatecall to untrusted code that rewrites your storage) and availability attacks (unbounded loops, push-payment reverts, block stuffing).",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Reading & writing state variables", "Low-level call"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "OWASP SC02 business-logic vulnerabilities arise when code runs as written but implements an unsafe rule — a broken accounting invariant, a skippable state machine, unvalidated input, a bypassable EXTCODESIZE check, CREATE2 address reuse, or an outright honeypot. Find them by understanding intent, stating invariants, and testing adversarial sequences.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Reading & writing state variables", "require, revert & assert"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -25,7 +25,10 @@
       "domain": "Web3",
       "description": "A delegatecall proxy and its implementation share ONE storage layout; if the proxy keeps its own variables (admin, implementation) in low slots that the logic contract also uses for different variables, a write to one silently overwrites the other. Fix: ERC-1967 puts proxy internals in keccak-derived slots that Solidity's compiler will not allocate for ordinary state variables; upgrades must also preserve the implementation's storage layout.",
       "aiContext": "Build: in security/attacks/storage-collision/ write a proxy that stores `admin` in slot 0 and a logic contract whose slot 0 is a different variable, and a test where calling the logic overwrites the proxy's admin; then move the admin to ERC-1967's specified admin slot. Done when: the collision hijacks control pre-fix and the ERC-1967 admin slot prevents accidental compiler-allocated overlap post-fix.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": [
+        "delegatecall & the proxy pattern",
+        "Storage slots & variable packing"
+      ],
       "parentTitle": "Proxy, storage & DoS attacks",
       "sourcePlan": {
         "policy": "required",

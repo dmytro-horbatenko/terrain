@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { LearningContext } from '@terrain/types';
 import type { LearningContextService } from '../learning/learning-context.service';
 import { McpService } from './mcp.service';
 
@@ -18,8 +19,20 @@ describe('McpService', () => {
     return { client, server };
   }
 
-  it('tells connected models to use Terrain as supplemental session context', async () => {
-    const service = new McpService({} as LearningContextService);
+  it('discovers and calls the context tool through the SDK with supplemental instructions', async () => {
+    const context: LearningContext = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      learner: { role: null, learningStyle: null, codeStyle: null, noteSystem: null },
+      target: null,
+      selection: { source: 'none', importedFocus: null, learnableAlternatives: [] },
+      prerequisites: [],
+      mayRelyOn: [],
+      doNotAssume: [],
+      blockers: [],
+    };
+    const learning = { context: jest.fn().mockResolvedValue(context) };
+    const service = new McpService(learning as unknown as LearningContextService);
     const { client, server } = await connect(service);
 
     try {
@@ -27,6 +40,16 @@ describe('McpService', () => {
         'Use get_learning_context to supplement a copied Terrain learning-session export',
       );
       expect(client.getInstructions()).toContain('The copied export remains authoritative');
+      expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual([
+        'get_learning_context',
+      ]);
+      const result = await client.callTool({
+        name: 'get_learning_context',
+        arguments: { topic: 'RLP encoding' },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toEqual(context);
+      expect(learning.context).toHaveBeenCalledWith('user-1', { topic: 'RLP encoding' });
     } finally {
       await Promise.all([client.close(), server.close()]);
     }

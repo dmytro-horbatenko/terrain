@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { AppEventKind, TopicStatus } from '@terrain/types';
 
 const TOPIC_STATUSES: TopicStatus[] = ['planned', 'active', 'mastered', 'archived'];
@@ -42,4 +42,13 @@ export class CreateAppEventDto {
 
 export class AddPrerequisiteDto {
   @IsString() prerequisiteId!: string;
+}
+
+export class UpdateTopicNotesDto {
+  @IsString() @MaxLength(100_000) body!: string;
+  @IsInt() @Min(0) @Max(2_147_483_646) revision!: number;
+}
+
+export class SearchTopicsDto {
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
 }

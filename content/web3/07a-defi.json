@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The canonical constant-product AMM: pair contracts holding two reserves, LP tokens for shares, a cumulative-price TWAP oracle, flash swaps, and an optional protocol fee. The reference every later AMM is measured against.",
-      "prerequisiteTitles": ["Automated Market Makers (AMMs)"],
+      "prerequisiteTitles": ["Constant-product market maker (x*y=k)"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Concentrated liquidity: LPs supply capital only within a chosen price range, expressed via ticks and a sqrtPriceX96 fixed-point price, with per-position fee-growth accounting. Far higher capital efficiency at the cost of active management.",
-      "prerequisiteTitles": ["Uniswap V2"],
+      "prerequisiteTitles": ["Uniswap V2 pair & reserves"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "A singleton PoolManager holding all pools, flash accounting via transient storage, hooks for custom pool logic, and ERC-6909 claim balances. Same concentrated-liquidity math as V3 with a radically cheaper, more extensible architecture.",
-      "prerequisiteTitles": ["Uniswap V3"],
+      "prerequisiteTitles": ["Concentrated liquidity & the L parameter"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
     {
@@ -40,16 +40,15 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How contracts learn off-chain prices safely: Chainlink push feeds, Uniswap TWAPs, and Pyth pull updates, plus the manipulation-resistance decisions that separate a safe price source from a drainable one.",
-      "prerequisiteTitles": ["Automated Market Makers (AMMs)"],
+      "prerequisiteTitles": ["Calling other contracts"],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
-
     {
       "title": "Constant-product market maker (x*y=k)",
       "type": "pattern",
       "domain": "Web3",
       "description": "The core AMM invariant: reserves x and y must satisfy x*y=k, so a fee-free swap of dx in yields dy = y*dx/(x+dx) out, keeping the product constant. Price is the reserve ratio y/x and moves against the trader as the pool depletes — large trades suffer growing price impact because the curve is convex. With Uniswap V2's 0.3% input fee, only 99.7% of dx is used to price output and the reserve product grows after the full input arrives.",
-      "aiContext": "Build: implement defi/amm/ConstantProduct.sol from scratch — swap/addLiquidity/removeLiquidity + a getAmountOut using the (amountIn*997*reserveOut)/(reserveIn*1000+amountIn*997) fee formula; Foundry test in test/defi/ConstantProduct.t.sol. Done when: an invariant/fuzz test proves k (reserve0*reserve1) never DECREASES across any sequence of swaps and that removeLiquidity rounds in the pool's favor.",
+      "aiContext": "Build: implement defi/amm/ConstantProduct.sol from scratch — swap/addLiquidity/removeLiquidity + a getAmountOut using the (amountIn*997*reserveOut)/(reserveIn*1000+amountIn*997) fee formula; Foundry test in test/defi/ConstantProduct.t.sol. Done when: an invariant/fuzz test proves k (reserve0*reserve1) never DECREASES across any sequence of swaps and that removeLiquidity rounds in the pool's favor. Before contract implementation, derive a small numerical model: assets/liabilities, units and rounding direction, conserved quantities, price/time assumptions, who bears losses, and one stressed or changed case. Record the failing case and compare it with the contract test; an API walkthrough alone does not finish this lesson.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -163,7 +162,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Liquidity providers deposit both assets and receive fungible LP tokens representing a pro-rata claim on the reserves. Because a constant-product pool is arbitraged to the external price, an LP ends up with more of the relatively cheaper asset. Impermanent loss is the pool-versus-hold value gap before fees; for an initially balanced, fee-free position it depends on the ending price ratio, while path-dependent fees can offset it.",
-      "aiContext": "Build: in defi/amm/LiquidityMath.sol add a pure function computing IL as a function of the price ratio r (IL = 2*sqrt(r)/(1+r) - 1) and test it against hand-worked cases (r=2 -> ~5.7% loss, r=4 -> 20%). Done when: test/defi/LiquidityMath.t.sol matches the closed-form IL at r=1,2,4 within rounding.",
+      "aiContext": "Build: in defi/amm/LiquidityMath.sol add a pure function computing IL as a function of the price ratio r (IL = 2*sqrt(r)/(1+r) - 1) and test it against hand-worked cases (r=2 -> ~5.7% loss, r=4 -> 20%). Done when: test/defi/LiquidityMath.t.sol matches the closed-form IL at r=1,2,4 within rounding. Before contract implementation, derive a small numerical model: assets/liabilities, units and rounding direction, conserved quantities, price/time assumptions, who bears losses, and one stressed or changed case. Record the failing case and compare it with the contract test; an API walkthrough alone does not finish this lesson.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -190,7 +189,6 @@
       "prerequisiteTitles": ["Constant-product market maker (x*y=k)"],
       "parentTitle": "Automated Market Makers (AMMs)"
     },
-
     {
       "title": "Uniswap V2 pair & reserves",
       "type": "pattern",
@@ -273,10 +271,7 @@
           }
         ]
       },
-      "prerequisiteTitles": [
-        "LP shares & impermanent loss",
-        "ERC-4626 first-depositor share inflation"
-      ],
+      "prerequisiteTitles": ["LP shares & impermanent loss"],
       "parentTitle": "Uniswap V2"
     },
     {
@@ -319,7 +314,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Uniswap V2 pair & reserves", "TWAP oracle manipulation"],
+      "prerequisiteTitles": ["Uniswap V2 pair & reserves"],
       "parentTitle": "Uniswap V2"
     },
     {
@@ -397,7 +392,6 @@
       "prerequisiteTitles": ["Uniswap V2 LP mint/burn math"],
       "parentTitle": "Uniswap V2"
     },
-
     {
       "title": "Concentrated liquidity & the L parameter",
       "type": "pattern",
@@ -577,7 +571,6 @@
       "prerequisiteTitles": ["Ticks & tick spacing", "Uniswap V2 protocol fee (1/6)"],
       "parentTitle": "Uniswap V3"
     },
-
     {
       "title": "Uniswap V4 singleton PoolManager",
       "type": "pattern",
@@ -752,7 +745,6 @@
       ],
       "parentTitle": "Uniswap V4"
     },
-
     {
       "title": "Chainlink push price feeds",
       "type": "pattern",
@@ -800,7 +792,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Stale & misconfigured price feeds"],
+      "prerequisiteTitles": ["Calling other contracts"],
       "parentTitle": "DeFi Oracles"
     },
     {
@@ -858,7 +850,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Pyth's EVM pull integration has the application submit updateData, pay getUpdateFee, call updatePriceFeeds, then read getPriceNoOlderThan(id,maxAge). Price and conf share expo, so values are integer*10^expo. The age bound is explicit and a wide confidence interval can require conservative pricing or rejection. Pyth also offers push integration, so 'pull' describes this integration path rather than every Pyth feed.",
-      "aiContext": "Build: in defi/oracle/PythConsumer.sol update then read a price with getPriceNoOlderThan, reject a nonpositive price, apply expo, and reject if conf/abs(price) exceeds a tolerance; test/defi/PythConsumer.t.sol with a mock Pyth. Done when: reading without a fresh update reverts on max-age, nonpositive prices revert, and a wide confidence interval is rejected by the tolerance check.",
+      "aiContext": "Build: in defi/oracle/PythConsumer.sol update then read a price with getPriceNoOlderThan, reject a nonpositive price, apply expo, and reject if conf/abs(price) exceeds a tolerance; test/defi/PythConsumer.t.sol with a mock Pyth. Done when: reading without a fresh update reverts on max-age, nonpositive prices revert, and a wide confidence interval is rejected by the tolerance check. Version check 2026-09-25: the official August 26, 2026 upgrade guide states Hermes now requires a Pyth API key (https://docs.pyth.network/price-feeds/core/upgrade/preparing). Keep the deterministic mock lab; for live integration check current contract/feed IDs and SDK compatibility, keep service credentials out of shared artifacts, and test missing/failed Hermes authentication separately from stale on-chain prices.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -875,7 +867,7 @@
                 "scope": "Sections Update Prices First and Write Contract Code",
                 "estimatedMinutes": 20,
                 "why": "The current official guide sequences getUpdateFee, payable updatePriceFeeds, and getPriceNoOlderThan with explicit stale-price behavior.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               }
             ]
@@ -893,7 +885,7 @@
                 "scope": "Sections Fixed-Point Numeric Representation, Price Availability, and Confidence Intervals",
                 "estimatedMinutes": 18,
                 "why": "Pyth's official safety guide defines shared exponent scaling, staleness failure, and confidence-band use in application risk policy.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               }
             ]
@@ -950,10 +942,7 @@
           }
         ]
       },
-      "prerequisiteTitles": [
-        "Uniswap V3 TWAP from tick cumulatives",
-        "Flash-loan price manipulation"
-      ],
+      "prerequisiteTitles": ["Uniswap V3 TWAP from tick cumulatives", "Chainlink push price feeds"],
       "parentTitle": "DeFi Oracles"
     }
   ],

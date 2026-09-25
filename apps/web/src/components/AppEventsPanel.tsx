@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AppEvent, AppEventKind } from '../api/types';
-import { useAddAppEvent } from '../api/hooks';
+import { useAddAppEvent, useSettings } from '../api/hooks';
 import { useToast } from './Toast';
 import { formatDateTime, isUrl } from '../lib/format';
 
@@ -20,6 +20,7 @@ const KINDS = Object.keys(KIND_LABEL) as AppEventKind[];
  */
 export function AppEventsPanel({ topicId, events }: { topicId: string; events: AppEvent[] }) {
   const add = useAddAppEvent(topicId);
+  const { data: settings } = useSettings();
   const { toast } = useToast();
 
   const [kind, setKind] = useState<AppEventKind>('problem_solved');
@@ -72,7 +73,7 @@ export function AppEventsPanel({ topicId, events }: { topicId: string; events: A
                 )}
               </span>
               <span className="faint nowrap" style={{ fontSize: 12 }}>
-                {formatDateTime(e.appliedAt)}
+                {formatDateTime(e.appliedAt, settings?.timezone)}
               </span>
             </div>
           ))}
@@ -95,7 +96,7 @@ export function AppEventsPanel({ topicId, events }: { topicId: string; events: A
           </select>
           <input
             className="input grow"
-            placeholder="What did you do?"
+            placeholder="What did you do independently, and what help did you use?"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -104,7 +105,7 @@ export function AppEventsPanel({ topicId, events }: { topicId: string; events: A
         <div className="row gap-2">
           <input
             className="input grow"
-            placeholder="Link (optional) — PR, LeetCode, issue…"
+            placeholder="Evidence link (optional) — project artifact, test, PR…"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}

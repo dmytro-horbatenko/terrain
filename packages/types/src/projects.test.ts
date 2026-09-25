@@ -124,6 +124,7 @@ describe('product curriculum and checkpoint contract', () => {
     expect(validateProjectCheckpoint(parseProjectCheckpoint(text), catalog)).toEqual(draft);
     expect(text).toContain('keep status active');
     expect(text).toContain('Keep unrelated topic-study continuation untouched');
+    expect(text).toContain(catalog.assessment[catalog.assessment.length - 1]);
     expect(() => parseProjectCheckpoint(text + text)).toThrow('one terrain-project block');
   });
 });

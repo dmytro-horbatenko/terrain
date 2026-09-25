@@ -116,6 +116,7 @@ model Topic {
   description    String?
   summary        String?
   noteRef        String?
+  notes          TopicNotes?
   parentId       String?
   parent         Topic?             @relation("SubTopics", fields: [parentId], references: [id])
   children       Topic[]            @relation("SubTopics")
@@ -125,6 +126,7 @@ model Topic {
   learnedAt      DateTime?
   aiProposed     Boolean            @default(false)
   aiContext      String?
+  curriculumOrder Int?
   reviews        Review[]
   prompts        Prompt[]
   appEvents      ApplicationEvent[]
@@ -136,6 +138,15 @@ model Topic {
 
   @@index([userId, status, nextReviewAt])
   @@index([parentId])
+}
+
+// Learner-owned writing is separate from import-authored summaries.
+model TopicNotes {
+  topicId   String   @id
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  body      String   @default("")
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt
 }
 
 model Prerequisite {

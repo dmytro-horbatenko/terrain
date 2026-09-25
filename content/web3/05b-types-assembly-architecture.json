@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The EVM is a 256-bit machine, so type and data-structure choices have non-obvious gas effects: smaller types can cost more when they do not reduce storage slots, bitmaps compact indexed flags, and mappings suit keyed access.",
-      "prerequisiteTitles": ["Storage gas"],
+      "prerequisiteTitles": ["Warm vs cold access (EIP-2929)", "Packing variables into slots"],
       "parentTitle": "Phase 5 — Gas Optimization"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Inline assembly exposes EVM operations and memory or storage locations directly. It can remove work on measured hot paths, but the author must preserve Solidity's memory, type-cleaning, call-failure, and storage-layout invariants.",
-      "prerequisiteTitles": ["Assembly & Yul intro"],
+      "prerequisiteTitles": ["Inline assembly & Yul basics"],
       "parentTitle": "Phase 5 — Gas Optimization"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The biggest wins can be structural: deploy clones instead of full contracts, share a singleton where its coupling is acceptable, batch calls, verify compact off-chain commitments, and use withdrawal-based payments to isolate recipients.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Gas snapshots"],
       "parentTitle": "Phase 5 — Gas Optimization"
     },
     {
@@ -524,7 +524,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Proxies & Upgradeability"],
+      "prerequisiteTitles": ["delegatecall & the proxy pattern"],
       "parentTitle": "Architecture-level gas"
     },
     {

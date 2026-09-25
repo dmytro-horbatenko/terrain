@@ -1,0 +1,218 @@
+{
+  "version": 2,
+  "sessionId": null,
+  "reviews": [],
+  "proposedTopics": [
+    {
+      "title": "Data Structures & Algorithms",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "A long-term, depth-first DSA path with a compact foundation in representations, complexity, invariants, correctness and recursion. Keep the existing pattern catalogue as practice; choose an algorithm from the problem constraints rather than from its chapter label.",
+      "prerequisiteTitles": [],
+      "parentTitle": null,
+      "aiContext": "Path root, created 2026-07-01; foundation revision 2026-09-25. Start with a brief diagnostic: compare two representations, bound a loop, state an invariant and trace a recursive call. Use the evidence to choose depth, not prior employment. Study one topic at a time. After focused practice, use unlabeled mixed problems from already studied families; require a model, complexity argument and correctness argument before choosing a pattern. Later use a changed case where the familiar pattern fails (negative values for a monotonic-window assumption, duplicates for search boundaries, weighted edges for BFS). Preserve the first attempt and assistance level; a recalled solution is not independent transfer. This is one small foundation block within the current allocation, not a second complete MIT course."
+    },
+    {
+      "title": "DSA foundations",
+      "type": "concept",
+      "domain": "DSA",
+      "description": "Five compact foundations for reasoning about the existing problems: data representation, cost, invariants, proof and recursion. Diagnose first and deepen weak points; revisit these ideas inside later topics.",
+      "aiContext": "Use selected primary-source sections, a worked example, one runnable counterexample and a later changed-case check. Do not duplicate a university course or add a second card collection.",
+      "prerequisiteTitles": [],
+      "parentTitle": "Data Structures & Algorithms"
+    },
+    {
+      "title": "Representations & operation tradeoffs",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Separate the abstract operations from the data layout. Choose arrays, linked structures or maps from the required operations, memory use, ordering and update behavior; account for language/runtime assumptions.",
+      "aiContext": "Build: implement the same small sequence interface using an array and a linked structure; tabulate get/insert/remove costs and check empty/singleton cases. Done when: a changed workload makes you reconsider the representation and you explain the time/space cost. Preserve the first unaided attempt; return later with a changed input/constraint, not the memorized example.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "dsa-foundation-1",
+            "purpose": "Ground the worked example and its reasoning in the selected primary teaching material.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "mit-foundation-1",
+                "title": "MIT 6.006 — Lecture 2: Data Structures",
+                "url": "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/resources/mit6_006s20_lec2/",
+                "format": "documentation",
+                "scope": "Sections Data Structure Interfaces, Sequence Interface, Linked List Sequence, and Dynamic Array Sequence",
+                "estimatedMinutes": 25,
+                "why": "This bounded primary course reading supplies the model to explain, implement and challenge in the accompanying exercise.",
+                "verifiedAt": "2026-09-25",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": [],
+      "parentTitle": "DSA foundations"
+    },
+    {
+      "title": "Complexity & cost models",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Define input size, primitive operations and space before using O, Omega or Theta. Distinguish worst-case, expected and amortized cost; count a loop or recurrence rather than guessing from syntax.",
+      "aiContext": "Build: count operations for a full nested scan, a halving loop and a growable-array append sequence; compare count growth at two input sizes. Done when: you justify tight bounds, auxiliary space, and the assumptions behind expected hash lookup and amortized append. Preserve the first unaided attempt; return later with a changed input/constraint, not the memorized example.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "dsa-foundation-2",
+            "purpose": "Ground the worked example and its reasoning in the selected primary teaching material.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "mit-foundation-2",
+                "title": "MIT 6.006 — Lecture 1: Introduction",
+                "url": "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/resources/mit6_006s20_lec1/",
+                "format": "documentation",
+                "scope": "Sections Efficiency, Asymptotic notation, and Model of computation",
+                "estimatedMinutes": 25,
+                "why": "This bounded primary course reading supplies the model to explain, implement and challenge in the accompanying exercise.",
+                "verifiedAt": "2026-09-25",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Representations & operation tradeoffs"],
+      "parentTitle": "DSA foundations"
+    },
+    {
+      "title": "Loop invariants & termination",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Describe what remains true before each iteration and a well-founded measure that decreases. Initialization, preservation and exit together explain the result; an invariant alone does not prove termination.",
+      "aiContext": "Build: write a prefix-sum loop with an explicit invariant and decreasing remaining-length measure; mutate an update/index and show a failing case. Done when: the invariant implies the output at exit and you handle the empty input without hand-waving. Preserve the first unaided attempt; return later with a changed input/constraint, not the memorized example.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "dsa-foundation-3",
+            "purpose": "Ground the worked example and its reasoning in the selected primary teaching material.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "mit-foundation-3",
+                "title": "MIT 6.042J — State Machines and Invariants",
+                "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/resources/mit6_042js15_session9/",
+                "format": "documentation",
+                "scope": "Section 5.4 State Machines: preserved invariants and termination",
+                "estimatedMinutes": 25,
+                "why": "This bounded primary course reading supplies the model to explain, implement and challenge in the accompanying exercise.",
+                "verifiedAt": "2026-09-25",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Complexity & cost models"],
+      "parentTitle": "DSA foundations"
+    },
+    {
+      "title": "Induction & correctness arguments",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Make the input contract and desired result precise, then prove a base case and an inductive step. Separate empirical tests, counterexamples, partial correctness and termination; a plausible pattern name is not a proof.",
+      "aiContext": "Build: prove that a running maximum over a nonempty array returns a member at least as large as every input, and test a deliberately bad initialization on all-negative values. Done when: the proof names its precondition, covers each step, and changes correctly when empty input becomes allowed. Preserve the first unaided attempt; return later with a changed input/constraint, not the memorized example.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "dsa-foundation-4",
+            "purpose": "Ground the worked example and its reasoning in the selected primary teaching material.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "mit-foundation-4",
+                "title": "MIT 6.042J — Ordinary and Strong Induction",
+                "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/resources/mit6_042js15_session8/",
+                "format": "documentation",
+                "scope": "Sections 5.1 Ordinary Induction and 5.2 Strong Induction",
+                "estimatedMinutes": 25,
+                "why": "This bounded primary course reading supplies the model to explain, implement and challenge in the accompanying exercise.",
+                "verifiedAt": "2026-09-25",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Loop invariants & termination"],
+      "parentTitle": "DSA foundations"
+    },
+    {
+      "title": "Recursion & decreasing subproblems",
+      "type": "pattern",
+      "domain": "DSA",
+      "description": "Treat each recursive call as a contract on a smaller input. Identify base cases, progress, return-value composition and stack space; connect structural induction to tree-shaped data and distinguish repeated work from recursion depth.",
+      "aiContext": "Build: evaluate a tiny expression tree recursively and with an explicit stack, checking equal outputs and tracing pending work. Done when: you justify termination on a finite acyclic tree, distinguish O(n) visits from O(height) recursive depth, and explain what must change if nodes can form a cycle. Preserve the first unaided attempt; return later with a changed input/constraint, not the memorized example.",
+      "sourcePlan": {
+        "policy": "required",
+        "requirements": [
+          {
+            "id": "dsa-foundation-5",
+            "purpose": "Ground the worked example and its reasoning in the selected primary teaching material.",
+            "requiredWhen": "first_exposure",
+            "options": [
+              {
+                "id": "mit-foundation-5",
+                "title": "MIT 6.042J — Recursive Data Types",
+                "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/resources/mit6_042js15_session10/",
+                "format": "documentation",
+                "scope": "Sections 6.1 Recursive Definitions and Structural Induction and 6.4 Arithmetic Expressions",
+                "estimatedMinutes": 25,
+                "why": "This bounded primary course reading supplies the model to explain, implement and challenge in the accompanying exercise.",
+                "verifiedAt": "2026-09-25",
+                "recheckAfterDays": 365
+              }
+            ]
+          }
+        ]
+      },
+      "prerequisiteTitles": ["Induction & correctness arguments"],
+      "parentTitle": "DSA foundations"
+    }
+  ],
+  "proposedPrompts": [
+    {
+      "topicTitle": "Representations & operation tradeoffs",
+      "promptKind": "concept",
+      "promptText": "An interface needs random access and frequent insertion at the front. Compare an array and linked list, including what information must be available for an O(1) insertion.",
+      "answerHint": "Separate finding a position from editing known links; arrays offer direct indexing, linked lists require traversal. State space overhead and the operation mix."
+    },
+    {
+      "topicTitle": "Complexity & cost models",
+      "promptKind": "concept",
+      "promptText": "A loop halves n each step; a separate loop visits every unordered pair. Give tight time bounds, define n, and explain why one slow dynamic-array append does not contradict amortized constant append.",
+      "answerHint": "Halving gives Theta(log n), pairs Theta(n^2). Amortization bounds a sequence of operations and is not a probability or a worst-case guarantee for each operation."
+    },
+    {
+      "topicTitle": "Loop invariants & termination",
+      "promptKind": "concept",
+      "promptText": "For a loop summing an array prefix, state initialization, preservation, exit condition and a decreasing measure. Could a true invariant coexist with an infinite loop?",
+      "answerHint": "Before index i, sum equals exactly elements [0,i). Show one-step preservation, exit at n, and n-i decreases. Yes: an invariant alone says nothing about progress."
+    },
+    {
+      "topicTitle": "Induction & correctness arguments",
+      "promptKind": "concept",
+      "promptText": "A running maximum starts at zero and passes tests on positive arrays. Give a counterexample, repair the algorithm and identify the base case and inductive hypothesis of its correctness argument.",
+      "answerHint": "All-negative input breaks zero initialization. Require nonempty input and initialize from the first element, or define an explicit empty result. Prove the stored value is the maximum of the processed prefix."
+    },
+    {
+      "topicTitle": "Recursion & decreasing subproblems",
+      "promptKind": "concept",
+      "promptText": "For a recursive expression-tree evaluator, what gets smaller, what is the base case, and what determines time versus call-stack space? What changes when the input may contain a cycle?",
+      "answerHint": "Finite subtrees shrink to leaves; each tree node is visited once, while stack depth follows height. A general graph requires a cycle policy and possibly memoization; the tree proof no longer applies."
+    }
+  ],
+  "noteSummaries": []
+}

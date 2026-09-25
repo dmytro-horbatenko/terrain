@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "A binary tree kept partially ordered for O(log n) insert/extract-min-or-max. Depends on Trees for the underlying structure and Arrays & Hashing for the array-backed implementation.",
-      "prerequisiteTitles": ["Trees", "Arrays & Hashing"],
+      "prerequisiteTitles": ["DFS traversals", "Hashing fundamentals"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

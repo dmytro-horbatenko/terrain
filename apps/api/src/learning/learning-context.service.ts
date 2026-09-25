@@ -84,6 +84,7 @@ export class LearningContextService {
           learnedAt: true,
           aiProposed: true,
           aiContext: true,
+          curriculumOrder: true,
           sourcePlan: true,
           createdAt: true,
           updatedAt: true,
@@ -114,6 +115,26 @@ export class LearningContextService {
             select: { nextFocusTitle: true, importedOutputRaw: true },
           }),
     ]);
+    // Bulk creation timestamps can tie. Sort prepared topics within their existing
+    // domain slots, leaving custom topics and the relative domain placement intact.
+    const authored = new Map<string, LoadedTopic[]>();
+    for (const node of graph) {
+      if (node.curriculumOrder != null) {
+        const items = authored.get(node.domain) ?? [];
+        items.push(node);
+        authored.set(node.domain, items);
+      }
+    }
+    for (const items of authored.values())
+      items.sort((a, b) => a.curriculumOrder! - b.curriculumOrder!);
+    const cursors = new Map<string, number>();
+    for (let index = 0; index < graph.length; index++) {
+      const node = graph[index];
+      if (node.curriculumOrder == null) continue;
+      const cursor = cursors.get(node.domain) ?? 0;
+      graph[index] = authored.get(node.domain)![cursor];
+      cursors.set(node.domain, cursor + 1);
+    }
     const policy = buildRoadmapPolicy(
       graph.map((node) => ({
         id: node.id,
@@ -301,7 +322,7 @@ export class LearningContextService {
       applicationEvents,
       continuation,
       targetReviews,
-      skillChecks,
+      skillCheckGroups,
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -345,14 +366,19 @@ export class LearningContextService {
             select: { topicId: true, promptId: true, grade: true, reviewedAt: true, note: true },
           })
         : Promise.resolve([]),
-      target
-        ? this.prisma.skillCheck.findMany({
-            where: { userId, topicId: target.id, assessedAt: { not: null }, cancelledAt: null },
-            orderBy: [{ assessedAt: 'desc' }, { id: 'desc' }],
-            take: 3,
-            select: { plan: true, attempt: true, result: true, attemptedAt: true },
-          })
-        : Promise.resolve([]),
+      Promise.all(
+        relevantIds.map(async (topicId) => ({
+          topicId,
+          checks: (
+            await this.prisma.skillCheck.findMany({
+              where: { userId, topicId, assessedAt: { not: null }, cancelledAt: null },
+              orderBy: [{ assessedAt: 'desc' }, { id: 'desc' }],
+              take: 3,
+              select: { plan: true, attempt: true, result: true, attemptedAt: true },
+            })
+          ).flatMap(skillCheckEvidence),
+        })),
+      ),
     ]);
     const reviews = reviewGroups.flat() as ReviewEvidence[];
     const evidenceFor = (topicId: string): CompactEvidence => {
@@ -365,12 +391,13 @@ export class LearningContextService {
         sourceTitles: [...new Set(topicSources.map((row) => row.sourceTitle))],
         applicationCount: applications.length,
         latestApplication: applications[0]?.description ?? null,
+        skillChecks: skillCheckGroups.find((group) => group.topicId === topicId)?.checks ?? [],
       };
     };
     const prerequisiteIds = target ? this.prerequisiteIds(target.id, selection.policy) : [];
     const knowledge = prerequisiteIds.flatMap((id) => {
       const prerequisite = byId.get(id);
-      if (!prerequisite) return [];
+      if (!prerequisite || selection.policy.get(id)?.kind === 'group') return [];
       const evidence = evidenceFor(id);
       const level = this.knowledgeLevel(prerequisite, evidence);
       return [
@@ -379,7 +406,7 @@ export class LearningContextService {
           title: prerequisite.title,
           status: prerequisite.status,
           level,
-          reason: this.knowledgeReason(level, prerequisite.status),
+          reason: this.knowledgeReason(level, prerequisite.status, evidence),
           summary: prerequisite.summary,
           evidence,
         },
@@ -429,7 +456,7 @@ export class LearningContextService {
             ),
             continuation,
             sourceProgress,
-            skillChecks: skillChecks.flatMap(skillCheckEvidence),
+            skillChecks: evidenceFor(target.id).skillChecks,
             applications: applicationEvents
               .filter((row) => row.topicId === target.id)
               .slice(0, 3)
@@ -476,7 +503,7 @@ export class LearningContextService {
           )
         : [],
       mayRelyOn: knowledge.filter(({ level }) => level === 'practicing' || level === 'mastered'),
-      doNotAssume: knowledge.filter(({ level }) => level === 'unseen' || level === 'introduced'),
+      doNotAssume: knowledge.filter(({ level }) => level !== 'practicing' && level !== 'mastered'),
       blockers: target ? this.blockers(target, selection) : this.noTargetBlockers(selection),
     };
     return learningContextSchema.parse(result);
@@ -554,6 +581,9 @@ export class LearningContextService {
       const topicPolicy = policy.get(id);
       if (!topicPolicy) return;
       result.push(id);
+      if (topicPolicy.kind === 'group') {
+        for (const leafId of topicPolicy.leafIds) visit(leafId);
+      }
       for (const prerequisiteId of topicPolicy.effectivePrerequisiteIds) visit(prerequisiteId);
     };
     for (const prerequisiteId of policy.get(targetId)?.effectivePrerequisiteIds ?? []) {
@@ -566,8 +596,14 @@ export class LearningContextService {
     topic: LoadedTopic,
     evidence: CompactEvidence,
   ): LearningContext['mayRelyOn'][number]['level'] {
-    if (topic.status === 'mastered') return 'mastered';
     if (topic.status === 'planned' || topic.status === 'archived') return 'unseen';
+    if (
+      evidence.recentGrades.includes('again') ||
+      evidence.skillChecks?.[0]?.outcome === 'needs_practice'
+    ) {
+      return 'needs_verification';
+    }
+    if (topic.status === 'mastered') return 'mastered';
     return evidence.recentGrades.length ||
       evidence.sourceTitles.length ||
       topic.summary ||
@@ -579,9 +615,17 @@ export class LearningContextService {
   private knowledgeReason(
     level: LearningContext['mayRelyOn'][number]['level'],
     status: TopicStatus,
+    evidence: CompactEvidence,
   ): string {
-    if (level === 'mastered') return 'Recorded as mastered; it may be relied on.';
-    if (level === 'practicing') return 'Recorded evidence shows active practice.';
+    if (level === 'needs_verification') {
+      return evidence.skillChecks?.[0]?.outcome === 'needs_practice'
+        ? 'The latest independent check needs practice; verify the recorded gap before relying on it. Historical progress is preserved.'
+        : 'A failed recall appears in the last three attempts; verify that concept before relying on it. Historical progress is preserved.';
+    }
+    if (level === 'mastered')
+      return 'Recorded as mastered under the progress criteria; use the dated evidence and verify transfer to a changed task.';
+    if (level === 'practicing')
+      return 'Recorded evidence shows prior practice, not guaranteed independent competence; calibrate to the task.';
     if (level === 'introduced') return 'Active but unevidenced; verify it before relying on it.';
     return status === 'archived'
       ? 'Archived; verify or reteach it before relying on it.'
@@ -598,7 +642,7 @@ export class LearningContextService {
     creditedRequirementIds: string[],
   ): NonNullable<LearningContext['target']> {
     const targetPolicy = selection.policy.get(target.id)!;
-    const directIds = new Set([target.id, ...targetPolicy.effectivePrerequisiteIds]);
+    const directIds = new Set(this.relevantIds(target, selection.policy));
     const approachReviews = reviews.filter((review) => directIds.has(review.topicId));
     const activePrompts = target.prompts.filter(({ suspended }) => !suspended);
     const parent = target.parentId ? byId.get(target.parentId) : undefined;
@@ -655,6 +699,7 @@ export class LearningContextService {
     selection: Selection,
     evidenceFor: (topicId: string) => CompactEvidence,
     path: Set<string>,
+    includeDependencies = true,
   ): LearningContext['prerequisites'][number] | null {
     const topic = selection.graph.find((candidate) => candidate.id === id);
     const policy = selection.policy.get(id);
@@ -681,12 +726,18 @@ export class LearningContextService {
       evidence: evidenceFor(id),
       children: cycle
         ? []
-        : policy.effectivePrerequisiteIds.flatMap((prerequisiteId) => {
+        : (policy.kind === 'group'
+            ? policy.leafIds
+            : includeDependencies
+              ? policy.effectivePrerequisiteIds
+              : []
+          ).flatMap((prerequisiteId) => {
             const child = this.prerequisiteContext(
               prerequisiteId,
               selection,
               evidenceFor,
               nextPath,
+              policy.kind !== 'group',
             );
             return child ? [child] : [];
           }),

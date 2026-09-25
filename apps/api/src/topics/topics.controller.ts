@@ -1,6 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { TopicsService } from './topics.service';
-import { CreateAppEventDto, CreateTopicDto, AddPrerequisiteDto, UpdateTopicDto } from './dto';
+import {
+  CreateAppEventDto,
+  CreateTopicDto,
+  AddPrerequisiteDto,
+  UpdateTopicDto,
+  UpdateTopicNotesDto,
+  SearchTopicsDto,
+} from './dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 
 @Controller('topics')
@@ -11,6 +18,19 @@ export class TopicsController {
   }
   @Get() findAll(@CurrentUser() userId: string) {
     return this.service.findAll(userId);
+  }
+  @Get('search') search(@CurrentUser() userId: string, @Query() query: SearchTopicsDto) {
+    return this.service.search(userId, query.q ?? '');
+  }
+  @Get(':id/notes') notes(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.service.getNotes(userId, id);
+  }
+  @Patch(':id/notes') saveNotes(
+    @CurrentUser() userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateTopicNotesDto,
+  ) {
+    return this.service.saveNotes(userId, id, dto);
   }
   @Get(':id') findOne(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.service.getDetail(userId, id);

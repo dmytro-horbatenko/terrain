@@ -58,6 +58,17 @@ export interface TopicRef {
   status: TopicStatus;
 }
 
+export interface TopicNotes {
+  body: string;
+  revision: number;
+  updatedAt: string | null;
+}
+
+export interface UpdateTopicNotesInput {
+  body: string;
+  revision: number;
+}
+
 export interface Review {
   id: string;
   topicId: string;
@@ -490,6 +501,20 @@ export interface Course {
   topicCount: number;
   imported: boolean;
   disabled: boolean;
+  revision?: string;
+}
+
+export interface CourseUpdatePreview {
+  revision: string;
+  catalogueDigest: string;
+  fingerprint: string;
+  topicsCreated: number;
+  topicsUpdated: number;
+  promptsCreated: number;
+  promptsUpdated: number;
+  preservedChanges: string[];
+  issues: string[];
+  changes: { title: string; fields: string[]; prerequisites?: string[] }[];
 }
 
 export interface CourseImportSummary {

@@ -4,7 +4,13 @@ import type { LearningApproach } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { LearningContextService } from '../learning/learning-context.service';
 import { estimateMinutes } from '../telegram/telegram.messages';
-import { localDayStart } from '../telegram/telegram.time';
+import {
+  localDateKey,
+  localDateStart,
+  localDayBounds,
+  localDayStart,
+  shiftDateKey,
+} from '../telegram/telegram.time';
 import {
   completedReview,
   readReviewSnapshot,
@@ -22,14 +28,6 @@ export interface NextUp {
   chapterTitle: string | null;
   chapterProgress: { started: number; total: number } | null;
   sourcePlanStats: { requiredCount: number; estimatedMinutes: number; hasExpired: boolean };
-}
-
-/** Local-time YYYY-MM-DD key (matches the streak engine's local day bounds). */
-function localDateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 @Injectable()
@@ -97,27 +95,29 @@ export class MetricsService {
    * web heatmap can render a continuous calendar grid.
    */
   async heatmap(userId: string, now: Date, days = 182): Promise<{ date: string; count: number }[]> {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - (days - 1));
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    });
+    const timezone = settings?.timezone ?? 'UTC';
+    const firstKey = shiftDateKey(localDateKey(now, timezone), -(days - 1));
+    const start = localDateStart(firstKey, timezone);
 
     const reviews = await this.prisma.review.findMany({
-      where: { userId, reviewedAt: { gte: start } },
+      where: { userId, reviewedAt: { gte: start, lte: now } },
       select: { reviewedAt: true },
     });
 
     const counts = new Map<string, number>();
     for (const r of reviews) {
-      const key = localDateKey(r.reviewedAt);
+      const key = localDateKey(r.reviewedAt, timezone);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
     const series: { date: string; count: number }[] = [];
-    const cursor = new Date(start);
     for (let i = 0; i < days; i++) {
-      const key = localDateKey(cursor);
+      const key = shiftDateKey(firstKey, i);
       series.push({ date: key, count: counts.get(key) ?? 0 });
-      cursor.setDate(cursor.getDate() + 1);
     }
     return series;
   }
@@ -127,10 +127,15 @@ export class MetricsService {
     now: Date,
     domain?: string,
   ): Promise<{ overdue: Topic[]; dueToday: Topic[] }> {
-    const disabled = await this.disabledDomains(userId);
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { disabledDomains: true, timezone: true },
+    });
+    const disabled = settings?.disabledDomains ?? [];
+    const { start: startOfToday, end: endOfToday } = localDayBounds(
+      now,
+      settings?.timezone ?? 'UTC',
+    );
     const active = await this.prisma.topic.findMany({
       where: {
         userId,
@@ -151,10 +156,12 @@ export class MetricsService {
    * are excluded (mastered topics still keep reviewing under FSRS).
    */
   async dueCards(userId: string, now: Date, domain?: string): Promise<Prompt[]> {
-    const disabled = await this.disabledDomains(userId);
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(startOfToday.getTime() + DAY_MS);
+    const settings = await this.prisma.settings.findUnique({
+      where: { userId },
+      select: { disabledDomains: true, timezone: true },
+    });
+    const disabled = settings?.disabledDomains ?? [];
+    const { end: endOfToday } = localDayBounds(now, settings?.timezone ?? 'UTC');
     return this.prisma.prompt.findMany({
       where: {
         suspended: false,
@@ -183,11 +190,7 @@ export class MetricsService {
     });
     const disabled = settings?.disabledDomains ?? [];
     const timezone = settings?.timezone ?? 'UTC';
-    const startOfToday = localDayStart(now, timezone);
-    const endOfToday = localDayStart(
-      new Date(startOfToday.getTime() + 36 * 60 * 60 * 1000),
-      timezone,
-    );
+    const { start: startOfToday, end: endOfToday } = localDayBounds(now, timezone);
     const topicJoin = {
       select: {
         id: true,
@@ -344,7 +347,7 @@ export class MetricsService {
       select: { timezone: true },
     });
     const timezone = settings?.timezone ?? 'UTC';
-    const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+    const dayKey = localDateKey(now, timezone);
     const sessions = await this.prisma.sessionExport.findMany({
       where: {
         userId,

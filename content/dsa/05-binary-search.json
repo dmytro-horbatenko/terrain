@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Halving a search space by testing a monotonic predicate. Fundamentally an array-scanning technique, independent of stack/pointer categories.",
-      "prerequisiteTitles": ["Arrays & Hashing"],
+      "prerequisiteTitles": ["Hashing fundamentals"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {
@@ -16,7 +16,7 @@
       "type": "pattern",
       "domain": "DSA",
       "description": "Standard lo/hi/mid search on a sorted array for an exact target, careful with off-by-one bounds. Recognize: sorted array, direct value lookup.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Loop invariants & termination"],
       "parentTitle": "Binary Search"
     },
     {

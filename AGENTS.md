@@ -1,6 +1,6 @@
 # Terrain — agent & contributor guide
 
-**Terrain** is a personal **Learning OS**: spaced-repetition (SM-2) + a living
+**Terrain** is a personal **Learning OS**: spaced-repetition (FSRS) + a living
 knowledge graph. Codex.ai is the AI layer; this app is a context store,
 scheduler, and progress mirror. Multi-user, JWT cookie auth (see
 `docs/superpowers/specs/2026-07-01-terrain-multi-user-auth-design.md`).
@@ -12,7 +12,7 @@ Design specs and implementation plans live in `docs/superpowers/`.
 ## Monorepo layout (Yarn 4 workspaces, Node 24)
 
 ```
-packages/sr-engine   Pure SM-2 engine + escalation predicate (zero deps, vitest)
+packages/sr-engine   FSRS adapter over ts-fsrs + escalation predicate (vitest)
 packages/types       Shared TS types + the `learning-os` Zod contract (vitest)
 apps/api             NestJS 11 + Prisma 7 (Postgres). Topics, Reviews, Metrics,
                      Streak/cron, Sessions/export, Import, Settings, TopicTypes
@@ -41,7 +41,7 @@ yarn format:check            # oxfmt --check .
 
 # API (apps/api)
 yarn workspace @terrain/api build           # nest build
-yarn workspace @terrain/api test            # jest (173 tests)
+yarn workspace @terrain/api test            # jest
 yarn workspace @terrain/api start           # nest start (dev)
 
 # Web (apps/web)
@@ -49,8 +49,8 @@ yarn workspace @terrain/web dev             # vite dev server (port 5180)
 yarn workspace @terrain/web build           # tsc --noEmit + vite build
 
 # Packages
-yarn workspace @terrain/sr-engine test      # vitest (7)
-yarn workspace @terrain/types test          # vitest (4)
+yarn workspace @terrain/sr-engine test      # vitest
+yarn workspace @terrain/types test          # vitest
 ```
 
 ### Database (Prisma 7)

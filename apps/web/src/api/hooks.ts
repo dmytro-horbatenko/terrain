@@ -16,6 +16,7 @@ import type {
   UpdateProfileInput,
   UpdateSettingsInput,
   UpdateTopicInput,
+  UpdateTopicNotesInput,
 } from './types';
 
 export const qk = {
@@ -23,6 +24,7 @@ export const qk = {
   projects: ['projects'] as const,
   topics: ['topics'] as const,
   topic: (id: string) => ['topic', id] as const,
+  topicNotes: (id: string) => ['topic-notes', id] as const,
   reviews: (topicId: string) => ['reviews', topicId] as const,
   nextPrompt: (topicId: string) => ['next-prompt', topicId] as const,
   prompt: (id: string) => ['prompt', id] as const,
@@ -101,6 +103,29 @@ export function useTopics() {
   return useQuery({ queryKey: qk.topics, queryFn: api.getTopics });
 }
 
+export function useTopicSearch(query: string) {
+  return useQuery({
+    queryKey: ['topic-search', query.trim()],
+    queryFn: () => api.searchTopicIds(query.trim()),
+    enabled: !!query.trim(),
+  });
+}
+
+export function useTopicNotes(id: string) {
+  return useQuery({ queryKey: qk.topicNotes(id), queryFn: () => api.getTopicNotes(id) });
+}
+
+export function useSaveTopicNotes(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateTopicNotesInput) => api.updateTopicNotes(id, input),
+    onSuccess: (saved) => {
+      qc.setQueryData(qk.topicNotes(id), saved);
+      void qc.invalidateQueries({ queryKey: ['topic-search'] });
+    },
+  });
+}
+
 export function useTopic(id: string | null) {
   return useQuery({
     queryKey: qk.topic(id ?? ''),
@@ -158,7 +183,12 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdateSettingsInput) => api.updateSettings(input),
-    onSuccess: (data) => qc.setQueryData(qk.settings, data),
+    onSuccess: (data) => {
+      qc.setQueryData(qk.settings, data);
+      for (const key of ['dashboard', 'heatmap', 'streak', 'skill-checks', 'session-queue']) {
+        void qc.invalidateQueries({ queryKey: [key] });
+      }
+    },
   });
 }
 
@@ -186,6 +216,7 @@ function useInvalidateAll() {
   return (topicId?: string) =>
     Promise.all([
       qc.invalidateQueries({ queryKey: qk.topics }),
+      qc.invalidateQueries({ queryKey: ['topic-search'] }),
       qc.invalidateQueries({ queryKey: ['dashboard'] }),
       qc.invalidateQueries({ queryKey: ['session-queue'] }),
       qc.invalidateQueries({ queryKey: ['heatmap'] }),
@@ -314,7 +345,20 @@ export function useImportCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.importCourse(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.courses }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useCourseUpdatePreview() {
+  return useMutation({ mutationFn: (id: string) => api.previewCourseUpdate(id) });
+}
+
+export function useApplyCourseUpdate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, fingerprint }: { id: string; fingerprint: string }) =>
+      api.applyCourseUpdate(id, fingerprint),
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 

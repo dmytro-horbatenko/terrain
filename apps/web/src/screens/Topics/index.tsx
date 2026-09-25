@@ -1,5 +1,5 @@
-import { useMemo, useState, type MouseEvent } from 'react';
-import { useTopics, useDeleteTopic } from '../../api/hooks';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useTopics, useTopicSearch, useSettings, useDeleteTopic } from '../../api/hooks';
 import {
   Card,
   Modal,
@@ -20,12 +20,19 @@ type StatusFilter = 'all' | TopicStatus;
 
 export default function Topics() {
   const { data: topics, isLoading, isError, error } = useTopics();
+  const { data: settings } = useSettings();
   const del = useDeleteTopic();
   const { toast } = useToast();
 
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  const searchResult = useTopicSearch(searchQuery);
   const [domainFilter, setDomainFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -38,14 +45,14 @@ export default function Topics() {
   }, [all]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const ids = new Set(searchResult.data ?? []);
     return all.filter((t) => {
-      if (q && !t.title.toLowerCase().includes(q)) return false;
+      if (search.trim() && (searchQuery !== search.trim() || !ids.has(t.id))) return false;
       if (domainFilter !== 'all' && t.domain !== domainFilter) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       return true;
     });
-  }, [all, search, domainFilter, statusFilter]);
+  }, [all, search, searchQuery, searchResult.data, domainFilter, statusFilter]);
 
   // Group filtered topics by domain, ordered alphabetically; titles sorted within.
   const groups = useMemo(() => {
@@ -68,6 +75,7 @@ export default function Topics() {
 
   const handleDelete = (e: MouseEvent, t: TopicWithMeta) => {
     e.stopPropagation();
+    if (selectedId === t.id && !canLeaveTopicPanel()) return;
     if (!window.confirm(`Delete "${t.title}"? This cannot be undone.`)) return;
     del.mutate(t.id, {
       onSuccess: () => {
@@ -115,7 +123,8 @@ export default function Topics() {
               style={{ maxWidth: 260 }}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title…"
+              maxLength={200}
+              placeholder="Search titles, notes and summaries…"
               aria-label="Search topics"
             />
 
@@ -161,7 +170,11 @@ export default function Topics() {
 
           {/* List */}
           <Card pad={false}>
-            {filtered.length === 0 ? (
+            {search.trim() && (search.trim() !== searchQuery || searchResult.isPending) ? (
+              <Loading label="Searching notes and topics…" />
+            ) : search.trim() && searchResult.error ? (
+              <ErrorBox error={searchResult.error} />
+            ) : filtered.length === 0 ? (
               <EmptyState title="No matching topics" hint="Try clearing the search or filters." />
             ) : (
               groups.map((group) => (
@@ -185,6 +198,7 @@ export default function Topics() {
                     <TopicRow
                       key={t.id}
                       topic={t}
+                      timezone={settings?.timezone}
                       onOpen={() => {
                         if (selectedId === t.id || canLeaveTopicPanel()) setSelectedId(t.id);
                       }}
@@ -226,13 +240,15 @@ function TopicRow({
   onOpen,
   onDelete,
   deleting,
+  timezone,
 }: {
   topic: TopicWithMeta;
   onOpen: () => void;
   onDelete: (e: MouseEvent) => void;
   deleting: boolean;
+  timezone?: string;
 }) {
-  const due = dueLabel(topic.nextReviewAt);
+  const due = dueLabel(topic.nextReviewAt, timezone);
   return (
     <div className="list-row" onClick={onOpen}>
       <StatusBadge status={topic.status} labels={topic.labels} />

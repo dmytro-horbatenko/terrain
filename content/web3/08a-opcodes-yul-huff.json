@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Huff — opcodes plus macros and manual stack manipulation — for hand-built dispatchers and gas-critical primitives: macros, stack effects, scoped labels, and when the effort pays off. The current huff2 compiler does not yet implement jump tables.",
-      "prerequisiteTitles": ["Yul & Inline Assembly"],
+      "prerequisiteTitles": ["Yul syntax & the assembly block"],
       "parentTitle": "Phase 8 — EVM Internals & Advanced Solidity"
     },
     {
@@ -421,7 +421,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Implementing a bounded interpreter makes the execution model concrete: fetch/decode/execute over bytecode with a program counter, 256-bit stack words, byte-addressed memory, storage, returndata, and gas accounting. Exceptional halts cover invalid instructions, stack faults, invalid jumps, and out-of-gas. Legacy JUMP/JUMPI destinations must be a JUMPDEST instruction in the current code, never a byte inside PUSH immediate data. w1nt3r's evm-from-scratch supplies a test-driven opcode ladder.",
-      "aiContext": "Build: fork evm-from-scratch into contracts/phase08/evm-from-scratch (any language) and implement through the arithmetic, PUSH/DUP/SWAP, and JUMP/JUMPI groups. Done when: the repo's test suite passes for those groups and your interpreter rejects a JUMP to an offset that is not a JUMPDEST.",
+      "aiContext": "Build: fork evm-from-scratch into contracts/phase08/evm-from-scratch (any language) and implement through the arithmetic, PUSH/DUP/SWAP, and JUMP/JUMPI groups. Done when: the repo's test suite passes for those groups and your interpreter rejects a JUMP to an offset that is not a JUMPDEST. Preserved substantial practice (240 minutes, split across sessions): Pass the w1nt3r evm-from-scratch test ladder through the JUMP group. Fork the repo, implement STOP/PUSH/arithmetic/DUP/SWAP, then JUMP/JUMPI with JUMPDEST validation; run the provided tests per opcode group. Reference: https://github.com/w1nt3r-eth/evm-from-scratch. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["The EVM as a state machine", "Stack, arithmetic & bitwise opcodes"],
       "parentTitle": "Opcodes Deep Dive",
       "sourcePlan": {
@@ -554,7 +554,11 @@
       "domain": "Web3",
       "description": "The EVM dialect exposes calldataload, calldatacopy, and calldatasize. For a standard external ABI function call, bytes 0–3 hold the selector and the encoded argument tuple starts at byte 4. Static values occupy 32-byte head words; a dynamic head word is an offset relative to the start of that tuple, pointing to length and data in the tail. Opcode reads beyond calldata are zero-padded, so manual decoders must enforce the ABI bounds and canonical-shape checks they rely on.",
       "aiContext": "Build: in contracts/phase08/CalldataYul.sol decode a (uint256,address) pair by hand with calldataload at offsets 4 and 0x24, and a dynamic bytes arg via its tuple-relative offset; test valid encoding plus truncated heads and out-of-bounds dynamic tails in test/phase08/CalldataYul.t.sol. Done when: forge test matches abi.encode on valid input, rejects each malformed low-level call, and you can explain why calldataload itself zero-pads rather than reverting.",
-      "prerequisiteTitles": ["Yul syntax & the assembly block", "ABI encoding & decoding"],
+      "prerequisiteTitles": [
+        "Yul syntax & the assembly block",
+        "abi.encode vs encodePacked",
+        "abi.decode & function selectors"
+      ],
       "parentTitle": "Yul & Inline Assembly",
       "sourcePlan": {
         "policy": "required",
@@ -824,12 +828,9 @@
     },
     {
       "topicTitle": "Building an EVM interpreter from scratch",
-      "promptText": "Pass the w1nt3r evm-from-scratch test ladder through the JUMP group.",
-      "answerHint": "Fork the repo, implement STOP/PUSH/arithmetic/DUP/SWAP, then JUMP/JUMPI with JUMPDEST validation; run the provided tests per opcode group.",
-      "promptKind": "problem",
-      "url": "https://github.com/w1nt3r-eth/evm-from-scratch",
-      "problemDifficulty": "hard",
-      "estimatedMinutes": 240
+      "promptText": "In 10 minutes, trace PUSH1 0x03, PUSH1 0x02, ADD, STOP: give the program counter and stack after each instruction. Why must a jump land on JUMPDEST rather than a byte inside PUSH data?",
+      "answerHint": "Trace instruction widths separately from stack effects; ADD leaves 5. Valid destinations are decoded JUMPDEST instructions, not arbitrary matching bytes.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Yul syntax & the assembly block",

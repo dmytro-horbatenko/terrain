@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Getting a user's wallet into your dApp: injected providers (EIP-1193/EIP-6963), WalletConnect, the RainbowKit/ConnectKit connect UIs, and Sign-In With Ethereum for auth.",
-      "prerequisiteTitles": ["viem & wagmi"],
+      "prerequisiteTitles": ["viem clients: public, wallet & transports"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Turning on-chain logs into queryable app data: reading event logs directly, and building indexers with The Graph subgraphs or Ponder.",
-      "prerequisiteTitles": ["viem & wagmi"],
+      "prerequisiteTitles": ["viem clients: public, wallet & transports"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The batteries-included full-stack starter: a Foundry/Hardhat contract package wired to a Next.js frontend with typed contract hooks, a debug UI, and a local burner wallet.",
-      "prerequisiteTitles": ["viem & wagmi"],
+      "prerequisiteTitles": ["viem clients: public, wallet & transports"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
     {
@@ -40,17 +40,16 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The BuidlGuidl challenge progression built on Scaffold-ETH: crowdfunding, a token vendor, a dice game, a DEX, and beyond — each a shippable full-stack dApp.",
-      "prerequisiteTitles": ["Scaffold-ETH 2"],
+      "prerequisiteTitles": ["Scaffold-ETH 2 architecture"],
       "parentTitle": "Phase 10 — Full-Stack dApp"
     },
-
     {
       "title": "viem clients: public, wallet & transports",
       "type": "pattern",
       "domain": "Web3",
       "description": "viem splits access into a Public Client (read-only: eth_call, getBalance, logs) and a Wallet Client (accounts, signing, and transactions), each built over a Transport (http, webSocket, or a custom EIP-1193 provider). You configure a chain and transport once and reuse the client. This separation makes it explicit which calls need wallet authority and which do not.",
       "aiContext": "Build: in frontend/src/clients.ts create a Public Client (http transport, a testnet chain) and a Wallet Client from window.ethereum, then read a balance and log the connected account. Done when: `getBalance` returns via the public client and the wallet client exposes an address from the injected provider, with the two responsibilities clearly separated.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Raw Ethereum JSON-RPC"],
       "parentTitle": "viem & wagmi",
       "sourcePlan": {
         "policy": "required",
@@ -84,7 +83,7 @@
       "aiContext": "Build: in frontend/src/read.ts call an ERC-20's balanceOf and decimals via readContract with the ABI `as const`, and batch both with multicall. Done when: the values return correctly typed (no `any`), and the multicall version issues a single RPC call for both reads.",
       "prerequisiteTitles": [
         "viem clients: public, wallet & transports",
-        "ABI encoding & decoding"
+        "abi.decode & function selectors"
       ],
       "parentTitle": "viem & wagmi",
       "sourcePlan": {
@@ -196,7 +195,7 @@
       "domain": "Web3",
       "description": "watchContractEvent watches new contract logs and invokes onLogs with decoded events; getContractEvents fetches historical logs over a block range. The watcher polls filters (falling back to getLogs when filters are unsupported), while a WebSocket client can use subscriptions unless polling is requested. Applications must reconcile provisional UI state with confirmed chain state across reorgs.",
       "aiContext": "Build: in frontend/src/watch.ts watch an ERC-20 Transfer event with watchContractEvent and fetch the last 1000 blocks with getContractEvents. Done when: onLogs receives decoded from/to/value, the historical range returns past events, both paths can be stopped or refreshed cleanly, and provisional event UI is reconciled from confirmed state after a chain reorganization.",
-      "prerequisiteTitles": ["Reading contracts with viem", "Events & logging"],
+      "prerequisiteTitles": ["Reading contracts with viem", "Log anatomy: topics vs data"],
       "parentTitle": "viem & wagmi",
       "sourcePlan": {
         "policy": "required",
@@ -246,7 +245,7 @@
       "domain": "Web3",
       "description": "The ABI is the contract's typed interface; the wagmi CLI (@wagmi/cli) resolves ABIs from Foundry/Hardhat projects or block explorers. With its React plugin it generates typed React hooks, so renamed functions and wrong argument types become compile-time failures. Generation must run again after contract artifacts change.",
       "aiContext": "Build: in frontend/ configure @wagmi/cli with the foundry and react plugins to read Foundry artifacts and generate typed hooks, then use a generated read hook. Done when: `wagmi generate` produces typed hooks, and changing a Solidity signature, rebuilding artifacts, and regenerating turns the stale call site into a TypeScript error.",
-      "prerequisiteTitles": ["Reading contracts with viem", "The 4-byte function selector"],
+      "prerequisiteTitles": ["Reading contracts with viem", "abi.decode & function selectors"],
       "parentTitle": "viem & wagmi",
       "sourcePlan": {
         "policy": "required",
@@ -290,14 +289,13 @@
         ]
       }
     },
-
     {
       "title": "Injected wallets & EIP-1193 / EIP-6963",
       "type": "pattern",
       "domain": "Web3",
       "description": "A browser wallet can expose an EIP-1193 provider with request({ method, params }) and events including accountsChanged and chainChanged. EIP-1193 does not standardize window.ethereum. EIP-6963 adds window events for announcing and requesting multiple injected providers without relying on one mutable provider slot. Apps must react to account and chain changes rather than treating them as static.",
       "aiContext": "Build: in frontend/src/injected.ts request accounts via the EIP-1193 provider and subscribe to accountsChanged and chainChanged, updating UI state. Done when: switching accounts or networks in the wallet updates your app without a reload, and you can enumerate multiple wallets via EIP-6963 discovery.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["EOAs vs contract accounts"],
       "parentTitle": "Wallet Connection",
       "sourcePlan": {
         "policy": "required",
@@ -426,7 +424,6 @@
         ]
       }
     },
-
     {
       "title": "Reading event logs on the frontend",
       "type": "pattern",
@@ -464,7 +461,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "A subgraph definition combines subgraph.yaml (data sources and handlers), schema.graphql (stored entities), and AssemblyScript mappings that transform chain data into entity updates. After code generation, build, and deployment, consumers query the indexed entities through GraphQL instead of repeatedly scanning raw logs.",
-      "aiContext": "Build: scaffold a subgraph in indexing/subgraph for an ERC-20, mapping Transfer events into Account + Transfer entities, and deploy to a local Graph node or Subgraph Studio. Done when: a GraphQL query returns per-account balances/transfer counts derived purely from indexed events, and after adding a schema field plus its mapping update, rerunning codegen and build succeeds and populates that field.",
+      "aiContext": "Build: scaffold a subgraph in indexing/subgraph for an ERC-20, mapping Transfer events into Account + Transfer entities, and deploy to a local Graph node or Subgraph Studio. Done when: a GraphQL query returns per-account balances/transfer counts derived purely from indexed events, and after adding a schema field plus its mapping update, rerunning codegen and build succeeds and populates that field. Preserved substantial practice (150 minutes, split across sessions): Build and deploy a subgraph indexing an ERC-20's Transfer events into per-account entities. Write the manifest + schema (Account, Transfer) + AssemblyScript mapping, then deploy to a local Graph node or Subgraph Studio and query balances via GraphQL. Reference: https://thegraph.com/docs/en/subgraphs/quick-start/. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Reading event logs on the frontend"],
       "parentTitle": "Events & Indexing",
       "sourcePlan": {
@@ -515,7 +512,7 @@
       "domain": "Web3",
       "description": "Ponder is a TypeScript framework for EVM indexing: ponder.config.ts selects chains and contracts, ponder.schema.ts defines on-chain tables, and ponder.on handlers write event-derived records. It backfills and live-syncs into Postgres and exposes query APIs over HTTP, including generated GraphQL and SQL. You deploy and operate the service yourself.",
       "aiContext": "Build: in indexing/ponder set up a Ponder project indexing the same ERC-20 Transfer event into a table and query it. Done when: its development server backfills historical transfers and live-updates on new ones, and you can query per-account totals over its GraphQL endpoint.",
-      "prerequisiteTitles": ["The Graph & subgraphs"],
+      "prerequisiteTitles": ["Reading event logs on the frontend"],
       "parentTitle": "Events & Indexing",
       "sourcePlan": {
         "policy": "required",
@@ -541,14 +538,13 @@
         ]
       }
     },
-
     {
       "title": "Scaffold-ETH 2 architecture",
       "type": "pattern",
       "domain": "Web3",
       "description": "Scaffold-ETH 2 combines a Foundry or Hardhat contract workspace with a Next.js frontend wired to wagmi, viem, and RainbowKit. Deployments feed contract address and ABI information to the frontend. It includes contract hot reload, a local burner wallet and faucet, and a Debug Contracts UI for rapid local iteration.",
       "aiContext": "Build: `npx create-eth@latest` into frontend/scaffold, run the local chain, deploy the example contract, and open the Debug Contracts page. Done when: you can call your deployed contract's functions from the auto-generated Debug UI and a redeploy updates the frontend's typed contract registry automatically.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Writing transactions with viem & wagmi"],
       "parentTitle": "Scaffold-ETH 2",
       "sourcePlan": {
         "policy": "required",
@@ -681,13 +677,12 @@
         ]
       }
     },
-
     {
       "title": "Speedrun: Decentralized Staking App",
       "type": "pattern",
       "domain": "Web3",
       "description": "The current first challenge is Crowdfunding: CrowdFund collects contributions until a deadline, sends the pool to FundingRecipient when the threshold is met, or opens contributor withdrawals otherwise. It teaches payable functions, event-driven UI, a deadline state machine, checks-effects-interactions for refunds, testnet deployment, and frontend shipping. The curriculum title retains the ladder's former staking name for stable graph identity.",
-      "aiContext": "Build: complete the current Speedrun Ethereum Crowdfunding challenge in frontend/speedrun: implement CrowdFund.sol (contribute, execute, withdraw, deadline/threshold) and its UI. Done when: the challenge tests pass, the UI records contributions, execution funds the recipient after a successful deadline, and contributors can withdraw after an unsuccessful one.",
+      "aiContext": "Build: complete the current Speedrun Ethereum Crowdfunding challenge in frontend/speedrun: implement CrowdFund.sol (contribute, execute, withdraw, deadline/threshold) and its UI. Done when: the challenge tests pass, the UI records contributions, execution funds the recipient after a successful deadline, and contributors can withdraw after an unsuccessful one. Preserved substantial practice (180 minutes, split across sessions): Complete the current first Speedrun Ethereum challenge (Crowdfunding). Implement CrowdFund.sol with contribute (payable), deadline + threshold, execute() to fund FundingRecipient or open refunds, and checks-effects-interactions withdraw; pass checkpoint tests and ship the contribution UI. Reference: https://speedrunethereum.com/challenge/crowdfunding. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Scaffold-ETH 2 architecture"],
       "parentTitle": "Speedrun Ethereum Ladder",
       "sourcePlan": {
@@ -719,7 +714,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The Token Vendor challenge builds an ERC-20 plus a Vendor that sells tokens at a fixed price and buys them back through approve then transferFrom. It reinforces allowance flow, integer price math, owner-only ETH withdrawal, safe ETH transfer with call, and the frontend's two-transaction approve-then-sell UX.",
-      "aiContext": "Build: complete Challenge 2 in frontend/speedrun: an ERC-20 + Vendor with buyTokens (payable), sellTokens (approve + transferFrom), and owner withdraw, plus UI. Done when: the challenge tests pass and the UI can buy tokens with ETH and sell them back after an approve, with balances updating.",
+      "aiContext": "Build: complete Challenge 2 in frontend/speedrun: an ERC-20 + Vendor with buyTokens (payable), sellTokens (approve + transferFrom), and owner withdraw, plus UI. Done when: the challenge tests pass and the UI can buy tokens with ETH and sell them back after an approve, with balances updating. Preserved substantial practice (150 minutes, split across sessions): Complete SpeedRunEthereum Challenge 2 (Token Vendor). Build an ERC-20 + Vendor with buyTokens (payable, fixed price), sellTokens (approve then transferFrom), and owner withdraw; handle the two-step approve→sell UX in the frontend. Reference: https://speedrunethereum.com/challenge/token-vendor. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Speedrun: Decentralized Staking App"],
       "parentTitle": "Speedrun Ethereum Ladder",
       "sourcePlan": {
@@ -751,7 +746,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The Dice Game challenge exposes on-chain randomness pitfalls: DiceGame derives a roll from the previous block hash, its address, and a public nonce; RiggedRoll computes the same value before calling. It demonstrates that deterministic inputs available to the attacker do not provide unpredictable randomness.",
-      "aiContext": "Build: complete Challenge 3 in frontend/speedrun: implement RiggedRoll that recomputes DiceGame's roll and only calls rollTheDice on a winning prediction. Done when: the challenge tests pass and your RiggedRoll reliably wins, and you can explain in a note why on-chain blockhash randomness is exploitable and what (VRF/commit-reveal) fixes it.",
+      "aiContext": "Build: complete Challenge 3 in frontend/speedrun: implement RiggedRoll that recomputes DiceGame's roll and only calls rollTheDice on a winning prediction. Done when: the challenge tests pass and your RiggedRoll reliably wins, and you can explain in a note why on-chain blockhash randomness is exploitable and what (VRF/commit-reveal) fixes it. Preserved substantial practice (150 minutes, split across sessions): Complete SpeedRunEthereum Challenge 3 (Dice Game / RiggedRoll). Write RiggedRoll to recompute DiceGame's predictable roll and call rollTheDice only on a winning prediction (funding the contract to pay the fee); pass the challenge tests. Reference: https://speedrunethereum.com/challenge/dice-game. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Speedrun: Token Vendor", "Weak randomness & timestamp dependence"],
       "parentTitle": "Speedrun Ethereum Ladder",
       "sourcePlan": {
@@ -783,7 +778,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The DEX challenge builds a minimal constant-product (x*y=k) AMM: initial liquidity, a price function using xInput*997 for a 0.3% fee, ETH/token swaps, and proportional LP deposit and withdrawal. The frontend exercises quotes, live reserves, allowances, and the missing minimum-output protection that enables sandwich attacks.",
-      "aiContext": "Build: complete Challenge 4 in frontend/speedrun: implement DEX.sol (init, price with fee, swaps, deposit/withdraw) and a swap UI showing reserves and expected output. Done when: the challenge tests pass, a swap moves the price along x*y=k with the fee applied, and the UI's quoted output matches the on-chain result.",
+      "aiContext": "Build: complete Challenge 4 in frontend/speedrun: implement DEX.sol (init, price with fee, swaps, deposit/withdraw) and a swap UI showing reserves and expected output. Done when: the challenge tests pass, a swap moves the price along x*y=k with the fee applied, and the UI's quoted output matches the on-chain result. Preserved substantial practice (240 minutes, split across sessions): Complete SpeedRunEthereum Challenge 4 (Build a DEX). Implement init liquidity, price via x*y=k with a 0.3% fee, ethToToken/tokenToEth swaps, and deposit/withdraw of LP shares; build a swap UI showing reserves and expected output. Reference: https://speedrunethereum.com/challenge/dex. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": [
         "Speedrun: Dice Game (randomness)",
         "Constant-product market maker (x*y=k)"
@@ -818,7 +813,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The current later Oracles challenge compares whitelist, staking, and optimistic designs, then implements assertions, proposals, disputes, settlements, and reward claims. The catalog changes over time, so use the current challenge page rather than assuming older Multisig or SVG-NFT routes still host those exercises.",
-      "aiContext": "Build: complete the current Speedrun Ethereum Oracles challenge in frontend/speedrun. Done when: its checkpoint tests pass, the UI works end-to-end, and the optimistic oracle demonstrates assertion, proposal, dispute, settlement, and reward-claim flows.",
+      "aiContext": "Build: complete the current Speedrun Ethereum Oracles challenge in frontend/speedrun. Done when: its checkpoint tests pass, the UI works end-to-end, and the optimistic oracle demonstrates assertion, proposal, dispute, settlement, and reward-claim flows. Preserved substantial practice (240 minutes, split across sessions): Finish at least one currently published later Speedrun Ethereum challenge. Complete Oracles: implement the whitelist, staking, and optimistic designs; pass the checkpoint tests and wire the reporting, assertion, proposal, dispute, settlement, and reward-claim UI flows. Reference: https://speedrunethereum.com/challenge/oracles. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Speedrun: Build a DEX"],
       "parentTitle": "Speedrun Ethereum Ladder",
       "sourcePlan": {
@@ -909,12 +904,9 @@
     },
     {
       "topicTitle": "The Graph & subgraphs",
-      "promptText": "Build and deploy a subgraph indexing an ERC-20's Transfer events into per-account entities.",
-      "answerHint": "Write the manifest + schema (Account, Transfer) + AssemblyScript mapping, then deploy to a local Graph node or Subgraph Studio and query balances via GraphQL.",
-      "promptKind": "problem",
-      "url": "https://thegraph.com/docs/en/subgraphs/quick-start/",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 150
+      "promptText": "In 10 minutes, sketch the entity IDs and update rule for indexing ERC-20 Transfer logs. How do repeated processing and a reorg affect correctness?",
+      "answerHint": "Use stable chain/transaction/log identities for transfers and an explicit account key; distinguish a transfer ledger from complete balances if history is partial. Replay deterministically and follow the indexer reorg semantics.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Ponder indexing",
@@ -936,12 +928,9 @@
     },
     {
       "topicTitle": "Speedrun: Decentralized Staking App",
-      "promptText": "Complete the current first Speedrun Ethereum challenge (Crowdfunding).",
-      "answerHint": "Implement CrowdFund.sol with contribute (payable), deadline + threshold, execute() to fund FundingRecipient or open refunds, and checks-effects-interactions withdraw; pass checkpoint tests and ship the contribution UI.",
-      "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/crowdfunding",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 180
+      "promptText": "In 10 minutes, trace the crowdfunding state machine when the deadline passes below versus above the threshold. Why must refund state change before the external payment?",
+      "answerHint": "Before deadline contributions are accepted; after it success permits funding and failure permits refunds. Each terminal path is exclusive; clear the individual liability before calling out.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: Decentralized Staking App",
@@ -951,12 +940,9 @@
     },
     {
       "topicTitle": "Speedrun: Token Vendor",
-      "promptText": "Complete SpeedRunEthereum Challenge 2 (Token Vendor).",
-      "answerHint": "Build an ERC-20 + Vendor with buyTokens (payable, fixed price), sellTokens (approve then transferFrom), and owner withdraw; handle the two-step approve→sell UX in the frontend.",
-      "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/token-vendor",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 150
+      "promptText": "In 10 minutes, explain approve → sellTokens and write the asset/unit equation for a fixed-price buy. Which balances and permissions must be checked on a sale?",
+      "answerHint": "Convert wei and token base units consistently; transferFrom needs allowance and token balance, payout needs vendor ETH. Preserve accounting through failed calls and avoid stale allowance assumptions.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: Token Vendor",
@@ -972,21 +958,15 @@
     },
     {
       "topicTitle": "Speedrun: Dice Game (randomness)",
-      "promptText": "Complete SpeedRunEthereum Challenge 3 (Dice Game / RiggedRoll).",
-      "answerHint": "Write RiggedRoll to recompute DiceGame's predictable roll and call rollTheDice only on a winning prediction (funding the contract to pay the fee); pass the challenge tests.",
-      "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/dice-game",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 150
+      "promptText": "In 10 minutes, explain how predictable public inputs let an attacker call a dice game only on winning rolls. Why does hiding the formula in the frontend not help?",
+      "answerHint": "Reproduce the on-chain computation before submission; public state/code exposes the inputs. Separate predictability, block producer influence and transaction ordering; choose a randomness model appropriate to the threat.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: Build a DEX",
-      "promptText": "Complete SpeedRunEthereum Challenge 4 (Build a DEX).",
-      "answerHint": "Implement init liquidity, price via x*y=k with a 0.3% fee, ethToToken/tokenToEth swaps, and deposit/withdraw of LP shares; build a swap UI showing reserves and expected output.",
-      "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/dex",
-      "problemDifficulty": "hard",
-      "estimatedMinutes": 240
+      "promptText": "In 10 minutes, derive the output and reserve update for one constant-product swap with a fee. Which rounding direction protects the pool and which user bound protects the trader?",
+      "answerHint": "Apply the fee to effective input in the output formula; floor output, then account for actual input in reserves. Check minimum output and deadline; compare the invariant after the trade.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Speedrun: Build a DEX",
@@ -1002,12 +982,9 @@
     },
     {
       "topicTitle": "Speedrun: later challenges (Multisig, SVG NFT, Oracle)",
-      "promptText": "Finish at least one currently published later Speedrun Ethereum challenge.",
-      "answerHint": "Complete Oracles: implement the whitelist, staking, and optimistic designs; pass the checkpoint tests and wire the reporting, assertion, proposal, dispute, settlement, and reward-claim UI flows.",
-      "promptKind": "problem",
-      "url": "https://speedrunethereum.com/challenge/oracles",
-      "problemDifficulty": "hard",
-      "estimatedMinutes": 240
+      "promptText": "In 10 minutes, explain the proposal → dispute → settlement states of an optimistic oracle. What changes if a dispute arrives at the boundary of the challenge window?",
+      "answerHint": "Name who may propose/dispute, locked stake, the exact time predicate, resolution authority and one-way settlement. Test both sides of the boundary and prevent duplicate rewards/refunds.",
+      "promptKind": "concept"
     }
   ],
   "noteSummaries": []

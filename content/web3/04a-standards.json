@@ -27,7 +27,6 @@
       "prerequisiteTitles": ["Function modifiers"],
       "parentTitle": "Phase 4 — Core Contract Patterns & Standards"
     },
-
     {
       "title": "ERC-20 fungible token standard",
       "type": "pattern",
@@ -66,7 +65,7 @@
       "domain": "Web3",
       "description": "approve + transferFrom lets a contract pull your tokens, but changing a non-zero allowance is racy: a spender watching the mempool can spend the old allowance then the new one. ERC-20 advises clients to set an allowance to zero before another non-zero value. SafeERC20 wraps transfer calls that return false or no value, and forceApprove supports tokens that require the zero-first approval sequence.",
       "aiContext": "Build: implement contracts/phase04/SafeApprove.sol that pulls a token via SafeERC20 and uses forceApprove with a token that requires zero-first approval, with test/phase04/SafeApprove.t.sol using non-returning transfer and zero-first approval mocks. Done when: forge test proves typed transfer fails on the empty return while SafeERC20 succeeds, and forceApprove sets the zero-first token's allowance. Threat: forceApprove solves token-call compatibility, not the spender race when replacing a live allowance; prefer allowance deltas or revoke and account for already-spent value.",
-      "prerequisiteTitles": ["ERC-20 fungible token standard", "Low-level calls"],
+      "prerequisiteTitles": ["ERC-20 fungible token standard", "Low-level call"],
       "parentTitle": "Token Standards",
       "sourcePlan": {
         "policy": "required",
@@ -244,7 +243,7 @@
       "domain": "Web3",
       "description": "A naive empty ERC-4626 vault can be manipulated when an attacker deposits a tiny amount, then donates assets directly: the exchange rate rises and a later depositor can round to zero shares. OpenZeppelin's implementation includes virtual assets and shares in the conversion and lets _decimalsOffset() raise share precision; the virtual terms capture part of the donation, making the attack unprofitable even at offset zero and increasingly wasteful at larger offsets.",
       "aiContext": "Build: in contracts/phase04/InflationAttack.sol reproduce the donate-and-round exploit against a naive vault, then defend with OZ's virtual assets and shares at offset zero and a positive _decimalsOffset, with test/phase04/InflationAttack.t.sol. Done when: forge test proves the naive attack is profitable, while forcing the defended vault's victim to zero shares costs the attacker at least the victim deposit at offset zero and orders of magnitude more with a positive offset. Threat: the defense makes theft unprofitable but cannot prevent a sufficiently funded attacker from griefing a depositor.",
-      "prerequisiteTitles": ["ERC-4626 tokenized vaults"],
+      "prerequisiteTitles": ["ERC-4626 yield vault mechanics"],
       "parentTitle": "Token Standards",
       "sourcePlan": {
         "policy": "required",
@@ -270,7 +269,6 @@
         ]
       }
     },
-
     {
       "title": "delegatecall & the proxy pattern",
       "type": "pattern",
@@ -533,7 +531,6 @@
         ]
       }
     },
-
     {
       "title": "Ownable (OZ v5)",
       "type": "pattern",

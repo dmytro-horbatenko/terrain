@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Pointer-based sequential structure. Reuses the fast/slow pointer idea from Two Pointers in a context with no random access.",
-      "prerequisiteTitles": ["Two Pointers"],
+      "prerequisiteTitles": ["Opposite-direction pointers"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

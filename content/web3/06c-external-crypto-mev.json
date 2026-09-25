@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "OWASP SC06: bugs at the boundary where a contract calls out or integrates a token it doesn't control — unchecked return values, tokens that don't return a bool or take a fee on transfer, ETH force-fed in, and callees that grief the caller's gas. 'It's just an ERC-20' is where these hide.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Low-level call", "ERC-20 fungible token standard"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Bugs in how contracts verify off-chain signatures and proofs: replayable signatures (no nonce, no chainId, no domain separator), ECDSA malleability and zero-address ecrecover, permit front-running, and Merkle proof forgery. The crypto is sound; the misuse around it is the vulnerability.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["ECDSA signatures & ecrecover"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Everything in the public mempool is visible and reorderable before inclusion, so an attacker (or the proposer) can front-run, back-run, or sandwich a victim's transaction, exploit weak on-chain randomness and timestamp dependence, or stuff blocks. Defense is slippage/deadline limits, commit-reveal, and off-chain ordering (private relays).",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Transaction types & the mempool"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -534,7 +534,10 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Front-running & back-running"],
+      "prerequisiteTitles": [
+        "Front-running & back-running",
+        "Constant-product market maker (x*y=k)"
+      ],
       "parentTitle": "Ordering, timing & MEV attacks"
     },
     {
@@ -670,7 +673,10 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Front-running & back-running"],
+      "prerequisiteTitles": [
+        "Front-running & back-running",
+        "Concentrated liquidity & the L parameter"
+      ],
       "parentTitle": "Ordering, timing & MEV attacks"
     }
   ],

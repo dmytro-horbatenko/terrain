@@ -158,6 +158,60 @@ export class TopicsService {
     });
   }
 
+  async search(userId: string, query: string) {
+    const contains = { contains: query.trim(), mode: 'insensitive' as const };
+    const topics = await this.prisma.topic.findMany({
+      where: {
+        userId,
+        OR: [
+          { title: contains },
+          { description: contains },
+          { summary: contains },
+          { notes: { is: { body: contains } } },
+        ],
+      },
+      select: { id: true },
+    });
+    return topics.map((topic) => topic.id);
+  }
+
+  async getNotes(userId: string, topicId: string) {
+    const topic = await this.prisma.topic.findFirst({
+      where: { id: topicId, userId },
+      select: { notes: { select: { body: true, revision: true, updatedAt: true } } },
+    });
+    if (!topic) throw new NotFoundException(`Topic ${topicId} not found`);
+    return topic.notes ?? { body: '', revision: 0, updatedAt: null };
+  }
+
+  async saveNotes(userId: string, topicId: string, input: { body: string; revision: number }) {
+    await this.findOne(userId, topicId);
+    const conflict = () =>
+      new ConflictException(
+        'These notes changed on another device. Your draft has not been saved. Compare it with the latest saved notes before saving again.',
+      );
+    const select = { body: true, revision: true, updatedAt: true } as const;
+    try {
+      if (input.revision === 0) {
+        return await this.prisma.topicNotes.create({
+          data: { topicId, body: input.body, revision: 1 },
+          select,
+        });
+      }
+      const [saved] = await this.prisma.topicNotes.updateManyAndReturn({
+        where: { topicId, revision: input.revision, topic: { userId } },
+        data: { body: input.body, revision: { increment: 1 } },
+        select,
+      });
+      if (!saved) throw conflict();
+      return saved;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+        throw conflict();
+      throw error;
+    }
+  }
+
   async getDetail(userId: string, id: string) {
     const topic = await this.prisma.topic.findFirst({
       where: { id, userId },

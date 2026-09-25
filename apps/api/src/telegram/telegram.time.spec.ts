@@ -1,4 +1,49 @@
-import { localDayStart, localHour } from './telegram.time';
+import { localDayBounds, localDayStart, localHour } from './telegram.time';
+
+describe('localDayBounds', () => {
+  it.each([
+    [
+      '2026-03-29T12:00:00Z',
+      'Europe/Sofia',
+      '2026-03-28T22:00:00.000Z',
+      '2026-03-29T21:00:00.000Z',
+      '2026-03-29',
+    ],
+    [
+      '2026-10-25T12:00:00Z',
+      'Europe/Sofia',
+      '2026-10-24T21:00:00.000Z',
+      '2026-10-25T22:00:00.000Z',
+      '2026-10-25',
+    ],
+    [
+      '2026-09-25T22:00:00Z',
+      'Asia/Kathmandu',
+      '2026-09-25T18:15:00.000Z',
+      '2026-09-26T18:15:00.000Z',
+      '2026-09-26',
+    ],
+    [
+      '2026-09-25T01:00:00Z',
+      'America/Los_Angeles',
+      '2026-09-24T07:00:00.000Z',
+      '2026-09-25T07:00:00.000Z',
+      '2026-09-24',
+    ],
+    [
+      '2018-11-04T12:00:00Z',
+      'America/Sao_Paulo',
+      '2018-11-04T03:00:00.000Z',
+      '2018-11-05T02:00:00.000Z',
+      '2018-11-04',
+    ],
+  ])('uses actual consecutive local midnights: %s %s', (now, zone, start, end, key) => {
+    const bounds = localDayBounds(new Date(now), zone);
+    expect(bounds.start.toISOString()).toBe(start);
+    expect(bounds.end.toISOString()).toBe(end);
+    expect(bounds.key).toBe(key);
+  });
+});
 
 describe('localHour', () => {
   const t = new Date('2026-07-02T06:30:00Z');

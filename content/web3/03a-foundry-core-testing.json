@@ -39,7 +39,7 @@
           }
         ]
       },
-      "aiContext": "Build: in web3-practice (already scaffolded), confirm the src/test/lib/script/out/cache layout matches foundry.toml's src/test/script/out/libs/cache_path keys and write contracts/phase03/anatomy.md listing each directory's purpose. Done when: `forge build` succeeds and anatomy.md maps every listed foundry.toml path key to its directory.",
+      "aiContext": "Build: in web3-practice (already scaffolded), confirm the src/test/lib/script/out/cache layout matches foundry.toml's src/test/script/out/libs/cache_path keys and write contracts/phase03/anatomy.md listing each directory's purpose. Done when: `forge build` succeeds and anatomy.md maps every listed foundry.toml path key to its directory. Early bootstrap: use this small setup during Phase 1 before any Solidity lab. Get the supplied sample test running and record the Foundry/Solidity versions; explain advanced contract semantics in the later language lessons, not as a setup prerequisite.",
       "prerequisiteTitles": [],
       "parentTitle": "Foundry"
     },
@@ -90,7 +90,7 @@
         ]
       },
       "aiContext": "Build: against a local anvil, deploy a contract from contracts/phase03/ and run `cast call`, `cast send`, and `cast storage` on it, recording the three commands and their output in contracts/phase03/cast-notes.md. Done when: cast call returns the expected return value and cast storage reads a known slot.",
-      "prerequisiteTitles": ["Foundry project anatomy"],
+      "prerequisiteTitles": ["anvil: local test node", "Transaction anatomy"],
       "parentTitle": "Foundry"
     },
     {
@@ -140,7 +140,7 @@
         ]
       },
       "aiContext": "Build: start `anvil`, deploy a contract from contracts/phase03/ with `forge create`, then call `anvil_setBalance` via `cast rpc` on an account, recording the sequence in contracts/phase03/anvil-notes.md. Done when: `cast balance` confirms the balance change after the RPC call.",
-      "prerequisiteTitles": ["cast: chain interaction CLI"],
+      "prerequisiteTitles": ["Foundry project anatomy", "Nodes, clients & JSON-RPC"],
       "parentTitle": "Foundry"
     },
     {
@@ -222,7 +222,11 @@
         ]
       },
       "aiContext": "Build: write test/phase03/Counter.t.sol testing a small Counter contract in contracts/phase03/Counter.sol, with setUp() deploying it and ≥2 test functions using assertEq. Done when: `forge test --match-path test/phase03/Counter.t.sol` passes both cases.",
-      "prerequisiteTitles": ["Foundry project anatomy"],
+      "prerequisiteTitles": [
+        "Foundry project anatomy",
+        "Functions & return values",
+        "Reading & writing state variables"
+      ],
       "parentTitle": "Foundry"
     },
     {

@@ -3,6 +3,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { learningOsV2Schema } from '@terrain/types';
+import { dependencyErrors } from './course-content.mjs';
+import { sourcePlanErrors } from './web3-content.mjs';
 
 export const CONTENT_DIR = path.resolve(import.meta.dirname, '../../content/dsa');
 export const norm = (s) => s.trim().toLowerCase();
@@ -28,7 +30,7 @@ export async function loadContentFiles(dir = CONTENT_DIR) {
 
 // Structural rules beyond the Zod schema. Returns human-readable errors.
 export function structuralErrors(files) {
-  const errors = [];
+  const errors = dependencyErrors(files);
   const seenTitles = new Map(); // norm(title) -> file
   const seenUrls = new Map(); // url -> `file/topicTitle`
   for (const { file, doc } of files) {
@@ -40,14 +42,8 @@ export function structuralErrors(files) {
         );
       if (/Problems:/.test(t.description ?? ''))
         errors.push(`${file}: "${t.title}" description still contains the prose "Problems:" list`);
-      const resolvable = (ref) => seenTitles.has(norm(ref)) || local.has(norm(ref));
-      if (t.parentTitle && !resolvable(t.parentTitle))
-        errors.push(
-          `${file}: "${t.title}" parent "${t.parentTitle}" not in this or an earlier file`,
-        );
-      for (const pre of t.prerequisiteTitles)
-        if (!resolvable(pre))
-          errors.push(`${file}: "${t.title}" prereq "${pre}" not in this or an earlier file`);
+      if (t.sourcePlan || t.parentTitle === 'DSA foundations')
+        errors.push(...sourcePlanErrors(t, file));
     }
     for (const p of doc.proposedPrompts) {
       const target = local.get(norm(p.topicTitle));

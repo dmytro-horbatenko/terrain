@@ -3,6 +3,7 @@ import type {
   AuthedUser,
   Course,
   CourseImportSummary,
+  CourseUpdatePreview,
   CreateAppEventInput,
   Dashboard,
   ExportOptions,
@@ -26,11 +27,13 @@ import type {
   StreakState,
   Topic,
   TopicDetail,
+  TopicNotes,
   TopicType,
   TopicWithMeta,
   UpdateProfileInput,
   UpdateSettingsInput,
   UpdateTopicInput,
+  UpdateTopicNotesInput,
 } from './types';
 import type {
   ProjectCheckpointInput,
@@ -105,6 +108,10 @@ export const api = {
     req<{ alreadySaved: boolean }>('/projects/checkpoints', { method: 'POST', ...json(input) }),
   // topics
   getTopics: () => req<TopicWithMeta[]>('/topics'),
+  searchTopicIds: (query: string) => req<string[]>(`/topics/search?q=${encodeURIComponent(query)}`),
+  getTopicNotes: (id: string) => req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`),
+  updateTopicNotes: (id: string, input: UpdateTopicNotesInput) =>
+    req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`, { method: 'PATCH', ...json(input) }),
   getTopic: (id: string) => req<TopicDetail>(`/topics/${id}`),
   createTopic: (input: CreateTopicInput) =>
     req<Topic>('/topics', { method: 'POST', ...json(input) }),
@@ -198,6 +205,12 @@ export const api = {
   getCourses: () => req<Course[]>('/courses'),
   importCourse: (id: string) =>
     req<CourseImportSummary>(`/courses/${id}/import`, { method: 'POST' }),
+  previewCourseUpdate: (id: string) => req<CourseUpdatePreview>(`/courses/${id}/update-preview`),
+  applyCourseUpdate: (id: string, expectedFingerprint: string) =>
+    req<CourseUpdatePreview>(`/courses/${id}/update`, {
+      method: 'POST',
+      ...json({ expectedFingerprint }),
+    }),
   setCourseDisabled: (id: string, disabled: boolean) =>
     req<Course>(`/courses/${id}/disabled`, { method: 'PATCH', ...json({ disabled }) }),
 

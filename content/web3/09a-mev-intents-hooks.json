@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Intents shift the model from signing prescribed calls toward authorizing constraints or desired outcomes that solvers compete to fulfill: generalized smart-account intents, ERC-7683's solver-facing order representation, and UniswapX/CoW/Across solver markets.",
-      "prerequisiteTitles": ["Maximal Extractable Value (MEV)"],
+      "prerequisiteTitles": ["EIP-712 typed structured data"],
       "parentTitle": "Phase 9 — Frontier Strands"
     },
     {
@@ -202,7 +202,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "In Aave V3, a position becomes liquidatable when its health factor falls below 1. A liquidator repays eligible debt and receives corresponding collateral plus the configured liquidation bonus; bots compete on monitoring, oracle updates, execution cost, and inclusion. A flash loan can supply temporary debt capital, but its premium, swaps, gas, and slippage still determine profitability.",
-      "aiContext": "Build: in contracts/phase09/Liquidator.sol implement a flashLoanSimple receiver that calls liquidationCall against a pinned local Aave V3 fixture, then swaps enough seized collateral to repay principal plus premium. Done when: forge test moves the fixture's oracle price below health factor 1 and proves the debt reduction, collateral seizure, flash-loan repayment, and positive net balance atomically.",
+      "aiContext": "Build: in contracts/phase09/Liquidator.sol implement a flashLoanSimple receiver that calls liquidationCall against a pinned local Aave V3 fixture, then swaps enough seized collateral to repay principal plus premium. Done when: forge test moves the fixture's oracle price below health factor 1 and proves the debt reduction, collateral seizure, flash-loan repayment, and positive net balance atomically. Preserved substantial practice (180 minutes, split across sessions): Practice building a flash-loan-funded liquidation bot (Damn Vulnerable DeFi puppet-style / real Aave). Flash-borrow the debt asset, call liquidationCall, seize collateral, swap enough to repay principal plus premium, and keep only the net remainder — all atomically in a pinned local fixture. Reference: https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPool.sol. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -590,7 +590,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Production V4 hooks commonly extend the official periphery BaseHook, declare an exact permission bitmap through getHookPermissions, and test against PoolManager accounting. Security review must cover access control, callback inputs, delta solvency and settlement, reentrancy and nested actions, price manipulation, and gas/denial-of-service risk; a hook's custom logic is outside core's safety guarantees.",
-      "aiContext": "Build: fork the v4-template into contracts/phase09/v4-hook and implement one non-trivial hook (e.g. a per-block limit-order or a fee that funds an oracle). Done when: forge test in the template passes for your hook including a swap that triggers your custom logic, and getHookPermissions matches the callbacks you actually override.",
+      "aiContext": "Build: fork the v4-template into contracts/phase09/v4-hook and implement one non-trivial hook (e.g. a per-block limit-order or a fee that funds an oracle). Done when: forge test in the template passes for your hook including a swap that triggers your custom logic, and getHookPermissions matches the callbacks you actually override. Preserved substantial practice (240 minutes, split across sessions): Build and test a Uniswap V4 hook from the official template (Hook Incubator style). Extend BaseHook, implement getHookPermissions + the callbacks you need, mine the address, and prove a swap triggers your logic in the v4-template test harness. Reference: https://github.com/Uniswap/v4-template. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -690,12 +690,9 @@
     },
     {
       "topicTitle": "Liquidation MEV",
-      "promptText": "Practice building a flash-loan-funded liquidation bot (Damn Vulnerable DeFi puppet-style / real Aave).",
-      "answerHint": "Flash-borrow the debt asset, call liquidationCall, seize collateral, swap enough to repay principal plus premium, and keep only the net remainder — all atomically in a pinned local fixture.",
-      "promptKind": "problem",
-      "url": "https://github.com/aave-dao/aave-v3-origin/blob/main/src/contracts/interfaces/IPool.sol",
-      "problemDifficulty": "hard",
-      "estimatedMinutes": 180
+      "promptText": "In 10 minutes, trace a flash-funded liquidation balance sheet. What must be true for the transaction to repay and leave a profit, and which change makes it revert?",
+      "answerHint": "Track debt repaid, collateral seized, executable sale proceeds, premium and gas separately. Repayment needs available debt tokens; slippage, close-factor bounds or a recovered health factor can invalidate the operation.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "MEV-Share & order-flow auctions (OFAs)",
@@ -747,12 +744,9 @@
     },
     {
       "topicTitle": "Building a V4 hook (Atrium patterns)",
-      "promptText": "Build and test a Uniswap V4 hook from the official template (Hook Incubator style).",
-      "answerHint": "Extend BaseHook, implement getHookPermissions + the callbacks you need, mine the address, and prove a swap triggers your logic in the v4-template test harness.",
-      "promptKind": "problem",
-      "url": "https://github.com/Uniswap/v4-template",
-      "problemDifficulty": "hard",
-      "estimatedMinutes": 240
+      "promptText": "In 10 minutes, explain how a V4 hook address, permission flags and callback implementation agree. Name one test that catches a mismatch without rebuilding the full hook.",
+      "answerHint": "Map required callbacks to address flags and returned permissions; run one swap through the pinned PoolManager fixture, check callback execution, and test wrong permissions or unexpected sender.",
+      "promptKind": "concept"
     }
   ],
   "noteSummaries": []

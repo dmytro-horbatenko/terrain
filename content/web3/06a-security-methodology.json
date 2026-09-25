@@ -8,7 +8,10 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How a smart-contract security review actually runs, end to end: scoping the codebase, building a mental model before hunting bugs, and balancing manual review against tooling. This is the operating discipline the rest of Phase 6 (classification, tooling, fuzzing, reporting) assumes.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": [
+        "Unit testing with forge-std",
+        "Reentrancy guard & checks-effects-interactions"
+      ],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -16,7 +19,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The frameworks that turn 'this looks bad' into defensible analysis: the OWASP Smart Contract Top 10 (2026) for risk categories, Immunefi's impact-led scale with likelihood downgrade factors for bounty severity, and the EEA EthTrust levels for certification — plus why the unmaintained SWC registry needs current supporting guidance.",
-      "prerequisiteTitles": ["Audit Process & Methodology"],
+      "prerequisiteTitles": ["Reading an unfamiliar codebase"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -24,7 +27,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Static analyzers inspect source and compiler representations without executing generated transaction sequences. Slither provides detectors and code-comprehension printers; Aderyn produces Markdown, JSON, and SARIF reports and supports editor integration. Their output is evidence to triage, not a substitute for manual protocol reasoning.",
-      "prerequisiteTitles": ["Severity & Vulnerability Classification"],
+      "prerequisiteTitles": ["Reading an unfamiliar codebase"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -32,7 +35,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Where static analysis stops, dynamic testing over random/guided call sequences picks up: Foundry's built-in invariant testing, Echidna, and Medusa all hammer a contract with call sequences looking for a property that should always hold to break. The hard part isn't running the fuzzer — it's writing invariants specific enough to catch a real bug.",
-      "prerequisiteTitles": ["Static Analysis Tooling"],
+      "prerequisiteTitles": ["Fuzz testing"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -40,13 +43,9 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Turning findings into a report a client, a bounty payout, or a public disclosure can act on: justifying the severity you assigned against a named framework, keeping the proof of concept as small as possible while still convincing, and writing recommendations specific enough to implement without another meeting.",
-      "prerequisiteTitles": [
-        "Fuzzing & Invariants for Security",
-        "Severity & Vulnerability Classification"
-      ],
+      "prerequisiteTitles": ["Anatomy of a good finding"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
-
     {
       "title": "Reading an unfamiliar codebase",
       "type": "pattern",
@@ -175,7 +174,6 @@
       "prerequisiteTitles": ["Note-taking and building a mental model"],
       "parentTitle": "Audit Process & Methodology"
     },
-
     {
       "title": "OWASP Smart Contract Top 10 (2026)",
       "type": "pattern",
@@ -340,7 +338,6 @@
       "prerequisiteTitles": ["EEA EthTrust levels & the SWC registry's retirement"],
       "parentTitle": "Severity & Vulnerability Classification"
     },
-
     {
       "title": "Slither static analysis",
       "type": "pattern",
@@ -437,7 +434,6 @@
       "prerequisiteTitles": ["Aderyn static analysis"],
       "parentTitle": "Static Analysis Tooling"
     },
-
     {
       "title": "Foundry invariant testing",
       "type": "pattern",
@@ -616,7 +612,6 @@
       "prerequisiteTitles": ["Writing good invariants"],
       "parentTitle": "Fuzzing & Invariants for Security"
     },
-
     {
       "title": "Severity justification in reports",
       "type": "pattern",
@@ -771,7 +766,6 @@
       "answerHint": "A business-logic error where the code runs exactly as written but implements the wrong economic rule (e.g. a reward formula that pays out a token nobody put in) — there's no crash, no violated pattern, and no property to check against, because 'correct' behavior only exists in a human's understanding of the protocol's intent. Pitfall: don't skip tooling either — humans are slow and inconsistent at the mechanical pattern-matching tools do well.",
       "promptKind": "concept"
     },
-
     {
       "topicTitle": "OWASP Smart Contract Top 10 (2026)",
       "promptText": "Where does Reentrancy rank in the OWASP Smart Contract Top 10 (2026), and what pushed it there?",
@@ -804,7 +798,6 @@
       "url": "https://codehawks.cyfrin.io/first-flights",
       "problemDifficulty": "easy"
     },
-
     {
       "topicTitle": "Slither static analysis",
       "promptText": "What does Slither analyze to find bugs, and what's the tradeoff of that approach?",
@@ -823,7 +816,6 @@
       "answerHint": "A business-logic error where the code is syntactically valid but implements the wrong protocol rule, such as an incorrect reward split, can fall outside detector-defined checks because the intended rule was never encoded. Supply that intent through manual review or an explicit property for dynamic analysis. Pitfall: static analysis can also raise false alarms, so every result still needs code-specific triage.",
       "promptKind": "concept"
     },
-
     {
       "topicTitle": "Foundry invariant testing",
       "promptText": "How does a Foundry invariant test differ from an ordinary fuzz test, and what is the handler contract for?",
@@ -866,7 +858,6 @@
       "answerHint": "Stateless mode is appropriate for a property of one call from reset state, such as pure math or an encoder/decoder round-trip. Use stateful mode when reachability depends on accumulated state or ordered calls, such as deposit → state change → withdraw. Pitfall: passing stateless tests do not cover multi-call ordering bugs, while stateful campaigns still cover only the properties and reachable actions you supply.",
       "promptKind": "concept"
     },
-
     {
       "topicTitle": "Severity justification in reports",
       "promptText": "What makes a severity rating defensible rather than just asserted?",

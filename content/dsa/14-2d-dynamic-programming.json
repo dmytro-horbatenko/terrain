@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "DP over two interacting index axes (two strings, or a grid). Direct extension of 1-D DP's tabulation to a 2-D table.",
-      "prerequisiteTitles": ["1-D Dynamic Programming"],
+      "prerequisiteTitles": ["Climbing stairs / Fibonacci recurrence"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

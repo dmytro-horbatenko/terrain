@@ -19,7 +19,17 @@ function unlessMcp(parser: RequestHandler): RequestHandler {
 }
 
 export function registerNonMcpBodyParsers(app: NestExpressApplication): void {
-  app.use(unlessMcp(express.json()));
+  const json = express.json();
+  const notesJson = express.json({ limit: '1mb' });
+  app.use(
+    unlessMcp((request, response, next) => {
+      const parser =
+        request.method === 'PATCH' && /^\/topics\/[^/]+\/notes\/?$/i.test(request.path)
+          ? notesJson
+          : json;
+      parser(request, response, next);
+    }),
+  );
   app.use(unlessMcp(express.urlencoded({ extended: true })));
 }
 

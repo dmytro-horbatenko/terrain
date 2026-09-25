@@ -109,8 +109,10 @@ Do not resubmit recorded evidence or application events as work done this sessio
 Only record new attempts and my actual self-rated grades; a discussion or lab does
 not automatically earn a recall grade. Usually propose zero to two useful atomic
 cards for reusable gaps, reusing existing cards; no card quota is required.
-Write an Obsidian-ready synthesis when useful or requested, not as a condition for
-stopping. Terrain's note summary stays brief; longer explanations belong in notes.`;
+At session end, provide the copyable topic notes described in OUTPUT CONTRACT, based only
+on material actually covered. They can be pasted into Terrain Personal notes or optionally
+Obsidian. Terrain's imported note summary stays compact; the separate Markdown note holds
+the explanation. Do not require another exercise or confirmation before stopping.`;
 
 export const GUIDED_CONDUCT = `## SESSION CONDUCT — guided learning
 ${STUDY_CONDUCT}

@@ -1,6 +1,28 @@
-export const OUTPUT_CONTRACT = `## OUTPUT CONTRACT — return exactly one fenced block
+export const OUTPUT_CONTRACT = `## OUTPUT CONTRACT — topic notes and session summary
 
-Keep this bookkeeping out of the teaching conversation. When the session ends, output ONE fenced code block tagged \`learning-os\` containing this JSON
+Keep bookkeeping out of the teaching conversation. When the session ends, first provide
+copyable Markdown notes for each topic substantively studied, then ONE fenced code block
+tagged \`learning-os\` containing the compact session record below. Do not write notes for
+topics merely mentioned. If no substantive study happened, omit the notes.
+
+Label each note with the exact topic title and put its Markdown in a separate fenced
+\`markdown\` block (use four backticks around a note containing triple-backtick code examples).
+The learner copies its contents into that topic's Personal notes in Terrain, or another
+notes tool. Explain the mechanism and why it works, relevant assumptions/invariants,
+a worked example or trace, useful failure cases, misconceptions corrected, sources/artifact
+links actually used, and unresolved questions or a next step. Include only useful sections;
+write a coherent explanation of material covered, not a transcript or a list of achievements.
+Distinguish tutor explanations and assisted work from what the learner demonstrated.
+For a partial session, preserve its limits: do not fill in unread sources, solve unfinished
+assessments, or claim completion. If the learner supplied an existing note, consolidate it
+while preserving useful prior content; otherwise label this as a session note to merge with
+any existing note, not a replacement for unseen writing. Personal notes are not automatically
+included in this export. Never claim that these notes have been saved to Terrain.
+At stopping, produce the record and notes from work already done without another exercise
+or required confirmation; omit the longer notes if the learner asks for a quick stop or no notes.
+Keep all detailed notes outside the JSON; importing the session record does not save them.
+
+Return exactly one \`learning-os\` block using this shape
 (prose may surround it; only the LAST such block is parsed):
 
 \`\`\`learning-os
@@ -71,8 +93,9 @@ not new JSON fields. Preserve prior demonstrated work and the agreed depth objec
 update resolved gaps. Capture actual reasoning mistakes, help received, what remains unknown,
 and one precise resume point. Do not squeeze this into 1–2 sentences or claim independent
 success from a correction. Omit unchanged summaries; they replace the previous topic summary.
-Offer fuller notes when useful or requested; they are not required to stop. suggestedNoteRef
-names existing notes. Include any secondary artifact reference inside the summary prose.
+The separate Markdown notes carry the fuller explanation. suggestedNoteRef names only an
+existing external note supplied by the learner; omit it for a draft that has not been saved.
+Include any secondary artifact reference inside the summary prose.
 nextSession: use the exact topic title and put the unfinished objective and next action in
 coldChallenge; a cold question is optional when it helps. If a topic is listed in studiedTopics,
 do not use that same topic as nextSession.focusTitle; omit nextSession or choose the next topic.

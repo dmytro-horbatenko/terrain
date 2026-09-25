@@ -7,8 +7,8 @@
       "title": "Web3 / Solidity / DeFi",
       "type": "concept",
       "domain": "Web3",
-      "description": "Root of the Web3 learning path: fundamentals → Solidity → tooling → standards → gas → security → DeFi → EVM internals → frontier → full-stack. Code-first — every leaf has a Build task in the web3-practice repo and a Done-when gate; security threads from Phase 4 and is exhaustive in Phase 6. Study one leaf at a time.",
-      "aiContext": "path root, created 2026-07-07. Approach B (phased spiral, woven security). Toolchain: Foundry-primary + Hardhat 3 for TS deploy/full-stack. Extend via living-roadmap prompting.",
+      "description": "A long-term, depth-first Web3 path: fundamentals, Solidity, tooling, standards, gas, security, DeFi, EVM internals, frontier and full-stack. Authored chapter order is a study preference; prerequisite edges name the concepts actually needed. Keep every strand, study one primary leaf deeply, and bring forward a small tool or application lesson when your current lab or project needs it.",
+      "aiContext": "Path root, created 2026-07-07; concept-gate revision 2026-09-25. Preserve depth-first study and the complete long-term catalogue. Begin with the Ethereum operating model and a minimal Foundry bootstrap (Foundry project anatomy; cast and anvil as needed), then deepen tooling during contract work. Raw Ethereum JSON-RPC and viem can support the read-only wallet early. Study DeFi numerical models before their advanced attacks; security basics accompany the first contract. Phase numbers express authored order, not universal gates or deadlines. Record compiler/library/chain versions for each lab. Keep one primary topic and one project milestone active; larger Build tasks belong to practice sessions, with short recall and later independent changed-case checks.",
       "prerequisiteTitles": [],
       "parentTitle": null
     },
@@ -25,15 +25,15 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The Solidity language end to end: types, storage, functions, inheritance, events, errors, low-level calls, ABI, signatures, assembly intro.",
-      "prerequisiteTitles": ["Phase 1 — Blockchain & Ethereum Fundamentals"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
       "title": "Phase 3 — Tooling: Foundry & Hardhat",
       "type": "concept",
       "domain": "Web3",
-      "description": "Foundry (primary: test/fuzz/invariant/gas/security) and Hardhat 3 (secondary: TS deploy pipelines, full-stack), plus their interop.",
-      "prerequisiteTitles": ["Phase 2 — Solidity Language"],
+      "description": "Bootstrap Foundry project anatomy early for local labs; deepen testing, fuzzing, invariants and deployment as the contract exercises need them. Hardhat 3 is an alternative TS toolchain, not gated by finishing all Foundry lessons.",
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
@@ -41,7 +41,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Token standards (ERC-20/721/1155/4626), proxies/upgradeability, access control, signatures/permit/meta-tx, airdrops, multisig, factories, DAOs — each with its threat model.",
-      "prerequisiteTitles": ["Phase 3 — Tooling: Foundry & Hardhat"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
@@ -49,7 +49,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Exhaustive gas: storage packing, warm/cold access, calldata, unchecked, bitmaps, custom errors, assembly, architecture.",
-      "prerequisiteTitles": ["Phase 4 — Core Contract Patterns & Standards"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
@@ -57,7 +57,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The full attack taxonomy + audit methodology, static analysis, fuzzing/invariants, report writing, wargames (Ethernaut, Damn Vulnerable DeFi v4), real-exploit replays, and CodeHawks First Flights.",
-      "prerequisiteTitles": ["Phase 4 — Core Contract Patterns & Standards"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
@@ -65,7 +65,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Build DeFi from scratch: AMMs, Uniswap V2→V3→V4, lending, stablecoins, oracles, staking/restaking, perps, vaults, flash loans.",
-      "prerequisiteTitles": ["Phase 6 — Security & Auditing"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
@@ -73,23 +73,23 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Opcodes, Yul/Huff, storage/memory/calldata at the bytecode level, proxies at bytecode level, formal verification.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
       "title": "Phase 9 — Frontier Strands",
       "type": "concept",
       "domain": "Web3",
-      "description": "MEV, intents/ERC-7683, Uniswap V4 hooks, restaking, RWAs, ZK, L2 internals. Independently orderable after Phase 7.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "description": "MEV, intents/ERC-7683, Uniswap V4 hooks, restaking, RWAs, ZK and L2 internals. Choose each strand when its actual concept prerequisites are ready; unrelated strands remain independent.",
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     },
     {
       "title": "Phase 10 — Full-Stack dApp",
       "type": "concept",
       "domain": "Web3",
-      "description": "viem/wagmi, wallet connection, reading/writing contracts, events/indexing, Scaffold-ETH 2, the Speedrun Ethereum challenge ladder.",
-      "prerequisiteTitles": ["Phase 7 — DeFi Mechanics & From-Scratch Builds"],
+      "description": "Public RPC, viem/wagmi, wallet lifecycle, contract reads/writes and indexing. Begin read-only wallet work after the RPC/account basics; deepen ABI, signing and contract behavior as those milestones need them.",
+      "prerequisiteTitles": [],
       "parentTitle": "Web3 / Solidity / DeFi"
     }
   ],

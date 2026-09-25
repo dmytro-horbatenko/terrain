@@ -12,8 +12,9 @@ export const COURSE_MANIFEST: CourseManifestEntry[] = [
     domain: 'DSA',
     title: 'Data Structures & Algorithms',
     description:
-      'Root of the DSA learning path. Structure: NeetCode roadmap category order, each split into reviewable sub-patterns (the actual scheduling unit), each with curated problems from NeetCode 150 / Blind 75. Prereq edges follow real conceptual dependency, not just roadmap position. Study one sub-pattern at a time; drill into individual problems only when reviewing that sub-pattern.',
+      'Build foundations in representation, complexity, invariants, correctness and recursion, then study algorithm families with curated problems and mixed transfer practice. Keep one topic active and use conceptual prerequisites to choose a useful next step.',
     files: [
+      'dsa/00-foundations.json',
       'dsa/01-arrays-hashing.json',
       'dsa/02-two-pointers.json',
       'dsa/03-sliding-window.json',
@@ -39,7 +40,7 @@ export const COURSE_MANIFEST: CourseManifestEntry[] = [
     domain: 'Web3',
     title: 'Web3 / Solidity / DeFi',
     description:
-      'Root of the Web3 learning path: fundamentals → Solidity → tooling → standards → gas → security → DeFi → EVM internals → frontier → full-stack. Code-first — every leaf has a Build task in the web3-practice repo and a Done-when gate; security threads from Phase 4 and is exhaustive in Phase 6. Study one leaf at a time.',
+      'Comprehensive Ethereum, Solidity and DeFi study with focused builds and primary sources. Begin tools and application work early; learn security alongside the mechanisms it protects. Conceptual prerequisites preserve depth while allowing useful project work alongside the full roadmap.',
     files: [
       'web3/00-root.json',
       'web3/01a-core-ethereum.json',

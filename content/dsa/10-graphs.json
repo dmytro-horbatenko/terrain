@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "General node/edge structures beyond trees (cycles, multiple parents allowed). DFS/BFS generalize Trees' traversals; Stack underlies iterative DFS.",
-      "prerequisiteTitles": ["Trees", "Stack"],
+      "prerequisiteTitles": ["DFS traversals", "Valid parentheses / matching pairs"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

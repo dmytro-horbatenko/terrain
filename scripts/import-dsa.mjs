@@ -1,14 +1,18 @@
-// Preview-gated import of content/dsa into the user's real account.
-//   node scripts/import-dsa.mjs [--dry-run] [--from NN] [--verify-only]
+// Preview-gated reconciliation of the server-authored prepared dsa course.
+// Local files are validated; writes use server revision 2026-09-25, not local overrides.
+//   node scripts/import-dsa.mjs [--dry-run] [--verify-only]
+// --verify-only strictly audits local authored content; preserved learner edits can differ.
 // Env: TERRAIN_API (default http://localhost:3000), TERRAIN_EMAIL,
 //      TERRAIN_PASSWORD, TERRAIN_NAME (used only if registration is needed).
 import { loadContentFiles, structuralErrors, norm } from './lib/dsa-content.mjs';
+import { updatePreparedCourse } from './lib/course-content.mjs';
 
 const API = process.env.TERRAIN_API ?? 'http://localhost:3000';
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry-run');
 const VERIFY_ONLY = args.includes('--verify-only');
-const FROM = args.includes('--from') ? args[args.indexOf('--from') + 1] : '00';
+if (args.includes('--from'))
+  throw new Error('--from is no longer supported: prepared courses update atomically.');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const die = (msg) => {
   console.error(`FATAL: ${msg}`);
@@ -41,45 +45,6 @@ async function login() {
   }
   if (r.status >= 300) die(`auth failed: ${r.status} ${JSON.stringify(r.body)}`);
   console.log(`authenticated as ${email}`);
-}
-
-async function importFile({ file, doc }) {
-  const exp = await api('/sessions/export');
-  if (exp.status !== 200 || !exp.body?.id) die(`${file}: export mint failed ${exp.status}`);
-  const raw = '```learning-os\n' + JSON.stringify({ ...doc, sessionId: exp.body.id }) + '\n```';
-
-  const prev = await api('/sessions/import/preview', {
-    method: 'POST',
-    body: JSON.stringify({ raw }),
-  });
-  if (prev.status !== 200)
-    die(`${file}: preview failed ${prev.status} ${JSON.stringify(prev.body)}`);
-  const plan = prev.body;
-  const toCreate = plan.newTopics.filter((t) => !t.alreadyExists);
-  console.log(
-    `${file}: preview — ${toCreate.length}/${plan.newTopics.length} topics to create, ` +
-      `${plan.newPrompts.length} cards, ${plan.unresolved.length} unresolved`,
-  );
-  if (plan.unresolved.length > 0)
-    die(`${file}: unresolved refs:\n${JSON.stringify(plan.unresolved, null, 2)}`);
-  if (toCreate.length === 0) {
-    console.log(`${file}: all topics already exist — SKIPPING (already imported)`);
-    return { skipped: true };
-  }
-  if (toCreate.length !== doc.proposedTopics.length)
-    die(
-      `${file}: PARTIAL overlap — ${doc.proposedTopics.length - toCreate.length} topics already exist; resolve manually`,
-    );
-  if (plan.newPrompts.length !== doc.proposedPrompts.length)
-    die(
-      `${file}: preview plans ${plan.newPrompts.length} cards, file has ${doc.proposedPrompts.length}`,
-    );
-  if (DRY) return { dryRun: true };
-
-  const res = await api('/sessions/import', { method: 'POST', body: JSON.stringify({ raw }) });
-  if (res.status >= 300) die(`${file}: apply failed ${res.status} ${JSON.stringify(res.body)}`);
-  console.log(`${file}: APPLIED — ${JSON.stringify(res.body)}`);
-  return { applied: true };
 }
 
 async function verify(files) {
@@ -139,11 +104,5 @@ const files = await loadContentFiles();
 const errs = structuralErrors(files);
 if (errs.length > 0) die(`structural errors — run validate-dsa-content.mjs:\n${errs.join('\n')}`);
 await login();
-if (!VERIFY_ONLY) {
-  for (const f of files) {
-    if (f.file < FROM) continue;
-    await importFile(f);
-    await sleep(650);
-  }
-}
-if (!DRY) await verify(files);
+if (!VERIFY_ONLY) await updatePreparedCourse(api, 'dsa', { dryRun: DRY });
+if (VERIFY_ONLY) await verify(files);

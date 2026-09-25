@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Optimal-substructure problems reducible to a single index/state axis. Builds on Backtracking's recursive decision-tree thinking, but tabulated bottom-up instead of explored top-down.",
-      "prerequisiteTitles": ["Backtracking", "Arrays & Hashing"],
+      "prerequisiteTitles": ["Subsets / combinations generation", "Hashing fundamentals"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {
@@ -16,7 +16,7 @@
       "type": "pattern",
       "domain": "DSA",
       "description": "dp[i] depends on a small fixed window of previous states (dp[i-1], dp[i-2], ...); tabulate bottom-up with O(1) rolling variables instead of a full array. Recognize: \"number of ways to reach step i\", simple linear recurrence.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Recursion & decreasing subproblems"],
       "parentTitle": "1-D Dynamic Programming"
     },
     {

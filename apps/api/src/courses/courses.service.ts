@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
-import { ImportService } from '../import/import.service';
+import { CourseUpdatesService, COURSE_REVISION } from './course-updates.service';
 import { COURSE_MANIFEST, type CourseManifestEntry } from './course-manifest';
 import { CONTENT_DIR } from './content-dir';
 
@@ -14,6 +14,7 @@ export interface CourseSummary {
   topicCount: number;
   imported: boolean;
   disabled: boolean;
+  revision: string;
 }
 
 export interface CourseImportSummary {
@@ -26,7 +27,7 @@ export interface CourseImportSummary {
 export class CoursesService {
   constructor(
     private prisma: PrismaService,
-    private importService: ImportService,
+    private updates: CourseUpdatesService,
   ) {}
 
   private findEntry(courseId: string): CourseManifestEntry {
@@ -78,6 +79,7 @@ export class CoursesService {
       topicCount,
       imported: importedCount > 0,
       disabled: disabledDomains.has(entry.domain),
+      revision: COURSE_REVISION,
     };
   }
 
@@ -117,24 +119,7 @@ export class CoursesService {
       return summary;
     }
 
-    for (const file of entry.files) {
-      const doc = await this.readDoc(file);
-      const exp = await this.prisma.sessionExport.create({
-        data: { mode: 'full', exportMd: `Prepared course import: ${entry.id}/${file}`, userId },
-      });
-      const raw = '```learning-os\n' + JSON.stringify({ ...doc, sessionId: exp.id }) + '\n```';
-      const result = await this.importService.apply(userId, raw);
-      summary.topicsCreated += result.topicsCreated.length;
-      summary.promptsCreated += result.promptsCreated;
-      summary.topicsActivated += result.topicsActivated;
-    }
-
-    await this.prisma.courseImport.upsert({
-      where: { userId_courseId: { userId, courseId } },
-      update: { importedAt: new Date() },
-      create: { userId, courseId },
-    });
-
-    return summary;
+    const prepared = await this.updates.preview(userId, entry.id);
+    return this.updates.apply(userId, entry.id, prepared.fingerprint);
   }
 }

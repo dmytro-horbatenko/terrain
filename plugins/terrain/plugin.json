@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "terrain",
+  "version": "0.1.0",
+  "description": "Read personal learning context and roadmap evidence from Terrain.",
+  "author": {
+    "name": "Terrain"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Terrain",
+        "shortDescription": "Read your learning context",
+        "longDescription": "Use Terrain's read-only learning context to understand your current topic, prerequisites, blockers, and progress.",
+        "developerName": "Terrain",
+        "category": "Productivity",
+        "capabilities": ["Read"],
+        "defaultPrompt": [
+          "What should I study next in Terrain, and why?",
+          "Use Terrain to show the prerequisites and blockers for my current topic."
+        ]
+      }
+    }
+  }
+}

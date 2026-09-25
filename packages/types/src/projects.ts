@@ -150,9 +150,13 @@ Curriculum: ${curriculum.version}
 ${learnerContext ?? 'Learner profile unavailable. Ask for the goal and available time; do not assume a career deadline.'}
 
 ## Product brief
+${curriculum.description}
 ${project.brief}
 Scope: ${project.scope}
 Readiness: ${project.readiness}
+
+## Curriculum guidance
+${curriculum.assessment.map((item) => `- ${item}`).join('\n')}
 
 ## Current milestone
 ${milestone.objective}

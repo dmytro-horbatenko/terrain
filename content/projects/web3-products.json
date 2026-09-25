@@ -1,7 +1,7 @@
 {
-  "version": "2026-09-03.1",
+  "version": "2026-09-25.1",
   "title": "Web3 Product Engineering",
-  "description": "A parallel curriculum of complete systems: architecture, implementation, adversarial testing, operations and independent defense. Study topics deeply on their own, build projects on their own, or connect the two through milestone reading links.",
+  "description": "A long-term catalogue of complete systems: architecture, implementation, adversarial tests, operations and independent defense. Keep one active product milestone. Suggested initial path: wallet → indexer → escrow, then AMM and lending/vault depth with distribution concepts where they are needed. Other strands remain available for later specialization.",
   "weeklyPlan": [
     {
       "activity": "Deep topic study",
@@ -29,7 +29,10 @@
     "Completion is a learner-confirmed evidence claim, not an audited certification. Saving a link or importing an AI answer does not prove mastery.",
     "Keep one product active by default. Suggested prerequisites describe reusable experience; they do not lock the topic curriculum or force all projects into one chain.",
     "Expect multiple sessions per milestone. Hour ranges are planning estimates; recalibrate after the first two milestones. Do not infer a salary or job-readiness guarantee from completion.",
-    "Build first on local chains/testnets with version-pinned dependencies. Public artifacts must not contain keys, seeds or private customer data."
+    "Build first on local chains/testnets with version-pinned dependencies. Public artifacts must not contain keys, seeds or private customer data.",
+    "Reuse the wallet, indexer, test harness and operational runbooks in later products; extend the coherent system when it exposes the new concept clearly. A separate small lab is useful when isolation improves understanding.",
+    "Keep a short decision record for each substantial choice: constraints, alternatives, choice, costs and what change would invalidate it. Then exercise a changed requirement; preserve the first attempt and assistance level.",
+    "Keep the full twelve-project catalogue without treating completion of every project as a prerequisite for meaningful progress. Deep topic study continues independently; take one primary topic and one project milestone at a time."
   ],
   "projects": [
     {
@@ -1359,7 +1362,7 @@
         "Explain slippage, liquidity and MEV exposure"
       ],
       "prerequisites": ["escrow-payments", "chain-indexer"],
-      "readiness": "ERC-20, invariant/fork testing, fixed-point integer arithmetic and transfer semantics.",
+      "readiness": "ERC-20, invariant/fork testing, fixed-point integer arithmetic and transfer semantics. Reuse the indexer and wallet. Derive reserves, LP shares, rounding and fees in a numerical model first; use the distribution lessons when LP ownership or rewards require them.",
       "scope": "An educational pair/router with explicit supported tokens; reference fork comparison is separate from any production deployment.",
       "sources": [
         {
@@ -1580,7 +1583,7 @@
         "Communicate liquidity and oracle risks"
       ],
       "prerequisites": ["amm-exchange", "distribution"],
-      "readiness": "Fixed-point arithmetic, invariant testing, AMMs, oracle threats and ERC-20 accounting.",
+      "readiness": "Fixed-point arithmetic, invariant testing, AMMs, oracle threats and ERC-20 accounting. Distribution is reusable experience, not a demand to complete every distribution milestone first: study token accounting, share issuance and claim/vesting liabilities relevant to this build. Keep the solvency and liquidation model explicit.",
       "scope": "One collateral and one debt asset with caps on a local/test environment. No claim that educational economic parameters are production-safe.",
       "sources": [
         {

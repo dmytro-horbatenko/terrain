@@ -1,0 +1,63 @@
+--- a/package.json
++++ b/package.json
+@@ -8 +8 @@
+-    "test": "forge test",
++    "test": "yarn test:practice && yarn test:forge",
+@@ -10 +10,2 @@
+-    "test:hh": "hardhat test"
++    "test:hh": "hardhat test",
++    "test:practice": "node --import tsx --test practice/01.hashing.ts practice/02.merkle.test.ts practice/sign-recover.ts"
+--- a/practice/01.hashing.ts
++++ b/practice/01.hashing.ts
+@@ -0,0 +1 @@
++import assert from "node:assert/strict";
+@@ -9,2 +9,0 @@
+-console.log({ privateKey });
+-console.log({ privateKeyStr: bytesToHex(privateKey) });
+@@ -23,2 +22,3 @@
+-const address2 = privateKeyToAccount(privateKeyHex);
+-console.log({ address2 });
++const viemAddress = privateKeyToAccount(privateKeyHex).address;
++assert.equal(address.toLowerCase(), viemAddress.toLowerCase());
++console.log({ viemAddress });
+--- a/README.md
++++ b/README.md
+@@ -12 +12 @@
+-forge test               # Foundry (primary test runner)
++yarn test                # TS practice checks, then Foundry
+@@ -57,0 +58,23 @@
++
++## What the current tests demonstrate
++
++Run `yarn test` for the address-derivation assertion, the existing Merkle and
++signature checks, and Foundry. `yarn test:practice` runs just the TypeScript
++checks through the already-installed `tsx` runner; no new dependency is needed.
++
++- Address derivation compares the manual result with viem using a deliberately
++  public demonstration fixture. Private keys and complete account objects are
++  not logged. Never fund or reuse demonstration accounts.
++- The Merkle exercise builds exactly four leaves and produces a proof for C.
++  Its check covers that proof, a changed value, a wrong sibling direction and
++  reordered leaves. General trees, every leaf position, odd lengths and an
++  explicit empty-input policy remain learner work.
++- Signature checks cover recovery, changed messages, raw versus EIP-191
++  digests and canonical low-s signatures. They do not establish a complete
++  transaction-signing or contract-verification implementation.
++- `Scaffold.t.sol` checks that the toolchain runs a trivial arithmetic assertion.
++  Contract behavior, authorization, accounting and adversarial tests remain
++  learner work; a green scaffold is not evidence that those labs are complete.
++
++Record the command, its result, the exact demonstrated scope and the next
++unproved claim in the lesson's Terrain note. Keep earlier reasoning and errors.
+--- a/contracts/phase01/README.md
++++ b/contracts/phase01/README.md
+@@ -58,4 +58,5 @@
+-`practice/01.hashing.ts` — implements private key generation, EC-derived public
+-key (`@noble/secp256k1`), manual keccak256 address derivation (`viem`), and
+-cross-checks the result against `viem/accounts`' `privateKeyToAccount`. Match
+-confirmed.
++`practice/01.hashing.ts` — uses an explicitly public demonstration fixture,
++derives the EC public key (`@noble/secp256k1`), manually derives its Ethereum
++address, and asserts equality with `viem/accounts`' `privateKeyToAccount`.
++Run `yarn test:practice` to verify this comparison. This checks one fixture,
++not private-key generation, all SEC1 forms, or a complete wallet implementation.

@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Ethereum's account model, transaction anatomy, and the gas/fee market.",
-      "prerequisiteTitles": ["Blockchain basics"],
+      "prerequisiteTitles": [],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How the EVM executes bytecode: state machine, data locations, opcodes.",
-      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "prerequisiteTitles": ["Transaction anatomy"],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {

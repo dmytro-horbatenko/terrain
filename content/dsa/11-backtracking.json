@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Systematic recursive exploration with undo, i.e. DFS over an implicit decision tree. Depends on Trees (recursion shape) and Arrays & Hashing (state tracking).",
-      "prerequisiteTitles": ["Trees", "Arrays & Hashing"],
+      "prerequisiteTitles": ["DFS traversals", "Hashing fundamentals"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {
@@ -16,7 +16,7 @@
       "type": "pattern",
       "domain": "DSA",
       "description": "At each recursion level, decide include-or-skip (subsets) or iterate a start index forward (combinations), pushing/popping the current choice. Recognize: \"all subsets/combinations of size k\".",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Recursion & decreasing subproblems"],
       "parentTitle": "Backtracking"
     },
     {

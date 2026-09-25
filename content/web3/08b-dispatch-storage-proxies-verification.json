@@ -40,7 +40,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Huff builds function dispatch by hand: read the selector with `0x00 calldataload 0xe0 shr`, compare `dup1 __FUNC_SIG(f) eq`, and `jumpi` to each terminating handler. An unmatched selector needs an explicit fallback or revert; otherwise execution falls through into the next label. Manual bytecode can optimize a known interface, but the author owns every control-flow and stack-safety decision.",
-      "aiContext": "Build: write contracts/phase08/SelectorDispatch.huff implementing a hand-rolled 2-function dispatcher (e.g. get()/set(uint256)). Done when: forge test in test/phase08/SelectorDispatch.t.sol calls both selectors successfully and a call with an unknown selector reverts (proving the fallback revert is in place).",
+      "aiContext": "Build: write contracts/phase08/SelectorDispatch.huff implementing a hand-rolled 2-function dispatcher (e.g. get()/set(uint256)). Done when: forge test in test/phase08/SelectorDispatch.t.sol calls both selectors successfully and a call with an unknown selector reverts (proving the fallback revert is in place). Preserved substantial practice (180 minutes, split across sessions): Practice hand-writing Huff macros and dispatch on the RareSkills Huff puzzles. Work the huff-puzzles ladder: implement each macro so its test passes, managing the stack and selector dispatch by hand. Reference: https://github.com/RareSkills/huff-puzzles. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": [
         "Huff macros & manual stack management",
         "The 4-byte function selector"
@@ -541,7 +541,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "A CVL specification can declare rules over symbolic environments and arguments and invariants over contract state. Rules assume their `require` clauses and check assertions; invariants require a constructor base case and preservation by every included state-changing method. The Certora Prover reports verified properties or counterexample traces, but over-strong assumptions, filters, reverting invariant expressions, and unresolved-call modeling can weaken or make an invariant proof unsound.",
-      "aiContext": "Build: write specs/phase08/<C>.spec with a directly computable state invariant for contracts/phase08/<C>.sol and run the Certora Prover. Done when: the prover reports the rule/invariant verified, or you fix the contract after its counterexample — and your rule's `require` assumptions are documented (not over-constraining the environment).",
+      "aiContext": "Build: write specs/phase08/<C>.spec with a directly computable state invariant for contracts/phase08/<C>.sol and run the Certora Prover. Done when: the prover reports the rule/invariant verified, or you fix the contract after its counterexample — and your rule's `require` assumptions are documented (not over-constraining the environment). Preserved substantial practice (120 minutes, split across sessions): Study worked CVL specs and rules in the Certora Examples repository. Read and run specs in Certora/Examples: pick a contract, inspect its .spec (methods/rule/invariant), and reproduce the prover reporting verified. Reference: https://github.com/Certora/Examples. Save executable evidence and a next step; schedule a later changed-case independent check. The short recall card does not mark this build complete.",
       "prerequisiteTitles": ["Symbolic execution vs fuzzing"],
       "parentTitle": "Formal Verification",
       "sourcePlan": {
@@ -678,12 +678,9 @@
     },
     {
       "topicTitle": "Huff jump tables & when Huff pays off",
-      "promptText": "Practice hand-writing Huff macros and dispatch on the RareSkills Huff puzzles.",
-      "answerHint": "Work the huff-puzzles ladder: implement each macro so its test passes, managing the stack and selector dispatch by hand.",
-      "promptKind": "problem",
-      "url": "https://github.com/RareSkills/huff-puzzles",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 180
+      "promptText": "In 10 minutes, sketch selector dispatch to two Huff macros and the fallback path. State the stack contract at each jump and one measured reason to keep Solidity instead.",
+      "answerHint": "Extract the four-byte selector, compare and jump only to valid labels; consume temporary values and keep each entry/exit stack shape explicit. Compare deployed size and end-to-end gas for the same compiler/EVM target.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "The 4-byte function selector",
@@ -795,12 +792,9 @@
     },
     {
       "topicTitle": "Certora Prover & CVL",
-      "promptText": "Study worked CVL specs and rules in the Certora Examples repository.",
-      "answerHint": "Read and run specs in Certora/Examples: pick a contract, inspect its .spec (methods/rule/invariant), and reproduce the prover reporting verified.",
-      "promptKind": "problem",
-      "url": "https://github.com/Certora/Examples",
-      "problemDifficulty": "medium",
-      "estimatedMinutes": 120
+      "promptText": "In 10 minutes, state one CVL rule for an authorized balance transfer and one assumption that could make a passing proof vacuous. How would you detect the bad assumption?",
+      "answerHint": "Specify preconditions, state before/after, and conservation. An impossible require or over-constrained environment can hide all executions; inspect reachability and a deliberate mutation.",
+      "promptKind": "concept"
     },
     {
       "topicTitle": "Kontrol & KEVM",

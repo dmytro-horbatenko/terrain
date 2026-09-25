@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { SourcePlan } from '@terrain/types';
+import { independentSkillAttempt, type SourcePlan } from '@terrain/types';
 import { Link } from '@tanstack/react-router';
-import { useSettings, useTopic, useUpdateTopic } from '../api/hooks';
+import { useSettings, useSkillChecks, useTopic, useUpdateTopic } from '../api/hooks';
 import { useToast } from './Toast';
 import { StatusBadge } from './StatusBadge';
 import { IntervalGrowthChart } from './IntervalGrowthChart';
@@ -9,6 +9,7 @@ import { AppEventsPanel } from './AppEventsPanel';
 import { SkillChecksPanel } from './SkillChecksPanel';
 import { PromptsPanel } from './PromptsPanel';
 import { TypeAutocomplete } from './TypeAutocomplete';
+import { TopicNotes, NoteText } from './TopicNotes';
 import { Loading, ErrorBox } from './Feedback';
 import {
   TOPIC_STATUSES,
@@ -60,9 +61,11 @@ function RefChips({ refs, empty }: { refs: TopicRef[]; empty: string }) {
 function LearningSources({
   plan,
   evidence,
+  timezone,
 }: {
   plan: SourcePlan | null | undefined;
   evidence: SourceEvidenceRecord[];
+  timezone?: string;
 }) {
   const history = [...evidence].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
@@ -140,8 +143,9 @@ function LearningSources({
       ) : (
         <div className="col gap-2">
           {history.map((entry, index) => {
-            const date = formatDate(entry.createdAt);
-            const showDate = index === 0 || date !== formatDate(history[index - 1].createdAt);
+            const date = formatDate(entry.createdAt, undefined, timezone);
+            const showDate =
+              index === 0 || date !== formatDate(history[index - 1].createdAt, undefined, timezone);
             return (
               <div key={entry.id} className="col gap-1">
                 {showDate && <b>{date}</b>}
@@ -171,7 +175,8 @@ function LearningSources({
                   )}
                   {entry.verifiedLiveAt && entry.verificationNote && (
                     <span className="faint" style={{ fontSize: 12 }}>
-                      Live verified {formatDate(entry.verifiedLiveAt)} — {entry.verificationNote}
+                      Live verified {formatDate(entry.verifiedLiveAt, undefined, timezone)} —{' '}
+                      {entry.verificationNote}
                     </span>
                   )}
                 </div>
@@ -186,16 +191,15 @@ function LearningSources({
 
 export function canLeaveTopicPanel() {
   return (
-    !document.querySelector('.detail-panel form[data-skill-dirty]') ||
-    window.confirm(
-      'This skill check has unsaved work. Save or download it before leaving. Leave anyway?',
-    )
+    !document.querySelector('.detail-panel [data-skill-dirty], .detail-panel [data-notes-dirty]') ||
+    window.confirm('This topic has unsaved work. Save or download it before leaving. Leave anyway?')
   );
 }
 
 export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClose?: () => void }) {
   const { data: t, isLoading, error, refetch } = useTopic(topicId);
   const { data: settings } = useSettings();
+  const skillChecks = useSkillChecks();
   const update = useUpdateTopic();
   const { toast } = useToast();
 
@@ -209,6 +213,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
 
   useEffect(() => {
     if (t) {
+      setEditingSummary(false);
       setNoteRef(t.noteRef ?? '');
       setSummary(t.summary ?? '');
       setTitle(t.title);
@@ -218,15 +223,12 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
     }
   }, [t?.id]); // re-seed when a different topic loads
 
-  // Keep the read-only summary's save payload in sync with server truth even
-  // while the panel stays mounted on the same topic, so a reference-only save
-  // never clobbers a freshly session-authored summary. Skip while mid-edit.
+  // Follow imported summaries until the learner starts a manual override.
   useEffect(() => {
     if (t && !editingSummary) setSummary(t.summary ?? '');
   }, [t?.summary, editingSummary]);
 
-  if (isLoading) return <Loading />;
-  if (error || !t) return <ErrorBox error={error ?? 'Topic not found'} />;
+  if (!t) return isLoading ? <Loading /> : <ErrorBox error={error ?? 'Topic not found'} />;
 
   const setStatus = (status: TopicStatus) =>
     update.mutate(
@@ -240,10 +242,13 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       },
     );
 
-  const saveNotes = () =>
+  const saveReference = () =>
     update.mutate(
-      { id: t.id, input: { noteRef: noteRef.trim(), summary: summary.trim() } },
-      { onSuccess: () => toast('Saved', 'success') },
+      { id: t.id, input: { noteRef: noteRef.trim() } },
+      {
+        onSuccess: () => toast('Reference saved', 'success'),
+        onError: (error) => toast(error.message, 'error'),
+      },
     );
 
   const saveFields = () =>
@@ -263,7 +268,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       },
     );
 
-  const due = dueLabel(t.nextReviewAt);
+  const due = dueLabel(t.nextReviewAt, settings?.timezone);
   const noteHref = noteRefHref(t.noteRef, settings?.obsidianVault);
   const isLeaf = t.children.length === 0;
   const blocker = t.blockers[0];
@@ -272,7 +277,7 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
   const cardsNew = t.prompts.filter((p) => p.state === 'new' && !p.suspended).length;
   const cardsDue = t.prompts.filter((p) => {
     if (p.suspended) return false;
-    const d = dueLabel(p.nextReviewAt);
+    const d = dueLabel(p.nextReviewAt, settings?.timezone);
     return d.days !== null && d.days <= 0;
   }).length;
   const activeStabilities = t.prompts
@@ -281,8 +286,32 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
   const minStability =
     activeStabilities.length > 0 ? Math.round(Math.min(...activeStabilities)) : null;
 
+  const lastIndependent = skillChecks.data?.checks
+    .filter(
+      (check) =>
+        check.plan.target.kind === 'topic' &&
+        check.plan.target.topicId === t.id &&
+        !check.cancelledAt &&
+        check.attempt &&
+        independentSkillAttempt(check.plan, check.attempt),
+    )
+    .sort((a, b) => Date.parse(b.attemptedAt ?? '') - Date.parse(a.attemptedAt ?? ''))[0];
+
   return (
     <div className="col gap-4 detail-panel">
+      {error && (
+        <div className="col gap-2" role="status">
+          <ErrorBox error={error} />
+          <span className="muted">Showing saved topic data. Your notes editor remains open.</span>
+          <button
+            className="btn btn-sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => void refetch()}
+          >
+            Retry topic refresh
+          </button>
+        </div>
+      )}
       {/* header */}
       <div className="col gap-2">
         <div className="row gap-2" style={{ alignItems: 'flex-start' }}>
@@ -324,6 +353,134 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         )}
       </div>
 
+      <TopicNotes key={t.id} topicId={t.id} timezone={settings?.timezone} />
+
+      <section className="col gap-2" aria-label="Session summary and reference">
+        <h3 style={{ fontSize: 16 }}>Session summary</h3>
+        <p className="faint" style={{ fontSize: 12, margin: 0 }}>
+          A compact handoff from your latest imported learning session. This can change on import.
+        </p>
+        {t.summary ? (
+          <NoteText text={t.summary} />
+        ) : (
+          <span className="faint">No session summary yet.</span>
+        )}
+        {noteHref && (
+          <a href={noteHref} target="_blank" rel="noreferrer">
+            ↗{' '}
+            {noteHref.startsWith('obsidian://')
+              ? 'Open external note in Obsidian'
+              : 'Open external note or reference'}
+          </a>
+        )}
+        <details>
+          <summary>Optional external reference</summary>
+          <div className="col gap-2" style={{ marginTop: 8 }}>
+            <label htmlFor="topic-note-reference">Web link or note path</label>
+            <input
+              id="topic-note-reference"
+              className="input"
+              placeholder="https://… or Obsidian: Note name"
+              value={noteRef}
+              onChange={(event) => setNoteRef(event.target.value)}
+            />
+            <span className="faint" style={{ fontSize: 12 }}>
+              Obsidian paths open when a vault is configured in Settings.
+            </span>
+            <button
+              className="btn btn-sm"
+              style={{ alignSelf: 'flex-start' }}
+              disabled={update.isPending}
+              onClick={saveReference}
+            >
+              Save reference
+            </button>
+          </div>
+        </details>
+        <details>
+          <summary>Override session summary</summary>
+          {editingSummary ? (
+            <div className="col gap-2" style={{ marginTop: 8 }}>
+              <label htmlFor="topic-summary">Manual summary override</label>
+              <textarea
+                id="topic-summary"
+                className="textarea"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+              />
+              <div className="row gap-2">
+                <button
+                  className="btn btn-sm"
+                  disabled={update.isPending}
+                  onClick={() =>
+                    update.mutate(
+                      { id: t.id, input: { summary: summary.trim() } },
+                      {
+                        onSuccess: () => {
+                          setEditingSummary(false);
+                          toast('Summary saved', 'success');
+                        },
+                        onError: (error) => toast(error.message, 'error'),
+                      },
+                    )
+                  }
+                >
+                  Save summary
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={update.isPending}
+                  onClick={() => {
+                    setSummary(t.summary ?? '');
+                    setEditingSummary(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditingSummary(true)}>
+              Edit summary manually
+            </button>
+          )}
+        </details>
+      </section>
+
+      <section className="card card-pad col gap-2" aria-label="Learning evidence">
+        <h3 style={{ fontSize: 16 }}>Learning evidence</h3>
+        <span>
+          <b>Studied:</b>{' '}
+          {t.learnedAt ? formatDate(t.learnedAt, undefined, settings?.timezone) : 'Not recorded'}
+        </span>
+        <span>
+          <b>Recall evidence:</b>{' '}
+          {t.reviews[0]
+            ? `${formatDate(t.reviews[0].reviewedAt, undefined, settings?.timezone)} · ${t.reviews[0].grade} (self-rated)`
+            : 'No recall recorded'}
+        </span>
+        <span>
+          <b>Applied:</b>{' '}
+          {t.appEvents[0]
+            ? `${formatDate(t.appEvents[0].appliedAt, undefined, settings?.timezone)} · ${t.appEvents[0].description}`
+            : 'No application recorded'}
+        </span>
+        <span>
+          <b>Last independent check:</b>{' '}
+          {skillChecks.isLoading
+            ? 'Loading…'
+            : skillChecks.error
+              ? 'Unavailable'
+              : lastIndependent
+                ? `${formatDate(lastIndependent.attemptedAt, undefined, settings?.timezone)} · ${lastIndependent.result?.outcome.replace(/_/g, ' ') ?? 'Awaiting assessment'}${lastIndependent.result ? ` (${lastIndependent.result.reviewer} feedback)` : ''}`
+                : 'No independent check recorded'}
+        </span>
+        <span className="faint" style={{ fontSize: 12 }}>
+          Study, self-rated recall and recorded application show different evidence. An independent
+          check uses a changed task and records the help used; Terrain does not verify the result.
+        </span>
+      </section>
+
       {isLeaf && t.status === 'planned' && t.labels.blocked && blocker && (
         <div className="card card-pad col gap-1">
           <b>
@@ -360,80 +517,85 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         </Link>
       )}
 
-      {/* editable fields */}
-      <div className="col gap-2">
-        <div className="card-title" style={{ margin: 0 }}>
-          Edit topic
-        </div>
-        <input
-          className="input"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <div className="row gap-3">
-          <input
-            className="input grow"
-            placeholder="Domain"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-          />
-          <div className="grow">
-            <TypeAutocomplete value={topicType} onChange={setTopicType} />
+      <details>
+        <summary>Manage topic</summary>
+        <div className="col gap-4" style={{ marginTop: 12 }}>
+          {/* editable fields */}
+          <div className="col gap-2">
+            <div className="card-title" style={{ margin: 0 }}>
+              Edit topic
+            </div>
+            <input
+              className="input"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <div className="row gap-3">
+              <input
+                className="input grow"
+                placeholder="Domain"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+              <div className="grow">
+                <TypeAutocomplete value={topicType} onChange={setTopicType} />
+              </div>
+            </div>
+            <textarea
+              className="textarea"
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <button
+              className="btn btn-sm"
+              style={{ alignSelf: 'flex-start' }}
+              disabled={update.isPending || !title.trim()}
+              onClick={saveFields}
+            >
+              Save changes
+            </button>
+          </div>
+
+          {/* SR state */}
+          <div className="row wrap gap-4 stat-strip">
+            <div className="col">
+              <span className="faint">Status</span>
+              <select
+                className="select"
+                style={{ width: 150, marginTop: 2 }}
+                value={t.status}
+                onChange={(e) => setStatus(e.target.value as TopicStatus)}
+              >
+                {TOPIC_STATUSES.map((s) => (
+                  <option
+                    key={s}
+                    value={s}
+                    disabled={s === 'mastered' && t.status !== 'mastered' && !t.mastery.eligible}
+                  >
+                    {STATUS_META[s].label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col">
+              <span className="faint">Next review</span>
+              <b style={{ color: due.overdue ? 'var(--danger)' : undefined }}>
+                {t.nextReviewAt
+                  ? `${formatDate(t.nextReviewAt, undefined, settings?.timezone)}${due.text !== 'not scheduled' ? ` (${due.text})` : ''}`
+                  : '—'}
+              </b>
+            </div>
+            <div className="col">
+              <span className="faint">Cards</span>
+              <b>
+                cards: {cardsTotal} ({cardsDue} due, {cardsNew} new)
+              </b>
+            </div>
           </div>
         </div>
-        <textarea
-          className="textarea"
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <button
-          className="btn btn-sm"
-          style={{ alignSelf: 'flex-start' }}
-          disabled={update.isPending || !title.trim()}
-          onClick={saveFields}
-        >
-          Save changes
-        </button>
-      </div>
-
-      {/* SR state */}
-      <div className="row wrap gap-4 stat-strip">
-        <div className="col">
-          <span className="faint">Status</span>
-          <select
-            className="select"
-            style={{ width: 150, marginTop: 2 }}
-            value={t.status}
-            onChange={(e) => setStatus(e.target.value as TopicStatus)}
-          >
-            {TOPIC_STATUSES.map((s) => (
-              <option
-                key={s}
-                value={s}
-                disabled={s === 'mastered' && t.status !== 'mastered' && !t.mastery.eligible}
-              >
-                {STATUS_META[s].label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col">
-          <span className="faint">Next review</span>
-          <b style={{ color: due.overdue ? 'var(--danger)' : undefined }}>
-            {t.nextReviewAt
-              ? `${formatDate(t.nextReviewAt)}${due.text !== 'not scheduled' ? ` (${due.text})` : ''}`
-              : '—'}
-          </b>
-        </div>
-        <div className="col">
-          <span className="faint">Cards</span>
-          <b>
-            cards: {cardsTotal} ({cardsDue} due, {cardsNew} new)
-          </b>
-        </div>
-      </div>
+      </details>
 
       {/* mastery */}
       <div className="card card-pad col gap-3">
@@ -457,12 +619,13 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
         />
         <Check
           ok={t.mastery.teaching}
-          label="Recorded explanation"
-          detail="a non-empty written summary or note reference exists"
+          label="Session summary or reference"
+          detail="a non-empty session summary or external note reference exists"
         />
         <p className="faint">
           These are recorded progress conditions. Independent performance on a changed task is
-          recorded separately in skill checks.
+          recorded separately in skill checks. Personal notes do not automatically change these
+          conditions.
         </p>
         {t.mastery.eligible && t.status !== 'mastered' && (
           <button
@@ -483,7 +646,11 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
       />
       <AppEventsPanel topicId={t.id} events={t.appEvents} />
 
-      <LearningSources plan={t.sourcePlan} evidence={t.sourceEvidence ?? []} />
+      <LearningSources
+        plan={t.sourcePlan}
+        evidence={t.sourceEvidence ?? []}
+        timezone={settings?.timezone}
+      />
 
       {/* prompts */}
       <PromptsPanel topicId={t.id} prompts={t.prompts} />
@@ -514,88 +681,6 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
           </span>
           <RefChips refs={t.children} empty="none" />
         </div>
-      </div>
-
-      {/* notes */}
-      <div className="col gap-2">
-        <div className="card-title" style={{ margin: 0 }}>
-          Notes & reference
-        </div>
-        <input
-          className="input"
-          placeholder="noteRef — Obsidian/OneNote path or URL"
-          value={noteRef}
-          onChange={(e) => setNoteRef(e.target.value)}
-        />
-        {noteHref && (
-          <a
-            className="faint"
-            style={{ fontSize: 12 }}
-            href={noteHref}
-            target="_blank"
-            rel="noreferrer"
-          >
-            ↗ {noteHref.startsWith('obsidian://') ? 'open in Obsidian' : 'open current reference'}
-          </a>
-        )}
-        <button
-          className="btn btn-sm"
-          style={{ alignSelf: 'flex-start' }}
-          disabled={update.isPending}
-          onClick={saveNotes}
-        >
-          Save reference
-        </button>
-        {/* Summary is authored by Claude sessions (composeSummary on import),
-            not hand-typed. Show it read-only; manual edits are an escape hatch. */}
-        {t.summary ? (
-          <div className="card card-pad" style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>
-            {t.summary}
-          </div>
-        ) : (
-          <span className="faint" style={{ fontSize: 12 }}>
-            No summary yet — a Claude learning session writes one on import.
-          </span>
-        )}
-        {editingSummary ? (
-          <>
-            <textarea
-              className="textarea"
-              placeholder="Manual summary override (teaching condition)"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-            />
-            <div className="row gap-2">
-              <button
-                className="btn btn-sm"
-                disabled={update.isPending}
-                onClick={() => {
-                  saveNotes();
-                  setEditingSummary(false);
-                }}
-              >
-                Save notes
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setSummary(t.summary ?? '');
-                  setEditingSummary(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        ) : (
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setEditingSummary(true)}
-          >
-            Edit manually
-          </button>
-        )}
       </div>
 
       {/* review history */}
@@ -631,7 +716,9 @@ export function TopicDetailPanel({ topicId, onClose }: { topicId: string; onClos
                 >
                   {r.note ?? ''}
                 </span>
-                <span className="faint right">{formatDate(r.reviewedAt)}</span>
+                <span className="faint right">
+                  {formatDate(r.reviewedAt, undefined, settings?.timezone)}
+                </span>
               </div>
             ))}
           </div>

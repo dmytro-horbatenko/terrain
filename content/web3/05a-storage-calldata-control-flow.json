@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Loops and conditionals can magnify repeated work. Optimize measured compiler output: short-circuit expensive branches, remove only proven redundancy, cache stable values when the compiler does not, and return once the result is known.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Control flow: conditionals & loops", "Gas snapshots"],
       "parentTitle": "Phase 5 — Gas Optimization"
     },
     {

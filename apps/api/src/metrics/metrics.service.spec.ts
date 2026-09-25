@@ -222,12 +222,12 @@ describe('MetricsService', () => {
   });
 
   it('heatmap emits a dense oldest-first series counting reviews per local day', async () => {
-    const now = new Date('2026-01-08T12:00:00');
+    const now = new Date('2026-01-08T22:00:00Z');
     // two reviews today, one the day before — rest of the window is empty
     prisma.review.findMany.mockResolvedValue([
-      { reviewedAt: new Date('2026-01-08T09:00:00') },
-      { reviewedAt: new Date('2026-01-08T20:00:00') },
-      { reviewedAt: new Date('2026-01-07T10:00:00') },
+      { reviewedAt: new Date('2026-01-08T09:00:00Z') },
+      { reviewedAt: new Date('2026-01-08T20:00:00Z') },
+      { reviewedAt: new Date('2026-01-07T10:00:00Z') },
     ]);
     const series = await service.heatmap('userA', now, 7);
     expect(series).toHaveLength(7);
@@ -242,9 +242,50 @@ describe('MetricsService', () => {
     // only fetches reviews within the window, scoped to the user
     expect(prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'userA', reviewedAt: { gte: expect.any(Date) } },
+        where: { userId: 'userA', reviewedAt: { gte: expect.any(Date), lte: now } },
       }),
     );
+  });
+
+  it('groups the heatmap by learner dates across midnight and a DST change', async () => {
+    prisma.settings.findUnique.mockResolvedValue({ timezone: 'Europe/Sofia' });
+    const now = new Date('2026-03-29T21:05:00Z'); // March 30 locally
+    prisma.review.findMany.mockResolvedValue([
+      { reviewedAt: new Date('2026-03-28T21:59:00Z') },
+      { reviewedAt: new Date('2026-03-28T22:01:00Z') },
+      { reviewedAt: new Date('2026-03-29T21:01:00Z') },
+    ]);
+    expect(await service.heatmap('userA', now, 3)).toEqual([
+      { date: '2026-03-28', count: 1 },
+      { date: '2026-03-29', count: 1 },
+      { date: '2026-03-30', count: 1 },
+    ]);
+    expect(prisma.review.findMany).toHaveBeenCalledWith({
+      where: { userId: 'userA', reviewedAt: { gte: new Date('2026-03-27T22:00:00Z'), lte: now } },
+      select: { reviewedAt: true },
+    });
+  });
+
+  it.each([
+    ['2026-03-29T12:00:00Z', '2026-03-28T22:00:00Z', '2026-03-29T21:00:00Z'],
+    ['2026-10-25T12:00:00Z', '2026-10-24T21:00:00Z', '2026-10-25T22:00:00Z'],
+  ])('uses learner DST day boundaries for all due lists on %s', async (instant, start, end) => {
+    prisma.settings.findUnique.mockResolvedValue({ timezone: 'Europe/Sofia', disabledDomains: [] });
+    prisma.topic.findMany.mockResolvedValue([
+      { id: 'old', nextReviewAt: new Date(new Date(start).getTime() - 1) },
+      { id: 'today', nextReviewAt: new Date(start) },
+    ]);
+    const due = await service.dueTopics('userA', new Date(instant));
+    expect(due.overdue.map((topic) => topic.id)).toEqual(['old']);
+    expect(due.dueToday.map((topic) => topic.id)).toEqual(['today']);
+    await service.dueCards('userA', new Date(instant));
+    await service.sessionQueue('userA', new Date(instant));
+    for (const call of [
+      prisma.topic.findMany.mock.calls[0],
+      ...prisma.prompt.findMany.mock.calls.slice(0, 2),
+    ]) {
+      expect(call[0].where.nextReviewAt).toEqual({ not: null, lt: new Date(end) });
+    }
   });
 
   it('dueTopics scopes the query by user and domain when provided', async () => {

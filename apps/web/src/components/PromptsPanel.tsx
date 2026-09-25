@@ -1,5 +1,5 @@
 import type { Prompt } from '../api/types';
-import { useSetPromptSuspended } from '../api/hooks';
+import { useSetPromptSuspended, useSettings } from '../api/hooks';
 import { useToast } from './Toast';
 import { formatDate } from '../lib/format';
 
@@ -10,6 +10,7 @@ import { formatDate } from '../lib/format';
  */
 export function PromptsPanel({ topicId, prompts }: { topicId: string; prompts: Prompt[] }) {
   const setSuspended = useSetPromptSuspended(topicId);
+  const { data: settings } = useSettings();
   const { toast } = useToast();
 
   const toggle = (id: string, suspended: boolean) => {
@@ -44,7 +45,7 @@ export function PromptsPanel({ topicId, prompts }: { topicId: string; prompts: P
                 <span className="faint" style={{ fontSize: 12 }}>
                   {p.state === 'new'
                     ? 'new'
-                    : `stability ${Math.round(p.stability ?? 0)}d · due ${formatDate(p.nextReviewAt)}`}
+                    : `stability ${Math.round(p.stability ?? 0)}d · due ${formatDate(p.nextReviewAt, undefined, settings?.timezone)}`}
                 </span>
                 {p.promptKind === 'problem' && (
                   <div className="row gap-2 faint" style={{ fontSize: 12, alignItems: 'center' }}>

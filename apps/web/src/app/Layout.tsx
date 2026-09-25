@@ -21,7 +21,7 @@ function StreakChip() {
     <div className="streak-chip">
       <div className="row gap-2">
         <span style={{ fontSize: 15 }}>🔥</span>
-        <b>{data ? data.currentStreak : '—'} day streak</b>
+        <b>{data ? data.currentStreak : '—'} day review streak</b>
       </div>
       <div className="faint" style={{ fontSize: 12 }}>
         🛡️ {data?.freezeBalance ?? 0} freezes · best {data?.longestStreak ?? 0}

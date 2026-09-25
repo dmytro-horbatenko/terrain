@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The canonical entry-level wargame: Solidity levels deployed on Sepolia via a web UI, each a small vulnerable contract you must exploit through the console or your own scripts to progress. It is a fast way to turn the Phase-6 attack taxonomy into muscle memory — most levels map directly onto a bug class already studied.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Unit testing with forge-std"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Foundry-native, deliberately vulnerable DeFi protocols — 18 challenges in the current v4.1.0 release — each with a prompt, vulnerable contracts, and a Solidity test file where you code a solution without changing the initial or final conditions. V4 migrated the project to Foundry and added Curvy Puppet, Shards, Withdrawal, and a completely reworked Rewarder. It is the DeFi-specific complement to Ethernaut: flash loans, AMMs, oracles, governance, and cross-domain messaging.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Unit testing with forge-std"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Wargames are synthetic; real incidents have real stakes and idiosyncrasies. DeFiHackLabs maintains runnable Foundry PoCs for historical incidents; DeFiVulnLabs currently catalogs 48 reusable vulnerability patterns; rekt.news and the BlockThreat newsletter build the pattern-recognition and incident-response intuition that reading code alone doesn't.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Reading an unfamiliar codebase"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "First Flights are CodeHawks' beginner-scoped audit competitions — smaller codebases, real submissions, and professional judging so you learn what makes a finding survive review, not just 'I found a bug'. This is the graduation milestone for Phase 6: submit and get judged, not just solve a wargame.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Reading an unfamiliar codebase"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -40,10 +40,9 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Optional extra reps once Ethernaut and DVD are done: ONLYPWNER is an EVM-focused challenge platform with difficulty-based scoring and a leaderboard, and Node Guardians runs gamified security quests and campaigns, including CTF-style replays of famous hacks on testnet. Neither is required for the milestone, but both keep the muscle warm.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Unit testing with forge-std"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
-
     {
       "title": "Ethernaut: fundamentals levels",
       "type": "pattern",
@@ -226,7 +225,6 @@
       ],
       "parentTitle": "Ethernaut wargame ladder"
     },
-
     {
       "title": "DVD v4: flash-loan challenges",
       "type": "pattern",
@@ -274,7 +272,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Cross-function & cross-contract reentrancy"],
+      "prerequisiteTitles": ["Cross-function & cross-contract reentrancy", "Aave flash loans"],
       "parentTitle": "Damn Vulnerable DeFi v4 ladder"
     },
     {
@@ -338,10 +336,9 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Flash-loan governance attacks"],
+      "prerequisiteTitles": ["Flash-loan governance attacks", "Governor framework"],
       "parentTitle": "Damn Vulnerable DeFi v4 ladder"
     },
-
     {
       "title": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
       "type": "pattern",
@@ -411,7 +408,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Not every incident is worth a full Foundry replay — Rekt's post-mortems and the BlockThreat newsletter build a faster, broader kind of intuition: read enough real writeups and you start pattern-matching a new incident to an attack family before reproducing it. This is the read-widely, code-narrowly half of wargame practice.",
-      "aiContext": "Build: read 10 recent rekt.news post-mortems or BlockThreat weekly digests; for each, write 2-3 sentences classifying the attack family (from the 06b/06c taxonomy) and the single design decision that would have prevented it. Commit to security/replays/incident-notes.md. Done when: 10 incidents are logged, each tagged with a taxonomy family and a one-line 'what would have stopped it.'",
+      "aiContext": "Build: read 10 recent rekt.news post-mortems or BlockThreat weekly digests; for each, write 2-3 sentences classifying the attack family (from the 06b/06c taxonomy) and the single design decision that would have prevented it. Commit to security/replays/incident-notes.md. Done when: 10 incidents are logged, each tagged with a taxonomy family and a one-line 'what would have stopped it.' Source check 2026-09-25: Rekt public index and BlockThreat archive listings were inspected, not the factual accuracy of every incident; recent BlockThreat editions are paid. Use the accessible source option and corroborate each selected incident with an affected-protocol post-mortem, source code or on-chain trace. Label uncertainty instead of claiming one fix would certainly have prevented an incompletely explained incident.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -422,24 +419,24 @@
             "options": [
               {
                 "id": "06e-rekt-hub-current-postmortems",
-                "title": "Rekt Hub current post-mortems",
-                "url": "https://hub.rekt.news/",
+                "title": "Rekt current incident index",
+                "url": "https://rekt.news/",
                 "format": "article",
-                "scope": "Sections Featured Investigation and the five most recent incident cards visible on the hub",
+                "scope": "Sections the five most recent incident entries on the home page",
                 "estimatedMinutes": 30,
-                "why": "Rekt publishes incident narratives with attack surfaces, loss context, and links that support defensible taxonomy classification.",
-                "verifiedAt": "2026-07-11",
+                "why": "The public publisher index lists dated incident narratives for selection; corroborate a selected mechanism with the affected protocol post-mortem, code or transaction evidence.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               },
               {
                 "id": "06e-blockthreat-current-digests",
                 "title": "BlockThreat newsletter archive",
-                "url": "https://newsletter.blockthreat.io/archive",
+                "url": "https://blockthreat.com/archive/",
                 "format": "article",
-                "scope": "Sections the five most recent weekly digest entries visible in the archive",
+                "scope": "Sections 2026 archive: the five most recent weekly digest listings",
                 "estimatedMinutes": 30,
-                "why": "BlockThreat provides a concise alternative current incident stream organized around vulnerabilities, losses, and response evidence.",
-                "verifiedAt": "2026-07-11",
+                "why": "The publisher archive lists dated weekly briefings; recent full editions require membership. Use accessible reporting or the alternate Rekt source and primary incident evidence when a digest is unavailable.",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               }
             ]
@@ -449,7 +446,6 @@
       "prerequisiteTitles": ["Anatomy of a good finding"],
       "parentTitle": "Real-exploit replay practice"
     },
-
     {
       "title": "CodeHawks First Flights: beginner audit contests",
       "type": "pattern",
@@ -578,7 +574,6 @@
       "prerequisiteTitles": ["CodeHawks First Flights: writing a finding that survives judging"],
       "parentTitle": "Judged practice: CodeHawks First Flights"
     },
-
     {
       "title": "Security campaigns: ONLYPWNER & Node Guardians",
       "type": "pattern",
@@ -646,7 +641,6 @@
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "easy"
     },
-
     {
       "topicTitle": "Ethernaut: proxy & upgrade levels",
       "promptText": "Why does Motorbike's fix (removing the UUPS upgrade capability) work, and what made the level exploitable in the first place?",
@@ -669,7 +663,6 @@
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "hard"
     },
-
     {
       "topicTitle": "Ethernaut: DeFi/DEX levels",
       "promptText": "Why does swapping back and forth on Ethernaut's Dex level let you drain one of its tokens, when the swap formula looks 'fair'?",
@@ -692,7 +685,6 @@
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "Ethernaut: access-control, privacy & interface-trust levels",
       "promptText": "Why is Ethernaut's Privacy level solvable even though the password is declared private?",
@@ -715,7 +707,6 @@
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "Ethernaut: gas, calldata & bytecode puzzle levels",
       "promptText": "Why does calling GatekeeperTwo's gate from your contract's CONSTRUCTOR bypass its extcodesize(caller) == 0 check?",
@@ -738,7 +729,6 @@
       "url": "https://ethernaut.openzeppelin.com/",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "DVD v4: flash-loan challenges",
       "promptText": "Why does Truster's flash-loan pool let you drain it without ever taking out a real loan?",
@@ -761,7 +751,6 @@
       "url": "https://www.damnvulnerabledefi.xyz/",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "DVD v4: oracle/AMM challenges",
       "promptText": "What's the common root cause across the Puppet, Puppet V2, and Puppet V3 challenges, despite each using a different AMM version?",
@@ -784,7 +773,6 @@
       "url": "https://www.damnvulnerabledefi.xyz/",
       "problemDifficulty": "hard"
     },
-
     {
       "topicTitle": "DVD v4: governance & advanced challenges",
       "promptText": "How does ABI Smuggling let an attacker bypass a permissioned function's access check without ever forging a valid selector?",
@@ -807,7 +795,6 @@
       "url": "https://www.damnvulnerabledefi.xyz/",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "Real-exploit replays: DeFiHackLabs Foundry PoCs",
       "promptText": "Why does replaying an incident at its documented chain state matter, instead of writing a fresh toy contract with 'the same bug'?",
@@ -828,7 +815,6 @@
       "promptKind": "problem",
       "url": "https://github.com/SunWeb3Sec/DeFiHackLabs"
     },
-
     {
       "topicTitle": "Real-exploit replays: DeFiVulnLabs pattern catalog",
       "promptText": "What's the difference in what DeFiHackLabs and DeFiVulnLabs each teach, given they cover overlapping incidents?",
@@ -842,7 +828,6 @@
       "promptKind": "problem",
       "url": "https://github.com/SunWeb3Sec/DeFiVulnLabs"
     },
-
     {
       "topicTitle": "Real-exploit replays: rekt.news & BlockThreat incident intuition",
       "promptText": "Why is skimming 10 incident writeups a week different in kind from replaying one incident in Foundry, and why do you need both?",
@@ -856,7 +841,6 @@
       "promptKind": "problem",
       "url": "https://rekt.news/"
     },
-
     {
       "topicTitle": "CodeHawks First Flights: beginner audit contests",
       "promptText": "Why does competing in a real First Flight teach something Ethernaut/DVD wargames structurally can't?",
@@ -871,7 +855,6 @@
       "url": "https://codehawks.cyfrin.io/first-flights",
       "problemDifficulty": "easy"
     },
-
     {
       "topicTitle": "CodeHawks First Flights: writing a finding that survives judging",
       "promptText": "What are the most common reasons a technically-correct finding gets downgraded or rejected in CodeHawks judging?",
@@ -886,7 +869,6 @@
       "url": "https://codehawks.cyfrin.io/first-flights",
       "problemDifficulty": "medium"
     },
-
     {
       "topicTitle": "CodeHawks AI First Flights: standalone AI-graded practice",
       "promptText": "How do CodeHawks AI First Flights differ from the scheduled human-judged First Flights, and how should you use them?",
@@ -900,7 +882,6 @@
       "promptKind": "problem",
       "url": "https://codehawks.cyfrin.io/first-flights"
     },
-
     {
       "topicTitle": "Security campaigns: ONLYPWNER & Node Guardians",
       "promptText": "Why keep doing wargame-style practice after finishing Ethernaut and DVD, instead of moving straight to real audits?",

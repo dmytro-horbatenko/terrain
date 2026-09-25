@@ -42,7 +42,30 @@ function zoneOffsetMs(at: Date, timeZone: string): number {
 
 /** First midnight (or first valid instant when midnight is skipped) of this local day. */
 export function localDayStart(now: Date, timeZone: string): Date {
-  const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now); // YYYY-MM-DD
+  return localDateStart(localDateKey(now, timeZone), timeZone);
+}
+
+/** A calendar label, never an instant or a server-local date. */
+export function localDateKey(now: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(now);
+}
+
+export function shiftDateKey(key: string, days: number): string {
+  const date = new Date(`${key}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function localDayBounds(now: Date, timeZone: string) {
+  const key = localDateKey(now, timeZone);
+  return {
+    key,
+    start: localDateStart(key, timeZone),
+    end: localDateStart(shiftDateKey(key, 1), timeZone),
+  };
+}
+
+export function localDateStart(dateStr: string, timeZone: string): Date {
   const guess = new Date(`${dateStr}T00:00:00Z`);
   // Try offsets on both sides of a transition, then verify at the actual instant.
   const candidates = [-1, 0, 1].map(

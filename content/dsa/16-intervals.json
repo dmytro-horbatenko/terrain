@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "Range-overlap problems; mostly solved by the Greedy category's sort-then-scan approach.",
-      "prerequisiteTitles": ["Greedy"],
+      "prerequisiteTitles": ["Interval scheduling"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

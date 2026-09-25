@@ -11,11 +11,15 @@ export class StreakCron {
     private prisma: PrismaService,
   ) {}
 
-  @Cron('5 0 * * *') // 00:05 daily — evaluate the day that just ended
-  async evaluateYesterday() {
-    const yesterday = new Date(Date.now() - 86_400_000);
+  @Cron('5,20,35,50 * * * *') // Every 15 minutes, including fractional-hour learner timezones.
+  async evaluateYesterday(now = new Date()) {
     const users = await this.prisma.user.findMany({ select: { id: true } });
-    for (const u of users) await this.streak.evaluateDay(u.id, yesterday);
-    this.logger.log(`Evaluated streak for ${users.length} users on ${yesterday.toDateString()}`);
+    for (const u of users) {
+      try {
+        await this.streak.evaluateCompletedDays(u.id, now);
+      } catch (error) {
+        this.logger.error(`Review streak evaluation failed for user ${u.id}: ${error}`);
+      }
+    }
   }
 }

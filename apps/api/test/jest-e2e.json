@@ -3,7 +3,9 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+  "transform": { "^.+\\.ts$": "ts-jest" },
+  "moduleNameMapper": {
+    "^@terrain/types$": "<rootDir>/../../../packages/types/src/index.ts",
+    "^@terrain/sr-engine$": "<rootDir>/../../../packages/sr-engine/src/index.ts"
   }
 }

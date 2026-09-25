@@ -1,26 +1,25 @@
 const DAY = 86_400_000;
 
-export function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
 export function formatDate(
   iso: string | null | undefined,
   opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' },
+  timeZone = 'UTC',
 ): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, opts);
+  return d.toLocaleDateString(undefined, {
+    ...opts,
+    timeZone: /^\d{4}-\d{2}-\d{2}$/.test(iso) ? 'UTC' : timeZone,
+  });
 }
 
-export function formatDateTime(iso: string | null | undefined): string {
+export function formatDateTime(iso: string | null | undefined, timeZone = 'UTC'): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString(undefined, {
+    timeZone,
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -35,12 +34,19 @@ export interface DueInfo {
   days: number | null;
 }
 
-/** Human "due" label relative to local today. */
-export function dueLabel(nextReviewAt: string | null | undefined): DueInfo {
-  if (!nextReviewAt) return { text: 'not scheduled', overdue: false, quiet: true, days: null };
-  const next = startOfDay(new Date(nextReviewAt));
-  const today = startOfDay(new Date());
-  const days = Math.round((next.getTime() - today.getTime()) / DAY);
+/** Human due label relative to today in the learner's saved timezone. */
+export function dueLabel(
+  nextReviewAt: string | null | undefined,
+  timeZone = 'UTC',
+  now = new Date(),
+): DueInfo {
+  if (!nextReviewAt || Number.isNaN(new Date(nextReviewAt).getTime()))
+    return { text: 'not scheduled', overdue: false, quiet: true, days: null };
+  const dates = new Intl.DateTimeFormat('en-CA', { timeZone });
+  const nextKey = /^\d{4}-\d{2}-\d{2}$/.test(nextReviewAt)
+    ? nextReviewAt
+    : dates.format(new Date(nextReviewAt));
+  const days = (Date.parse(nextKey) - Date.parse(dates.format(now))) / DAY;
   if (days < 0) return { text: `overdue ${-days}d`, overdue: true, quiet: false, days };
   if (days === 0) return { text: 'due today', overdue: false, quiet: false, days };
   if (days === 1) return { text: 'due tomorrow', overdue: false, quiet: false, days };

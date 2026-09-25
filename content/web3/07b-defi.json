@@ -51,7 +51,6 @@
       "prerequisiteTitles": [],
       "parentTitle": "Phase 7 — DeFi Mechanics & From-Scratch Builds"
     },
-
     {
       "title": "Aave V3 aTokens & interest accrual",
       "type": "pattern",
@@ -107,7 +106,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Aave gates solvency with the health factor: HF = sum(collateral_i * liquidationThreshold_i) / totalDebt, all in a common base currency. Borrow capacity uses max LTV, while liquidation eligibility uses the higher liquidation threshold: HF below 1 permits liquidation. A liquidator repays an allowed portion of debt and receives corresponding collateral plus a configured liquidation bonus; current V3 close-factor behavior depends on health and dust conditions.",
-      "aiContext": "Build: in defi/lending/HealthFactor.sol implement computeHealthFactor over multiple collaterals/debts using per-asset liquidation thresholds and a price oracle, plus a liquidate() paying a bonus; test/defi/HealthFactor.t.sol. Done when: a position with HF >= 1 cannot be liquidated, an oracle price drop pushes HF < 1 and enables liquidation, and the liquidator receives collateral + bonus.",
+      "aiContext": "Build: in defi/lending/HealthFactor.sol implement computeHealthFactor over multiple collaterals/debts using per-asset liquidation thresholds and a price oracle, plus a liquidate() paying a bonus; test/defi/HealthFactor.t.sol. Done when: a position with HF >= 1 cannot be liquidated, an oracle price drop pushes HF < 1 and enables liquidation, and the liquidator receives collateral + bonus. Before contract implementation, derive a small numerical model: assets/liabilities, units and rounding direction, conserved quantities, price/time assumptions, who bears losses, and one stressed or changed case. Record the failing case and compare it with the contract test; an API walkthrough alone does not finish this lesson.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -227,7 +226,6 @@
       "prerequisiteTitles": ["Health factor & liquidation"],
       "parentTitle": "Lending Protocols"
     },
-
     {
       "title": "Overcollateralized CDP stablecoin",
       "type": "pattern",
@@ -392,7 +390,6 @@
       "prerequisiteTitles": ["Overcollateralized CDP stablecoin"],
       "parentTitle": "Stablecoins"
     },
-
     {
       "title": "Lido stETH & wstETH",
       "type": "pattern",
@@ -422,7 +419,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Fee-on-transfer & rebasing tokens"],
+      "prerequisiteTitles": ["ERC-20 fungible token standard", "Proof-of-Stake basics"],
       "parentTitle": "Staking, LSTs & Restaking"
     },
     {
@@ -457,7 +454,6 @@
       "prerequisiteTitles": ["Lido stETH & wstETH", "Slashing & the beacon chain"],
       "parentTitle": "Staking, LSTs & Restaking"
     },
-
     {
       "title": "Perpetual funding rate (mark vs index)",
       "type": "pattern",
@@ -572,13 +568,12 @@
       "prerequisiteTitles": ["Perpetual funding rate (mark vs index)"],
       "parentTitle": "Perpetual Futures"
     },
-
     {
       "title": "ERC-4626 yield vault mechanics",
       "type": "pattern",
       "domain": "Web3",
       "description": "ERC-4626 standardizes shares over one ERC-20 asset. convertToShares and convertToAssets must round down; state-changing preview paths use opposing vault-favorable directions—deposit/redeem output rounds down, while mint/withdraw required input rounds up. Yield can raise assets per share without rebasing shares. A virtual-asset/share offset can make first-depositor donation attacks unprofitable, but it is an implementation defense rather than a requirement of EIP-4626 itself.",
-      "aiContext": "Build: implement defi/vault/YieldVault4626.sol from scratch (deposit/mint/withdraw/redeem + convertTo* with vault-favorable rounding and a virtual-offset), simulating yield by donating asset over time; test/defi/YieldVault4626.t.sol. Done when: a fuzz test proves totalAssets/totalSupply never lets a redeemer extract more than deposited-plus-yield, rounding always favors the vault, and the first-depositor inflation attack fails.",
+      "aiContext": "Build: implement defi/vault/YieldVault4626.sol from scratch (deposit/mint/withdraw/redeem + convertTo* with vault-favorable rounding and a virtual-offset), simulating yield by donating asset over time; test/defi/YieldVault4626.t.sol. Done when: a fuzz test proves totalAssets/totalSupply never lets a redeemer extract more than deposited-plus-yield, rounding always favors the vault, and the first-depositor inflation attack fails. Before contract implementation, derive a small numerical model: assets/liabilities, units and rounding direction, conserved quantities, price/time assumptions, who bears losses, and one stressed or changed case. Record the failing case and compare it with the contract test; an API walkthrough alone does not finish this lesson.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -620,13 +615,9 @@
           }
         ]
       },
-      "prerequisiteTitles": [
-        "ERC-4626 tokenized vaults",
-        "ERC-4626 inflation attack & virtual shares"
-      ],
+      "prerequisiteTitles": ["ERC-4626 tokenized vaults"],
       "parentTitle": "Yield Vaults (ERC-4626)"
     },
-
     {
       "title": "Aave flash loans",
       "type": "pattern",

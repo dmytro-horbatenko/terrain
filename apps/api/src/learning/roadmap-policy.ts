@@ -15,6 +15,7 @@ export type RoadmapEligibility = {
   effectivePrerequisiteIds: string[];
   learnedLeaves: number;
   totalLeaves: number;
+  leafIds: string[];
   unfinishedLeafIds: string[];
   blockerIds: string[];
   unavailablePrerequisite: boolean;
@@ -153,6 +154,7 @@ export function buildRoadmapPolicy(nodes: RoadmapNode[]): Map<string, RoadmapEli
           effectivePrerequisiteIds: constraints.prerequisiteIds,
           learnedLeaves: fact.leafIds.length - unfinishedLeafIds.length,
           totalLeaves: fact.leafIds.length,
+          leafIds: fact.leafIds,
           unfinishedLeafIds,
           blockerIds,
           unavailablePrerequisite: constraints.unavailablePrerequisite,

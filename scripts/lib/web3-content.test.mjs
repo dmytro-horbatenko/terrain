@@ -1,6 +1,193 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { allUrls, sourcePlanErrors, structuralErrors } from './web3-content.mjs';
+import { loadContentFiles } from './web3-content.mjs';
+import { loadContentFiles as loadDsa } from './dsa-content.mjs';
+import { buildRoadmapPolicy } from '../../apps/api/src/learning/roadmap-policy.ts';
+import { readFile } from 'node:fs/promises';
+import { dependencyErrors, updatePreparedCourse } from './course-content.mjs';
+
+const authored = (await loadContentFiles()).flatMap(({ doc }) => doc.proposedTopics);
+const policy = (active = []) =>
+  buildRoadmapPolicy(
+    authored.map((topic) => ({
+      id: topic.title,
+      parentId: topic.parentTitle ?? null,
+      prerequisiteIds: topic.prerequisiteTitles,
+      status: active.includes(topic.title) ? 'active' : 'planned',
+    })),
+  );
+
+test('curriculum gates preserve depth without requiring unrelated chapters', () => {
+  const initial = policy();
+  assert.equal(initial.get('Foundry project anatomy').learnable, true);
+  assert.equal(
+    policy(['Foundry project anatomy']).get('Unit testing with forge-std').learnable,
+    false,
+  );
+  assert.equal(initial.get('Nodes, clients & JSON-RPC').learnable, true);
+  assert.equal(initial.get('viem clients: public, wallet & transports').learnable, false);
+  assert.equal(
+    policy(['Nodes, clients & JSON-RPC', 'Raw Ethereum JSON-RPC']).get(
+      'viem clients: public, wallet & transports',
+    ).learnable,
+    true,
+  );
+  const amm = 'Constant-product market maker (x*y=k)';
+  assert.equal(policy(['ERC-20 fungible token standard']).get(amm).learnable, true);
+  assert.equal(initial.get('TWAP oracle manipulation').learnable, false);
+  assert.ok(
+    initial
+      .get('TWAP oracle manipulation')
+      .effectivePrerequisiteIds.includes('Uniswap V2 TWAP oracle'),
+  );
+  assert.equal(policy(['Hashing & Merkle trees']).get('SNARKs vs STARKs').learnable, true);
+  assert.equal(
+    policy(['ERC-20 fungible token standard']).get('Tokenized treasuries (BUIDL, Ondo)').learnable,
+    true,
+  );
+  for (const [title, state] of initial) {
+    assert.equal(state.cycle, false, title);
+    assert.equal(state.unavailablePrerequisite, false, title);
+    assert.equal(state.malformedParent, false, title);
+    for (const pre of state.effectivePrerequisiteIds)
+      assert.equal(
+        initial.get(pre).kind,
+        'leaf',
+        `${title} must not require an entire chapter: ${pre}`,
+      );
+  }
+});
+
+test('project catalogue retains every milestone and only references existing lessons', async () => {
+  const catalogue = JSON.parse(
+    await readFile(new URL('../../content/projects/web3-products.json', import.meta.url)),
+  );
+  assert.deepEqual(
+    catalogue.projects.map((project) => project.id),
+    [
+      'wallet-console',
+      'chain-indexer',
+      'escrow-payments',
+      'distribution',
+      'raffle',
+      'marketplace',
+      'amm-exchange',
+      'lending-vault',
+      'treasury-governance',
+      'smart-account',
+      'cross-chain',
+      'capstone',
+    ],
+  );
+  const milestones = catalogue.projects.flatMap((project) => project.milestones);
+  assert.equal(milestones.length, 76);
+  const titles = new Set(authored.map((topic) => topic.title.toLowerCase()));
+  for (const milestone of milestones)
+    for (const title of milestone.topicTitles) assert.ok(titles.has(title.toLowerCase()), title);
+  assert.match(catalogue.description, /one active product milestone/i);
+  assert.ok(catalogue.assessment.some((line) => /decision record/.test(line)));
+});
+
+test('all original topics and long lab tasks survive the curriculum revision', async () => {
+  const baseline = JSON.parse(
+    await readFile(new URL('../../content/course-revisions/2026-09-03.json', import.meta.url)),
+  );
+  const files = await loadContentFiles();
+  const prompts = files.flatMap(({ doc }) => doc.proposedPrompts);
+  const byTitle = new Map(authored.map((topic) => [topic.title, topic]));
+  assert.equal(authored.filter((topic) => topic.type === 'pattern').length, 365);
+  assert.equal(prompts.length, 526);
+  for (const topic of baseline.courses.web3.topics)
+    assert.ok(byTitle.has(topic.title), topic.title);
+  for (const prompt of baseline.courses.web3.prompts.filter((p) => p.estimatedMinutes >= 120)) {
+    assert.ok(
+      byTitle.get(prompt.topicTitle).aiContext.includes(prompt.promptText),
+      prompt.topicTitle,
+    );
+    assert.ok(
+      !prompts.some((p) => p.topicTitle === prompt.topicTitle && p.estimatedMinutes >= 120),
+      prompt.topicTitle,
+    );
+  }
+  const dsa = (await loadDsa()).flatMap(({ doc }) => doc.proposedTopics);
+  for (const topic of baseline.courses.dsa.topics)
+    assert.ok(
+      dsa.some((t) => t.title === topic.title),
+      topic.title,
+    );
+  const foundations = dsa.filter((t) => t.parentTitle === 'DSA foundations');
+  assert.equal(foundations.length, 5);
+  assert.ok(foundations.every((t) => t.sourcePlan?.policy === 'required'));
+  assert.ok(
+    dsa.find((t) => t.title === 'Data Structures & Algorithms').aiContext.includes('unlabeled'),
+  );
+});
+
+test('content validation accepts forward references and rejects dangling or inherited cyclic gates', () => {
+  const topic = (title, parentTitle = null, prerequisiteTitles = []) => ({
+    title,
+    parentTitle,
+    prerequisiteTitles,
+  });
+  const files = (topics) =>
+    topics.map((t, i) => ({ file: `${i}.json`, doc: { proposedTopics: [t] } }));
+  assert.deepEqual(
+    dependencyErrors(files([topic('Later-dependent', null, ['Later']), topic('Later')])),
+    [],
+  );
+  assert.match(
+    dependencyErrors(files([topic('Leaf', null, ['Missing'])])).join('\n'),
+    /missing topic/,
+  );
+  assert.match(
+    dependencyErrors(files([topic('Chapter'), topic('Leaf', 'Chapter', ['Chapter'])])).join('\n'),
+    /deadlock/,
+  );
+  assert.match(
+    dependencyErrors(files([topic('A', null, ['B']), topic('B', null, ['A'])])).join('\n'),
+    /cyclic/,
+  );
+  assert.match(dependencyErrors(files([topic('A', 'B'), topic('B', 'A')])).join('\n'), /cyclic/);
+});
+
+test('prepared course CLI previews without applying and refuses a mismatched server revision', async () => {
+  const requests = [];
+  const api = async (path) => {
+    requests.push(path);
+    return { status: 200, body: { revision: '2026-09-25', fingerprint: 'preview-fingerprint' } };
+  };
+  await updatePreparedCourse(api, 'web3', { dryRun: true });
+  assert.deepEqual(requests, ['/courses/web3/update-preview']);
+  await assert.rejects(
+    updatePreparedCourse(async () => ({ status: 200, body: { revision: 'old' } }), 'web3'),
+    /revision differs/,
+  );
+});
+
+test('prepared course CLI applies only the fingerprint it previewed and surfaces conflicts', async () => {
+  const requests = [];
+  const api = async (path, init) => {
+    requests.push({ path, init });
+    return {
+      status: 200,
+      body: init ? { topicsUpdated: 1 } : { revision: '2026-09-25', fingerprint: 'checked-state' },
+    };
+  };
+  assert.deepEqual(await updatePreparedCourse(api, 'dsa'), { topicsUpdated: 1 });
+  assert.equal(requests[1].path, '/courses/dsa/update');
+  assert.deepEqual(JSON.parse(requests[1].init.body), { expectedFingerprint: 'checked-state' });
+  await assert.rejects(
+    updatePreparedCourse(
+      async (_path, init) =>
+        init
+          ? { status: 409, body: { message: 'Preview again' } }
+          : { status: 200, body: { revision: '2026-09-25', fingerprint: 'old-state' } },
+      'web3',
+    ),
+    /409/,
+  );
+});
 
 const valid = {
   title: 'Test leaf',

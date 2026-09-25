@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "DSA",
       "description": "A contiguous window over a sequence, expanded/contracted to maintain an invariant. Directly generalizes two-pointer scanning to variable-length ranges.",
-      "prerequisiteTitles": ["Two Pointers"],
+      "prerequisiteTitles": ["Opposite-direction pointers"],
       "parentTitle": "Data Structures & Algorithms"
     },
     {

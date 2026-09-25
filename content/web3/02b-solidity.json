@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How Solidity signals failure and rolls back: require/revert/assert, custom errors, and the Error(string) / Panic(uint) selectors the EVM returns.",
-      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "prerequisiteTitles": ["Functions & return values"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Receiving and sending native ETH: payable, msg.value, transfer/send/call, and the receive/fallback special functions. The most reentrancy-prone corner of the language.",
-      "prerequisiteTitles": ["Functions, visibility & modifiers"],
+      "prerequisiteTitles": ["Functions & return values"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The raw call/delegatecall/staticcall primitives and try/catch — how contracts talk to other contracts, the storage-context trap of delegatecall, and the read-only guarantee of staticcall.",
-      "prerequisiteTitles": ["ETH transfer"],
+      "prerequisiteTitles": ["Sending ETH: transfer, send, call"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How arguments are serialized for calls and hashes: abi.encode vs encodePacked, abi.decode, function selectors, and encodeCall/encodeWithSelector. Collision-safety matters.",
-      "prerequisiteTitles": ["Low-level calls"],
+      "prerequisiteTitles": ["Low-level call"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -40,7 +40,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "keccak256 as Ethereum's universal hash — mappings, merkle proofs, selectors, and commit-reveal — and the encode-vs-encodePacked collision trap when hashing.",
-      "prerequisiteTitles": ["ABI encoding & decoding"],
+      "prerequisiteTitles": ["abi.encode vs encodePacked", "abi.decode & function selectors"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -48,7 +48,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Verifying off-chain authorizations on-chain: ecrecover, malleability, the EIP-191 prefix, and EIP-712 typed structured data with a domain separator for safe, human-readable signing.",
-      "prerequisiteTitles": ["Hashing"],
+      "prerequisiteTitles": ["keccak256 hashing"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -56,7 +56,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Reusable libraries (using-for; internal functions compiled into the caller, public/external functions delegatecalled) and interfaces for type-safe cross-contract calls.",
-      "prerequisiteTitles": ["Inheritance"],
+      "prerequisiteTitles": ["Inheritance & function overriding"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -64,7 +64,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Dropping to inline assembly (Yul): raw opcodes, the memory model (free pointer, scratch space), and direct storage access — power at the cost of every safety check.",
-      "prerequisiteTitles": ["Storage layout"],
+      "prerequisiteTitles": ["Storage slots & variable packing"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -72,7 +72,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "EIP-1153's TSTORE/TLOAD: cheap storage that lives for one transaction then auto-clears — ideal for reentrancy locks and transient accumulators.",
-      "prerequisiteTitles": ["Storage layout"],
+      "prerequisiteTitles": ["Storage slots & variable packing"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
     {
@@ -80,10 +80,9 @@
       "type": "concept",
       "domain": "Web3",
       "description": "UDVTs wrap an elementary type in a new, distinct compile-time type (Duration is uint256) for zero-cost type safety without arithmetic operators unless you add them.",
-      "prerequisiteTitles": ["Types & data locations"],
+      "prerequisiteTitles": ["Value types & their defaults", "Reference types & data location"],
       "parentTitle": "Phase 2 — Solidity Language"
     },
-
     {
       "title": "Custom errors",
       "type": "pattern",
@@ -152,7 +151,6 @@
       "prerequisiteTitles": ["Custom errors"],
       "parentTitle": "Errors & reverts"
     },
-
     {
       "title": "payable functions & msg.value",
       "type": "pattern",
@@ -295,7 +293,6 @@
       "prerequisiteTitles": ["payable functions & msg.value"],
       "parentTitle": "ETH transfer"
     },
-
     {
       "title": "Low-level call",
       "type": "pattern",
@@ -490,7 +487,6 @@
       "prerequisiteTitles": ["Low-level call"],
       "parentTitle": "Low-level calls"
     },
-
     {
       "title": "abi.encode vs encodePacked",
       "type": "pattern",
@@ -579,7 +575,6 @@
       "prerequisiteTitles": ["abi.encode vs encodePacked"],
       "parentTitle": "ABI encoding & decoding"
     },
-
     {
       "title": "keccak256 hashing",
       "type": "pattern",
@@ -634,7 +629,6 @@
       "prerequisiteTitles": ["abi.encode vs encodePacked"],
       "parentTitle": "Hashing"
     },
-
     {
       "title": "ECDSA signatures & ecrecover",
       "type": "pattern",
@@ -759,7 +753,6 @@
       "prerequisiteTitles": ["ECDSA signatures & ecrecover"],
       "parentTitle": "Signatures (ECDSA & EIP-712)"
     },
-
     {
       "title": "Libraries & using-for",
       "type": "pattern",
@@ -880,7 +873,6 @@
       "prerequisiteTitles": ["Interfaces"],
       "parentTitle": "Libraries & interfaces"
     },
-
     {
       "title": "Inline assembly & Yul basics",
       "type": "pattern",
@@ -1009,7 +1001,6 @@
       "prerequisiteTitles": ["Inline assembly & Yul basics"],
       "parentTitle": "Assembly & Yul intro"
     },
-
     {
       "title": "Transient storage (EIP-1153)",
       "type": "pattern",
@@ -1062,7 +1053,6 @@
       "prerequisiteTitles": [],
       "parentTitle": "Transient storage"
     },
-
     {
       "title": "Defining a UDVT with wrap/unwrap",
       "type": "pattern",

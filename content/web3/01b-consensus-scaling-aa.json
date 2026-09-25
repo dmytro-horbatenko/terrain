@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Proof-of-Stake: validators, attestations, finality, slashing, and post-Merge issuance.",
-      "prerequisiteTitles": ["EVM execution model"],
+      "prerequisiteTitles": ["The EVM as a state machine"],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "How rollups scale Ethereum: optimistic vs ZK proofs, data availability and blobs, sequencers, and the L2Beat trust framework.",
-      "prerequisiteTitles": ["Consensus (PoS)"],
+      "prerequisiteTitles": ["Proof-of-Stake basics"],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Smart-account UX through ERC-4337 (UserOps, bundlers, EntryPoint, paymasters) and protocol-level EIP-7702 EOA delegation.",
-      "prerequisiteTitles": ["Accounts, transactions & gas"],
+      "prerequisiteTitles": ["Transaction anatomy", "EOAs vs contract accounts"],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {
@@ -32,7 +32,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Where Ethereum is now: the shipped Pectra and Fusaka forks, validator consolidation, the classic Merge/Surge/Scourge/Verge/Purge/Splurge taxonomy, and Ethereum's current protocol workstreams.",
-      "prerequisiteTitles": ["L2s & rollups"],
+      "prerequisiteTitles": ["Rollups: optimistic vs ZK"],
       "parentTitle": "Phase 1 — Blockchain & Ethereum Fundamentals"
     },
     {
@@ -354,12 +354,12 @@
               {
                 "id": "l2beat-scaling-summary",
                 "title": "Scaling Summary — L2BEAT",
-                "url": "https://l2beat.com/scaling/summary",
+                "url": "https://l2beat.com/layer2s/summary",
                 "format": "exercise",
                 "scope": "Section Rollups table: Risks, Proof system, and stage columns",
                 "estimatedMinutes": 12,
                 "why": "The live table provides the current stage labels and links to the exact risk that caps each selected project, which the static methodology cannot supply.",
-                "verifiedAt": "2026-07-11",
+                "verifiedAt": "2026-09-25",
                 "recheckAfterDays": 30
               }
             ]

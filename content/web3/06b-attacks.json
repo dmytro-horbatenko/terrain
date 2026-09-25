@@ -8,7 +8,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "The archetypal external-call bug family: a contract calls out to an address that re-enters it before its own state is updated, so a stale balance or flag is trusted twice. Spans single-function, cross-function, cross-contract, read-only, and callback-hook variants; defenses include restoring invariants before external calls and applying a shared reentrancy guard where needed.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Reentrancy guard & checks-effects-interactions"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -16,7 +16,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "OWASP SC01 in the current Smart Contract Top 10: functions that fail to check who is calling, or check it wrongly. Missing modifiers, tx.origin authorization, unprotected initializers or privileged opcodes, and weak signature checks can all let an attacker invoke privileged logic.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Function modifiers", "Ownable (OZ v5)"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -24,7 +24,7 @@
       "type": "concept",
       "domain": "Web3",
       "description": "Bugs where the math is the vulnerability: overflow or underflow (pre-0.8 or inside unchecked arithmetic, casts, or assembly), premature integer division, wrong rounding direction, and share-price manipulation in vaults. Small rounding edges can compound into drainable value.",
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Value types & their defaults"],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
     {
@@ -35,7 +35,6 @@
       "prerequisiteTitles": [],
       "parentTitle": "Phase 6 — Security & Auditing"
     },
-
     {
       "title": "Single-function reentrancy",
       "type": "pattern",
@@ -218,7 +217,6 @@
       "prerequisiteTitles": ["Single-function reentrancy"],
       "parentTitle": "Reentrancy attacks"
     },
-
     {
       "title": "Missing & incorrect access-control modifiers",
       "type": "pattern",
@@ -397,7 +395,6 @@
       "prerequisiteTitles": ["Missing & incorrect access-control modifiers"],
       "parentTitle": "Access control & authorization attacks"
     },
-
     {
       "title": "Integer overflow & underflow",
       "type": "pattern",
@@ -527,7 +524,10 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
+      "prerequisiteTitles": [
+        "Division-before-multiplication & precision loss",
+        "ERC-4626 yield vault mechanics"
+      ],
       "parentTitle": "Arithmetic & precision attacks"
     },
     {
@@ -562,7 +562,6 @@
       "prerequisiteTitles": ["Division-before-multiplication & precision loss"],
       "parentTitle": "Arithmetic & precision attacks"
     },
-
     {
       "title": "Spot-price oracle manipulation",
       "type": "pattern",
@@ -592,7 +591,7 @@
           }
         ]
       },
-      "prerequisiteTitles": [],
+      "prerequisiteTitles": ["Constant-product market maker (x*y=k)", "Chainlink push price feeds"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
     {
@@ -624,7 +623,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "prerequisiteTitles": ["Spot-price oracle manipulation", "Uniswap V2 TWAP oracle"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
     {
@@ -674,7 +673,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "prerequisiteTitles": ["Spot-price oracle manipulation", "Aave flash loans"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
     {
@@ -724,7 +723,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Flash-loan price manipulation"],
+      "prerequisiteTitles": ["Flash-loan price manipulation", "Governor framework"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
     {
@@ -774,7 +773,7 @@
           }
         ]
       },
-      "prerequisiteTitles": ["Spot-price oracle manipulation"],
+      "prerequisiteTitles": ["Chainlink push price feeds"],
       "parentTitle": "Price oracle & flash-loan attacks"
     },
     {
@@ -873,7 +872,6 @@
       "url": "https://github.com/SunWeb3Sec/DeFiHackLabs",
       "problemDifficulty": "hard"
     },
-
     {
       "topicTitle": "Missing & incorrect access-control modifiers",
       "promptText": "What is the access-control failure mode, and why is it OWASP SC01 (the top loss category)?",
@@ -926,7 +924,6 @@
       "answerHint": "That ecrecover returned a NON-zero address that is in the authorized signer set (not just 'a valid signature'), and that the signed message is bound to this contract, chain, function, and a nonce/deadline so it can't be reused or forged. Pitfall: ecrecover returns address(0) for malformed signatures — if address(0) is ever a privileged/uninitialized signer, an attacker submits garbage and passes; always reject the zero address explicitly.",
       "promptKind": "concept"
     },
-
     {
       "topicTitle": "Integer overflow & underflow",
       "promptText": "Where do overflow/underflow bugs still occur in Solidity 0.8+, given arithmetic reverts by default?",
@@ -963,7 +960,6 @@
       "answerHint": "USDC/USDT use 6 decimals and WBTC 8, so a hardcoded 1e18 scale can mis-value raw amounts by 10^12 or 10^10. Normalize supported assets with configured, verified scale factors. ERC-20 decimals() is optional and arbitrary tokens may omit or misreport it, so validate metadata as part of the integration rather than trusting each caller-supplied token.",
       "promptKind": "concept"
     },
-
     {
       "topicTitle": "Spot-price oracle manipulation",
       "promptText": "Why is an AMM's spot reserve ratio an unsafe price oracle?",

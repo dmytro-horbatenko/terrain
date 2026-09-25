@@ -17,15 +17,15 @@ function level(count: number, max: number): number {
  * `cells` is the dense, oldest-first series from GET /metrics/heatmap; columns
  * are weeks (Mon→Sun rows).
  */
-export function Heatmap({ cells }: { cells: HeatmapCell[] }) {
+export function Heatmap({ cells, timezone = 'UTC' }: { cells: HeatmapCell[]; timezone?: string }) {
   if (cells.length === 0) return <span className="faint">No review history yet.</span>;
 
   const max = cells.reduce((m, c) => Math.max(m, c.count), 0);
   const total = cells.reduce((sum, c) => sum + c.count, 0);
 
   // Pad leading blanks so the first cell lands on its weekday (week starts Mon).
-  const first = new Date(cells[0].date + 'T00:00:00');
-  const lead = (first.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const first = new Date(cells[0].date + 'T00:00:00Z');
+  const lead = (first.getUTCDay() + 6) % 7; // Mon=0 … Sun=6
   const padded: (HeatmapCell | null)[] = [...Array<null>(lead).fill(null), ...cells];
 
   const weeks: (HeatmapCell | null)[][] = [];
@@ -56,7 +56,9 @@ export function Heatmap({ cells }: { cells: HeatmapCell[] }) {
         ))}
       </div>
       <div className="row gap-2" style={{ alignItems: 'center', fontSize: 12 }}>
-        <span className="faint">{total} reviews</span>
+        <span className="faint">
+          {total} reviews · {timezone}
+        </span>
         <span className="row gap-1 right" style={{ alignItems: 'center' }}>
           <span className="faint">less</span>
           {PALETTE.map((c, i) => (
