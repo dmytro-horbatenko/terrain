@@ -20,7 +20,13 @@ export class TopicsController {
     return this.service.findAll(userId);
   }
   @Get('search') search(@CurrentUser() userId: string, @Query() query: SearchTopicsDto) {
-    return this.service.search(userId, query.q ?? '');
+    return this.service.search(userId, query.q ?? '', {
+      domain: query.domain,
+      status: query.status,
+    });
+  }
+  @Get('recent-notes') recentNotes(@CurrentUser() userId: string) {
+    return this.service.recentNotes(userId);
   }
   @Get(':id/notes') notes(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.service.getNotes(userId, id);

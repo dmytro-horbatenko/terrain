@@ -17,6 +17,7 @@ import type {
   UpdateSettingsInput,
   UpdateTopicInput,
   UpdateTopicNotesInput,
+  TopicStatus,
 } from './types';
 
 export const qk = {
@@ -25,6 +26,7 @@ export const qk = {
   topics: ['topics'] as const,
   topic: (id: string) => ['topic', id] as const,
   topicNotes: (id: string) => ['topic-notes', id] as const,
+  recentNotes: ['recent-notes'] as const,
   reviews: (topicId: string) => ['reviews', topicId] as const,
   nextPrompt: (topicId: string) => ['next-prompt', topicId] as const,
   prompt: (id: string) => ['prompt', id] as const,
@@ -103,12 +105,16 @@ export function useTopics() {
   return useQuery({ queryKey: qk.topics, queryFn: api.getTopics });
 }
 
-export function useTopicSearch(query: string) {
+export function useTopicSearch(query: string, domain?: string, status?: TopicStatus) {
   return useQuery({
-    queryKey: ['topic-search', query.trim()],
-    queryFn: () => api.searchTopicIds(query.trim()),
+    queryKey: ['topic-search', query.trim(), domain ?? null, status ?? null],
+    queryFn: () => api.searchTopics(query.trim(), domain, status),
     enabled: !!query.trim(),
   });
+}
+
+export function useRecentNotes() {
+  return useQuery({ queryKey: qk.recentNotes, queryFn: api.getRecentNotes });
 }
 
 export function useTopicNotes(id: string) {
@@ -122,6 +128,7 @@ export function useSaveTopicNotes(id: string) {
     onSuccess: (saved) => {
       qc.setQueryData(qk.topicNotes(id), saved);
       void qc.invalidateQueries({ queryKey: ['topic-search'] });
+      void qc.invalidateQueries({ queryKey: qk.recentNotes });
     },
   });
 }
@@ -217,6 +224,7 @@ function useInvalidateAll() {
     Promise.all([
       qc.invalidateQueries({ queryKey: qk.topics }),
       qc.invalidateQueries({ queryKey: ['topic-search'] }),
+      qc.invalidateQueries({ queryKey: qk.recentNotes }),
       qc.invalidateQueries({ queryKey: ['dashboard'] }),
       qc.invalidateQueries({ queryKey: ['session-queue'] }),
       qc.invalidateQueries({ queryKey: ['heatmap'] }),

@@ -64,6 +64,20 @@ export interface TopicNotes {
   updatedAt: string | null;
 }
 
+export interface TopicSearchMatch {
+  id: string;
+  excerpt: string;
+  matchedField: 'notes' | 'summary' | 'description' | 'title';
+  notesUpdatedAt: string | null;
+}
+
+export interface RecentTopicNote {
+  id: string;
+  title: string;
+  updatedAt: string;
+  excerpt: string;
+}
+
 export interface UpdateTopicNotesInput {
   body: string;
   revision: number;

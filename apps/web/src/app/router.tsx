@@ -4,6 +4,7 @@ import type { OAuthAuthorizationRequest } from '../api/types';
 import { Layout } from './Layout';
 import Dashboard from '../screens/Dashboard';
 import Topics from '../screens/Topics';
+import TopicPage from '../screens/Topics/TopicPage';
 import Roadmap from '../screens/Roadmap';
 import ExportScreen from '../screens/Export';
 import ImportScreen from '../screens/Import';
@@ -25,6 +26,11 @@ const topicsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/topics',
   component: Topics,
+});
+export const topicRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/topics/$topicId',
+  component: TopicPage,
 });
 const roadmapRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -130,6 +136,7 @@ export const sessionRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   topicsRoute,
+  topicRoute,
   roadmapRoute,
   exportRoute,
   importRoute,

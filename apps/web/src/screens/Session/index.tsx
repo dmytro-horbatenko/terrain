@@ -6,14 +6,15 @@ import {
   useDashboard,
   useGenerateExport,
   useImportApply,
-  useImportPreview,
   useLearningContext,
   useSessionQueue,
   useStoredExport,
 } from '../../api/hooks';
 import { Card, ErrorBox, Loading, Spinner, useToast } from '../../components';
-import type { ImportPlan, ImportResult, PendingSession } from '../../api/types';
+import type { ImportResult, PendingSession } from '../../api/types';
 import { SourceIssuesPanel } from '../Import/sections';
+import { useImportDraft } from '../Import/importDraft';
+import { NotesHandoff } from '../Import/NotesHandoff';
 import { ReviewFirst, ReviewPlan, useReviewChoice } from '../../components/ReviewChoice';
 import {
   chooseInitialApproach,
@@ -25,9 +26,10 @@ import {
 type Step = 'copy' | 'paste' | 'review' | 'done';
 
 const FINALIZE_PROMPT =
-  'Now output the final learning-os block per the OUTPUT CONTRACT from the context I gave ' +
-  'you at the start — one fenced ```learning-os block, echoing the sessionId. Prose may ' +
-  'surround it; only the last such block is read.';
+  'Now output the topic notes and final learning-os block per the OUTPUT CONTRACT from the ' +
+  'context I gave you at the start. Put copyable Markdown topic notes first, followed by one ' +
+  'fenced ```learning-os block, echoing the sessionId. Only the last such block is imported; ' +
+  'I will paste and save the longer topic notes separately.';
 
 async function copyToClipboard(text: string): Promise<boolean> {
   if (!navigator.clipboard?.writeText) return false;
@@ -58,22 +60,20 @@ export default function SessionWizard() {
 
   const gen = useGenerateExport();
   const stored = useStoredExport();
-  const preview = useImportPreview();
   const apply = useImportApply();
 
   const [step, setStep] = useState<Step>('copy');
+  const preview = useImportDraft(step === 'paste');
+  const { text: pasted, setText: setPasted, plan, runPreview } = preview;
   const [exportMd, setExportMd] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<Pick<
     PendingSession,
     'id' | 'reviewPlan'
   > | null>(null);
   const [rawFallback, setRawFallback] = useState(false); // clipboard failed → show text
-  const [pasted, setPasted] = useState('');
-  const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [initialized, setInitialized] = useState(false);
   const didInit = useRef(false);
-  const lastPreviewed = useRef<string | null>(null);
 
   const target = learningContext.data?.target ?? null;
   const focusTopicId = mode === 'learn' ? (target?.id ?? null) : null;
@@ -144,14 +144,9 @@ export default function SessionWizard() {
     toast,
   ]);
 
-  // Auto-preview once the pasted text contains a learning-os fence or JSON.
   useEffect(() => {
-    if (step !== 'paste') return;
-    if (!/^\s*(?:```\s*learning-os|\{)/.test(pasted) || pasted === lastPreviewed.current) return;
-    const t = setTimeout(() => runPreview(pasted), 600);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pasted, step]);
+    if (plan) setStep('review');
+  }, [plan]);
 
   if (!isMode) {
     return <ErrorBox error={`Unknown session mode "${mode}"`} />;
@@ -188,7 +183,7 @@ export default function SessionWizard() {
           setRawFallback(!ok);
           if (ok) setStep('paste');
           toast(
-            ok ? 'Context copied — paste into a fresh Claude chat' : 'Copy the text below',
+            ok ? 'Context copied — paste into a fresh chat' : 'Copy the text below',
             ok ? 'success' : 'info',
           );
         },
@@ -206,7 +201,7 @@ export default function SessionWizard() {
       const ok = await copyToClipboard(text);
       setRawFallback(!ok);
       if (ok) {
-        toast('Context copied — paste into a fresh Claude chat', 'success');
+        toast('Context copied — paste into a fresh chat', 'success');
         setStep('paste');
       } else {
         toast('Clipboard unavailable — copy the text below manually', 'info');
@@ -216,18 +211,8 @@ export default function SessionWizard() {
     }
   }
 
-  function runPreview(raw: string) {
-    lastPreviewed.current = raw;
-    preview.mutate(raw, {
-      onSuccess: (p) => {
-        setPlan(p);
-        setStep('review');
-      },
-      onError: () => setPlan(null),
-    });
-  }
-
   function save() {
+    if (!plan?.applicable || preview.isPending || apply.isPending) return;
     apply.mutate(pasted, {
       onSuccess: (res) => {
         setResult(res);
@@ -243,13 +228,10 @@ export default function SessionWizard() {
     setActiveSession(null);
     setRawFallback(false);
     setPasted('');
-    setPlan(null);
     setResult(null);
     setInitialized(false);
     didInit.current = false;
-    lastPreviewed.current = null;
     gen.reset();
-    preview.reset();
     apply.reset();
   }
 
@@ -261,9 +243,9 @@ export default function SessionWizard() {
         <Card>
           <div className="col gap-3">
             <p className="muted" style={{ margin: 0 }}>
-              Copy this and paste it into a fresh Claude chat. Work through the topic or pause when
-              you need to. Ask Claude to record your progress and next step, then come back and
-              paste the final message.
+              Copy this and paste it into a fresh chat. Work through the topic or pause when you
+              need to. Ask the chat to record your progress and next step, then come back and paste
+              the final message.
             </p>
             {mode === 'learn' && !exportMd && target?.continuation && (
               <div className="col gap-1">
@@ -392,12 +374,15 @@ export default function SessionWizard() {
               </b>
             )}
             <p className="muted" style={{ margin: 0 }}>
-              When Claude finishes, paste its final message here.
+              When the chat finishes, paste its final message here, including the topic notes and
+              learning-os block. The import stores the compact summary; you will save the longer
+              notes separately.
             </p>
             <textarea
               className="textarea mono"
               style={{ minHeight: 200 }}
-              placeholder="Paste Claude's final response…"
+              placeholder="Paste the chat's final response…"
+              aria-label="Final chat response"
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
             />
@@ -405,7 +390,7 @@ export default function SessionWizard() {
               <button
                 className="btn btn-primary"
                 disabled={!pasted.trim() || preview.isPending}
-                onClick={() => runPreview(pasted)}
+                onClick={runPreview}
               >
                 {preview.isPending ? (
                   <span className="row gap-2">
@@ -432,10 +417,11 @@ export default function SessionWizard() {
                 value={exportMd}
               />
             )}
-            {preview.isError && <ErrorBox error={preview.error} />}
+            {!!preview.error && <ErrorBox error={preview.error} />}
             <div className="card card-pad col gap-2">
               <span className="faint" style={{ fontSize: 12 }}>
-                Claude didn&apos;t output the learning-os block? Copy this and send it to Claude:
+                The chat didn&apos;t output the learning-os block? Copy this and send it in the
+                chat:
               </span>
               <div className="mono" style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>
                 {FINALIZE_PROMPT}
@@ -446,7 +432,7 @@ export default function SessionWizard() {
                 onClick={async () => {
                   const ok = await copyToClipboard(FINALIZE_PROMPT);
                   toast(
-                    ok ? 'Copied — send it to Claude' : 'Copy failed',
+                    ok ? 'Copied — send it in the chat' : 'Copy failed',
                     ok ? 'success' : 'error',
                   );
                 }}
@@ -485,7 +471,7 @@ export default function SessionWizard() {
                 n={plan.activations.filter((a) => a.willActivate).length}
                 label="topics activated"
               />
-              <PreviewStat n={plan.noteSummaries.length} label="notes" hideWhenZero />
+              <PreviewStat n={plan.noteSummaries.length} label="summaries" hideWhenZero />
             </div>
             {plan.newTopics.filter((t) => !t.alreadyExists).length > 0 ? (
               <div className="col gap-1">
@@ -517,7 +503,7 @@ export default function SessionWizard() {
             <div className="row gap-2">
               <button
                 className="btn btn-primary"
-                disabled={!plan.applicable || apply.isPending}
+                disabled={!plan.applicable || preview.isPending || apply.isPending}
                 onClick={save}
               >
                 {apply.isPending ? (
@@ -528,7 +514,11 @@ export default function SessionWizard() {
                   'Save'
                 )}
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setStep('paste')}>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={apply.isPending}
+                onClick={() => setStep('paste')}
+              >
                 Back
               </button>
             </div>
@@ -536,7 +526,7 @@ export default function SessionWizard() {
         </Card>
       )}
 
-      {step === 'done' && result && (
+      {step === 'done' && result && plan && (
         <Card
           title={
             <span className="row gap-2" style={{ color: 'var(--st-mastered)' }}>
@@ -557,6 +547,7 @@ export default function SessionWizard() {
               />
               <PreviewStat n={result.topicsActivated} label="topics activated" hideWhenZero />
             </div>
+            <NotesHandoff plan={plan} result={result} />
             <div className="row gap-2">
               {mode === 'learn' && dash?.nextUp && (
                 <button

@@ -101,20 +101,4 @@ describe('learner-owned topic notes', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(stored).toBeNull();
   });
-
-  it('searches owned title, description, summary and full notes while returning only IDs', async () => {
-    expect(await service.search('user-a', '  Merkle  ')).toEqual(['topic-a']);
-    expect(prisma.topic.findMany).toHaveBeenCalledWith({
-      where: {
-        userId: 'user-a',
-        OR: [
-          { title: { contains: 'Merkle', mode: 'insensitive' } },
-          { description: { contains: 'Merkle', mode: 'insensitive' } },
-          { summary: { contains: 'Merkle', mode: 'insensitive' } },
-          { notes: { is: { body: { contains: 'Merkle', mode: 'insensitive' } } } },
-        ],
-      },
-      select: { id: true },
-    });
-  });
 });

@@ -1,0 +1,161 @@
+.topic-notes {
+  min-width: 0;
+}
+
+.notes-title {
+  font-size: 20px;
+}
+
+.notes-status {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.notes-help {
+  margin: 0;
+  font-size: 13px;
+}
+
+.notes-toolbar {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notes-view-active {
+  color: var(--primary);
+  background: var(--primary-weak);
+  border-color: var(--primary);
+}
+
+.notes-save {
+  margin-left: auto;
+}
+
+.notes-notice {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+
+.notes-textarea {
+  display: block;
+  margin: 8px 0;
+  padding: 18px;
+  min-height: 50vh;
+  font-size: 16px;
+  line-height: 1.75;
+  tab-size: 2;
+}
+
+.notes-reading {
+  min-height: 120px;
+}
+
+.note-prose {
+  max-width: 72ch;
+  margin-inline: auto;
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.note-prose > :first-child {
+  margin-top: 0;
+}
+
+.note-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.note-prose p,
+.note-prose ul,
+.note-prose ol,
+.note-prose pre {
+  margin: 0 0 1em;
+}
+
+.note-prose h2,
+.note-prose h3,
+.note-prose h4,
+.note-prose h5,
+.note-prose h6 {
+  margin: 1.6em 0 0.55em;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.note-prose h2 {
+  font-size: 1.5em;
+}
+
+.note-prose h3 {
+  font-size: 1.25em;
+}
+
+.note-prose h4 {
+  font-size: 1.1em;
+}
+
+.note-prose h5,
+.note-prose h6 {
+  font-size: 1em;
+}
+
+.note-prose ul,
+.note-prose ol {
+  padding-left: 1.6em;
+}
+
+.note-prose li + li {
+  margin-top: 0.35em;
+}
+
+.note-prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.note-prose code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 0.12em 0.3em;
+}
+
+.note-prose pre {
+  overflow-x: auto;
+  white-space: pre;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  line-height: 1.6;
+}
+
+.note-prose pre code {
+  padding: 0;
+  background: none;
+}
+
+.notes-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .notes-textarea {
+    padding: 12px;
+  }
+
+  .notes-toolbar .btn {
+    padding-inline: 9px;
+  }
+
+  .notes-status {
+    margin-left: 0;
+  }
+}

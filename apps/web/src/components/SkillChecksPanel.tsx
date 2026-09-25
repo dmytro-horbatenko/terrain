@@ -642,9 +642,11 @@ export function SkillCheckItem({ check, today }: { check: SkillCheck; today: str
 export function SkillChecksPanel({
   target,
   context,
+  overview = false,
 }: {
   target?: SkillCheckTarget;
   context?: string;
+  overview?: boolean;
 }) {
   const query = useSkillChecks();
   const [planning, setPlanning] = useState(false);
@@ -660,7 +662,9 @@ export function SkillChecksPanel({
             c.plan.target.milestoneId === target.milestoneId),
     ) ?? [];
   const pending = checks.filter((c) => !c.result && !c.cancelledAt);
-  const dueCount = pending.filter((c) => c.attempt || c.plan.dueOn <= (data?.today ?? '')).length;
+  const ready = pending.filter((c) => c.attempt || c.plan.dueOn <= (data?.today ?? ''));
+  const dueCount = ready.length;
+  const other = overview ? checks.filter((c) => !ready.includes(c)) : [];
   return (
     <Card title="Skill checks · apply it again later">
       <div className="col gap-3">
@@ -692,9 +696,19 @@ export function SkillChecksPanel({
                   : 'Open a topic or project milestone to schedule one.'}
               </p>
             )}
-            {checks.map((check) => (
+            {(overview ? ready : checks).map((check) => (
               <SkillCheckItem key={check.plan.id} check={check} today={data.today} />
             ))}
+            {other.length > 0 && (
+              <details>
+                <summary>Upcoming and completed checks ({other.length})</summary>
+                <div className="col gap-3" style={{ marginTop: 12 }}>
+                  {other.map((check) => (
+                    <SkillCheckItem key={check.plan.id} check={check} today={data.today} />
+                  ))}
+                </div>
+              </details>
+            )}
             {target && (
               <>
                 <button className="btn" onClick={() => setPlanning(true)}>

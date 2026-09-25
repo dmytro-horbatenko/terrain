@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { useImportApply, useImportPreview } from '../../api/hooks';
+import { useImportApply } from '../../api/hooks';
 import { Card, ErrorBox, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
+import { useImportDraft } from './importDraft';
+import { NotesHandoff } from './NotesHandoff';
 import {
   ActivationsSection,
   NewTopicsSection,
@@ -16,40 +18,19 @@ import {
 } from './sections';
 
 export default function ImportScreen() {
-  const [text, setText] = useState('');
-  const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [applyResult, setApplyResult] = useState<ImportResult | null>(null);
+  const [appliedPlan, setAppliedPlan] = useState<ImportPlan | null>(null);
 
   const { toast } = useToast();
-  const importPreview = useImportPreview();
   const importApply = useImportApply();
-
-  const lastPreviewed = useRef<string | null>(null);
-
-  const runPreview = useCallback(
-    (raw: string) => {
-      lastPreviewed.current = raw;
-      setApplyResult(null);
-      importPreview.mutate(raw, {
-        onSuccess: (p) => setPlan(p),
-        onError: () => setPlan(null),
-      });
-    },
-    [importPreview.mutate],
-  );
-
-  // Auto-preview: once the pasted text contains a learning-os block or JSON, the
-  // deterministic read-only diff runs on its own; the button stays for
-  // manual re-runs.
-  useEffect(() => {
-    if (!/^\s*(?:```\s*learning-os|\{)/.test(text) || text === lastPreviewed.current) return;
-    const t = setTimeout(() => runPreview(text), 600);
-    return () => clearTimeout(t);
-  }, [text, runPreview]);
+  const importPreview = useImportDraft(!importApply.isPending);
+  const { text, setText, plan, runPreview } = importPreview;
 
   const onApply = () => {
+    if (!plan?.applicable || importPreview.isPending || importApply.isPending) return;
     importApply.mutate(text, {
       onSuccess: (res) => {
+        setAppliedPlan(plan);
         setApplyResult(res);
         toast('Imported', 'success');
       },
@@ -57,13 +38,13 @@ export default function ImportScreen() {
     });
   };
 
-  const canApply = !!plan && plan.applicable;
+  const canApply = !!plan?.applicable && !importPreview.isPending && !applyResult;
 
   return (
     <div className="page">
       <h1 className="page-title">Import session</h1>
       <p className="page-sub">
-        Paste the Claude session output or its JSON block, preview the deterministic diff, then
+        Paste the chat session output or its JSON block, preview the deterministic diff, then
         confirm to apply.
       </p>
 
@@ -74,16 +55,21 @@ export default function ImportScreen() {
             <textarea
               className="textarea mono"
               style={{ minHeight: 180, width: '100%' }}
-              placeholder="Paste Claude output here…"
+              placeholder="Paste chat output here…"
+              aria-label="Chat session output"
+              disabled={importApply.isPending}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                setApplyResult(null);
+              }}
             />
             <div className="row gap-3">
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!text.trim() || importPreview.isPending}
-                onClick={() => runPreview(text)}
+                disabled={!text.trim() || importPreview.isPending || importApply.isPending}
+                onClick={runPreview}
               >
                 {importPreview.isPending ? (
                   <span className="row gap-2">
@@ -95,7 +81,7 @@ export default function ImportScreen() {
               </button>
               {plan && <span className="faint mono">session {plan.sessionExportId}</span>}
             </div>
-            {importPreview.isError && <ErrorBox error={importPreview.error} />}
+            {!!importPreview.error && <ErrorBox error={importPreview.error} />}
           </div>
         </Card>
 
@@ -135,7 +121,7 @@ export default function ImportScreen() {
                       'Apply import'
                     )}
                   </button>
-                  {!canApply && !plan.alreadyImported && (
+                  {!canApply && !plan.alreadyImported && !applyResult && (
                     <span className="faint">Resolve all items above before importing.</span>
                   )}
                 </div>
@@ -145,7 +131,7 @@ export default function ImportScreen() {
         )}
 
         {/* 6. Apply result */}
-        {applyResult && (
+        {applyResult && appliedPlan && (
           <Card
             title={
               <span className="row gap-2" style={{ color: 'var(--st-mastered)' }}>
@@ -198,6 +184,7 @@ export default function ImportScreen() {
                 </div>
               </div>
 
+              <NotesHandoff plan={appliedPlan} result={applyResult} />
               <div className="row gap-2" style={{ alignItems: 'center' }}>
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   The loop is re-armed — the Dashboard reflects these changes.

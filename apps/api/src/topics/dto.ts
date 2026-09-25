@@ -51,4 +51,6 @@ export class UpdateTopicNotesDto {
 
 export class SearchTopicsDto {
   @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsString() @MaxLength(200) domain?: string;
+  @IsOptional() @IsIn(TOPIC_STATUSES) status?: TopicStatus;
 }

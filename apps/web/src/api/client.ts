@@ -28,6 +28,9 @@ import type {
   Topic,
   TopicDetail,
   TopicNotes,
+  TopicSearchMatch,
+  TopicStatus,
+  RecentTopicNote,
   TopicType,
   TopicWithMeta,
   UpdateProfileInput,
@@ -108,7 +111,13 @@ export const api = {
     req<{ alreadySaved: boolean }>('/projects/checkpoints', { method: 'POST', ...json(input) }),
   // topics
   getTopics: () => req<TopicWithMeta[]>('/topics'),
-  searchTopicIds: (query: string) => req<string[]>(`/topics/search?q=${encodeURIComponent(query)}`),
+  searchTopics: (query: string, domain?: string, status?: TopicStatus) => {
+    const params = new URLSearchParams({ q: query });
+    if (domain) params.set('domain', domain);
+    if (status) params.set('status', status);
+    return req<TopicSearchMatch[]>(`/topics/search?${params}`);
+  },
+  getRecentNotes: () => req<RecentTopicNote[]>('/topics/recent-notes'),
   getTopicNotes: (id: string) => req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`),
   updateTopicNotes: (id: string, input: UpdateTopicNotesInput) =>
     req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`, { method: 'PATCH', ...json(input) }),

@@ -7,13 +7,15 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { qk } from '../api/hooks';
+import { meKey, qk } from '../api/hooks';
+import { router as appRouter } from '../app/router';
 import { TopicDetailPanel } from './TopicDetailPanel';
 
-async function renderTopic(refreshError = false, cached = true) {
+async function renderTopic(refreshError = false, cached = true, directUrl = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false, retryOnMount: false } },
   });
+  client.setQueryData(meKey, { id: 'learner-a' });
   client.setQueryData(qk.topic('t1'), {
     id: 't1',
     title: 'Merkle proof',
@@ -54,10 +56,11 @@ async function renderTopic(refreshError = false, cached = true) {
   });
   client.setQueryData(qk.settings, { timezone: 'UTC', obsidianVault: null });
   client.setQueryData(qk.skillChecks, { today: '2026-09-25', timezone: 'UTC', checks: [] });
+  client.setQueryData(qk.streak, { currentStreak: 0, longestStreak: 0, freezeBalance: 0 });
   const route = createRootRoute({ component: () => <TopicDetailPanel topicId="t1" /> });
   const router = createRouter({
-    routeTree: route,
-    history: createMemoryHistory({ initialEntries: ['/'] }),
+    routeTree: directUrl ? appRouter.routeTree : route,
+    history: createMemoryHistory({ initialEntries: [directUrl ? '/topics/t1#notes' : '/'] }),
   });
   await router.load();
   const html = renderToString(
@@ -70,6 +73,20 @@ async function renderTopic(refreshError = false, cached = true) {
 }
 
 describe('topic knowledge comes before management', () => {
+  it('opens a bookmarked topic URL directly with its notes and full reading layout', async () => {
+    const html = await renderTopic(false, true, true);
+    expect(html).toContain('class="page topic-page"');
+    expect(html).toContain('<h1 class="topic-title">Merkle proof</h1>');
+    expect(html).toContain('My own explanation');
+    expect(html).toContain('href="#session-summary"');
+    expect(html).not.toContain('Open full page');
+  });
+  it('offers a permanent reading URL from the quick view and anchors the note separately', async () => {
+    const html = await renderTopic();
+    expect(html).toContain('href="/topics/t1"');
+    expect(html).toContain('id="notes"');
+    expect(html).toContain('id="session-summary"');
+  });
   it('surfaces learner notes, readable summary and dated evidence before collapsed editing', async () => {
     const html = await renderTopic();
     expect(html).toContain('My own explanation');
@@ -84,7 +101,7 @@ describe('topic knowledge comes before management', () => {
     const html = await renderTopic(true);
     expect(html).toContain('aria-label="Your notes"');
     expect(html).toContain('My own explanation');
-    expect(html).toContain('Edit notes');
+    expect(html).toContain('aria-label="Notes view"');
     expect(html).toContain('Network interrupted');
   });
 

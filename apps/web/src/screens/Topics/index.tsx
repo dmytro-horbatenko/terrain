@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { useTopics, useTopicSearch, useSettings, useDeleteTopic } from '../../api/hooks';
+import { Link } from '@tanstack/react-router';
+import {
+  useTopics,
+  useTopicSearch,
+  useRecentNotes,
+  useSettings,
+  useDeleteTopic,
+} from '../../api/hooks';
 import {
   Card,
   Modal,
@@ -12,15 +19,17 @@ import {
   useToast,
 } from '../../components';
 import { TOPIC_STATUSES } from '../../api/types';
-import type { TopicStatus, TopicWithMeta } from '../../api/types';
-import { dueLabel } from '../../lib/format';
+import type { TopicSearchMatch, TopicStatus, TopicWithMeta } from '../../api/types';
+import { dueLabel, formatDateTime } from '../../lib/format';
 import { TopicForm } from './TopicForm';
+import './topics.css';
 
 type StatusFilter = 'all' | TopicStatus;
 
 export default function Topics() {
   const { data: topics, isLoading, isError, error } = useTopics();
   const { data: settings } = useSettings();
+  const recentNotes = useRecentNotes();
   const del = useDeleteTopic();
   const { toast } = useToast();
 
@@ -32,9 +41,17 @@ export default function Topics() {
     const timer = window.setTimeout(() => setSearchQuery(search.trim()), 250);
     return () => window.clearTimeout(timer);
   }, [search]);
-  const searchResult = useTopicSearch(searchQuery);
   const [domainFilter, setDomainFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const searchResult = useTopicSearch(
+    searchQuery,
+    domainFilter === 'all' ? undefined : domainFilter,
+    statusFilter === 'all' ? undefined : statusFilter,
+  );
+  const matches = useMemo(
+    () => new Map((searchResult.data ?? []).map((match) => [match.id, match])),
+    [searchResult.data],
+  );
 
   const all = topics ?? [];
 
@@ -45,14 +62,13 @@ export default function Topics() {
   }, [all]);
 
   const filtered = useMemo(() => {
-    const ids = new Set(searchResult.data ?? []);
     return all.filter((t) => {
-      if (search.trim() && (searchQuery !== search.trim() || !ids.has(t.id))) return false;
+      if (search.trim() && (searchQuery !== search.trim() || !matches.has(t.id))) return false;
       if (domainFilter !== 'all' && t.domain !== domainFilter) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       return true;
     });
-  }, [all, search, searchQuery, searchResult.data, domainFilter, statusFilter]);
+  }, [all, search, searchQuery, matches, domainFilter, statusFilter]);
 
   // Group filtered topics by domain, ordered alphabetically; titles sorted within.
   const groups = useMemo(() => {
@@ -116,6 +132,51 @@ export default function Topics() {
         />
       ) : (
         <>
+          {!search.trim() && (
+            <Card title="Recently edited notes" style={{ marginBottom: 20 }}>
+              {recentNotes.isPending ? (
+                <Loading label="Loading recent notes…" />
+              ) : recentNotes.isError ? (
+                <ErrorBox error={recentNotes.error} />
+              ) : recentNotes.data.length === 0 ? (
+                <p className="muted" style={{ margin: 0 }}>
+                  No saved notes yet. Open a topic to write your first explanation.
+                </p>
+              ) : (
+                <div className="topic-recent-grid">
+                  {recentNotes.data.map((note) => (
+                    <div key={note.id} className="topic-recent-note">
+                      <button
+                        className="topic-open-title"
+                        onClick={() => {
+                          if (selectedId === note.id || canLeaveTopicPanel())
+                            setSelectedId(note.id);
+                        }}
+                        aria-label={`Quick view ${note.title}`}
+                      >
+                        {note.title}
+                      </button>
+                      <p className="topic-note-preview muted">{note.excerpt}</p>
+                      <div className="row wrap gap-3">
+                        <time className="faint" dateTime={note.updatedAt}>
+                          {formatDateTime(note.updatedAt, settings?.timezone)}
+                        </time>
+                        <Link
+                          className="topic-page-link"
+                          to="/topics/$topicId"
+                          params={{ topicId: note.id }}
+                          hash="notes"
+                          aria-label={`Open notes for ${note.title}`}
+                        >
+                          Open notes →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
           {/* Filters */}
           <div className="row wrap gap-3 topic-filters" style={{ marginBottom: 14 }}>
             <input
@@ -168,6 +229,12 @@ export default function Topics() {
             </span>
           </div>
 
+          {search.trim() && searchResult.data?.length === 100 && (
+            <p className="muted">
+              Showing the first 100 matches. Refine your search to narrow them down.
+            </p>
+          )}
+
           {/* List */}
           <Card pad={false}>
             {search.trim() && (search.trim() !== searchQuery || searchResult.isPending) ? (
@@ -198,6 +265,7 @@ export default function Topics() {
                     <TopicRow
                       key={t.id}
                       topic={t}
+                      match={search.trim() ? matches.get(t.id) : undefined}
                       timezone={settings?.timezone}
                       onOpen={() => {
                         if (selectedId === t.id || canLeaveTopicPanel()) setSelectedId(t.id);
@@ -241,21 +309,60 @@ function TopicRow({
   onDelete,
   deleting,
   timezone,
+  match,
 }: {
   topic: TopicWithMeta;
   onOpen: () => void;
   onDelete: (e: MouseEvent) => void;
   deleting: boolean;
   timezone?: string;
+  match?: TopicSearchMatch;
 }) {
   const due = dueLabel(topic.nextReviewAt, timezone);
   return (
-    <div className="list-row" onClick={onOpen}>
+    <div className="list-row topic-discovery-row">
       <StatusBadge status={topic.status} labels={topic.labels} />
-      <span style={{ fontWeight: 600 }}>{topic.title}</span>
-      {topic.topicType && <span className="pill">{topic.topicType}</span>}
+      <div className="topic-row-content">
+        <div className="row wrap gap-3">
+          <button
+            className="topic-open-title"
+            onClick={onOpen}
+            aria-label={`Quick view ${topic.title}`}
+          >
+            {topic.title}
+          </button>
+          {topic.topicType && <span className="pill">{topic.topicType}</span>}
+        </div>
+        {match && (
+          <div className="topic-search-excerpt">
+            <span className="faint">
+              {
+                {
+                  notes: 'Your notes',
+                  summary: 'AI summary',
+                  description: 'Description',
+                  title: 'Title',
+                }[match.matchedField]
+              }
+              {match.matchedField === 'notes' && match.notesUpdatedAt && (
+                <> · Edited {formatDateTime(match.notesUpdatedAt, timezone)}</>
+              )}
+            </span>
+            <p>{match.excerpt}</p>
+          </div>
+        )}
+      </div>
 
       <span className="right row gap-3" style={{ alignItems: 'center' }}>
+        <Link
+          className="topic-page-link"
+          to="/topics/$topicId"
+          params={{ topicId: topic.id }}
+          hash={match?.matchedField === 'notes' ? 'notes' : undefined}
+          aria-label={`Open page for ${topic.title}`}
+        >
+          Open page →
+        </Link>
         <span
           style={{
             fontSize: 12.5,

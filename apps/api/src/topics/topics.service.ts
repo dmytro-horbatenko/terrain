@@ -13,6 +13,15 @@ import { buildRoadmapPolicy, type RoadmapEligibility } from '../learning/roadmap
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
 import { CreateAppEventDto, CreateTopicDto, UpdateTopicDto } from './dto';
 
+function excerpt(body: string, query = '') {
+  const text = body.replace(/\s+/g, ' ').trim();
+  if (text.length <= 240) return text;
+  const match = text.toLowerCase().indexOf(query.replace(/\s+/g, ' ').toLowerCase());
+  const start = Math.max(0, match - 38);
+  const end = Math.min(text.length, start + 238);
+  return `${start ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
+}
+
 @Injectable()
 export class TopicsService {
   constructor(
@@ -158,11 +167,18 @@ export class TopicsService {
     });
   }
 
-  async search(userId: string, query: string) {
-    const contains = { contains: query.trim(), mode: 'insensitive' as const };
+  async search(
+    userId: string,
+    query: string,
+    filters: { domain?: string; status?: TopicStatus } = {},
+  ) {
+    const term = query.trim();
+    if (!term) return [];
+    const contains = { contains: term.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' as const };
     const topics = await this.prisma.topic.findMany({
       where: {
         userId,
+        ...filters,
         OR: [
           { title: contains },
           { description: contains },
@@ -170,9 +186,52 @@ export class TopicsService {
           { notes: { is: { body: contains } } },
         ],
       },
-      select: { id: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        summary: true,
+        notes: { select: { body: true, updatedAt: true } },
+      },
+      orderBy: [{ title: 'asc' }, { id: 'asc' }],
+      take: 100,
     });
-    return topics.map((topic) => topic.id);
+    return topics.flatMap((topic) => {
+      const fields = [
+        ['notes', topic.notes?.body],
+        ['summary', topic.summary],
+        ['description', topic.description],
+        ['title', topic.title],
+      ] as const;
+      const match = fields.find(([, text]) => text?.toLowerCase().includes(term.toLowerCase()));
+      if (!match) return [];
+      return [
+        {
+          id: topic.id,
+          matchedField: match[0],
+          excerpt: excerpt(match[1]!, term),
+          notesUpdatedAt: topic.notes?.updatedAt ?? null,
+        },
+      ];
+    });
+  }
+
+  async recentNotes(userId: string) {
+    const notes = await this.prisma.$queryRaw<
+      {
+        id: string;
+        title: string;
+        updatedAt: Date;
+        body: string;
+      }[]
+    >`
+      SELECT t.id, t.title, n."updatedAt", n.body
+      FROM "TopicNotes" n JOIN "Topic" t ON t.id = n."topicId"
+      WHERE t."userId" = ${userId} AND n.body ~ '[^[:space:]]'
+      ORDER BY n."updatedAt" DESC, n."topicId" ASC
+      LIMIT 5
+    `;
+    return notes.map(({ body, ...note }) => ({ ...note, excerpt: excerpt(body) }));
   }
 
   async getNotes(userId: string, topicId: string) {

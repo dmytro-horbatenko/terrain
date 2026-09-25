@@ -37,13 +37,15 @@ const attempt = {
   helpDetails: 'The tutor suggested tracing the account identity.',
 } as const;
 
-async function render(checks: SkillCheck[], scoped = false) {
+async function render(checks: SkillCheck[], scoped = false, overview = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   client.setQueryData(qk.skillChecks, { today: '2026-09-10', timezone: 'Europe/Warsaw', checks });
   const route = createRootRoute({
-    component: () => <SkillChecksPanel target={scoped ? pending.plan.target : undefined} />,
+    component: () => (
+      <SkillChecksPanel target={scoped ? pending.plan.target : undefined} overview={overview} />
+    ),
   });
   const router = createRouter({
     routeTree: route,
@@ -60,6 +62,19 @@ async function render(checks: SkillCheck[], scoped = false) {
 }
 
 describe('skill check workflow visibility', () => {
+  it('puts ready work first and keeps future work in a closed overview group', async () => {
+    const future = {
+      ...pending,
+      targetTitle: 'Future check',
+      plan: { ...pending.plan, id: 'future-check', dueOn: '2026-10-01' },
+    };
+    const html = await render([future, pending], false, true);
+    expect(html).toContain('<details><summary>Upcoming and completed checks');
+    expect(html.indexOf('Wallet W1')).toBeLessThan(html.indexOf('Upcoming and completed checks'));
+    expect(html.indexOf('Future check')).toBeGreaterThan(
+      html.indexOf('Upcoming and completed checks'),
+    );
+  });
   it('shows an unattempted check without a pass or feedback control', async () => {
     const html = await render([pending]);
     expect(html).toContain('Due · no attempt yet');
