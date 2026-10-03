@@ -1004,6 +1004,42 @@ describe('ExportGeneratorService', () => {
       expect(md).toContain('Exposure: no study recorded');
     });
 
+    it('includes only the supplied current note with its revision/hash in a learn export', () => {
+      const noteContext = {
+        purpose: 'one topic',
+        exportedAt: NOW.toISOString(),
+        topic: {
+          id: context.target!.id,
+          title: context.target!.title,
+          status: 'active',
+          description: null,
+          summary: null,
+          courseTask: null,
+          sourcePlan: null,
+        },
+        note: {
+          body: 'LATEST-PERSONAL-NOTE',
+          revision: 3,
+          sha256: 'a'.repeat(64),
+          updatedAt: null,
+          origin: 'unknown' as const,
+          review: null,
+        },
+        reference: null,
+        evidenceCounts: { reviews: 0, applications: 0, sourceEvidence: 0 },
+        pendingIndependentCheck: true,
+        instructions: [],
+      };
+      const md = (service.generateLearnContext as any)(context, 'guided', NOW, noteContext);
+      expect(md).toContain('LATEST-PERSONAL-NOTE');
+      expect(md).toContain('"revision": 3');
+      expect(md).toContain('a'.repeat(64));
+      expect(md).toContain('note-review');
+      expect(service.generateLearnContext(context, 'guided', NOW)).not.toContain(
+        'LATEST-PERSONAL-NOTE',
+      );
+    });
+
     it('exports recorded study work and makes credited source requirements explicit', () => {
       const md = service.generateLearnContext(
         {

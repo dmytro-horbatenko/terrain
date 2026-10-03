@@ -24,7 +24,9 @@ export function registerNonMcpBodyParsers(app: NestExpressApplication): void {
   app.use(
     unlessMcp((request, response, next) => {
       const parser =
-        request.method === 'PATCH' && /^\/topics\/[^/]+\/notes\/?$/i.test(request.path)
+        (request.method === 'PATCH' && /^\/topics\/[^/]+\/notes\/?$/i.test(request.path)) ||
+        (request.method === 'POST' &&
+          /^\/topic-writing\/reviews\/(preview|apply)\/?$/i.test(request.path))
           ? notesJson
           : json;
       parser(request, response, next);

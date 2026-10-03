@@ -21,6 +21,14 @@ export class SessionsService {
     if (!saved) throw new NotFoundException('Session not found');
     return saved;
   }
+  async getImportStatus(userId: string, id: string) {
+    const saved = await this.prisma.sessionExport.findFirst({
+      where: { id, userId },
+      select: { id: true, importedAt: true },
+    });
+    if (!saved) throw new NotFoundException('Session not found');
+    return { id: saved.id, imported: saved.importedAt !== null };
+  }
 
   async createExport(
     userId: string,
@@ -38,7 +46,8 @@ export class SessionsService {
       }
       focusTopicId = context.target.id;
       approach = opts.approach ?? context.target.approach.recommended;
-      draft = await this.generator.generateLearnContext(context, approach, now);
+      const notes = await this.learning.noteReviewContext(userId, focusTopicId);
+      draft = await this.generator.generateLearnContext(context, approach, now, notes);
     } else {
       draft = await this.generator.generate({ ...opts, now, userId });
     }

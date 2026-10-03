@@ -1,3 +1,4 @@
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 import { TopicsService } from './topics.service';
 
 describe('topic note discovery', () => {
@@ -7,7 +8,7 @@ describe('topic note discovery', () => {
 
   beforeEach(() => {
     prisma = { topic: { findMany: jest.fn() }, $queryRaw: jest.fn() };
-    service = new TopicsService(prisma, {} as any);
+    service = new TopicsService(prisma, {} as any, new TopicWritingService(prisma));
   });
 
   it('finds a late note match, prefers it to title matches, and only returns bounded metadata', async () => {

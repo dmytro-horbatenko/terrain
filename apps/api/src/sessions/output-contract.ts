@@ -4,6 +4,8 @@ Keep bookkeeping out of the teaching conversation. When the session ends, first 
 copyable Markdown notes for each topic substantively studied, then ONE fenced code block
 tagged \`learning-os\` containing the compact session record below. Do not write notes for
 topics merely mentioned. If no substantive study happened, omit the notes.
+When NOTE REVIEW CONTEXT is supplied for the current topic, use the separate
+note-review proposal for that topic's full text instead of a second Markdown handoff.
 
 Label each note with the exact topic title and put its Markdown in a separate fenced
 \`markdown\` block (use four backticks around a note containing triple-backtick code examples).
@@ -16,11 +18,12 @@ Distinguish tutor explanations and assisted work from what the learner demonstra
 For a partial session, preserve its limits: do not fill in unread sources, solve unfinished
 assessments, or claim completion. If the learner supplied an existing note, consolidate it
 while preserving useful prior content; otherwise label this as a session note to merge with
-any existing note, not a replacement for unseen writing. Personal notes are not automatically
-included in this export. Never claim that these notes have been saved to Terrain.
+any existing note, not a replacement for unseen writing. Use the NOTE REVIEW CONTEXT
+when supplied; otherwise the full existing note is unknown. Never claim that these
+notes have been saved to Terrain.
 At stopping, produce the record and notes from work already done without another exercise
 or required confirmation; omit the longer notes if the learner asks for a quick stop or no notes.
-Keep all detailed notes outside the JSON; importing the session record does not save them.
+Keep detailed notes outside the learning-os JSON; importing that record alone does not save them.
 
 Return exactly one \`learning-os\` block using this shape
 (prose may surround it; only the LAST such block is parsed):
@@ -133,3 +136,36 @@ Do not infer mistakes from grades or invent independent success. Put a useful la
 practice suggestion in the relevant review note; it does not schedule a skill check
 or replace unfinished topic study. Omit other arrays. Do not add unlisted fields.
 Stopping is valid at any point; emit this partial record immediately when asked.`;
+
+export const NOTE_REVIEW_OUTPUT = `## NOTES PROPOSAL — separate from the learning record
+When consolidating the current topic's notes, return one fenced \`note-review\` JSON
+block beside the learning-os block. This replaces the manual Markdown handoff for
+this topic when NOTE REVIEW CONTEXT is present. It is a proposal, never a saved note.
+Keep useful existing text, correct established factual errors with primary sources,
+and preserve actual learner work, assistance, uncertainty and unfinished objectives.
+Use Russian for these notes unless the learner requests another language. Do not
+expand into unstudied future material. No changes is valid: the body may stay identical.
+For repetition, request full notes only AFTER the original retrieval attempt.
+Never read, reveal or solve a pending independent assessment.
+
+\`\`\`note-review
+{
+  "version": 1,
+  "id": "<generate one UUID; keep it stable for retries>",
+  "topicId": "<exact topic.id from NOTE REVIEW CONTEXT>",
+  "kind": "notes",
+  "baseRevision": 0,
+  "baseSha256": "<copy note.sha256 exactly>",
+  "body": "<full consolidated Markdown, not a patch>",
+  "reason": "<what changed and why; or explain no change>",
+  "sourcesChecked": [{"url":"https://...","checkedAt":"<actual ISO time>","scope":"<claim actually checked>"}]
+}
+\`\`\`
+Copy the ACTUAL note.revision, not the example zero. For a reference review choose
+kind reference and copy reference.revision/hash. If no reference exists, revision is
+0 and the hash is SHA-256 of the empty string. Use an empty sourcesChecked array if
+no sources were checked; do not invent dates or verification. Keep body <=100000,
+reason <=2000, at most 30 HTTP(S) sources. The schema is strict: no grades,
+studiedTopics, applicationEvents or other learning data belong in this block.
+The app shows a diff, saves the learning record, then lets the learner apply the
+proposal with conflict protection. Do not claim the proposal validates other notes.`;

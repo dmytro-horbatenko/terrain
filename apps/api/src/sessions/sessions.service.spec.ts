@@ -10,7 +10,7 @@ describe('SessionsService.createExport', () => {
   let create: jest.Mock;
   let update: jest.Mock;
   let findFirst: jest.Mock;
-  let learning: { context: jest.Mock };
+  let learning: { context: jest.Mock; noteReviewContext: jest.Mock };
   let generator: { generate: jest.Mock; generateLearnContext: jest.Mock };
 
   beforeEach(async () => {
@@ -25,6 +25,9 @@ describe('SessionsService.createExport', () => {
         .mockResolvedValue('header Session: <set-on-persist>\n\nlearn body'),
     };
     learning = {
+      noteReviewContext: jest
+        .fn()
+        .mockResolvedValue({ topic: { id: 't1' }, note: { body: 'Existing note', revision: 1 } }),
       context: jest.fn().mockResolvedValue({
         target: {
           id: 't1',
@@ -71,6 +74,22 @@ describe('SessionsService.createExport', () => {
     });
     expect(generator.generate).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
+  });
+  it('reconciles an owned import after a lost response without exposing or resaving its content', async () => {
+    const id = '051ac96c-5139-41c8-9b05-c74a0447e335';
+    findFirst.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.id === id && where.userId === 'userA' ? { id, importedAt: new Date() } : null,
+      ),
+    );
+    await expect(service.getImportStatus('userA', id)).resolves.toEqual({ id, imported: true });
+    await expect(service.getImportStatus('userB', id)).rejects.toThrow('Session not found');
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id, userId: 'userA' },
+      select: { id: true, importedAt: true },
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('returns the persisted review snapshot for the wizard to retain with its session id', async () => {
@@ -139,6 +158,7 @@ describe('SessionsService.createExport', () => {
       expect.objectContaining({ target: expect.objectContaining({ id: 't1' }) }),
       'guided',
       expect.any(Date),
+      expect.objectContaining({ topic: { id: 't1' } }),
     );
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -165,6 +185,7 @@ describe('SessionsService.createExport', () => {
       expect.any(Object),
       'source-first',
       expect.any(Date),
+      expect.objectContaining({ topic: { id: 't1' } }),
     );
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({

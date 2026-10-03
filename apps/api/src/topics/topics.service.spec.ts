@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { starterCardText } from '../prompts/starter-card';
 import { TopicsService } from './topics.service';
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 
 const metricsMock: any = {
   topicLabels: () => ({ blocked: false, reviewing: false }),
@@ -104,6 +105,10 @@ describe('TopicsService', () => {
       providers: [
         TopicsService,
         MetricsService,
+        {
+          provide: TopicWritingService,
+          useValue: new TopicWritingService(prisma as unknown as PrismaService),
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: LearningContextService, useValue: { nextUp: jest.fn() } },
       ],
@@ -889,7 +894,7 @@ describe('TopicsService', () => {
   describe('cross-user isolation', () => {
     it("getDetail scopes by userId so another user's topic 404s", async () => {
       const prisma: any = { topic: { findFirst: jest.fn().mockResolvedValue(null) } };
-      const svc = new TopicsService(prisma, metricsMock);
+      const svc = new TopicsService(prisma, metricsMock, new TopicWritingService(prisma));
       await expect(svc.getDetail('userA', 'topic-owned-by-B')).rejects.toThrow(/not found/i);
     });
 
@@ -909,7 +914,7 @@ describe('TopicsService', () => {
         prompt: { create: jest.fn().mockResolvedValue({ id: 'pr1' }) },
       };
       prisma.$transaction = (cb: any) => cb(txMock);
-      const svc = new TopicsService(prisma, metricsMock);
+      const svc = new TopicsService(prisma, metricsMock, new TopicWritingService(prisma));
       await svc.create('userA', { title: 'X', domain: 'D', topicType: 'pattern' } as any);
       expect(txCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: 'userA' }) });
       expect(topLevelCreate).not.toHaveBeenCalled();
@@ -921,7 +926,7 @@ describe('TopicsService', () => {
         topic: { create: created, findFirst: jest.fn().mockResolvedValue(null) },
         topicType: { upsert: jest.fn() },
       };
-      const svc = new TopicsService(prisma, metricsMock);
+      const svc = new TopicsService(prisma, metricsMock, new TopicWritingService(prisma));
       await expect(
         svc.create('userA', {
           title: 'X',

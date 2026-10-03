@@ -8,6 +8,7 @@ import {
 import { Prisma, type TopicStatus } from '@prisma/client';
 import { sourcePlanSchema } from '@terrain/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { buildRoadmapPolicy, type RoadmapEligibility } from '../learning/roadmap-policy';
 import { STARTER_CARD_DATA } from '../prompts/starter-card';
@@ -27,6 +28,7 @@ export class TopicsService {
   constructor(
     private prisma: PrismaService,
     private metrics: MetricsService,
+    private writing: TopicWritingService,
   ) {}
 
   private parseSourcePlan(
@@ -235,40 +237,12 @@ export class TopicsService {
   }
 
   async getNotes(userId: string, topicId: string) {
-    const topic = await this.prisma.topic.findFirst({
-      where: { id: topicId, userId },
-      select: { notes: { select: { body: true, revision: true, updatedAt: true } } },
-    });
-    if (!topic) throw new NotFoundException(`Topic ${topicId} not found`);
-    return topic.notes ?? { body: '', revision: 0, updatedAt: null };
+    const { body, revision, updatedAt } = await this.writing.getWriting(userId, topicId, 'notes');
+    return { body, revision, updatedAt };
   }
 
   async saveNotes(userId: string, topicId: string, input: { body: string; revision: number }) {
-    await this.findOne(userId, topicId);
-    const conflict = () =>
-      new ConflictException(
-        'These notes changed on another device. Your draft has not been saved. Compare it with the latest saved notes before saving again.',
-      );
-    const select = { body: true, revision: true, updatedAt: true } as const;
-    try {
-      if (input.revision === 0) {
-        return await this.prisma.topicNotes.create({
-          data: { topicId, body: input.body, revision: 1 },
-          select,
-        });
-      }
-      const [saved] = await this.prisma.topicNotes.updateManyAndReturn({
-        where: { topicId, revision: input.revision, topic: { userId } },
-        data: { body: input.body, revision: { increment: 1 } },
-        select,
-      });
-      if (!saved) throw conflict();
-      return saved;
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
-        throw conflict();
-      throw error;
-    }
+    return this.writing.saveNotes(userId, topicId, input);
   }
 
   async getDetail(userId: string, id: string) {

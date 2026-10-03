@@ -1,4 +1,12 @@
-import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Header,
+  Param,
+  ParseUUIDPipe,
+  Query,
+} from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { parseReviewOptions } from '../metrics/review-queue';
@@ -10,6 +18,11 @@ export class SessionsController {
   @Get(':id/export')
   savedExport(@CurrentUser() userId: string, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.getExport(userId, id);
+  }
+  @Get(':id/import-status')
+  @Header('Cache-Control', 'private, no-store')
+  importStatus(@CurrentUser() userId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getImportStatus(userId, id);
   }
 
   @Get('export')

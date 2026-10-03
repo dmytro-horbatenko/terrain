@@ -40,8 +40,9 @@ describe('McpService', () => {
         'Use get_learning_context to supplement a copied Terrain learning-session export',
       );
       expect(client.getInstructions()).toContain('The copied export remains authoritative');
-      expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual([
+      expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual([
         'get_learning_context',
+        'get_topic_note_review_context',
       ]);
       const result = await client.callTool({
         name: 'get_learning_context',
@@ -50,6 +51,35 @@ describe('McpService', () => {
       expect(result.isError).not.toBe(true);
       expect(result.structuredContent).toEqual(context);
       expect(learning.context).toHaveBeenCalledWith('user-1', { topic: 'RLP encoding' });
+    } finally {
+      await Promise.all([client.close(), server.close()]);
+    }
+  });
+
+  it('exposes note review as a read-only user-scoped tool', async () => {
+    const value = {
+      purpose: 'single topic',
+      note: { body: 'Owned text', revision: 3 },
+      pendingIndependentCheck: true,
+    };
+    const learning = {
+      noteReviewContext: jest.fn().mockResolvedValue(value),
+    } as unknown as LearningContextService;
+    const { client, server } = await connect(new McpService(learning));
+    try {
+      const tool = (await client.listTools()).tools.find(
+        (t) => t.name === 'get_topic_note_review_context',
+      );
+      expect(tool?.annotations?.readOnlyHint).toBe(true);
+      const result = await client.callTool({
+        name: 'get_topic_note_review_context',
+        arguments: { topicId: '051ac96c-5139-41c8-9b05-c74a0447e335' },
+      });
+      expect(result.structuredContent).toEqual(value);
+      expect(learning.noteReviewContext).toHaveBeenCalledWith(
+        'user-1',
+        '051ac96c-5139-41c8-9b05-c74a0447e335',
+      );
     } finally {
       await Promise.all([client.close(), server.close()]);
     }

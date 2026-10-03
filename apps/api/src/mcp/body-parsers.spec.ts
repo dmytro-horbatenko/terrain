@@ -32,6 +32,15 @@ describe('note body parser boundary', () => {
   });
 
   it.each([
+    ['/topic-writing/reviews/apply', 'POST'],
+    ['/topic-writing/reviews/preview', 'POST'],
+  ])('accepts Unicode review text on %s', async (path, method) => {
+    const result = await parse(path, method);
+    expect(result.error).toBeUndefined();
+    expect(result.parsed.body).toHaveLength(100_000);
+  });
+
+  it.each([
     ['/sessions/import', 'POST'],
     ['/topics/topic-a', 'PATCH'],
     ['/topics/topic-a/notes', 'POST'],

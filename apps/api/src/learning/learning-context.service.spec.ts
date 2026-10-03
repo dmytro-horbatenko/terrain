@@ -1,3 +1,4 @@
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LearningContextService } from './learning-context.service';
@@ -68,7 +69,10 @@ describe('LearningContextService', () => {
       applicationEvent: { findMany: jest.fn().mockResolvedValue([]) },
       skillCheck: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new LearningContextService(prisma as PrismaService);
+    service = new LearningContextService(
+      prisma as PrismaService,
+      new TopicWritingService(prisma as PrismaService),
+    );
   });
 
   it('preserves authored course order when creation timestamps tie while leaving custom topics in place', async () => {

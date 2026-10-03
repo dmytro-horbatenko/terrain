@@ -13,10 +13,10 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
     "lint": "oxlint --fix \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
+    "test:watch": "yarn test --watch",
+    "test:cov": "yarn test --coverage",
+    "test:debug": "node --experimental-vm-modules --inspect-brk -r tsconfig-paths/register -r ts-node/register ../../node_modules/jest/bin/jest.js --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {

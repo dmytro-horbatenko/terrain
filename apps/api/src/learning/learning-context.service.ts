@@ -9,6 +9,7 @@ import {
 } from '@terrain/types';
 import type { NextUp } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 import {
   canReuseSourceEvidence,
   parseStoredSourcePlan,
@@ -58,7 +59,13 @@ const malformedRoadmapData = (policy: RoadmapEligibility) =>
 
 @Injectable()
 export class LearningContextService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly writing: TopicWritingService,
+  ) {}
+  noteReviewContext(userId: string, topicId: string) {
+    return this.writing.reviewContext(userId, topicId);
+  }
 
   private async select(userId: string, topic?: string, domain?: string): Promise<Selection> {
     const [settings, graph, imported] = await Promise.all([

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { skillCheckEvidenceSchema } from './skill-checks';
 export * from './projects';
 export * from './skill-checks';
+export * from './note-review';
 
 export type TopicStatus = 'planned' | 'active' | 'mastered' | 'archived';
 export type ReviewMode = 'telegram_quick' | 'app_log' | 'claude_session';

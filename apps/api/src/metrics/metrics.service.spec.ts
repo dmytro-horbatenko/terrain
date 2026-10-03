@@ -1,3 +1,4 @@
+import { TopicWritingService } from '../topic-writing/topic-writing.service';
 import { Test } from '@nestjs/testing';
 import { LearningContextService } from '../learning/learning-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -37,7 +38,11 @@ describe('MetricsService', () => {
     };
     learning = {
       nextUp: jest.fn((userId, domain, now) =>
-        new LearningContextService(prisma).nextUp(userId, domain, now),
+        new LearningContextService(prisma, new TopicWritingService(prisma)).nextUp(
+          userId,
+          domain,
+          now,
+        ),
       ),
     };
     const mod = await Test.createTestingModule({
