@@ -151,3 +151,27 @@ a demoted manual override).
 **Deferred:** MFA/password reset, JWT revocation.
 
 ## Imported Claude Cowork project instructions
+
+## Topic notes and AI review
+
+- Personal topic notes describe material actually covered. Do not bulk-fill
+  unstarted lessons or chapter containers in `Your notes`; AI reference material
+  belongs separately and starts with an explicit unreviewed label.
+- Review one topic at a time, in a fresh context when practical. Read its latest
+  full note before proposing a replacement. The new read-only MCP tool
+  `get_topic_note_review_context` exposes one owned topic's current note/reference,
+  revision and hash; it requires deployment of the notes-review update.
+  `get_learning_context` still omits full notes. Without MCP, copy the latest
+  single-topic context through the app's review button
+  (see `docs/ops/topic-note-review.md`).
+- Check disputed, changing or uncertain technical claims against primary sources.
+  Preserve useful prior explanations, scope and actual learner evidence. A review
+  may find no changes; never invent mastery or skip the authored roadmap.
+- Keep base revision/hash with proposed edits and use revision conflict handling
+  when saving. AI review of content creates no recall grade or application event.
+  During recall, inspect notes only after the learner's first attempt; never expose
+  or solve a pending independent assessment.
+- Return a strict separate `note-review` block. The learner accepts it through
+  the app's comparison screen; never claim an AI proposal has already been saved.
+  The `learning-os` v2 contract remains separate. Existing AI archives are
+  unreviewed references, not learner evidence or universal verified notes.

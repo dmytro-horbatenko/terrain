@@ -10,6 +10,29 @@ dist/
 coverage/
 /backups/
 
+# Private one-off note remediation: generated material and operator tooling.
+/content/backfills/
+/scripts/apply-remote-topic-note-backfill.sh
+/scripts/apply-remote-topic-note-cleanup.sh
+/scripts/apply-remote-topic-references.sh
+/scripts/prepare-topic-note-backfill.mjs
+/scripts/prepare-topic-note-cleanup.mjs
+/scripts/prepare-topic-references.mjs
+/scripts/verify-topic-note-backfill.cjs
+/scripts/verify-topic-note-cleanup.cjs
+/scripts/verify-topic-references.cjs
+/scripts/topic-note-review-context.mjs
+/scripts/topic-note-review-context.test.mjs
+/scripts/lib/topic-note-backfill.mjs
+/scripts/lib/topic-note-backfill.test.mjs
+/scripts/lib/topic-note-cleanup.mjs
+/scripts/lib/topic-note-cleanup.test.mjs
+/scripts/lib/topic-reference-import.mjs
+/scripts/lib/topic-reference-import.test.mjs
+/scripts/export-learning-data.sql
+/scripts/export-remote-learning-data.sh
+/docs/ops/topic-notes-backfill.md
+
 # Claude Code — personal/session-local settings (the shared policy lives in
 # .claude/settings.json, which IS tracked)
 .claude/settings.local.json
