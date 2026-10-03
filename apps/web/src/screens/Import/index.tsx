@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useImportApply } from '../../api/hooks';
 import { Card, ErrorBox, Spinner, useToast } from '../../components';
 import type { ImportPlan, ImportResult } from '../../api/types';
-import { useImportDraft } from './importDraft';
+import { hasImportContent, useImportDraft } from './importDraft';
+import { parseNoteReview, linkedSessionId } from './noteReviewDraft';
+import { NoteReviewPanel, PendingNoteReviews } from '../../components/NoteReviewPanel';
 import { NotesHandoff } from './NotesHandoff';
 import {
   ActivationsSection,
@@ -25,9 +27,17 @@ export default function ImportScreen() {
   const importApply = useImportApply();
   const importPreview = useImportDraft(!importApply.isPending);
   const { text, setText, plan, runPreview } = importPreview;
+  const noteProposal = useMemo(() => {
+    try {
+      return { draft: parseNoteReview(text), error: null };
+    } catch (error) {
+      return { draft: null, error };
+    }
+  }, [text]);
 
   const onApply = () => {
-    if (!plan?.applicable || importPreview.isPending || importApply.isPending) return;
+    if (!plan?.applicable || importPreview.isPending || importApply.isPending || noteProposal.error)
+      return;
     importApply.mutate(text, {
       onSuccess: (res) => {
         setAppliedPlan(plan);
@@ -38,7 +48,8 @@ export default function ImportScreen() {
     });
   };
 
-  const canApply = !!plan?.applicable && !importPreview.isPending && !applyResult;
+  const canApply =
+    !!plan?.applicable && !importPreview.isPending && !applyResult && !noteProposal.error;
 
   return (
     <div className="page">
@@ -68,7 +79,9 @@ export default function ImportScreen() {
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!text.trim() || importPreview.isPending || importApply.isPending}
+                disabled={
+                  !hasImportContent(text) || importPreview.isPending || importApply.isPending
+                }
                 onClick={runPreview}
               >
                 {importPreview.isPending ? (
@@ -82,8 +95,19 @@ export default function ImportScreen() {
               {plan && <span className="faint mono">session {plan.sessionExportId}</span>}
             </div>
             {!!importPreview.error && <ErrorBox error={importPreview.error} />}
+            {!!noteProposal.error && <ErrorBox error={noteProposal.error} />}
           </div>
         </Card>
+
+        {noteProposal.draft && (
+          <NoteReviewPanel
+            key={JSON.stringify(noteProposal.draft)}
+            draft={noteProposal.draft}
+            ready={!hasImportContent(text) || !!applyResult || !!plan?.alreadyImported}
+            sessionId={plan?.sessionExportId ?? linkedSessionId(text)}
+          />
+        )}
+        {!text.trim() && <PendingNoteReviews />}
 
         {/* 3. Diff sections */}
         {plan && (
@@ -184,7 +208,7 @@ export default function ImportScreen() {
                 </div>
               </div>
 
-              <NotesHandoff plan={appliedPlan} result={applyResult} />
+              {!noteProposal.draft && <NotesHandoff plan={appliedPlan} result={applyResult} />}
               <div className="row gap-2" style={{ alignItems: 'center' }}>
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   The loop is re-armed — the Dashboard reflects these changes.

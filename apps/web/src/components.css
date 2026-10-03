@@ -775,3 +775,76 @@
   overflow-wrap: anywhere;
   margin: 0;
 }
+/* Review surfaces retain full text and stack on narrow screens. */
+.note-review-panel,
+.writing-details,
+#reference {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.note-review-panel :is(button, summary),
+.writing-details :is(button, summary),
+#reference > summary {
+  min-height: 44px;
+}
+.note-review-panel summary,
+.writing-details summary,
+#reference > summary {
+  cursor: pointer;
+  padding-block: 10px;
+}
+.note-review-panel :is(a, button, summary):focus-visible,
+.writing-details :is(a, button, summary):focus-visible,
+#reference > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.note-review-panel button,
+.writing-details button {
+  white-space: normal;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+.note-review-panel small,
+.dashboard-today-grid .faint {
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-today-grid a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.note-review-panel :is(section, pre) {
+  min-width: 0;
+}
+.note-review-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.note-review-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 480px;
+  overflow: auto;
+}
+.note-review-comparison h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .note-review-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-review-panel button,
+  .writing-details button {
+    transition: none;
+  }
+}

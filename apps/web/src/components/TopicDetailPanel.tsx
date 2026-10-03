@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { independentSkillAttempt, type SourcePlan } from '@terrain/types';
+import { TopicReference, WritingDetails } from './TopicReference';
+import { PendingNoteReviews } from './NoteReviewPanel';
 import { Link, useBlocker } from '@tanstack/react-router';
 import { useSettings, useSkillChecks, useTopic, useUpdateTopic } from '../api/hooks';
 import { useToast } from './Toast';
@@ -399,7 +401,11 @@ export function TopicDetailPanel({
 
       <div id="notes">
         <TopicNotes key={t.id} topicId={t.id} timezone={settings?.timezone} />
+        <WritingDetails topicId={t.id} kind="notes" />
       </div>
+
+      <PendingNoteReviews topicId={t.id} />
+      <TopicReference topicId={t.id} />
 
       <section
         className="card card-pad col gap-3"

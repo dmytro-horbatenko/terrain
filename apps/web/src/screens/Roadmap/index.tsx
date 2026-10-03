@@ -1,6 +1,7 @@
 import '@xyflow/react/dist/style.css';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   ReactFlow,
   Background,
@@ -60,8 +61,14 @@ export default function Roadmap() {
   const [domain, setDomain] = useState<string>('__all__');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showParked, setShowParked] = useState(false);
-  const [focusId, setFocusId] = useState<string | null>(null);
-  const nextUpId = useDashboard().data?.nextUp?.topic.id ?? null;
+  const search = useSearch({ from: '/roadmap' });
+  const navigate = useNavigate({ from: '/roadmap' });
+  const nextUp = useDashboard().data?.nextUp;
+  const nextUpId = nextUp?.topic.id ?? null;
+  const focusId = search.focus === 'all' ? null : (search.focus ?? nextUp?.topic.parentId ?? null);
+  const setFocusId = (id: string | null) => {
+    void navigate({ search: { focus: id ?? 'all' } });
+  };
 
   const { mutate: updateTopic } = useUpdateTopic();
   const { mutate: deleteTopic } = useDeleteTopic();
@@ -401,9 +408,14 @@ export default function Roadmap() {
         ))}
         <span className="row gap-1" style={{ alignItems: 'center' }}>
           <span style={{ color: 'var(--st-active)' }}>✦</span>
-          <span className="faint">Imported (tentative)</span>
+          <span className="faint">Suggestions awaiting curation</span>
         </span>
       </div>
+
+      <p className="faint" style={{ margin: '8px 0' }}>
+        Started counts lessons you have begun. Practice and independent checks are recorded
+        separately in each topic’s Evidence.
+      </p>
 
       <div className="row wrap gap-1" style={{ alignItems: 'center', marginTop: 8 }}>
         <button

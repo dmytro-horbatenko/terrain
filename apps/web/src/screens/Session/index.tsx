@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import type { LearningApproach } from '@terrain/types';
 import { sessionRoute } from '../../app/router';
@@ -15,6 +15,8 @@ import type { ImportResult, PendingSession } from '../../api/types';
 import { SourceIssuesPanel } from '../Import/sections';
 import { useImportDraft } from '../Import/importDraft';
 import { NotesHandoff } from '../Import/NotesHandoff';
+import { parseNoteReview, linkedSessionId } from '../Import/noteReviewDraft';
+import { NoteReviewPanel } from '../../components/NoteReviewPanel';
 import { ReviewFirst, ReviewPlan, useReviewChoice } from '../../components/ReviewChoice';
 import {
   chooseInitialApproach,
@@ -29,7 +31,7 @@ const FINALIZE_PROMPT =
   'Now output the topic notes and final learning-os block per the OUTPUT CONTRACT from the ' +
   'context I gave you at the start. Put copyable Markdown topic notes first, followed by one ' +
   'fenced ```learning-os block, echoing the sessionId. Only the last such block is imported; ' +
-  'I will paste and save the longer topic notes separately.';
+  'When NOTE REVIEW CONTEXT was supplied, include the separate note-review proposal with its original revision/hash. Otherwise include Markdown notes for manual merging.';
 
 async function copyToClipboard(text: string): Promise<boolean> {
   if (!navigator.clipboard?.writeText) return false;
@@ -65,6 +67,13 @@ export default function SessionWizard() {
   const [step, setStep] = useState<Step>('copy');
   const preview = useImportDraft(step === 'paste');
   const { text: pasted, setText: setPasted, plan, runPreview } = preview;
+  const noteProposal = useMemo(() => {
+    try {
+      return { draft: parseNoteReview(pasted), error: null };
+    } catch (error) {
+      return { draft: null, error };
+    }
+  }, [pasted]);
   const [exportMd, setExportMd] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<Pick<
     PendingSession,
@@ -212,7 +221,7 @@ export default function SessionWizard() {
   }
 
   function save() {
-    if (!plan?.applicable || preview.isPending || apply.isPending) return;
+    if (!plan?.applicable || preview.isPending || apply.isPending || noteProposal.error) return;
     apply.mutate(pasted, {
       onSuccess: (res) => {
         setResult(res);
@@ -375,8 +384,8 @@ export default function SessionWizard() {
             )}
             <p className="muted" style={{ margin: 0 }}>
               When the chat finishes, paste its final message here, including the topic notes and
-              learning-os block. The import stores the compact summary; you will save the longer
-              notes separately.
+              learning-os block. Include the note-review proposal when available, so you can compare
+              and save the longer notes here.
             </p>
             <textarea
               className="textarea mono"
@@ -418,6 +427,7 @@ export default function SessionWizard() {
               />
             )}
             {!!preview.error && <ErrorBox error={preview.error} />}
+            {!!noteProposal.error && <ErrorBox error={noteProposal.error} />}
             <div className="card card-pad col gap-2">
               <span className="faint" style={{ fontSize: 12 }}>
                 The chat didn&apos;t output the learning-os block? Copy this and send it in the
@@ -503,7 +513,9 @@ export default function SessionWizard() {
             <div className="row gap-2">
               <button
                 className="btn btn-primary"
-                disabled={!plan.applicable || preview.isPending || apply.isPending}
+                disabled={
+                  !plan.applicable || preview.isPending || apply.isPending || !!noteProposal.error
+                }
                 onClick={save}
               >
                 {apply.isPending ? (
@@ -526,11 +538,20 @@ export default function SessionWizard() {
         </Card>
       )}
 
+      {(step === 'review' || step === 'done') && noteProposal.draft && (
+        <NoteReviewPanel
+          key={JSON.stringify(noteProposal.draft)}
+          draft={noteProposal.draft}
+          ready={!!result || !!plan?.alreadyImported}
+          sessionId={plan?.sessionExportId ?? linkedSessionId(pasted)}
+        />
+      )}
+
       {step === 'done' && result && plan && (
         <Card
           title={
             <span className="row gap-2" style={{ color: 'var(--st-mastered)' }}>
-              ✓ Saved
+              ✓ Session record saved
             </span>
           }
           style={{ borderColor: 'var(--st-mastered)' }}
@@ -547,7 +568,7 @@ export default function SessionWizard() {
               />
               <PreviewStat n={result.topicsActivated} label="topics activated" hideWhenZero />
             </div>
-            <NotesHandoff plan={plan} result={result} />
+            {!noteProposal.draft && <NotesHandoff plan={plan} result={result} />}
             <div className="row gap-2">
               {mode === 'learn' && dash?.nextUp && (
                 <button

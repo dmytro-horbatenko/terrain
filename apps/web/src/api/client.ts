@@ -45,7 +45,14 @@ import type {
   SkillCheckAttempt,
   SkillCheckResult,
   SkillCheckList,
+  NoteReviewDraft,
+  NoteReviewPreview,
+  NoteReviewResult,
+  TopicWriting,
+  WritingKind,
+  TopicNoteReviewContext,
 } from '@terrain/types';
+import { extractLearningOsBlock } from '@terrain/types';
 
 const BASE = '/api';
 
@@ -119,6 +126,30 @@ export const api = {
   },
   getRecentNotes: () => req<RecentTopicNote[]>('/topics/recent-notes'),
   getTopicNotes: (id: string) => req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`),
+  getTopicWriting: (id: string, kind: WritingKind) =>
+    req<TopicWriting>(`/topic-writing/${encodeURIComponent(id)}/${kind}`),
+  getNoteReviewContext: (id: string) =>
+    req<TopicNoteReviewContext>(`/topic-writing/${encodeURIComponent(id)}/context`),
+  previewNoteReview: (draft: NoteReviewDraft) =>
+    req<NoteReviewPreview>('/topic-writing/reviews/preview', {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    }),
+  applyNoteReview: (draft: NoteReviewDraft) =>
+    req<NoteReviewResult>('/topic-writing/reviews/apply', {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    }),
+  getWritingHistory: (id: string, kind: WritingKind) =>
+    req<
+      Array<{
+        body: string;
+        revision: number | null;
+        actor: string;
+        reason: string;
+        createdAt: string;
+      }>
+    >(`/topic-writing/${encodeURIComponent(id)}/${kind}/history`),
   updateTopicNotes: (id: string, input: UpdateTopicNotesInput) =>
     req<TopicNotes>(`/topics/${encodeURIComponent(id)}/notes`, { method: 'PATCH', ...json(input) }),
   getTopic: (id: string) => req<TopicDetail>(`/topics/${id}`),
@@ -188,6 +219,8 @@ export const api = {
 
   // sessions export
   getStoredExport: (id: string) => req<ExportResult>(`/sessions/${encodeURIComponent(id)}/export`),
+  getSessionImportStatus: (id: string) =>
+    req<{ id: string; imported: boolean }>(`/sessions/${encodeURIComponent(id)}/import-status`),
   getExport: (opts: ExportOptions) => {
     const q = new URLSearchParams();
     if (opts.mode) q.set('mode', opts.mode);
@@ -205,10 +238,13 @@ export const api = {
   importPreview: (raw: string) =>
     req<ImportPlan>('/sessions/import/preview', {
       method: 'POST',
-      ...json({ raw }),
+      ...json({ raw: extractLearningOsBlock(raw) ?? raw }),
     }),
   importApply: (raw: string) =>
-    req<ImportResult>('/sessions/import', { method: 'POST', ...json({ raw }) }),
+    req<ImportResult>('/sessions/import', {
+      method: 'POST',
+      ...json({ raw: extractLearningOsBlock(raw) ?? raw }),
+    }),
 
   // prepared courses
   getCourses: () => req<Course[]>('/courses'),

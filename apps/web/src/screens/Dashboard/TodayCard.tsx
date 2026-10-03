@@ -67,7 +67,7 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
         <div className="col gap-3">
           {!showLearn ? (
             <p className="muted" style={{ margin: 0 }}>
-              Curriculum complete — nothing new to learn right now.
+              No new lesson queued. You can revisit your topics and recorded evidence.
             </p>
           ) : !nextUp ? (
             <p className="muted" style={{ margin: 0 }}>
@@ -77,7 +77,7 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
             <>
               {nextUp.chapterTitle && (
                 <div className="faint" style={{ fontSize: 12.5 }}>
-                  {nextUp.chapterTitle}
+                  Current chapter: {nextUp.chapterTitle}
                   {nextUp.chapterProgress &&
                     ` · ${nextUp.chapterProgress.started} of ${nextUp.chapterProgress.total} started`}
                 </div>
@@ -93,11 +93,19 @@ export default function TodayCard({ dash }: { dash: Dashboard }) {
               <div className="row gap-2" style={{ alignItems: 'center' }}>
                 <span style={{ fontWeight: 650, fontSize: 16 }}>{nextUp.topic.title}</span>
                 <span className="pill">{nextUp.topic.topicType}</span>
-                {nextUp.topic.aiProposed && (
-                  <span title="Imported from Claude" style={{ color: 'var(--st-active)' }}>
-                    ✦
-                  </span>
-                )}
+              </div>
+              {nextUp.topic.description && (
+                <p className="muted" style={{ margin: 0 }}>
+                  {nextUp.topic.description}
+                </p>
+              )}
+              <div className="row wrap gap-3">
+                <Link to="/topics/$topicId" params={{ topicId: nextUp.topic.id }}>
+                  Lesson details
+                </Link>
+                <Link to="/roadmap" search={{ focus: nextUp.topic.parentId ?? 'all' }}>
+                  View this chapter
+                </Link>
               </div>
               {reviewChoice.reviewFirst && !learnPending ? (
                 <ReviewFirst onContinue={reviewChoice.continueToday} />

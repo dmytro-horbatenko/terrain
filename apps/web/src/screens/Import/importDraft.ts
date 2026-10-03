@@ -25,7 +25,14 @@ export const emptyImportDraft: ImportDraft = {
 };
 
 export function hasImportContent(text: string): boolean {
-  return extractLearningOsBlock(text) !== null || text.trimStart().startsWith('{');
+  if (extractLearningOsBlock(text) !== null) return true;
+  if (!text.trimStart().startsWith('{')) return false;
+  try {
+    const value = JSON.parse(text);
+    return value?.kind !== 'notes' && value?.kind !== 'reference';
+  } catch {
+    return true;
+  }
 }
 
 export function importDraftReducer(state: ImportDraft, action: Action): ImportDraft {
@@ -53,6 +60,7 @@ export function useImportDraft(autoPreview = true) {
   const nextRequestId = useRef(0);
   const setText = useCallback((text: string) => dispatch({ type: 'change', text }), []);
   const runPreview = useCallback(() => {
+    if (!hasImportContent(draft.text)) return;
     const requestId = ++nextRequestId.current;
     dispatch({ type: 'preview', requestId, text: draft.text });
     void mutateAsync(draft.text).then(

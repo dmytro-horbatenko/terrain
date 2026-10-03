@@ -40,7 +40,7 @@ export default function GroupNode({ data }: NodeProps<GroupNodeType>) {
         {startableCount > 0 && <span className="pill">▶ {startableCount} startable</span>}
         {tentativeCount > 0 && (
           <span title="Contains imported, un-curated topics" style={{ color: 'var(--st-active)' }}>
-            ✦ {tentativeCount}
+            ✦ {tentativeCount} suggestions
           </span>
         )}
         {containsNextUp && <span className="pill">Next up</span>}

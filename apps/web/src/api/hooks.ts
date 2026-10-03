@@ -5,6 +5,8 @@ import type {
   SkillCheckPlan,
   SkillCheckAttempt,
   SkillCheckResult,
+  NoteReviewDraft,
+  WritingKind,
 } from '@terrain/types';
 import type {
   CreateAppEventInput,
@@ -26,6 +28,8 @@ export const qk = {
   topics: ['topics'] as const,
   topic: (id: string) => ['topic', id] as const,
   topicNotes: (id: string) => ['topic-notes', id] as const,
+  writing: (id: string, kind: WritingKind) => ['topic-writing', id, kind] as const,
+  writingHistory: (id: string, kind: WritingKind) => ['writing-history', id, kind] as const,
   recentNotes: ['recent-notes'] as const,
   reviews: (topicId: string) => ['reviews', topicId] as const,
   nextPrompt: (topicId: string) => ['next-prompt', topicId] as const,
@@ -129,6 +133,8 @@ export function useSaveTopicNotes(id: string) {
       qc.setQueryData(qk.topicNotes(id), saved);
       void qc.invalidateQueries({ queryKey: ['topic-search'] });
       void qc.invalidateQueries({ queryKey: qk.recentNotes });
+      void qc.invalidateQueries({ queryKey: qk.writing(id, 'notes') });
+      void qc.invalidateQueries({ queryKey: qk.writingHistory(id, 'notes') });
     },
   });
 }
@@ -138,6 +144,56 @@ export function useTopic(id: string | null) {
     queryKey: qk.topic(id ?? ''),
     queryFn: () => api.getTopic(id!),
     enabled: !!id,
+  });
+}
+
+export function useTopicWriting(id: string, kind: WritingKind) {
+  return useQuery({
+    queryKey: qk.writing(id, kind),
+    queryFn: () => api.getTopicWriting(id, kind),
+    retry: false,
+  });
+}
+export function useNoteReviewPreview(draft: NoteReviewDraft) {
+  return useQuery({
+    queryKey: ['note-review-preview', draft],
+    queryFn: () => api.previewNoteReview(draft),
+    retry: false,
+  });
+}
+export function useSessionImportStatus(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['session-import-status', id],
+    queryFn: () => api.getSessionImportStatus(id!),
+    enabled: !!id && enabled,
+    retry: false,
+  });
+}
+export function useWritingHistory(id: string, kind: WritingKind, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.writingHistory(id, kind),
+    queryFn: () => api.getWritingHistory(id, kind),
+    enabled,
+    retry: false,
+  });
+}
+export function useApplyNoteReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (draft: NoteReviewDraft) => api.applyNoteReview(draft),
+    onSuccess: (_result, draft) => {
+      void qc.invalidateQueries({ queryKey: ['note-review-preview'] });
+      // A retry can return an older receipt. Reload current text rather than caching that receipt as the latest note.
+      void qc.invalidateQueries({ queryKey: qk.writing(draft.topicId, draft.kind) });
+      void qc.invalidateQueries({ queryKey: qk.writingHistory(draft.topicId, draft.kind) });
+      void qc.invalidateQueries({ queryKey: qk.topicNotes(draft.topicId) });
+      void qc.invalidateQueries({ queryKey: qk.recentNotes });
+      void qc.invalidateQueries({ queryKey: ['topic-search'] });
+    },
+    onError: (_error, draft) => {
+      void qc.invalidateQueries({ queryKey: ['note-review-preview'] });
+      void qc.invalidateQueries({ queryKey: qk.writing(draft.topicId, draft.kind) });
+    },
   });
 }
 
@@ -338,10 +394,14 @@ export function useImportPreview() {
 }
 
 export function useImportApply() {
+  const qc = useQueryClient();
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: (raw: string) => api.importApply(raw),
     onSuccess: () => invalidate(),
+    onError: () => {
+      void qc.invalidateQueries({ queryKey: ['session-import-status'] });
+    },
   });
 }
 

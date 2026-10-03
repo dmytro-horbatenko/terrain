@@ -36,6 +36,10 @@ const roadmapRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/roadmap',
   component: Roadmap,
+  validateSearch: (search: Record<string, unknown>): { focus?: string } =>
+    typeof search.focus === 'string' && search.focus.length > 0 && search.focus.length <= 100
+      ? { focus: search.focus }
+      : {},
 });
 const exportRoute = createRoute({
   getParentRoute: () => rootRoute,
