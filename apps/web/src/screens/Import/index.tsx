@@ -7,6 +7,7 @@ import { hasImportContent, useImportDraft } from './importDraft';
 import { parseNoteReview, linkedSessionId } from './noteReviewDraft';
 import { NoteReviewPanel, PendingNoteReviews } from '../../components/NoteReviewPanel';
 import { NotesHandoff } from './NotesHandoff';
+import { PracticeHandoff } from './PracticeHandoff';
 import {
   ActivationsSection,
   NewTopicsSection,
@@ -209,6 +210,7 @@ export default function ImportScreen() {
               </div>
 
               {!noteProposal.draft && <NotesHandoff plan={appliedPlan} result={applyResult} />}
+              <PracticeHandoff plan={appliedPlan} result={applyResult} />
               <div className="row gap-2" style={{ alignItems: 'center' }}>
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   The loop is re-armed — the Dashboard reflects these changes.

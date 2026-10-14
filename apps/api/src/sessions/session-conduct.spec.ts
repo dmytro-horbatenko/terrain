@@ -2,6 +2,17 @@ import { GUIDED_CONDUCT, REPEAT_CONDUCT, SOURCE_FIRST_CONDUCT } from './session-
 
 describe('session conduct scripts', () => {
   it.each([GUIDED_CONDUCT, SOURCE_FIRST_CONDUCT])(
+    'keeps first-attempt evidence separate from feedback and transfer practice',
+    (conduct) => {
+      expect(conduct).toContain('Preserve my first attempt before feedback');
+      expect(conduct).toContain('what was expected, what I actually did');
+      expect(conduct).toContain('a possible explanation, not a confirmed diagnosis');
+      expect(conduct).toContain('a corrected answer does not replace the original evidence');
+      expect(conduct).toContain('changed condition that tests the same mechanism');
+    },
+  );
+
+  it.each([GUIDED_CONDUCT, SOURCE_FIRST_CONDUCT])(
     'supports a bounded objective across sessions',
     (conduct) => {
       expect(conduct).toContain('Agree one objective');

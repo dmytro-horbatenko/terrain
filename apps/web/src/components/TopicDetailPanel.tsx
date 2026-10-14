@@ -196,7 +196,7 @@ function LearningSources({
 export function canLeaveTopicPanel() {
   return (
     !document.querySelector(
-      '.detail-panel [data-skill-dirty], .detail-panel [data-notes-dirty], .detail-panel [data-summary-dirty]',
+      '.detail-panel [data-skill-dirty], .detail-panel [data-notes-dirty], .detail-panel [data-summary-dirty], .detail-panel [data-practice-dirty]',
     ) ||
     window.confirm('This topic has unsaved work. Save or download it before leaving. Leave anyway?')
   );
@@ -206,10 +206,12 @@ export function TopicDetailPanel({
   topicId,
   onClose,
   fullPage = false,
+  planSkillCheck = false,
 }: {
   topicId: string;
   onClose?: () => void;
   fullPage?: boolean;
+  planSkillCheck?: boolean;
 }) {
   const { data: t, isLoading, error, refetch } = useTopic(topicId);
   const { data: settings } = useSettings();
@@ -557,8 +559,18 @@ export function TopicDetailPanel({
         </div>
       )}
 
+      <section id="practice" className="col gap-3" aria-label="Practice and independent checks">
+        <AppEventsPanel key={`practice-${t.id}`} topicId={t.id} events={t.appEvents} />
+        <SkillChecksPanel
+          key={t.id}
+          target={{ kind: 'topic', topicId: t.id }}
+          context={`${t.description ?? t.title}\nRecorded study: ${t.summary ?? 'No summary recorded yet.'}`}
+          startPlanning={planSkillCheck}
+        />
+      </section>
+
       <details className="topic-tools">
-        <summary>Practice, sources & topic settings</summary>
+        <summary>Sources & topic settings</summary>
         <div className="col gap-4">
           <details>
             <summary>Manage topic</summary>
@@ -682,14 +694,6 @@ export function TopicDetailPanel({
               </button>
             )}
           </div>
-
-          {/* application events */}
-          <SkillChecksPanel
-            key={t.id}
-            target={{ kind: 'topic', topicId: t.id }}
-            context={`${t.description ?? t.title}\nRecorded study: ${t.summary ?? 'No summary recorded yet.'}`}
-          />
-          <AppEventsPanel topicId={t.id} events={t.appEvents} />
 
           <LearningSources
             plan={t.sourcePlan}

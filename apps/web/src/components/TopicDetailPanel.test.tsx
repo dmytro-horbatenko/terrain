@@ -8,10 +8,17 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { meKey, qk } from '../api/hooks';
+import type { TopicDetail } from '../api/types';
 import { router as appRouter } from '../app/router';
 import { TopicDetailPanel } from './TopicDetailPanel';
 
-async function renderTopic(refreshError = false, cached = true, directUrl = false) {
+async function renderTopic(
+  refreshError = false,
+  cached = true,
+  directUrl = false,
+  practice = false,
+  topicOverrides: Partial<TopicDetail> = {},
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false, retryOnMount: false } },
   });
@@ -37,6 +44,7 @@ async function renderTopic(refreshError = false, cached = true, directUrl = fals
     dependents: [],
     reviews: [],
     sourceEvidence: [],
+    ...topicOverrides,
   });
   if (refreshError) {
     client
@@ -60,7 +68,11 @@ async function renderTopic(refreshError = false, cached = true, directUrl = fals
   const route = createRootRoute({ component: () => <TopicDetailPanel topicId="t1" /> });
   const router = createRouter({
     routeTree: directUrl ? appRouter.routeTree : route,
-    history: createMemoryHistory({ initialEntries: [directUrl ? '/topics/t1#notes' : '/'] }),
+    history: createMemoryHistory({
+      initialEntries: [
+        directUrl ? (practice ? '/topics/t1?practice=plan#practice' : '/topics/t1#notes') : '/',
+      ],
+    }),
   });
   await router.load();
   const html = renderToString(
@@ -73,6 +85,38 @@ async function renderTopic(refreshError = false, cached = true, directUrl = fals
 }
 
 describe('topic knowledge comes before management', () => {
+  it('opens the existing planning form from a practice handoff without hiding it in settings', async () => {
+    const html = await renderTopic(false, true, true, true);
+    expect(html).toContain('href="#practice"');
+    expect(html).toContain('id="practice"');
+    expect(html).toContain('Schedule skill check');
+    expect(html.indexOf('Schedule skill check')).toBeLessThan(html.indexOf('Manage topic'));
+    expect(html).toContain('Use a tutor');
+    expect(html).not.toContain('Check scheduled for');
+  });
+  it('preserves a group topic’s saved practice and opens its skill-check planning handoff', async () => {
+    const html = await renderTopic(false, true, true, true, {
+      children: [{ id: 'child', title: 'Merkle leaf encoding', status: 'planned' }],
+      appEventCount: 1,
+      appEvents: [
+        {
+          id: 'practice-1',
+          topicId: 't1',
+          kind: 'audit_exercise',
+          description: 'Compared inclusion traces before splitting this topic into lessons.',
+          url: 'https://example.com/practice/group-trace',
+          appliedAt: '2026-09-24T10:00:00Z',
+        },
+      ],
+    });
+
+    expect(html).toContain('Merkle leaf encoding');
+    expect(html).toContain('id="practice"');
+    expect(html).toContain('Compared inclusion traces before splitting this topic into lessons.');
+    expect(html).toContain('href="https://example.com/practice/group-trace"');
+    expect(html).toContain('Schedule skill check');
+    expect(html).not.toContain('Check scheduled for');
+  });
   it('opens a bookmarked topic URL directly with its notes and full reading layout', async () => {
     const html = await renderTopic(false, true, true);
     expect(html).toContain('class="page topic-page"');

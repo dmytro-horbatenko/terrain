@@ -492,8 +492,9 @@ export function UnresolvedPanel({ items }: { items: Unresolved[] }) {
           </div>
         ))}
         <div style={{ fontWeight: 600, marginTop: 4 }}>
-          Resolve these before importing — fix titles in your paste and Preview again (a missing
-          prompt id usually means the card was deleted or belongs to another account).
+          Resolve these before importing — correct the indicated items in your paste and Preview
+          again (a missing prompt id usually means the card was deleted or belongs to another
+          account).
         </div>
       </div>
     </Card>

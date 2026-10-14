@@ -7,8 +7,10 @@ take several sessions without requiring a new plan or a faster deadline.
 
 ## One session
 
-1. Resume the saved next step and choose one bounded objective. Predict or attempt
-   something before reading the previous answer.
+1. Resume the saved next step and choose one bounded objective. Use recorded work
+   first. If a relevant prerequisite is uncertain, make one to three open attempts
+   in total before hints; do not restart an exam of all prerequisites. One mistake
+   is a reason to investigate, not a diagnosis or permission to skip the roadmap.
 2. Study the relevant source, checking its version when the mechanism changes
    quickly. Explain the idea in your own words and draw or trace an example.
 3. Build, calculate or diagnose something that can be wrong. Run a meaningful
@@ -16,6 +18,13 @@ take several sessions without requiring a new plan or a faster deadline.
 4. Update the editable topic note in **Terrain**: what you understand, what is
    still fragile, the artifact and result, and one concrete next step. Reconcile
    the existing explanation rather than appending every AI response.
+
+These steps can span several sessions. Reading, a derivation or a partial lab is
+valid progress. Stop at the agreed time and save the remaining objective. A
+supported correction belongs beside the original attempt; it does not replace
+the initial evidence or create another recall grade. Feedback should describe the
+specific discrepancy, distinguish uncertainty from a confirmed error, and give
+you a chance to repair your own reasoning.
 
 Terrain is the canonical, editable note home across devices. External Obsidian,
 OneNote or HTTPS links are optional references. Executable artifacts and tests
@@ -75,6 +84,23 @@ whether the notes made resuming easier, and which workload should shrink. Keep
 one useful next step. A review-habit streak and topic counts support this check;
 they do not replace it.
 
+Use the existing one-hour weekly check/review allocation deliberately:
+
+1. Spend 20–30 minutes on one due **Skill check** with a changed case and the
+   agreed tools. Save the first attempt and artifact reference before feedback.
+2. Spend 10–15 minutes reviewing actual help, failures, uncertain evidence and
+   whether the next step was easy to resume on another computer. A suspected
+   misconception stays tentative until the evidence supports it.
+3. Choose one bounded follow-up. Use the remaining time for feedback or planning;
+   reduce new work when pending checks exceed the available budget. Do not create
+   a new check after every small lesson or append tests to the daily recall slice.
+
+The topic and project-milestone **Skill checks** forms already accept a tutor's
+separate `terrain-practice` suggestion. Filling a draft does not schedule it or
+record success: review the target, task, criteria, allowed tools and dates, then
+save. After feedback, record the actual result and reviewer yourself. For a small
+evaluation of this workflow, use the [personal pilot guide](personal-learning-pilot.md).
+
 Begin the product path with wallet → indexer → escrow, then follow the DeFi branch
 with distribution concepts where needed. Reuse infrastructure and keep the other
 projects available for later. Re-estimate after two milestones. Record a design
@@ -82,6 +108,15 @@ choice, its cost and the changed requirement that would invalidate it.
 
 For the current practice repository's narrowly demonstrated scope and the
 prepared hygiene patch, see [practice checks](practice-hygiene.md).
+
+For protocol sources, record the version and target network/fork when relevant.
+The Yellow Paper remains useful for its formal model, but its maintained PDF
+describes **Shanghai** and omits **Cancun and later upgrades**. Match current
+execution rules to the appropriate fork in the
+[Ethereum Execution Layer Specifications](https://github.com/ethereum/execution-specs),
+whose default branch may describe a future fork. This scope was checked on
+2026-10-14 against the [Yellow Paper repository notice](https://github.com/ethereum/yellowpaper#repository-currently-outdated)
+and the [PDF's version heading](https://ethereum.github.io/yellowpaper/paper.pdf).
 
 ## Four starting weeks
 

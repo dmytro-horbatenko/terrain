@@ -181,12 +181,12 @@ export interface ActivationPlan {
 }
 
 /**
- * An unresolved reference that blocks `apply()`.
+ * An unresolved reference or ambiguous card review that blocks `apply()`.
  *
  * `kind: 'prompt'` is deliberately reused for two distinct cases,
  * disambiguated by which of `title`/`ref` is populated (never both):
  *  - `ref` set, `title` absent: a `reviews[].promptId` that didn't resolve
- *    via `prompt.findFirst` scoped to the user — a card-review miss.
+ *    within the owning user, or appeared more than once in the same import.
  *  - `title` set, `ref` absent: a `proposedPrompts[].topicTitle` that
  *    didn't resolve to an existing or in-batch topic — unchanged from v1.
  * Every other `kind` (`review`/`noteSummary`/`prerequisite`/`parent`)
@@ -590,11 +590,9 @@ export class ImportService {
         promptsCreated++;
       }
 
-      // e. apply reviews — card reviews re-read fresh Prompt state inside
-      // the tx (so multiple reviews on the same card compound, mirroring
-      // the topic re-read pattern below/previously); evidence reviews only
-      // ever create a Review row. Dedupe recompute to one call per
-      // distinct topicId touched by a card review.
+      // e. apply reviews — duplicate card grades are blocked by the plan.
+      // Re-read fresh Prompt state inside the tx; evidence reviews only create
+      // a Review row. Recompute due once per topic touched by a card review.
       let reviewsApplied = 0;
       const touchedTopicIds = new Set<string>();
       for (const r of plan.reviews) {
@@ -869,7 +867,22 @@ export class ImportService {
       }
     }
 
-    const running = new Map<string, CardSrState>();
+    const seenReviewIds = new Set<string>();
+    const duplicateReviewIds = new Set<string>();
+    for (const review of parsed.reviews) {
+      if (!review.promptId) continue;
+      if (seenReviewIds.has(review.promptId)) duplicateReviewIds.add(review.promptId);
+      seenReviewIds.add(review.promptId);
+    }
+    for (const promptId of duplicateReviewIds) {
+      unresolved.push({
+        kind: 'prompt',
+        ref: promptId,
+        reason: 'ambiguous',
+        context:
+          'Multiple reviews use this promptId. Keep one review with your grade of the first attempt before help; preserve corrections and assistance in its note. If no original grade was given, remove all reviews for this card. Preview again.',
+      });
+    }
     const reviews: ResolvedReview[] = parsed.reviews.map((r): ResolvedReview => {
       if (r.promptId) {
         const row = promptsById.get(r.promptId);
@@ -890,10 +903,7 @@ export class ImportService {
             note: r.note,
           };
         }
-        const before = running.get(r.promptId) ?? cardStateFromPrompt(row);
-        const after = applyGrade(before, r.grade, now);
-        running.set(r.promptId, after);
-        return {
+        const review: ResolvedCardReview = {
           kind: 'card',
           promptId: r.promptId,
           topicId: row.topicId,
@@ -901,12 +911,16 @@ export class ImportService {
           promptText: row.promptText,
           grade: r.grade,
           note: r.note,
-          cardPreview: {
-            intervalBefore: daysBetween(before.lastReviewedAt, before.nextReviewAt),
-            intervalAfter: daysBetween(now, after.nextReviewAt),
-            nextReviewAt: after.nextReviewAt,
-          },
         };
+        if (duplicateReviewIds.has(r.promptId)) return review;
+        const before = cardStateFromPrompt(row);
+        const after = applyGrade(before, r.grade, now);
+        review.cardPreview = {
+          intervalBefore: daysBetween(before.lastReviewedAt, before.nextReviewAt),
+          intervalAfter: daysBetween(now, after.nextReviewAt),
+          nextReviewAt: after.nextReviewAt,
+        };
+        return review;
       }
 
       const title = r.topicTitle!; // schema refine guarantees promptId or topicTitle

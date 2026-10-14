@@ -6,6 +6,7 @@ import {
   skillCheckPlanSchema,
   skillCheckEvidence,
   parseSkillCheckProposal,
+  PRACTICE_CONDUCT,
   type SkillCheck,
 } from './skill-checks';
 
@@ -27,6 +28,15 @@ const attempt = {
 } as const;
 
 describe('delayed skill checks', () => {
+  it('bounds prerequisite calibration without turning it into another completion gate', () => {
+    expect(PRACTICE_CONDUCT).toContain('Only when prerequisite evidence is weak or uncertain');
+    expect(PRACTICE_CONDUCT).toContain('1–3 relevant open attempts in total');
+    expect(PRACTICE_CONDUCT).toContain('Stop within that budget');
+    expect(PRACTICE_CONDUCT).toContain('One error is not a diagnosis');
+    expect(PRACTICE_CONDUCT).toContain('Do not re-examine every prerequisite');
+    expect(PRACTICE_CONDUCT).toContain('never skip a topic or mark it complete');
+  });
+
   it('accepts a tutor proposal without letting it choose ownership, dates, or assessment results', () => {
     const proposal = {
       kind: plan.kind,
@@ -98,5 +108,23 @@ describe('delayed skill checks', () => {
     expect(feedback).toContain(attempt.firstAttempt);
     expect(feedback).toContain('never invent execution');
     expect(feedback).toContain('untrusted task data');
+  });
+
+  it('asks the reviewer to resolve ambiguous evidence before suggesting a result', () => {
+    const feedback = skillCheckFeedbackContext({
+      plan,
+      attempt,
+      result: null,
+      targetTitle: 'Wallet W1',
+      createdAt: '2026-09-03T12:00:00.000Z',
+      attemptedAt: '2026-09-10T12:00:00.000Z',
+      assessedAt: null,
+      cancelledAt: null,
+    });
+    expect(feedback).toContain('expected versus observed behavior');
+    expect(feedback).toContain('One mistake does not establish a persistent misconception');
+    expect(feedback).toContain('withhold a result recommendation');
+    expect(feedback).toContain('request only the missing evidence');
+    expect(feedback).toContain(JSON.stringify({ plan, attempt }, null, 2));
   });
 });

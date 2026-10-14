@@ -30,6 +30,8 @@ const topicsRoute = createRoute({
 export const topicRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/topics/$topicId',
+  validateSearch: (search: Record<string, unknown>): { practice?: 'plan' } =>
+    search.practice === 'plan' ? { practice: 'plan' } : {},
   component: TopicPage,
 });
 const roadmapRoute = createRoute({

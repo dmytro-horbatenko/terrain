@@ -643,13 +643,18 @@ export function SkillChecksPanel({
   target,
   context,
   overview = false,
+  startPlanning = false,
 }: {
   target?: SkillCheckTarget;
   context?: string;
   overview?: boolean;
+  startPlanning?: boolean;
 }) {
   const query = useSkillChecks();
-  const [planning, setPlanning] = useState(false);
+  const [planning, setPlanning] = useState(startPlanning);
+  useEffect(() => {
+    if (startPlanning) setPlanning(true);
+  }, [startPlanning]);
   const data = query.data;
   const checks =
     data?.checks.filter(

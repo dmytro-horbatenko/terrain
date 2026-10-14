@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "purpose": "Navigation from Terrain topics to code; file presence and test success do not record study progress or mastery.",
+  "entries": [
+    {
+      "key": "address-derivation",
+      "topicTitle": "SEC1 public-key serialization & address derivation",
+      "artifactState": "existing",
+      "paths": ["practice/01.hashing.ts"],
+      "verification": {
+        "command": "node --test practice/01.hashing.ts",
+        "scope": "One demonstration address compared with viem. Complete SEC1/boundary cases remain learner work."
+      },
+      "authoredPath": "scripts/phase01/address-derivation.ts"
+    },
+    {
+      "key": "merkle",
+      "topicTitle": "Hashing & Merkle trees",
+      "artifactState": "existing",
+      "paths": ["practice/02.merkle.ts", "practice/02.merkle.test.ts"],
+      "verification": {
+        "command": "node --test practice/02.merkle.test.ts",
+        "scope": "Existing four-leaf example and proof for C with changed-value, sibling-direction and reordered-leaf checks; general proofs and input policies remain learner work."
+      },
+      "authoredPath": "scripts/phase01/merkle.ts"
+    },
+    {
+      "key": "sign-recover",
+      "topicTitle": "ECDSA signing, verification & recovery",
+      "artifactState": "existing",
+      "paths": ["practice/sign-recover.ts"],
+      "verification": {
+        "command": "node --test practice/sign-recover.ts",
+        "scope": "Existing recovery, changed-message, EIP-191/raw digest and low-s checks. Does not prove full transaction signing."
+      },
+      "authoredPath": "scripts/phase01/sign-recover.ts"
+    },
+    {
+      "key": "hd-wallet-artifact-note",
+      "topicTitle": "Mnemonics & HD wallets",
+      "artifactState": "existing",
+      "paths": ["contracts/phase01/hd-wallets.md"],
+      "verification": null
+    },
+    {
+      "key": "opcodes-trace",
+      "topicTitle": "Opcodes & the interpreter loop",
+      "artifactState": "planned",
+      "paths": ["contracts/phase01/opcodes.md"],
+      "verification": null
+    }
+  ],
+  "projectPaths": [
+    {
+      "projectId": "wallet-console",
+      "path": "projects/wallet-console",
+      "artifactState": "planned"
+    },
+    { "projectId": "chain-indexer", "path": "projects/chain-indexer", "artifactState": "planned" },
+    {
+      "projectId": "escrow-payments",
+      "path": "projects/escrow-payments",
+      "artifactState": "planned"
+    }
+  ]
+}

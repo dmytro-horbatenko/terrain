@@ -445,10 +445,10 @@
             "options": [
               {
                 "id": "hashing-yellow-paper-conventions",
-                "title": "Ethereum Yellow Paper",
+                "title": "Ethereum Yellow Paper — Shanghai reference",
                 "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
                 "format": "book",
-                "scope": "Section 3 \"Conventions\" (Keccak definitions)",
+                "scope": "Section 3 \"Conventions\" (Keccak definitions, Shanghai version). The paper does not include Cancun or later upgrades; use this section for hashing notation, not current protocol rules.",
                 "estimatedMinutes": 8,
                 "why": "Defines the exact Keccak variant Ethereum denotes as KEC and prevents confusing it with finalized NIST SHA3-256.",
                 "paid": false,
@@ -938,12 +938,12 @@
             "options": [
               {
                 "id": "evm-state-yellow-paper",
-                "title": "Ethereum Yellow Paper",
+                "title": "Ethereum Yellow Paper — Shanghai reference",
                 "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
                 "format": "book",
-                "scope": "Sections 2 \"The Blockchain Paradigm\" and 4.1 \"World State\"",
+                "scope": "Sections 2 \"The Blockchain Paradigm\" and 4.1 \"World State\" (Shanghai version). Cancun and later upgrades are absent. Reconstruct the formal model; check fork-dependent transitions against the matching Ethereum Execution Layer Specifications fork.",
                 "estimatedMinutes": 18,
-                "why": "Provides the primary formal transition function and exact nonce, balance, storage-root, and code-hash account tuple.",
+                "why": "Provides a formal transition model and nonce, balance, storage-root, and code-hash account tuple. For the target network's fork rules, consult https://github.com/ethereum/execution-specs; its default branch may describe a future fork.",
                 "paid": false,
                 "language": "en"
               }
@@ -990,12 +990,12 @@
             "options": [
               {
                 "id": "opcodes-yellow-paper-execution",
-                "title": "Ethereum Yellow Paper",
+                "title": "Ethereum Yellow Paper — Shanghai reference",
                 "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
                 "format": "book",
-                "scope": "Section 9 \"Execution Model\"",
+                "scope": "Section 9 \"Execution Model\" (Shanghai version). Cancun and later upgrades are absent. Use the formal machine-state model, then verify fork-dependent opcodes, gas costs and halting rules against the matching Ethereum Execution Layer Specifications fork.",
                 "estimatedMinutes": 18,
-                "why": "Defines machine state, instruction fetch, stack effects, program-counter updates, gas charging, and exceptional halts at the protocol seam.",
+                "why": "Makes machine state, stack effects, program-counter updates, gas and halts explicit for Shanghai. Check the target fork in https://github.com/ethereum/execution-specs before applying those rules to another network version; do not assume the default branch is mainnet.",
                 "paid": false,
                 "language": "en"
               }
@@ -1096,10 +1096,10 @@
             "options": [
               {
                 "id": "state-trie-yellow-paper",
-                "title": "Ethereum Yellow Paper",
+                "title": "Ethereum Yellow Paper — Shanghai reference",
                 "url": "https://ethereum.github.io/yellowpaper/paper.pdf",
                 "format": "book",
-                "scope": "Sections 4.1 \"World State\" and Appendix D \"Modified Merkle Patricia Tree\"",
+                "scope": "Sections 4.1 \"World State\" and Appendix D \"Modified Merkle Patricia Tree\" (Shanghai version). Cancun and later upgrades are absent. Use these for the trie/account model and verify any fork-dependent state rules separately.",
                 "estimatedMinutes": 18,
                 "why": "Defines the account tuple, storage-root nesting, key hashing, RLP encoding, and the trie root as the formal identity of world state.",
                 "paid": false,

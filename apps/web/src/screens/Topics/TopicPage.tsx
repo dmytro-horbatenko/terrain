@@ -1,9 +1,10 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { TopicDetailPanel } from '../../components/TopicDetailPanel';
 import { useTopic } from '../../api/hooks';
 
 export default function TopicPage() {
   const { topicId } = useParams({ from: '/topics/$topicId' });
+  const { practice } = useSearch({ from: '/topics/$topicId' });
   const topic = useTopic(topicId).data;
   return (
     <article className="page topic-page">
@@ -16,8 +17,14 @@ export default function TopicPage() {
         <a href="#reference">AI reference</a>
         <a href="#session-summary">Session summary</a>
         <a href="#learning-evidence">Evidence</a>
+        <a href="#practice">Practice</a>
       </nav>
-      <TopicDetailPanel key={topicId} topicId={topicId} fullPage />
+      <TopicDetailPanel
+        key={topicId}
+        topicId={topicId}
+        fullPage
+        planSkillCheck={practice === 'plan'}
+      />
     </article>
   );
 }

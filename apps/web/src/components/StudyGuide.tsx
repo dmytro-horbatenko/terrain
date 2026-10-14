@@ -44,6 +44,16 @@ export function StudyGuide() {
           </p>
         </div>
         <div>
+          <b>Continue on another computer</b>
+          <p>
+            Keep code and tests in the same practice repository on each computer. Pull before work,
+            then commit and push even unfinished work before switching. Use a shared topic branch
+            for unfinished changes. In the topic’s Practice section, save the artifact link, actual
+            check result, help used and one next step. Save topic notes to your Terrain account;
+            unsaved tab drafts stay on this device.
+          </p>
+        </div>
+        <div>
           <b>Check independence over time</b>
           <p>
             Use the existing delayed skill checks for a fresh diagnosis, adaptation, comparison or

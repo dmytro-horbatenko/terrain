@@ -138,9 +138,16 @@ export function independentSkillAttempt(plan: SkillCheckPlan, attempt: SkillChec
 /** Shared by topic and product sessions; these are choices, not extra completion gates. */
 export const PRACTICE_CONDUCT = `### Choose practice from the demonstrated gap
 Preserve the chosen guided or source-first approach. After applicable source reconstruction,
-use recorded evidence or, only when needed, a brief diagnostic attempt to choose support for this
-specific mechanism. Do not reteach
-familiar software basics. If the mechanism is unfamiliar, offer a small worked example with
+use recorded evidence first to choose support for this specific mechanism.
+Only when prerequisite evidence is weak or uncertain, offer 1–3 relevant open attempts in total
+for prerequisites needed by today's objective: explain a mechanism, predict a trace or try a small
+change. Wait for the learner's reasoning before showing an answer. Follow-up probes count within
+the same limit. Stop within that budget or sooner when support needs are clear; keep remaining
+uncertainty explicit. One error is not a diagnosis: check whether the task was ambiguous, a slip
+occurred or a model needs repair. Do not re-examine every prerequisite or keep escalating until
+the learner fails. Calibrate support and depth; never skip a topic or mark it complete from these
+probes. Respect the learner's choice to stop or proceed with an explanation.
+Do not reteach familiar software basics. If the mechanism is unfamiliar, offer a small worked example with
 named subgoals; ask why each step exists, then remove selected steps in another example.
 Reduce help as understanding improves, and skip examples when the learner already demonstrates
 the skill. Do not force every stage into one session.
@@ -182,5 +189,9 @@ practice task. Judge the original attempt separately from any corrected answer. 
 the attempt or claim to update Terrain. The learner records the result and reviewer in the app.
 Documentation was allowed only if the plan says documentation. Hints or supplied solutions cannot
 pass an independent check. Feedback after the saved attempt is allowed.
+Tie feedback to a stated criterion and expected versus observed behavior, then offer one useful
+repair. One mistake does not establish a persistent misconception: distinguish an observed error
+from a tentative explanation. If the task, rubric or supplied evidence is ambiguous, withhold a result recommendation
+and request only the missing evidence or clarification; do not turn a faulty question into a learner failure.
 \n${JSON.stringify({ plan: check.plan, attempt: check.attempt }, null, 2)}`;
 }

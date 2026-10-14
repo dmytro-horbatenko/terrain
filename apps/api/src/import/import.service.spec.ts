@@ -525,20 +525,68 @@ describe('ImportService.preview', () => {
     expect(plan.applicable).toBe(true);
   });
 
-  it('compounds two card reviews targeting the SAME promptId sequentially', async () => {
+  it('blocks conflicting grades for one card without choosing a grade or previewing a schedule', async () => {
     const { prisma } = build({ prompt: { findMany: jest.fn().mockResolvedValue([PROMPT()]) } });
     const service = await svc(prisma);
     const raw = fence(
       v2({
         reviews: [
-          { promptId: '11111111-1111-1111-1111-111111111111', grade: 'good' },
-          { promptId: '11111111-1111-1111-1111-111111111111', grade: 'good' },
+          {
+            promptId: '11111111-1111-1111-1111-111111111111',
+            grade: 'again',
+            note: 'The first attempt needed a hint.',
+          },
+          {
+            promptId: '11111111-1111-1111-1111-111111111111',
+            grade: 'good',
+            note: 'Corrected after feedback.',
+          },
         ],
       }),
     );
     const plan = await service.preview('userA', raw);
-    const [r1, r2] = plan.reviews as any[];
-    expect(r2.cardPreview.intervalBefore).toBe(r1.cardPreview.intervalAfter);
+    expect(plan.applicable).toBe(false);
+    expect(plan.unresolved).toEqual([
+      {
+        kind: 'prompt',
+        ref: '11111111-1111-1111-1111-111111111111',
+        reason: 'ambiguous',
+        context: expect.stringMatching(/first attempt.*before help/i),
+      },
+    ]);
+    expect(plan.reviews).toMatchObject([
+      { grade: 'again', note: 'The first attempt needed a hint.' },
+      { grade: 'good', note: 'Corrected after feedback.' },
+    ]);
+    for (const review of plan.reviews) expect(review).not.toHaveProperty('cardPreview');
+  });
+
+  it('also blocks identical repeated grades once per card while preserving unrelated reviews', async () => {
+    const first = PROMPT();
+    const second = PROMPT({ id: '22222222-2222-2222-2222-222222222222' });
+    const { prisma } = build({
+      prompt: { findMany: jest.fn().mockResolvedValue([first, second]) },
+    });
+    const service = await svc(prisma);
+    const repeated = { promptId: first.id, grade: 'good' };
+    const plan = await service.preview(
+      'userA',
+      fence(
+        v2({ reviews: [repeated, repeated, repeated, { promptId: second.id, grade: 'hard' }] }),
+      ),
+    );
+
+    expect(plan.applicable).toBe(false);
+    expect(plan.unresolved).toEqual([
+      expect.objectContaining({ kind: 'prompt', ref: first.id, reason: 'ambiguous' }),
+    ]);
+    expect(plan.reviews).toHaveLength(4);
+    for (const review of plan.reviews.slice(0, 3)) expect(review).not.toHaveProperty('cardPreview');
+    expect(plan.reviews[3]).toMatchObject({
+      promptId: second.id,
+      grade: 'hard',
+      cardPreview: { nextReviewAt: expect.any(Date) },
+    });
   });
 
   it('flags an unresolved promptId as missing (kind prompt, ref = promptId, no title)', async () => {
@@ -1229,6 +1277,36 @@ describe('ImportService.apply (transaction)', () => {
     );
   });
 
+  it('imports the original grade with correction notes once and rejects replaying that session', async () => {
+    const tx = txMock();
+    const session = { id: 'sess-1', importedAt: null as Date | null };
+    tx.sessionExport.updateMany.mockImplementation(({ data }: any) => {
+      session.importedAt = data.importedAt;
+      return Promise.resolve({ count: 1 });
+    });
+    const { prisma } = build({
+      sessionExport: { findFirst: jest.fn(async () => ({ ...session })) },
+      prompt: { findMany: jest.fn().mockResolvedValue([PROMPT()]) },
+      $transaction: jest.fn((callback: any) => callback(tx)),
+    });
+    const service = await svcWithTx(prisma);
+    const note = 'First attempt needed help. After feedback, reconstructed the missing step.';
+    const raw = fence(v2({ reviews: [{ promptId: PROMPT().id, grade: 'again', note }] }));
+
+    await expect(service.apply('userA', raw)).resolves.toMatchObject({ reviewsApplied: 1 });
+    expect(tx.review.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ promptId: PROMPT().id, grade: 'again', note }),
+    });
+    await expect(service.preview('userA', raw)).resolves.toMatchObject({
+      alreadyImported: true,
+      applicable: false,
+    });
+    await expect(service.apply('userA', raw)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(tx.review.create).toHaveBeenCalledTimes(1);
+    expect(tx.prompt.update).toHaveBeenCalledTimes(1);
+  });
+
   it('recomputes a topic due date ONCE even when two card reviews target different prompts on the same topic', async () => {
     const tx = txMock();
     const prisma: any = {
@@ -1820,6 +1898,40 @@ describe('ImportService.apply (transaction)', () => {
 });
 
 describe('ImportService.apply guards (no writes on reject)', () => {
+  it('rejects duplicate card grades on direct apply before claiming the session or writing any data', async () => {
+    const transaction = jest.fn();
+    const prompt = PROMPT();
+    const { prisma } = build({
+      prompt: { findMany: jest.fn().mockResolvedValue([prompt]) },
+      $transaction: transaction,
+    });
+    const service = await svc(prisma);
+    const raw = fence(
+      v2({
+        reviews: [
+          { promptId: prompt.id, grade: 'again' },
+          { promptId: prompt.id, topicTitle: 'Stacks', grade: 'good' },
+        ],
+        noteSummaries: [{ topicTitle: 'Stacks', keyInsight: 'Corrected after a hint.' }],
+      }),
+    );
+
+    await expect(service.apply('userA', raw)).rejects.toMatchObject({
+      response: {
+        unresolved: [
+          {
+            kind: 'prompt',
+            ref: prompt.id,
+            reason: 'ambiguous',
+            context: expect.stringMatching(/first attempt.*before help/i),
+          },
+        ],
+      },
+      status: 422,
+    });
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
   it('throws 409 and does not open a transaction when already imported', async () => {
     const tx = jest.fn();
     const prisma: any = {
