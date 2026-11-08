@@ -48,20 +48,47 @@ objective and 15 minutes to consolidate. Do not clear the entire backlog before
 learning. A third available hour is optional capacity. Slow new card activation
 if reviews repeatedly exceed the time you want to spend.
 
-## A flexible 15-hour week
+## Two tracks (revision 2026-11-08)
+
+The complete roadmap stays; no topic is skipped or shortened. What changes is
+that executable topics run in parallel with theory instead of after it, and
+each topic's artifact matches its nature. Every week ends with at least one new
+contract or script in the practice repository that has a test, a boundary case
+and a revert path. See the
+[tutor review](../reviews/2026-11-08-web3-tutor-review.md) for the reasoning.
+
+- **Build track (primary).** Phase 2 Solidity and Phase 3 Foundry leaves in
+  authored order, starting with Foundry project anatomy and Value types. Each
+  leaf is one bounded lab: predict → run → explain, failing test first, one
+  boundary case, one revert path, one sentence of threat model, pinned
+  compiler/EVM versions, one production implementation read. Socratic
+  throughout; as many sessions as the mechanism needs.
+- **Explainer track.** The remaining Phase 1 consensus, L2, account-abstraction
+  and protocol-state leaves, marked `Form: explainer` in their Build line:
+  source, Socratic teach-back of the mechanism and its assumptions, a
+  derivation where there is one, one failure case or tradeoff, one real-chain
+  observation, cards as needed, a note. Full depth; only the repository
+  artifact, checkpoint and skill check are not required.
+- **Product track.** W1 read-only wallet; rebuild the raw-RPC client as its RPC
+  module rather than as a separate recovery lab. Mini-EVM, RLP and HD rebuilds
+  stay in the Practice Revisit queue; take one when a current mechanism needs it.
+
+## A week at 2–3 hours a day (15–20 hours)
 
 | Activity | Hours |
 |---|---:|
-| Deep Web3 study and focused labs | 6 |
-| One project milestone | 4 |
-| Bounded recall | 1.5 |
-| DSA or the current foundation track | 1.5 |
-| Delayed independent check and weekly review | 1 |
-| Note consolidation and connections | 1 |
+| Three build sessions (Solidity / Foundry leaf with tests) | 6 |
+| One product session | 2 |
+| Explainer-form sessions (Phase 1 theory, full depth) | 3 |
+| Daily bounded recall | 1.5 |
+| One delayed skill check or deliberate variant | 0.5 |
+| Notes, drawings, checkpoints and import admin | 2 |
+| Reading production code or one audit report | 1 |
+| Buffer, DSA or recovery | 2 |
 
-Adjust these allocations to actual time and difficulty. A substantial foundation
-block replaces some Web3 or project time; it does not add a second full workload.
-You do not need to touch every activity every day.
+Adjust these allocations to actual time and difficulty. If sessions are being
+consumed by admin rather than by mechanisms, cut admin (batch imports, shorter
+checkpoints), never depth. You do not need to touch every activity every day.
 
 ## Evidence and continuation
 
@@ -118,20 +145,21 @@ whose default branch may describe a future fork. This scope was checked on
 2026-10-14 against the [Yellow Paper repository notice](https://github.com/ethereum/yellowpaper#repository-currently-outdated)
 and the [PDF's version heading](https://ethereum.github.io/yellowpaper/paper.pdf).
 
-## Four starting weeks
+## Twelve-week checkpoints
 
-These are focus windows, not completion deadlines. Continue a difficult topic
-when it needs more time instead of adding simultaneous work.
+These are pace checks, not deadlines. Continue a difficult topic when it needs
+more time instead of adding simultaneous work. All evidence is observable in
+the practice repository.
 
-- **Week 1:** continue the current foundation objective, take the pending delayed
-  check without rehearsing its answer, select your study timezone, and consolidate
-  one canonical Terrain note. Keep the review slice bounded.
-- **Week 2:** begin or continue wallet milestone W1 when its readiness conditions
-  hold. Keep the deep-study track, record a design choice and a failing case, and
-  run checks on the actual artifact. Never mark unrelated chapters learned to
-  bypass a dependency.
-- **Week 3:** resume from saved evidence, attempt one changed case independently,
-  and continue the same milestone. Add a small DSA foundation block within the
-  existing time budget.
-- **Week 4:** inspect actual time, note usefulness and recurring misconceptions.
-  Re-estimate the next milestone and adjust workload, source depth or scope.
+- **Week 1:** upgrade the practice repository toolchain on every computer and
+  CI together; write the first Phase 2 contract with a Foundry test; start one
+  explainer-form Phase 1 leaf. Fill in the Settings profile fields.
+- **Week 4:** Phase 2 "Types & data locations" and "Functions" chapters done
+  with about ten tested contracts; four explainer-form leaves done; one delayed
+  skill check attempted on a changed case.
+- **Week 8:** ERC-20 written from scratch with a fuzz test; first reentrancy
+  exploit and fix; Phase 1 explainer-form leaves finished; W1 wallet reads a balance
+  with distinct loading, empty and failed states.
+- **Week 12:** Phase 2 complete; first three Ethernaut levels solved in Foundry
+  with written explanations; re-estimate the pace and decide how much time
+  Phase 3 depth versus Phase 4 standards should take.

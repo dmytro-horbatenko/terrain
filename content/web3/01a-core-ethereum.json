@@ -272,7 +272,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Gas prices execution; EIP-1559 splits the price into a burned base fee (set by protocol from block fullness) and a priority tip to the proposer. Under-pricing the max fee means the tx stalls.",
-      "aiContext": "Build: read a recent block's base fee via `cast base-fee`; in contracts/phase01/gas.md work a numeric example where effectiveTip = min(maxPriorityFeePerGas, maxFeePerGas - baseFee) and total cost = gasUsed × (baseFee + effectiveTip). Done when: you can predict whether a tx with a given maxFeePerGas is valid at a known base fee and what effective tip it pays.",
+      "aiContext": "Form: build. Build: in scripts/phase01/fee-market.ts (or a Foundry test), implement effectiveTip = min(maxPriorityFeePerGas, maxFeePerGas - baseFee) and total cost = gasUsed × (baseFee + effectiveTip); feed it three real receipts from `cast receipt <hash> --json` plus each block's baseFeePerGas and assert the result equals gasUsed × effectiveGasPrice. Then on anvil send a transaction whose maxFeePerGas is below the current base fee (`cast base-fee`), predicting the exact outcome first, and record the node's rejection. Done when: the function reproduces effectiveGasPrice for three real transactions, the underpriced-transaction prediction matched, and you can predict whether a tx with a given maxFeePerGas is valid at a known base fee and what effective tip it pays.",
       "prerequisiteTitles": ["Transaction anatomy"],
       "parentTitle": "Accounts, transactions & gas",
       "sourcePlan": {
@@ -324,7 +324,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The EVM's working areas differ in lifetime, mutability, addressing, and cost: the stack is a 1024-word operand workspace, memory is byte-addressed and expansion-priced, storage is persistent 32-byte-slot state, and calldata is immutable call input that can avoid memory copies. Choosing the wrong location is a root of both bugs and gas waste.",
-      "aiContext": "Build: in contracts/phase01/data-locations.md, tabulate the four locations by lifetime, addressing, and gas cost, with one example use of each. Done when: you can say why a function argument marked `calldata` is cheaper than `memory` for a read-only array.",
+      "aiContext": "Form: build. Build: write contracts/phase01/DataLocations.sol with (a) two functions that sum a uint256[] taken as calldata versus memory, (b) one function that mutates a memory copy of a storage array and one that mutates a storage reference, and (c) a function that copies a storage struct to memory and edits it. In test/phase01/DataLocations.t.sol, predict before running which caller-visible state changes in each case and which sum function is cheaper and roughly by how much; then assert the alias-versus-copy behaviour and compare with `forge test --gas-report`. Record compiler and EVM versions in the test comments. Done when: tests prove alias versus copy for each pair, the gas report confirms the calldata saving you predicted, and you can say why a function argument marked `calldata` is cheaper than `memory` for a read-only array.",
       "prerequisiteTitles": [],
       "parentTitle": "EVM execution model",
       "sourcePlan": {
@@ -761,7 +761,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "An EOA has a monotonically increasing account nonce used as a sequence counter. A normal sender transaction is valid only at the account's exact next nonce, which forces ordering and blocks replay after inclusion. EIP-155 folds chainId into legacy transaction signatures so a mainnet transaction cannot be replayed unchanged on another chain.",
-      "aiContext": "Build: send two txs from an anvil account, then in contracts/phase01/nonce.md show their nonces and explain what happens if you broadcast nonce 5 before nonce 4. Done when: you can explain why a gapped-nonce tx sits pending and why EIP-155 stops cross-chain replay.",
+      "aiContext": "Form: build. Build: start `anvil --no-mining`; from one account send nonce 5 before nonce 4 with `cast send --nonce`, predict which transaction is pending and which is queued, then inspect `cast rpc txpool_content`; send nonce 4, mine with `cast rpc anvil_mine`, and confirm both are included in order. Then republish an already-mined raw transaction with `cast publish`, and publish a raw transaction built with `cast mktx` for another chain id, predicting each error before running. Record commands, predictions and observed responses in scripts/phase01/nonce-replay.md or a small script with assertions. Done when: your predictions for queued versus pending and for both replay rejections matched, and you can explain why a gapped-nonce tx sits pending and why EIP-155 stops cross-chain replay.",
       "prerequisiteTitles": ["Transaction anatomy"],
       "parentTitle": "Accounts, transactions & gas",
       "sourcePlan": {
@@ -957,7 +957,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "EVM bytecode is a sequence of 1-byte opcodes run in a fetch-decode-execute loop over a program counter, a 1024-slot stack, and gas. Each opcode (ADD, SLOAD, CALL, …) has a specified stack effect and gas rule, with many costs depending on memory growth or execution context; the loop halts on STOP/RETURN/REVERT or exceptional failure. evm.codes is the interactive playground used in the Build.",
-      "aiContext": "Build: on evm.codes, step through `PUSH1 0x02 PUSH1 0x03 ADD` and record the stack after each opcode in contracts/phase01/opcodes.md. Done when: you can trace stack depth and gas for a 3–4 opcode program by hand.",
+      "aiContext": "Form: build. Build: hand-assemble `PUSH1 0x02 PUSH1 0x03 ADD PUSH1 0x00 MSTORE PUSH1 0x20 PUSH1 0x00 RETURN` into bytecode and, before running, write the expected stack, memory word and cumulative gas after each opcode in contracts/phase01/opcodes.md. Place the bytecode at an address with `vm.etch` in test/phase01/Opcodes.t.sol and call it (or use the evm.codes playground), then compare your table against the step view of `forge test --debug` or evm.codes; fix any wrong prediction and explain its cause. Done when: your predicted stack depth, memory and gas per step match the observed trace, the returned word is 0x05, and you can trace stack depth and gas for a 3–4 opcode program by hand.",
       "prerequisiteTitles": ["Stack / memory / storage / calldata"],
       "parentTitle": "EVM execution model",
       "sourcePlan": {
@@ -1009,7 +1009,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Contract storage is a 2^256 mapping of 32-byte slots. The compiler lays out state variables sequentially from slot 0 (packing small vars together); mappings and dynamic arrays hash the key or base slot to find their location. Any slot is publicly readable, bypassing getters and `private`.",
-      "aiContext": "Build: deploy a small contract on anvil, then read a slot with `cast storage <addr> <slot>`; in contracts/phase01/storage-slots.md map two state variables to their slots. Done when: for a value-type key you can compute a mapping entry slot as keccak256(abi.encode(key, declaredSlot)).",
+      "aiContext": "Form: build. Build: write contracts/phase01/StorageLayout.sol with uint128 a, uint128 b, uint256 c, mapping(address => uint256) m and uint256[] arr, set in the constructor. In test/phase01/StorageLayout.t.sol predict, before reading, the slot and raw 32-byte word of each variable: a and b packed in slot 0, c in slot 1, m[key] at keccak256(abi.encode(key, 2)) (compare with `cast index address <key> 2`), arr.length in slot 3 and arr[0] at keccak256(3). Read them with vm.load (or deploy on anvil and use `cast storage <addr> <slot>`), assert every prediction, and compare your table with `forge inspect StorageLayout storage-layout`. Done when: forge test proves every predicted slot and value, including one wrong prediction you corrected, and for a value-type key you can compute a mapping entry slot as keccak256(abi.encode(key, declaredSlot)).",
       "prerequisiteTitles": ["Stack / memory / storage / calldata"],
       "parentTitle": "EVM execution model",
       "sourcePlan": {
@@ -1063,7 +1063,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Ethereum's world state lives in a Merkle Patricia Trie keyed by account address; each account's storage is itself a trie. To verify a storage slot from stateRoot, first verify the account proof to obtain that account's storageRoot, then verify the storage-trie proof along the key's hashed-nibble path — the basis for verifying data a client did not compute.",
-      "aiContext": "Build: in contracts/phase01/state-trie.md, explain how stateRoot in the block header lets a light client verify an account balance it didn't compute. Done when: you can describe what a Merkle proof against the state root contains and why it is tamper-evident.",
+      "aiContext": "Form: build. Build: in scripts/phase01/state-proof.ts, fetch eth_getProof for one account at a fixed block from a public RPC (`cast proof <address> --block <n>` returns the same data) and verify the account proof yourself against that block's stateRoot: keccak each RLP node, walk the nibble path of keccak256(address), and RLP-decode the leaf into nonce, balance, storageRoot and codeHash; then flip one byte of a proof node and assert verification fails. A maintained RLP decoder is allowed; the hashing and path checks are yours. Done when: assertions show the proof verifies against the header's stateRoot and a tampered proof fails, and you can describe what a Merkle proof against the state root contains, why it is tamper-evident, and what a light client must trust (the header) versus verify (the proof).",
       "prerequisiteTitles": ["The EVM as a state machine"],
       "parentTitle": "EVM execution model",
       "sourcePlan": {

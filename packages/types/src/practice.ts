@@ -149,6 +149,10 @@ Agree on observable acceptance checks, one boundary case and one failure case be
 Use documentation and small examples when needed; reduce assistance as the learner improves.
 Stay within the authored topic scope and source requirements. Do not skip unfinished roadmap topics.
 Prefer a runnable experiment over another prose-only note. Reuse the learner's practice repository.
+Predict → run → explain: the learner states the expected behaviour (and gas or storage effect where relevant)
+before running; run with pinned compiler and EVM versions; the learner explains any discrepancy.
+Each artifact gets a failing test first, one boundary case, one revert or failure path and one threat-model
+sentence (who may call it, what breaks if they lie). Read one production implementation before a second explanation.
 Save partial progress at a natural stopping point: code path, exact version, command, observed result,
 help used, explanation and the next concrete action. Never invent a file, test result or independent attempt.
 Keep code in version control and a remote backup. Terrain stores references, not the source files.

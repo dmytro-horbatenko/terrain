@@ -40,7 +40,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Post-Merge Ethereum secures itself with validators whose activation minimum is 32 ETH. One proposer is pseudo-randomly selected for each 12-second slot, while committees attest and every active validator attests once per 32-slot epoch. Honest participation earns rewards; equivocation can be slashed and downtime is penalized. Economic stake, not hashpower, backs finality.",
-      "aiContext": "Build: in contracts/phase01/pos-basics.md, explain validators, attestations, and finality in your own words with the 32-ETH activation minimum and slot/epoch timing. Done when: you can describe how a block gets attested and roughly when it finalizes.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/pos-basics.md, explain validators, attestations, and finality in your own words with the 32-ETH activation minimum and slot/epoch timing. Observation (10 min): on beaconcha.in record the current slot, epoch and last finalized epoch; check that slot ÷ 32 gives the epoch and that the head is about two epochs past finality. Done when: you can describe how a block gets attested and roughly when it finalizes, and your recorded numbers agree with 12-second slots and 32-slot epochs.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -86,7 +86,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "The Merge (Sept 2022) swapped PoW for PoS, cutting new-ETH issuance by roughly 90% because there are no miner block rewards, only validator rewards. Combined with the EIP-1559 base-fee burn, net issuance can go negative under load ('ultrasound money').",
-      "aiContext": "Build: in contracts/phase01/the-merge.md, write a one-paragraph before/after comparison of issuance (PoW miner rewards vs PoS validator rewards) and note the burn's effect. Done when: you can explain why net ETH supply can shrink post-Merge and why the Merge did not change gas fees or throughput.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/the-merge.md, write a one-paragraph before/after comparison of issuance (PoW miner rewards vs PoS validator rewards) and note the burn's effect. Observation (10 min): record one day's issuance and burn from ultrasound.money, compute the net supply change yourself, and note roughly which base-fee level would make it zero. Done when: you can explain why net ETH supply can shrink post-Merge and why the Merge did not change gas fees or throughput.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -136,7 +136,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Ethereum's consensus layer coordinates validators. Slashing punishes provable equivocation — a double proposal, double vote, or surround vote — by burning stake and ejecting the validator. Ordinary downtime loses rewards and incurs offline penalties; the stronger inactivity leak activates when the chain has failed to finalize. This makes attacks financially self-punishing.",
-      "aiContext": "Build: in contracts/phase01/slashing.md, list the three slashable conditions and contrast ordinary offline penalties with the inactivity leak. Done when: you can explain why running one validator key on two machines risks slashing.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/slashing.md, list the three slashable conditions and contrast ordinary offline penalties with the inactivity leak. Observation (10 min): open the slashings list on beaconcha.in, pick one real event, and classify which condition it violated and what penalty followed. Done when: you can explain why running one validator key on two machines risks slashing.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -182,7 +182,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Gasper combines Casper FFG (finality) with LMD-GHOST (fork choice). Fork choice picks the head by heaviest attestation weight each slot; FFG then justifies and finalizes checkpoints every epoch. Once finalized, reverting a block would require slashing at least one-third of all staked ETH.",
-      "aiContext": "Build: in contracts/phase01/finality.md, explain the difference between a block being 'head', 'justified', and 'finalized', with the ~2-epoch timing. Done when: you can state the cost, in stake, of reverting a finalized block.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/finality.md, explain the difference between a block being 'head', 'justified', and 'finalized', with the ~2-epoch timing. Observation (10 min): run `cast block finalized --field number` and `cast block latest --field number` against a public RPC, convert the gap into slots and minutes, and compare with the justified and finalized epochs on beaconcha.in. Done when: you can state the cost, in stake, of reverting a finalized block.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -228,7 +228,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Rollups execute transactions off-L1 and post data plus a state commitment back to Ethereum for security. Optimistic rollups assume validity and allow a fraud-proof challenge window, which commonly delays canonical-bridge withdrawals for days. ZK rollups post a validity proof verified on L1, avoiding that fraud-challenge window while still waiting for proof submission and L1 finality.",
-      "aiContext": "Build: in contracts/phase01/rollups.md, make a table comparing optimistic vs ZK rollups on proof type, withdrawal latency, and trust assumptions. Done when: you can explain why an optimistic-rollup withdrawal takes ~7 days but a ZK one need not.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/rollups.md, make a table comparing optimistic vs ZK rollups on proof type, withdrawal latency, and trust assumptions. Observation (10 min): on l2beat.com open one optimistic and one ZK rollup and copy their proof system, challenge or proving window, and documented withdrawal delay into the table. Done when: you can explain why an optimistic-rollup withdrawal takes ~7 days but a ZK one need not.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -278,7 +278,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "EIP-4844 (proto-danksharding) added blob-carrying transactions: ~128 KiB data chunks committed to by a transaction, kept by Ethereum's consensus data-availability layer for a limited retention window, and priced in a separate blob-gas market. Rollups post data as blobs instead of permanent calldata, substantially reducing data-posting costs without bloating execution state forever.",
-      "aiContext": "Build: in contracts/phase01/blobs.md, explain what a blob is, why it is cheaper than calldata, and why it is ephemeral. Done when: you can say why L2 fees dropped sharply after 4844 and why blobs don't bloat state forever.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/blobs.md, explain what a blob is, why it is cheaper than calldata, and why it is ephemeral. Observation (10 min): read blobGasUsed and excessBlobGas from `cast block latest --json`, compute the blob base fee with the EIP-4844 fake-exponential formula, and compare it with a blob explorer and with the block's regular base fee per byte. Done when: you can say why L2 fees dropped sharply after 4844 and why blobs don't bloat state forever.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -324,7 +324,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Not all 'L2s' inherit Ethereum security equally. L2Beat's changing Stage 0/1/2 framework tracks rollup maturity through proof, data-availability, exit, upgrade, and Security Council conditions. It is an opinionated decentralization framework, not an overall security score, and teaches you to inspect claims instead of trusting marketing.",
-      "aiContext": "Build: on l2beat.com pick three L2s and record each one's stage (0/1/2) and the main risk that caps it, in contracts/phase01/l2beat.md. Done when: you can explain what separates a Stage 0 from a Stage 1 rollup.",
+      "aiContext": "Form: explainer. Build: on l2beat.com pick three L2s and record each one's stage (0/1/2) and the main risk that caps it, in contracts/phase01/l2beat.md; for one of them also record who can upgrade the contracts and the upgrade delay. Done when: you can explain what separates a Stage 0 from a Stage 1 rollup.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -374,7 +374,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Most rollups run a single sequencer that orders L2 transactions and gives fast soft-confirmations; a batcher then posts compressed transaction data to L1. A sequencer alone cannot authorize invalid state when the proof system and L1 contracts work, but it can censor or reorder, which is why L1 forced-inclusion escape hatches and sequencer decentralization matter.",
-      "aiContext": "Build: in contracts/phase01/sequencers.md, diagram user → sequencer → batcher → L1 and mark where censorship and MEV can occur. Done when: you can explain what a forced-inclusion mechanism protects against.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/sequencers.md, diagram user → sequencer → batcher → L1 and mark where censorship and MEV can occur. Observation (10 min): find one OP Stack chain's batch inbox address on L2Beat, open a recent batcher transaction on an L1 explorer, and record whether it carried blobs or calldata and how often batches land. Done when: you can explain what a forced-inclusion mechanism protects against.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -424,7 +424,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "ERC-4337 brings smart-contract wallets without a consensus change: users sign UserOperations that bundlers collect, apply view/trace simulation to, and submit through handleOps(PackedUserOperation[]) to a supported versioned EntryPoint singleton. The EntryPoint validates and executes each operation against the user's wallet; an optional paymaster can sponsor gas. This unlocks social recovery, batching, and gasless UX.",
-      "aiContext": "Build: in contracts/phase01/erc4337.md, draw UserOperation → bundler (view/trace simulation) → handleOps(PackedUserOperation[]) → versioned EntryPoint singleton → wallet (→ paymaster). Done when: you can name each actor's job and explain why clients must support the deployed EntryPoint version rather than assume one permanent singleton.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/erc4337.md, draw UserOperation → bundler (view/trace simulation) → handleOps(PackedUserOperation[]) → versioned EntryPoint singleton → wallet (→ paymaster). Observation (10 min): open one recent handleOps transaction to the current EntryPoint (address from the eth-infinitism account-abstraction repository) on an explorer, read its UserOperationEvent logs, and record sender, paymaster, success and actualGasCost. Done when: you can name each actor's job and explain why clients must support the deployed EntryPoint version rather than assume one permanent singleton.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -472,7 +472,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "EIP-7702 (Pectra) lets an EOA authorize a persistent delegation indicator that points to deployed contract code, so the same address can gain smart-account features such as batching, sponsorship, and session keys. A later authorization can replace or clear the delegation; the EOA key retains ultimate control.",
-      "aiContext": "Build: in contracts/phase01/eip7702.md, explain what a 7702 delegation authorization does and contrast it with a 4337 smart wallet. Done when: you can say why 7702 keeps your existing address while adding contract behavior.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/eip7702.md, explain what a 7702 delegation authorization does and contrast it with a 4337 smart wallet. Observation (10 min): find a type-4 transaction on an explorer, run `cast code <sender>` on its EOA, and decode the 23-byte 0xef0100‖address designator into the delegate address; check that `cast nonce` and the balance still belong to the EOA. Done when: you can say why 7702 keeps your existing address while adding contract behavior.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -520,7 +520,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "A bundler is the ERC-4337 actor that pays transaction gas to submit a bundle of UserOperations and is reimbursed from each operation's prefund through the EntryPoint, including its fee. To avoid loss, bundlers simulate validation and reject operations that would revert or grief them, which is why the 4337 mempool enforces ERC-7562 validation and storage-access rules.",
-      "aiContext": "Build: in contracts/phase01/bundler-economics.md, explain how a bundler is reimbursed and why it must simulate before including a UserOp. Done when: you can describe the griefing risk a bundler avoids by simulating.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/bundler-economics.md, explain how a bundler is reimbursed and why it must simulate before including a UserOp. Observation (10 min): for one real handleOps receipt, sum actualGasCost over its UserOperationEvent logs and compare with the gasUsed × effectiveGasPrice the bundler paid; record the margin or loss. Done when: you can describe the griefing risk a bundler avoids by simulating.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -570,7 +570,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "A paymaster is a contract that agrees to pay a UserOperation's gas, enabling sponsored onboarding or ERC-20-denominated fees. Its EntryPoint deposit pays gas; a separate locked stake may be required when validation accesses shared state. The paymaster validates whom to sponsor, and weak replay, quota, or cost checks can drain its deposit.",
-      "aiContext": "Build: in contracts/phase01/paymasters.md, explain the two common paymaster modes (sponsor-all vs pay-in-ERC20) and the deposit it posts to the EntryPoint. Done when: you can name one way a naive paymaster can be drained.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/paymasters.md, explain the two common paymaster modes (sponsor-all vs pay-in-ERC20) and the deposit it posts to the EntryPoint. Observation (10 min): take the paymaster address from a real UserOperationEvent and read its deposit with `cast call <EntryPoint> \"balanceOf(address)(uint256)\" <paymaster>`; note how many such operations that deposit could sponsor at the observed actualGasCost. Done when: you can name one way a naive paymaster can be drained.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -638,7 +638,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Pectra activated in May 2025 with EIP-7702 EOA delegation, EIP-7251 validator consolidation, higher blob targets, and other changes. Fusaka activated in December 2025 with PeerDAS (EIP-7594), blob-parameter-only forks, and L1 scaling and hardening changes. Tracking shipped forks from post-activation sources keeps your mental model current.",
-      "aiContext": "Build: in contracts/phase01/forks.md, list what Pectra (May 2025) and Fusaka (December 2025) each shipped in a short table. Done when: you can name one user-facing change from Pectra and one scaling change from Fusaka.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/forks.md, list what Pectra (May 2025) and Fusaka (December 2025) each shipped in a short table. Observation (10 min): with `cast tx <hash> --json`, inspect one type-4 (7702) and one type-3 (blob) transaction and record the field that identifies each; compare the current block gas limit with the Fusaka per-transaction gas cap (EIP-7825). Done when: you can name one user-facing change from Pectra and one scaling change from Fusaka.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -688,7 +688,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "Vitalik's 2023–24 roadmap taxonomy grouped work into the Merge (PoS), Surge (rollup/DA scaling), Scourge (MEV and censorship resistance), Verge (resource-light verification), Purge (protocol simplification), and Splurge (miscellaneous improvements). It remains useful vocabulary, but the current ethereum.org roadmap is organized by shipped/upcoming forks and Ethereum Foundation Protocol work uses Scale, Improve UX, and Harden the L1.",
-      "aiContext": "Build: in contracts/phase01/roadmap.md, list the classic roadmap tracks, place EIP-4844 and EIP-7702 onto them, then note the three 2026 Protocol workstreams. Done when: you can distinguish the classic conceptual taxonomy from current fork and workstream tracking.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/roadmap.md, list the classic roadmap tracks, place EIP-4844 and EIP-7702 onto them, then note the three 2026 Protocol workstreams. Observation (10 min): from the current fork meta-EIP (Glamsterdam at the time of writing), pick two EIPs marked scheduled for inclusion and place them on the classic tracks, noting the mainnet date if one is set. Done when: you can distinguish the classic conceptual taxonomy from current fork and workstream tracking.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [
@@ -816,7 +816,7 @@
       "type": "pattern",
       "domain": "Web3",
       "description": "EIP-7251 (Pectra) raised the maximum effective balance to 2048 ETH for validators using compounding withdrawal credentials and added in-protocol consolidation, while preserving the 32-ETH activation minimum. Fewer validator indices can mean less attestation and aggregation overhead and simpler operations for large stakers.",
-      "aiContext": "Build: in contracts/phase01/maxeb.md, explain what MaxEB changes for a large staker and what stays the same for a solo 32-ETH validator. Done when: you can state why consolidation reduces beacon-chain message load.",
+      "aiContext": "Form: explainer. Build: in contracts/phase01/maxeb.md, explain what MaxEB changes for a large staker and what stays the same for a solo 32-ETH validator. Observation (10 min): find one validator on beaconcha.in with an effective balance above 32 ETH and compute how many 32-ETH validators it replaced and how many attestations per epoch that saves. Done when: you can state why consolidation reduces beacon-chain message load.",
       "sourcePlan": {
         "policy": "required",
         "requirements": [

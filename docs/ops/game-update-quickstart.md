@@ -14,7 +14,7 @@ architecture with `ssh game uname -m`: choose `linux/amd64` for `x86_64` or
 `linux/arm64` for `aarch64`. Run each command separately and stop if it fails.
 
 ```sh
-cd /Users/dmitrijgorbatenko/personal/consistency
+cd /Users/dmytrohorbatenko/personal/terrain
 tag=$(git rev-parse --short HEAD)
 platform=linux/amd64 # change if game reports aarch64
 docker buildx build --platform "$platform" --load -t "terrain-api:$tag" -f apps/api/Dockerfile .
