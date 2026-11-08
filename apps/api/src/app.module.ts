@@ -17,6 +17,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { CoursesModule } from './courses/courses.module';
 import { LearningModule } from './learning/learning.module';
 import { McpModule } from './mcp/mcp.module';
+import { PracticeModule } from './practice/practice.module';
 import { ProjectsModule } from './projects/projects.module';
 import { SkillChecksModule } from './skill-checks/skill-checks.module';
 
@@ -43,6 +44,7 @@ import { SkillChecksModule } from './skill-checks/skill-checks.module';
     LearningModule,
     McpModule,
     ProjectsModule,
+    PracticeModule,
     SkillChecksModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

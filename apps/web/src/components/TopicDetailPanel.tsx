@@ -560,6 +560,9 @@ export function TopicDetailPanel({
       )}
 
       <section id="practice" className="col gap-3" aria-label="Practice and independent checks">
+        <Link className="btn" to="/practice/$topicId" params={{ topicId: t.id }}>
+          Open implementation workspace
+        </Link>
         <AppEventsPanel key={`practice-${t.id}`} topicId={t.id} events={t.appEvents} />
         <SkillChecksPanel
           key={t.id}

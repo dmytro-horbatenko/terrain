@@ -1,0 +1,49 @@
+.practice-page {
+  max-width: 1000px;
+}
+.practice-lesson {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.practice-lesson > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.practice-lesson b {
+  overflow-wrap: anywhere;
+}
+.practice-lesson > span:last-child {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.practice-pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  font-size: 13px;
+}
+.practice-page textarea {
+  width: 100%;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.practice-page details {
+  margin-top: 16px;
+}
+.practice-page summary {
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .practice-lesson {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+}

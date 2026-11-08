@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { skillCheckEvidenceSchema } from './skill-checks';
+export * from './practice';
+import { savedPracticeSchema } from './practice';
 export * from './projects';
 export * from './skill-checks';
 export * from './note-review';
@@ -269,6 +271,7 @@ export const learningContextSchema = z
               .strict(),
           )
           .optional(),
+        practice: savedPracticeSchema.nullable().optional(),
         continuation: z
           .object({
             sessionId: z.string().uuid(),

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 import type {
+  PracticeCheckpointInput,
   ProjectCheckpointInput,
   SkillCheckPlan,
   SkillCheckAttempt,
@@ -23,6 +24,7 @@ import type {
 } from './types';
 
 export const qk = {
+  practice: ['practice'] as const,
   skillChecks: ['skill-checks'] as const,
   projects: ['projects'] as const,
   topics: ['topics'] as const,
@@ -50,6 +52,24 @@ export const qk = {
 };
 
 // ---- queries ----
+export function usePractice() {
+  return useQuery({ queryKey: qk.practice, queryFn: api.getPractice, retry: false });
+}
+export function useSavePractice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PracticeCheckpointInput) => api.savePractice(input),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: qk.practice }),
+        qc.invalidateQueries({ queryKey: ['learning-context'] }),
+      ]),
+    onError: (error) => {
+      if ('status' in error && error.status === 409)
+        void qc.invalidateQueries({ queryKey: qk.practice });
+    },
+  });
+}
 
 export function useSkillChecks() {
   return useQuery({
@@ -278,6 +298,7 @@ function useInvalidateAll() {
   const qc = useQueryClient();
   return (topicId?: string) =>
     Promise.all([
+      qc.invalidateQueries({ queryKey: qk.practice }),
       qc.invalidateQueries({ queryKey: qk.topics }),
       qc.invalidateQueries({ queryKey: ['topic-search'] }),
       qc.invalidateQueries({ queryKey: qk.recentNotes }),

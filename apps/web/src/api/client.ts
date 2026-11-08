@@ -39,6 +39,9 @@ import type {
   UpdateTopicNotesInput,
 } from './types';
 import type {
+  PracticeCheckpointInput,
+  PracticeOverview,
+  SavedPractice,
   ProjectCheckpointInput,
   ProjectProgress,
   SkillCheckPlan,
@@ -96,6 +99,11 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) });
 
 export const api = {
+  getPractice: () => req<PracticeOverview>('/practice'),
+  getPracticeHistory: (topicId: string) =>
+    req<SavedPractice[]>(`/practice/${encodeURIComponent(topicId)}/history`),
+  savePractice: (input: PracticeCheckpointInput) =>
+    req<{ alreadySaved: boolean }>('/practice/checkpoints', { method: 'POST', ...json(input) }),
   getSkillChecks: () => req<SkillCheckList>('/skill-checks'),
   createSkillCheck: (input: SkillCheckPlan) =>
     req<{ alreadySaved: boolean }>('/skill-checks', { method: 'POST', ...json(input) }),

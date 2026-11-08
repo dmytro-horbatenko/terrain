@@ -194,6 +194,12 @@ Check the recorded work briefly, then use this task to resume or calibrate. A sa
     const studyEvidence = `## RECORDED STUDY EVIDENCE
 Past work is context, not proof of present recall. Do not resubmit recorded evidence as new work.
 ${
+  target.practice
+    ? `Saved practice checkpoint (learner-recorded, not independent verification): ${JSON.stringify(target.practice)}
+Resume the recorded next action; inspect actual code and observed checks before claiming success. Preserve the Practice record separately from learning-os output.`
+    : 'No structured practice checkpoint is recorded. At a natural stopping point, save code path, version, command, observed result and next action in Practice. Start the application with one bounded implementation attempt; agree on acceptance checks, a boundary case and a failure case. The learner writes the core mechanism. Use theory and source reconstruction to resolve the demonstrated gap. Do not equate passing tests with independent mastery.'
+}
+${
   (target.sourceProgress ?? [])
     .map(
       (source) =>

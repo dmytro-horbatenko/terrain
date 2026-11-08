@@ -13,6 +13,7 @@ import {
 import { latestProjectCheckpoint } from '@terrain/types';
 import curriculum from '../../../../../content/projects/web3-products.json';
 import type { Topic, TopicStatus } from '../../api/types';
+import { PracticeCard } from '../Practice/PracticeCard';
 import TodayCard from './TodayCard';
 import {
   Card,
@@ -98,6 +99,7 @@ export default function Dashboard() {
       </p>
 
       <div className="col gap-4">
+        <PracticeCard />
         <TodayCard dash={dash} />
         <div className="grid dashboard-analysis-grid">
           <Card title={currentProject ? 'Your active project' : 'Project work'}>

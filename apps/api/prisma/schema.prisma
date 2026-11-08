@@ -95,6 +95,7 @@ model User {
   topicTypes            TopicType[]
   courseImports         CourseImport[]
   projectProgress       ProjectProgress[]
+  practiceProgress      PracticeProgress[]
   skillChecks           SkillCheck[]
   sourceEvidence        SourceEvidence[]
   mcpAuthorizationCodes McpAuthorizationCode[]
@@ -135,6 +136,7 @@ model Topic {
   sourcePlan     Json?
   sourceEvidence SourceEvidence[]
   skillChecks    SkillCheck[]
+  practiceProgress PracticeProgress[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -456,4 +458,33 @@ model McpOAuthGrant {
   revokedAt DateTime?
 
   @@unique([userId, clientId])
+}
+
+// Append-only practice records; these never change FSRS or topic mastery.
+model PracticeProgress {
+  id          String @id @default(uuid())
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId     String
+  topic       Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  revision    Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  checkpoints PracticeCheckpoint[]
+
+  @@unique([userId, topicId])
+  @@index([topicId])
+}
+
+model PracticeCheckpoint {
+  id         String @id
+  progressId String
+  progress   PracticeProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  revision   Int
+  status     String
+  snapshot   Json
+  createdAt  DateTime @default(now())
+
+  @@unique([progressId, revision])
+  @@index([progressId, status])
 }

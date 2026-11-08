@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import type { CardState, PromptKind, ReviewGrade, Topic, TopicStatus } from '@prisma/client';
 import {
   learningContextSchema,
+  savedPracticeSchema,
   parseLearningOs,
   skillCheckEvidence,
   type Grade,
@@ -330,6 +331,7 @@ export class LearningContextService {
       continuation,
       targetReviews,
       skillCheckGroups,
+      practice,
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -386,6 +388,13 @@ export class LearningContextService {
           ).flatMap(skillCheckEvidence),
         })),
       ),
+      target
+        ? this.prisma.practiceCheckpoint.findFirst({
+            where: { progress: { userId, topicId: target.id } },
+            orderBy: { revision: 'desc' },
+            select: { snapshot: true, revision: true, createdAt: true },
+          })
+        : Promise.resolve(null),
     ]);
     const reviews = reviewGroups.flat() as ReviewEvidence[];
     const evidenceFor = (topicId: string): CompactEvidence => {
@@ -461,6 +470,13 @@ export class LearningContextService {
                 .filter((source) => source.reusable)
                 .map((source) => source.requirementId),
             ),
+            practice: practice
+              ? savedPracticeSchema.parse({
+                  checkpoint: practice.snapshot,
+                  revision: practice.revision,
+                  savedAt: practice.createdAt.toISOString(),
+                })
+              : null,
             continuation,
             sourceProgress,
             skillChecks: evidenceFor(target.id).skillChecks,

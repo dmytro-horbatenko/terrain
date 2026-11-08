@@ -67,11 +67,45 @@ describe('LearningContextService', () => {
       review: { findMany: jest.fn().mockResolvedValue([]) },
       sourceEvidence: { findMany: jest.fn().mockResolvedValue([]) },
       applicationEvent: { findMany: jest.fn().mockResolvedValue([]) },
+      practiceCheckpoint: { findFirst: jest.fn().mockResolvedValue(null) },
       skillCheck: { findMany: jest.fn().mockResolvedValue([]) },
     };
     service = new LearningContextService(
       prisma as PrismaService,
       new TopicWritingService(prisma as PrismaService),
+    );
+  });
+
+  it('includes owned implementation continuation in learning context without changing study state', async () => {
+    prisma.topic.findMany.mockResolvedValue([topic({ status: 'active' })]);
+    const checkpoint = {
+      version: 1,
+      id: ids.prompt,
+      topicId: ids.target,
+      expectedRevision: 0,
+      status: 'active',
+      goal: 'Implement storage journal',
+      acceptance: '',
+      artifact: '',
+      artifactVersion: '',
+      backupUrl: '',
+      command: '',
+      result: '',
+      reflection: '',
+      nextAction: 'Test rollback',
+      assistance: 'hints',
+      acceptanceMet: false,
+    };
+    prisma.practiceCheckpoint.findFirst.mockResolvedValue({
+      snapshot: checkpoint,
+      revision: 1,
+      createdAt: new Date('2026-11-01T10:00:00Z'),
+    });
+    const context = await service.context('user-a', { topic: ids.target });
+    expect(context.target?.practice?.checkpoint.nextAction).toBe('Test rollback');
+    expect(context.target?.status).toBe('active');
+    expect(prisma.practiceCheckpoint.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { progress: { userId: 'user-a', topicId: ids.target } } }),
     );
   });
 

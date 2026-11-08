@@ -9,6 +9,7 @@ import Roadmap from '../screens/Roadmap';
 import ExportScreen from '../screens/Export';
 import ImportScreen from '../screens/Import';
 import CoursesScreen from '../screens/Courses';
+import PracticeScreen from '../screens/Practice';
 import ProjectsScreen from '../screens/Projects';
 import Settings from '../screens/Settings';
 import OAuthAuthorize from '../screens/OAuthAuthorize';
@@ -62,6 +63,17 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
   component: Settings,
+});
+
+const practiceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/practice',
+  component: PracticeScreen,
+});
+const practiceLessonRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/practice/$topicId',
+  component: PracticeScreen,
 });
 
 const projectsRoute = createRoute({
@@ -147,6 +159,8 @@ const routeTree = rootRoute.addChildren([
   exportRoute,
   importRoute,
   coursesRoute,
+  practiceRoute,
+  practiceLessonRoute,
   projectsRoute,
   projectRoute,
   settingsRoute,
